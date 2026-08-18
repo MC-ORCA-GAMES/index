@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASTRION — Karten aus den Tiefen des Alls</title>
+<meta name="description" content="ASTRION: Ein Karten-Sammelspiel für den Browser — Booster öffnen, Decks bauen, im KI-Gefecht antreten. Mit der Sternen-Akademie üben Kinder nebenbei Deutsch und Mathe und verdienen sich damit neue Karten.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05060c; --bg2:#0b0e1a; --panel:rgba(16,18,32,0.92); --line:#242840;
+    --gold:#e8b64a; --gold-soft:rgba(232,182,74,0.35); --gold-dim:#9490ab;
+    --purple:#7c5cff; --purple-soft:rgba(124,92,255,0.35);
+    --cream:#e7e6f0; --text-dim:#B8B4CC; --red:#ff5d5d; --green:#4ade80;
+    --c1:#8a93a6; --c2:#5da3ff; --c3:#e8b64a; --c4:#c39bff; --c5:#fff6d8;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--bg); color:var(--cream);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:17px; line-height:1.65; -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{ font-family:'Cinzel',serif; font-weight:700; letter-spacing:0.5px; color:var(--gold); margin:0; }
+  .mono{ font-family:'Inter',sans-serif; }
+  a{ color:inherit; }
+  ::selection{ background:var(--gold); color:#05060c; }
+  :focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+
+  .eyebrow{
+    font-family:'Inter',sans-serif; font-size:11px; font-weight:600; letter-spacing:3px; text-transform:uppercase;
+    color:var(--gold-dim); display:flex; align-items:center; gap:10px; margin-bottom:18px;
+  }
+  .eyebrow::before{ content:""; width:22px; height:1px; background:var(--gold-soft); display:inline-block; }
+
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.6; pointer-events:none; }
+
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 28px; position:relative; z-index:2; }
+  section{ position:relative; z-index:2; }
+
+  /* ---------- Top nav ---------- */
+  .topnav{
+    position:fixed; top:0; left:0; right:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 28px; backdrop-filter:blur(6px); background:linear-gradient(180deg, rgba(5,6,12,0.88), rgba(5,6,12,0));
+  }
+  .topnav .logo{ font-family:'Cinzel',serif; font-weight:700; font-size:19px; color:var(--gold); letter-spacing:1px; }
+  .topnav .logo span{ color:var(--purple); }
+  .topnav .navlinks{ display:flex; gap:26px; font-family:'Inter',sans-serif; font-size:12px; letter-spacing:1px; }
+  .topnav .navlinks a{ color:var(--gold-dim); text-decoration:none; transition:color .15s; }
+  .topnav .navlinks a:hover{ color:var(--gold); }
+  .topnav .navcta{
+    font-family:'Inter',sans-serif; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
+    padding:8px 16px; border-radius:8px; border:1px solid var(--gold-soft); color:var(--gold); text-decoration:none;
+    transition:background .15s,border-color .15s;
+  }
+  .topnav .navcta:hover{ background:#1a1530; border-color:var(--gold); }
+  .topnav .navctas{ display:flex; align-items:center; gap:10px; }
+
+  .nav-toggle-checkbox{ display:none; }
+  .nav-toggle-btn{ display:none; }
+  @media (max-width:720px){
+    .nav-toggle-btn{
+      display:flex; align-items:center; justify-content:center; flex:none;
+      width:36px; height:36px; border:1px solid var(--gold-soft); border-radius:8px;
+      color:var(--gold); font-size:16px; cursor:pointer; background:#0b0e1a;
+    }
+    .topnav .navlinks{
+      position:absolute; top:100%; left:0; right:0; margin:0;
+      flex-direction:column; gap:0;
+      background:#05060c; border-top:1px solid var(--line);
+      max-height:0; overflow:hidden; transition:max-height .25s ease;
+    }
+    .topnav .navlinks a{ padding:15px 28px; border-bottom:1px solid var(--line); font-size:13px; }
+    .nav-toggle-checkbox:checked ~ .navlinks{ max-height:340px; }
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase;
+    padding:15px 28px; border-radius:10px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:10px;
+    border:1px solid var(--gold-soft); background:#12142a; color:var(--cream);
+    transition:border-color .15s, background .15s, transform .15s;
+  }
+  .btn:hover{ border-color:var(--gold); background:#191c38; transform:translateY(-1px); }
+  .btn.primary{ background:linear-gradient(135deg,var(--purple),#5a3fd9); border-color:var(--purple); color:#fff; }
+  .btn.primary:hover{ box-shadow:0 0 24px -6px rgba(124,92,255,0.6); }
+
+  /* ---------- Hero ---------- */
+  .hero{
+    min-height:100svh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:140px 28px 80px; overflow:hidden;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(124,92,255,0.14) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgba(232,182,74,0.09) 0%, transparent 50%);
+  }
+  .hero-inner{ position:relative; z-index:3; max-width:760px; }
+  .hero .eyebrow{ justify-content:center; }
+  .hero .eyebrow::before,.hero .eyebrow::after{ content:""; width:22px; height:1px; background:var(--gold-soft); }
+  .hero h1{ font-size:clamp(48px,9vw,96px); line-height:0.95; letter-spacing:4px; }
+  .hero h1 span{ color:var(--purple); }
+  .hero .sub{ font-family:'Cinzel',serif; font-size:clamp(14px,2vw,18px); color:var(--gold-dim); letter-spacing:2px; text-transform:uppercase; margin-top:14px; }
+  .hero p.pitch{ margin:28px auto 0; max-width:560px; font-size:18px; color:var(--text-dim); }
+  .hero .ctas{ display:flex; gap:16px; justify-content:center; margin-top:38px; flex-wrap:wrap; }
+  .hero .meta{
+    margin-top:34px; font-family:'Inter',sans-serif; font-size:11px; letter-spacing:1px; color:var(--gold-dim);
+    display:flex; gap:18px; justify-content:center; flex-wrap:wrap;
+  }
+  .hero .meta b{ color:var(--green); font-weight:600; }
+  .scroll-hint{
+    position:absolute; bottom:28px; left:50%; transform:translateX(-50%);
+    font-family:'Inter',sans-serif; font-size:10px; letter-spacing:3px; color:var(--gold-dim);
+    text-transform:uppercase; animation:pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{opacity:0.35;} 50%{opacity:0.9;} }
+
+  /* ---------- Reveal ---------- */
+  .reveal{ opacity:0; transform:translateY(28px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in{ opacity:1; transform:none; }
+
+  /* ---------- Section shell ---------- */
+  .section{ padding:110px 0; border-top:1px solid var(--line); }
+  .section .head{ max-width:600px; margin-bottom:56px; }
+  .section .head h2{ font-size:clamp(28px,4vw,40px); line-height:1.1; }
+  .section .head p{ color:var(--text-dim); margin-top:16px; font-size:17px; }
+
+  /* ---------- Feature grid ---------- */
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  @media (max-width:860px){ .grid3{ grid-template-columns:1fr; } }
+  .card{
+    position:relative; overflow:hidden;
+    background:#0e1020; border:1px solid var(--line); border-radius:14px;
+    transition:border-color .2s, transform .2s; padding:28px 26px;
+  }
+  .card:hover{ border-color:var(--gold-soft); transform:translateY(-3px); }
+  .card .icon{ font-size:26px; display:block; margin-bottom:16px; }
+  .card h3{ font-size:18px; color:var(--gold); font-family:'Cinzel',serif; }
+  .card p{ color:var(--text-dim); font-size:15px; margin-top:10px; }
+
+  /* ---------- Rarity showcase ---------- */
+  .rarities{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-top:10px; }
+  @media (max-width:860px){ .rarities{ grid-template-columns:repeat(2,1fr); } }
+  .rcard{
+    position:relative; text-align:center; padding:26px 12px; border-radius:12px;
+    background:#0e1020; border:1px solid var(--line); overflow:hidden;
+  }
+  .rcard .swatch{ width:38px; height:38px; border-radius:50%; margin:0 auto 14px; }
+  .rcard .name{ font-family:'Cinzel',serif; font-size:14px; color:var(--cream); }
+  .rcard .odds{ font-family:'Inter',sans-serif; font-size:11px; color:var(--gold-dim); margin-top:6px; letter-spacing:0.5px; }
+  .rcard.c1 .swatch{ background:var(--c1); box-shadow:0 0 16px rgba(138,147,166,0.5); }
+  .rcard.c2 .swatch{ background:var(--c2); box-shadow:0 0 16px rgba(93,163,255,0.5); }
+  .rcard.c3 .swatch{ background:var(--c3); box-shadow:0 0 16px rgba(232,182,74,0.55); }
+  .rcard.c4 .swatch{ background:var(--c4); box-shadow:0 0 18px rgba(147,92,255,0.7); }
+  .rcard.c5 .swatch{ background:var(--c5); box-shadow:0 0 20px rgba(255,246,216,0.8); }
+
+  /* ---------- Booster demo ---------- */
+  .demo-widget{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:34px 30px; text-align:center;
+  }
+  .pack{
+    width:170px; height:240px; margin:0 auto 26px; border-radius:16px; cursor:pointer;
+    background:linear-gradient(150deg,#3b2a7a 0%,#7c5cff 45%,#e8b64a 100%);
+    border:2px solid rgba(255,255,255,0.25); position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 12px 30px -10px rgba(124,92,255,0.45), inset 0 0 40px rgba(255,255,255,0.12);
+    transition:transform .2s;
+  }
+  .pack:hover{ transform:translateY(-4px) scale(1.02); }
+  .pack.opened{ opacity:0.35; pointer-events:none; }
+  .pack img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .pack .pack-fallback{ font-size:38px; position:relative; z-index:1; }
+  .pack .pack-label{
+    position:absolute; bottom:12px; left:0; right:0; text-align:center; z-index:1;
+    font-family:'Cinzel',serif; font-weight:700; font-size:12px; letter-spacing:2px; color:#fff;
+    text-shadow:0 2px 6px rgba(0,0,0,0.6);
+  }
+  .demo-reveal{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; min-height:190px; align-items:flex-start; }
+  .demo-card{
+    width:96px; opacity:0; transform:translateY(14px) scale(0.85); transition:opacity .4s, transform .4s;
+  }
+  .demo-card.show{ opacity:1; transform:none; }
+  .demo-tcg{ position:relative; width:100%; aspect-ratio:1024/1536; border-radius:10px; overflow:hidden;
+    background:linear-gradient(160deg,#1c1e2e,#0d0e18); box-shadow:0 6px 18px -6px rgba(0,0,0,0.5); }
+  .demo-tcg.r1{ background:linear-gradient(160deg,#2b3040,#171a26); }
+  .demo-tcg.r2{ background:linear-gradient(160deg,#1c3352,#0f1a2c); }
+  .demo-tcg.r3{ background:linear-gradient(160deg,#4a3714,#241a08); }
+  .demo-tcg.r4{ background:linear-gradient(120deg,#1a0b33,#5da3ff,#e8b64a,#7c5cff,#1a0b33);
+    background-size:400% 400%; animation:demoshine 5s ease infinite; }
+  .demo-tcg.r5{ background:linear-gradient(120deg,#fff6d8,#e8b64a,#c39bff,#5da3ff,#fff6d8);
+    background-size:400% 400%; animation:demoshine 2.8s ease infinite;
+    box-shadow:inset 0 0 0 2px rgba(255,246,216,0.5); }
+  @keyframes demoshine{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .demo-tcg .d-art{ position:absolute; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#0e1020; }
+  .demo-tcg .d-art img{ width:100%; height:100%; object-fit:cover; }
+  .demo-tcg .d-art .d-art-fallback{ font-size:1.4em; opacity:0.5; }
+  .demo-tcg .d-frame{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .demo-tcg .d-rarity{ position:absolute; left:50%; bottom:3%; transform:translateX(-50%);
+    font-size:9px; color:var(--gold); letter-spacing:1px; text-shadow:0 1px 2px #000; z-index:6; }
+  .demo-card .d-name{ margin-top:8px; font-family:'Cinzel',serif; font-size:11px; text-align:center; color:var(--cream); }
+  .demo-card .d-race{ font-family:'Inter',sans-serif; font-size:9.5px; text-align:center; color:var(--gold-dim); margin-top:2px; }
+  .demo-note{ font-size:12px; color:var(--gold-dim); font-style:italic; margin-top:22px; }
+  .demo-hint{ font-family:'Inter',sans-serif; font-size:12px; color:var(--gold-dim); margin-top:6px; letter-spacing:0.5px; }
+
+  /* ---------- Akademie spotlight ---------- */
+  .akademie{ display:grid; grid-template-columns:1.1fr 0.9fr; gap:56px; align-items:center; }
+  @media (max-width:900px){ .akademie{ grid-template-columns:1fr; } }
+  .akademie-list{ display:flex; flex-direction:column; gap:16px; margin-top:26px; }
+  .akademie-list .row{ display:flex; gap:14px; align-items:flex-start; }
+  .akademie-list .row .dot{
+    width:8px; height:8px; border-radius:50%; background:var(--purple); margin-top:8px; flex:none;
+    box-shadow:0 0 8px var(--purple-soft);
+  }
+  .akademie-list .row div{ font-size:14.5px; color:var(--text-dim); line-height:1.55; }
+  .akademie-list .row b{ color:var(--cream); }
+  .akademie-panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:30px;
+  }
+  .akq{ font-family:'Cinzel',serif; font-size:19px; color:var(--cream); margin-bottom:18px; }
+  .akq-opts{ display:flex; flex-direction:column; gap:10px; }
+  .akq-opt{
+    display:flex; align-items:center; gap:12px; background:#0e1020; border:1px solid var(--line);
+    border-radius:10px; padding:12px 16px; font-size:14px; color:var(--text-dim);
+  }
+  .akq-opt .em{ font-size:20px; }
+  .akq-opt.right{ border-color:rgba(74,222,128,0.5); color:var(--green); }
+  .akq-badge{
+    display:inline-flex; align-items:center; gap:6px; font-family:'Inter',sans-serif; font-size:11px;
+    color:var(--gold); background:rgba(232,182,74,0.1); border:1px solid var(--gold-soft);
+    padding:6px 12px; border-radius:20px; margin-top:20px;
+  }
+
+  /* ---------- Trust chips ---------- */
+  .chiprow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
+  .chip{
+    font-family:'Inter',sans-serif; font-size:11.5px; padding:8px 14px; border-radius:20px;
+    border:1px solid var(--line); color:var(--text-dim); background:#0e1020;
+  }
+  .chip.gold{ border-color:var(--gold-soft); color:var(--gold); }
+
+  /* ---------- Chronicle pull-quote ---------- */
+  .chronicle{
+    background:radial-gradient(ellipse at top, #14102c, var(--bg));
+    border:1px solid var(--line); border-radius:18px; padding:56px 48px; position:relative; overflow:hidden;
+  }
+  .chronicle::before{
+    content:"✦"; position:absolute; top:-40px; right:10px; font-family:'Cinzel',serif; font-size:220px;
+    color:var(--gold); opacity:0.05; pointer-events:none;
+  }
+  .chronicle .eyebrow{ color:var(--gold); }
+  .chronicle blockquote{
+    margin:0; font-style:italic; font-size:clamp(19px,2.4vw,25px); line-height:1.55; color:#EAD9F0;
+    max-width:640px;
+  }
+  .chronicle .attrib{ margin-top:22px; font-family:'Inter',sans-serif; font-size:12px; color:var(--gold-dim); }
+
+  /* ---------- Final CTA ---------- */
+  .finalcta{ text-align:center; padding:130px 0 100px; }
+  .finalcta h2{ font-size:clamp(30px,5vw,46px); }
+  .finalcta p{ color:var(--text-dim); max-width:480px; margin:18px auto 0; }
+  .finalcta .ctas{ display:flex; gap:16px; justify-content:center; margin-top:34px; flex-wrap:wrap; }
+
+  footer{
+    border-top:1px solid var(--line); padding:32px 0 40px; text-align:center;
+    font-family:'Inter',sans-serif; font-size:11px; color:var(--gold-dim); letter-spacing:0.5px;
+  }
+  footer a{ color:var(--gold-dim); }
+  footer .fver{ color:var(--gold); }
+
+  @media (prefers-reduced-motion:reduce){
+    html{ scroll-behavior:auto; }
+    .scroll-hint{ animation:none !important; }
+    .reveal{ transition:none; opacity:1; transform:none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<div class="topnav">
+  <div class="logo" id="navLogo">ASTRION<span>.</span></div>
+  <input type="checkbox" id="navToggle" class="nav-toggle-checkbox">
+  <div class="navlinks">
+    <a href="#sammeln">Sammeln</a>
+    <a href="#raritaeten">Raritäten</a>
+    <a href="#akademie">Akademie</a>
+    <a href="#gefecht">Gefecht</a>
+  </div>
+  <div class="navctas">
+    <a href="game.html" class="navcta">Spielen</a>
+    <label for="navToggle" class="nav-toggle-btn" aria-label="Menü öffnen/schließen">☰</label>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">KARTEN-SAMMELSPIEL · KOSTENLOS · KEIN DOWNLOAD</div>
+    <h1>ASTRION<span>.</span></h1>
+    <div class="sub">Karten aus den Tiefen des Alls</div>
+    <p class="pitch">Öffne Booster, baue dein Deck und tritt im KI-Gefecht an — und nebenbei
+      übt die Sternen-Akademie mit dir Deutsch und Mathe, komplett spielerisch verpackt.</p>
+    <div class="ctas">
+      <a href="game.html" class="btn primary">Jetzt spielen</a>
+      <a href="#akademie" class="btn">Sternen-Akademie ansehen</a>
+    </div>
+    <div class="meta">
+      <span>Erste Serie: <b>„Erwachen der Sterne“</b></span>
+      <span>80 Karten</span>
+      <span>5 Raritätsstufen</span>
+    </div>
+  </div>
+  <div class="scroll-hint">Scrollen</div>
+</section>
+
+<section class="section reveal" id="sammeln">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">EIN BLICK INS SPIEL</div>
+      <h2>Kein Screenshot — öffne selbst einen Booster.</h2>
+      <p>Ein Klick genügt: Dieser Mini-Booster zeigt dir, wie sich das Ziehen im echten Spiel
+        anfühlt — mit funkelnden Raritäten von Häufig bis Sternenkern.</p>
+    </div>
+    <div class="demo-widget">
+      <div class="pack" id="demoPack">
+        <img src="art/sets/erwachen.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'pack-fallback',textContent:'🎁'}))">
+        <div class="pack-label">ERWACHEN<br>DER STERNE</div>
+      </div>
+      <div class="demo-reveal" id="demoReveal"></div>
+      <div class="demo-hint" id="demoHint">Tippe auf den Booster</div>
+    </div>
+    <p class="demo-note">Diese Demo ist eine vereinfachte Nachbildung zur Veranschaulichung —
+      im echten Spiel warten 80 Karten der Serie „Erwachen der Sterne“ auf dich.</p>
+  </div>
+</section>
+
+<section class="section reveal">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">DEINE SAMMLUNG</div>
+      <h2>Sammeln. Bauen. Antreten.</h2>
+      <p>Jede Karte ist Teil eines größeren Ganzen — vom ersten Booster bis zum Deck, mit dem
+        du ins Gefecht ziehst.</p>
+    </div>
+    <div class="grid3">
+      <div class="card">
+        <span class="icon">🃏</span>
+        <h3>Sternenmarkt &amp; Booster</h3>
+        <p>Öffne Booster-Packs der Serie „Erwachen der Sterne“ und vervollständige deine
+          Sammlung — inklusive Foil-Varianten mit besonderem Glanz.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🧩</span>
+        <h3>Deckbuilder</h3>
+        <p>Wähle 5 bis 12 Karten aus deiner Sammlung für dein Kampfdeck. Jede Karte zählt nur
+          einmal, egal wie viele Kopien du besitzt — Strategie statt Masse.</p>
+      </div>
+      <div class="card" id="gefecht">
+        <span class="icon">⚔️</span>
+        <h3>KI-Gefecht</h3>
+        <p>Tritt mit deinem Deck gegen die KI an, verdiene AC für Siege und schalte damit
+          weitere Booster für deine Sammlung frei.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="raritaeten">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">RARITÄTSSTUFEN</div>
+      <h2>Nicht jede Karte ist gleich selten.</h2>
+      <p>Fünf Stufen, vom soliden Grundstock deiner Sammlung bis zum seltenen Sternenkern, der
+        jeden Booster zu einem kleinen Ereignis macht.</p>
+    </div>
+    <div class="rarities">
+      <div class="rcard c1"><div class="swatch"></div><div class="name">Häufig</div><div class="odds">Grundstock</div></div>
+      <div class="rcard c2"><div class="swatch"></div><div class="name">Ungewöhnlich</div><div class="odds">solide Ausbeute</div></div>
+      <div class="rcard c3"><div class="swatch"></div><div class="name">Selten</div><div class="odds">schöner Fund</div></div>
+      <div class="rcard c4"><div class="swatch"></div><div class="name">Urform</div><div class="odds">🌌 ultraselten</div></div>
+      <div class="rcard c5"><div class="swatch"></div><div class="name">Sternenkern</div><div class="odds">⭐ mega-selten</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="akademie">
+  <div class="wrap">
+    <div class="akademie">
+      <div>
+        <div class="eyebrow">🧠 STERNEN-AKADEMIE</div>
+        <h2>Nebenbei lernen, ohne dass es wie Lernen aussieht.</h2>
+        <p style="color:var(--text-dim); margin-top:16px; font-size:17px;">Direkt im Hub wartet
+          ein Lernmodul für Deutsch und Mathe auf Grundschulniveau — jede richtige Antwort
+          bringt AC, mit dem sich neue Booster kaufen lassen.</p>
+        <div class="akademie-list">
+          <div class="row"><div class="dot"></div><div><b>Mathe:</b> Zehnerübergang, Einmaleins, Uhrzeit lesen, Rechenketten und mehr — live generiert statt aus festem Aufgabenpool.</div></div>
+          <div class="row"><div class="dot"></div><div><b>Deutsch:</b> Anlaute, Silben, Reime, Groß­schreibung, Wortarten und Lesen — mit Bildern statt Lese-Hürde für Erstleser.</div></div>
+          <div class="row"><div class="dot"></div><div><b>Vorlese-Hilfe:</b> Aufgaben werden automatisch vorgelesen, mit „Nochmal vorlesen“-Button — kein Kind bleibt an einer Frage hängen, die es noch nicht lesen kann.</div></div>
+          <div class="row"><div class="dot"></div><div><b>Belohnung:</b> 5 AC pro richtiger Antwort, plus Bonus für eine perfekte Runde — die verdienten AC fließen direkt zurück in die Kartensammlung.</div></div>
+        </div>
+        <div class="akq-badge">🔒 Keine Registrierung, keine Werbung, keine Daten verlassen das Gerät</div>
+      </div>
+      <div class="akademie-panel">
+        <div class="akq">Welches Zeichen fehlt? 5 __ 3 = 8</div>
+        <div class="akq-opts">
+          <div class="akq-opt"><span class="em">➖</span> Minus</div>
+          <div class="akq-opt right"><span class="em">➕</span> Plus</div>
+          <div class="akq-opt"><span class="em">✖️</span> Mal</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">TÄGLICH DABEI</div>
+      <h2>Jeden Tag eine kleine Überraschung.</h2>
+      <p>Ein Login-Bonus, der sich über eine Woche steigert — von AC und Tauschmarken bis zum
+        Booster am siebten Tag.</p>
+    </div>
+    <div class="chiprow">
+      <span class="chip gold">Tägliche AC-Belohnung</span>
+      <span class="chip">Tauschmarken</span>
+      <span class="chip">Gratis-Booster am 7. Tag</span>
+      <span class="chip">Streak-Bonus</span>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="chronik">
+  <div class="wrap">
+    <div class="chronicle">
+      <div class="eyebrow">AUS DEN TIEFEN DES ALLS</div>
+      <blockquote>„Jede Karte ist ein Stern, der irgendwann erlosch — und in deiner Sammlung
+        noch einmal zu leuchten beginnt.“</blockquote>
+      <div class="attrib">— Vorwort, „Erwachen der Sterne“</div>
+    </div>
+  </div>
+</section>
+
+<section class="finalcta reveal" id="start">
+  <div class="wrap">
+    <div class="eyebrow" style="justify-content:center">BEREIT ZUM SAMMELN?</div>
+    <h2>Dein erster Booster wartet.</h2>
+    <p>Keine Installation, kein Konto bei Dritten — öffnen und spielen.</p>
+    <div class="ctas">
+      <a href="game.html" class="btn primary">Jetzt spielen</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">ASTRION — Karten aus den Tiefen des Alls · <a href="game.html" style="color:var(--gold-dim)">Spielen</a> · <a href="impressum.html" style="color:var(--gold-dim)">Impressum &amp; Datenschutz</a></div>
+</footer>
+
+<script>
+/* ---------- Mobiles Nav-Menü: nach Linkklick automatisch schließen ---------- */
+(function(){
+  const toggle = document.getElementById('navToggle');
+  document.querySelectorAll('.navlinks a').forEach(a => {
+    a.addEventListener('click', () => { toggle.checked = false; });
+  });
+})();
+
+/* ---------- Starfield ---------- */
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], w, h;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    const count = Math.min(260, Math.floor((w*h)/9000));
+    stars = Array.from({length:count}, () => ({
+      x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.3+0.2,
+      p: Math.random()*Math.PI*2, s: Math.random()*0.015+0.005
+    }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#E7E6F0';
+    stars.forEach(st=>{
+      const tw = reduced ? 0.7 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.15 + tw*0.55;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if(!reduced) requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+  if(reduced) draw(0);
+})();
+
+/* ---------- Scroll reveal ---------- */
+(function(){
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+  }, { threshold:0.12 });
+  document.querySelectorAll('.reveal').forEach(el=> io.observe(el));
+})();
+
+/* ---------- Mini Booster-Demo ----------
+   Nutzt dieselben Assets/Koordinaten wie astrion game.html: echte
+   Rassen-Rahmen (art/frame/<race>.png), das pro Rahmen vermessene
+   Kartenfenster (RACE_ART_BOX), das passende Seitenverhältnis
+   (RACE_ASPECT) und den echten automatischen Bildpfad
+   (art/sets/cards/erwachen/<id>.png). Fehlt eine Bilddatei noch,
+   greift wie im Spiel automatisch der Emoji-Fallback (onerror). */
+(function(){
+  const pack = document.getElementById('demoPack');
+  const reveal = document.getElementById('demoReveal');
+  const hint = document.getElementById('demoHint');
+
+  const RACE_FRAME = {
+    human:    "art/frame/human.png",
+    silicae:  "art/frame/silicae.png",
+    synthide: "art/frame/synthide.png",
+    solenari: "art/frame/solenari.png",
+  };
+  const RACE_ART_BOX = {
+    human:    { left:20.1, top:26.0, width:59.8, height:34.3 },
+    silicae:  { left:19.8, top:23.1, width:60.1, height:36.1 },
+    synthide: { left:19.8, top:23.0, width:60.0, height:36.1 },
+    solenari: { left:18.5, top:22.7, width:63.1, height:37.6 },
+  };
+  const RACE_ASPECT = {
+    human:    "1024/1521",
+    silicae:  "1024/1478",
+    synthide: "1023/1476",
+    solenari: "1022/1470",
+  };
+  const RACE_LABEL = { human:"Menschen", silicae:"Silicae", synthide:"Synthiden", solenari:"Solenari" };
+  const RARITY_STARS = {1:"★",2:"★★",3:"★★★",4:"★★★★",5:"★★★★★"};
+  const TYPE_ICON = { "Schiff":"🚀","Fraktion":"🛡️","Ort":"🪐","Artefakt":"🔮","Mythos":"✨","Tier":"🐾" };
+
+  function cardImgPath(id){
+    return `art/sets/cards/erwachen/${String(id).padStart(3,'0')}.png`;
+  }
+  // Feste Ziehung mit echten Karten-IDs/Namen aus dem Set "Erwachen der
+  // Sterne" (game.html) — eine pro Rasse plus eine Urform-Karte, damit die
+  // Demo genau die Rahmen/Fenster/Bildpfade zeigt, die im Spiel selbst
+  // verwendet werden. Karte 5 wechselt selten zu einer Sternenkern-Karte,
+  // genau wie der seltene Bonus-Layer im echten Booster.
+  const DEMO_POOL = [
+    { id:1,  race:"human",    type:"Ort",    rarity:1, name:"Terra" },
+    { id:21, race:"silicae",  type:"Ort",    rarity:1, name:"Kristallwelt Sil'Kara" },
+    { id:44, race:"synthide", type:"Ort",    rarity:2, name:"Eiswelt Cryonis" },
+    { id:75, race:"solenari", type:"Mythos", rarity:3, name:"Die letzte Frequenz" },
+    { id:81, race:"human",    type:"Tier",   rarity:4, name:"Urform: Tundra-Bär" },
+  ];
+  const BONUS_CARD = { id:90, race:"silicae", type:"Mythos", rarity:5, name:"Sternenkern: Sil'Kara-Wurm" };
+
+  function demoCardEl(card){
+    const frameImg = RACE_FRAME[card.race];
+    const box = RACE_ART_BOX[card.race];
+    const aspect = RACE_ASPECT[card.race];
+    const artStyle = `left:${box.left}%;top:${box.top}%;width:${box.width}%;height:${box.height}%;`;
+    const wrap = document.createElement('div');
+    wrap.className = 'demo-card';
+    wrap.innerHTML = `
+      <div class="demo-tcg r${card.rarity}" style="aspect-ratio:${aspect};">
+        <div class="d-art" style="${artStyle}">
+          <img src="${cardImgPath(card.id)}" alt=""
+               onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'d-art-fallback',textContent:'${TYPE_ICON[card.type]||'✦'}'}))">
+        </div>
+        <img class="d-frame" src="${frameImg}" alt="">
+        <div class="d-rarity">${RARITY_STARS[card.rarity]}</div>
+      </div>
+      <div class="d-name">${card.name}</div>
+      <div class="d-race">${RACE_LABEL[card.race]} · ${card.type}</div>`;
+    return wrap;
+  }
+
+  let opened = false;
+  pack.addEventListener('click', ()=>{
+    if(opened) return;
+    opened = true;
+    pack.classList.add('opened');
+    hint.textContent = 'Deine Ziehung:';
+    reveal.innerHTML = '';
+
+    const draw = DEMO_POOL.slice();
+    if(Math.random() < 0.12) draw[4] = BONUS_CARD; // seltener Sternenkern-Bonus statt Urform
+
+    draw.forEach((card, i)=>{
+      const el = demoCardEl(card);
+      reveal.appendChild(el);
+      setTimeout(()=> el.classList.add('show'), 120 + i*160);
+    });
+    setTimeout(()=>{
+      hint.innerHTML = 'Nochmal? <a href="game.html" style="color:var(--gold)">Im echten Spiel weiterziehen →</a>';
+    }, 120 + draw.length*160 + 200);
+  });
+})();
+</script>
+
+</body>
+</html>

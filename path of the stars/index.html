@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PATH OF THE STARS — Drifting Worlds</title>
+<meta name="description" content="PATH OF THE STARS: Drifting Worlds — ein MC ORCA Games Projekt. Browserbasiertes Weltraumspiel ohne Download. Fliehe an Bord der wandernden Erde vor einer sterbenden Sonne, handle zwischen den Sternen und verfolge ein uraltes Signal, während draußen Jahrtausende vergehen.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@400;500;600;700&display=swap');
+  @import url('fonts/fonts.css');
+
+  :root{
+    /* ---- Neon-Noir-Comic-Palette 1:1 aus game.html ---- */
+    --bg:#050505; --bg2:#0A0A0A; --panel:rgba(14,12,12,0.94); --panel2:rgba(20,16,14,0.94); --line:#3A3632;
+    --cyan:#E8B64A; --cyan-soft:rgba(232,182,74,0.35); --cyan-dim:#8A8276;
+    --cream:#E8E2D4; --amber:#E8B64A; --red:#C81E2C; --violet:#9B8CD9;
+    --ink:#000;
+    --comic:'Bangers','Oswald',var(--mono);
+    --mono:'Consolas','SFMono-Regular',ui-monospace,Menlo,monospace;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--bg); color:var(--cream);
+    font-family:'Oswald',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:17px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{ font-family:var(--comic); font-weight:400; letter-spacing:1px; color:var(--cyan); margin:0;
+    text-shadow:1px 1px 0 rgba(0,0,0,0.8), 2px 2px 0 rgba(0,0,0,0.6); }
+  .mono{ font-family:var(--mono); }
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:3px; text-transform:uppercase;
+    color:var(--cyan-dim); display:flex; align-items:center; gap:10px; margin-bottom:18px;
+  }
+  .eyebrow::before{ content:""; width:22px; height:1px; background:var(--cyan-soft); display:inline-block; }
+  a{ color:inherit; }
+  ::selection{ background:var(--cyan); color:#0A0A0A; }
+  :focus-visible{ outline:2px solid var(--cyan); outline-offset:3px; }
+
+  /* ---------- Ink/Halftone-Overlay (wie game.html #inkOverlay) ---------- */
+  #inkOverlay{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:
+      radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 42%, rgba(0,0,0,0.5) 100%),
+      repeating-radial-gradient(circle at 0 0, rgba(0,0,0,0.3) 0 1px, rgba(0,0,0,0) 1px 3px);
+    background-size:100% 100%, 4px 4px;
+    mix-blend-mode:multiply;
+  }
+  #inkOverlay::after{
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(180deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, rgba(0,0,0,0) 1px, rgba(0,0,0,0) 3px);
+    mix-blend-mode:overlay;
+  }
+
+  /* ---------- Starfield ---------- */
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.55; pointer-events:none; }
+
+  /* ---------- Shell ---------- */
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 28px; position:relative; z-index:2; }
+  section{ position:relative; z-index:2; }
+
+  /* ---------- Top nav ---------- */
+  .topnav{
+    position:fixed; top:0; left:0; right:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 28px; backdrop-filter:blur(6px); background:linear-gradient(180deg, rgba(5,5,5,0.88), rgba(5,5,5,0));
+  }
+  .topnav .logo{ font-family:var(--comic); font-weight:700; font-size:18px; color:var(--cyan); letter-spacing:1px; position:relative; z-index:2; white-space:nowrap;
+    -webkit-text-stroke:1px var(--ink); text-shadow:0 0 8px rgba(232,182,74,0.4), 1px 1px 0 rgba(0,0,0,0.8); }
+  .topnav .logo span{ color:var(--red); }
+  .topnav .logo img{ height:80px; width:auto; display:block; margin:-26px 0; position:relative; }
+  @media (max-width:720px){ .topnav .logo img{ height:56px; margin:-14px 0; } }
+  .topnav .navlinks{ display:flex; gap:24px; font-family:var(--mono); font-size:12px; letter-spacing:1px; }
+  .topnav .navlinks a{ color:var(--cyan-dim); text-decoration:none; transition:color .15s; }
+  .topnav .navlinks a:hover{ color:var(--cyan); }
+  .topnav .navcta{
+    font-family:var(--mono); font-size:11px; letter-spacing:1px; text-transform:uppercase;
+    padding:8px 16px; border-radius:8px; border:1px solid var(--cyan-soft); color:var(--cyan); text-decoration:none;
+    transition:background .15s,border-color .15s;
+  }
+  .topnav .navcta:hover{ background:#17110F; border-color:var(--cyan); }
+  .topnav .navctas{ display:flex; align-items:center; gap:10px; }
+
+  .nav-toggle-checkbox{ display:none; }
+  .nav-toggle-btn{ display:none; }
+  @media (max-width:720px){
+    .nav-toggle-btn{
+      display:flex; align-items:center; justify-content:center; flex:none;
+      width:36px; height:36px; border:1px solid var(--cyan-soft); border-radius:8px;
+      color:var(--cyan); font-size:16px; cursor:pointer; background:#100C0B;
+    }
+    .topnav .navlinks{
+      position:absolute; top:100%; left:0; right:0; margin:0;
+      flex-direction:column; gap:0;
+      background:#050505; border-top:1px solid var(--line);
+      max-height:0; overflow:hidden; transition:max-height .25s ease;
+    }
+    .topnav .navlinks a{ padding:15px 28px; border-bottom:1px solid var(--line); font-size:13px; }
+    .nav-toggle-checkbox:checked ~ .navlinks{ max-height:340px; }
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    font-family:var(--mono); font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
+    padding:15px 28px; border-radius:8px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:10px;
+    border:2px solid var(--ink); background:#100C0B; color:var(--cream);
+    box-shadow:0 3px 0 rgba(0,0,0,0.6);
+    transition:border-color .15s, background .15s, transform .15s;
+  }
+  .btn:hover{ border-color:var(--cyan); background:#17110F; transform:translateY(-1px); }
+  .btn.primary{ background:linear-gradient(180deg,#3A1418,#1A0808); border-color:var(--red); color:#FF8A93; }
+  .btn.primary:hover{ background:linear-gradient(180deg,#4A1A1F,#220A0A); box-shadow:0 0 24px -6px rgba(200,30,44,0.65); }
+
+  /* ---------- Hero ---------- */
+  .hero{
+    min-height:100svh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:140px 28px 80px; overflow:hidden;
+  }
+  .hero-inner{ position:relative; z-index:3; max-width:760px; }
+  .hero-logo{ display:flex; justify-content:center; margin-bottom:10px; }
+  .hero-logo img{ max-width:min(560px,88vw); height:auto; filter:drop-shadow(0 8px 40px rgba(232,182,74,0.35)); }
+  .hero-logo:empty{ display:none; }
+  .hero .eyebrow{ justify-content:center; }
+  .hero .eyebrow::before,.hero .eyebrow::after{ content:""; width:22px; height:1px; background:var(--cyan-soft); }
+  .hero h1{ font-size:clamp(40px,8vw,80px); line-height:0.98;
+    -webkit-text-stroke:1.5px var(--ink); text-shadow:0 0 18px rgba(232,182,74,0.35), 2px 2px 0 rgba(0,0,0,0.8); }
+  .hero h1 span{ color:var(--red); }
+  .hero .sub{ font-family:var(--comic); font-size:clamp(14px,2vw,18px); color:var(--cyan-dim); letter-spacing:2px; text-transform:uppercase; margin-top:14px; }
+  .hero .credit{ font-family:var(--mono); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--cyan-dim); margin-top:12px; }
+  .hero .credit a{ color:var(--cyan-dim); text-decoration:underline; text-underline-offset:3px; }
+  .hero .credit a:hover{ color:var(--cyan); }
+  .hero p.pitch{ margin:28px auto 0; max-width:580px; font-size:18px; color:#D9CFBE; }
+  .hero .ctas{ display:flex; gap:16px; justify-content:center; margin-top:38px; flex-wrap:wrap; }
+  .hero .meta{
+    margin-top:34px; font-family:var(--mono); font-size:11px; letter-spacing:1px; color:var(--cyan-dim);
+    display:flex; gap:18px; justify-content:center; flex-wrap:wrap;
+  }
+  .hero .meta b{ color:var(--amber); font-weight:600; }
+  .scroll-hint{
+    position:absolute; bottom:28px; left:50%; transform:translateX(-50%);
+    font-family:var(--mono); font-size:10px; letter-spacing:3px; color:var(--cyan-dim);
+    text-transform:uppercase; animation:pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{opacity:0.35;} 50%{opacity:0.9;} }
+
+  /* ---------- Reveal ---------- */
+  .reveal{ opacity:0; transform:translateY(28px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in{ opacity:1; transform:none; }
+
+  /* ---------- Section shell ---------- */
+  .section{ padding:110px 0; border-top:1px solid var(--line); }
+  .section .head{ max-width:620px; margin-bottom:56px; }
+  .section .head h2{ font-size:clamp(28px,4vw,40px); line-height:1.1; }
+  .section .head p{ color:#B9AF9C; margin-top:16px; font-size:17px; }
+
+  /* ---------- Feature grid ---------- */
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  @media (max-width:860px){ .grid3{ grid-template-columns:1fr; } }
+  .card{
+    position:relative; overflow:hidden;
+    background:#100C0B; border:2px solid var(--ink); border-radius:14px; box-shadow:0 4px 0 rgba(0,0,0,0.5);
+    transition:border-color .2s, transform .2s;
+  }
+  .card:hover{ border-color:var(--cyan-soft); transform:translateY(-3px); }
+  .card-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
+  .card::after{
+    content:""; position:absolute; inset:0; z-index:0;
+    background:linear-gradient(180deg, rgba(5,5,5,0.25) 0%, rgba(5,5,5,0.72) 55%, rgba(5,5,5,0.96) 100%);
+  }
+  .card-body{ position:relative; z-index:1; padding:28px 26px; }
+  .card .icon{ font-size:26px; display:block; margin-bottom:16px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.9)); }
+  .card h3{ font-size:18px; color:var(--cyan); font-family:var(--comic); text-shadow:0 2px 6px rgba(0,0,0,0.95); }
+  .card p{ color:#E8E2D4; font-size:15px; margin-top:10px; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
+
+  /* ---------- Zeitreise / Bordzeit timeline ---------- */
+  .timeline{ display:flex; flex-direction:column; gap:0; margin-top:10px; border-radius:16px; overflow:hidden; border:2px solid var(--ink); }
+  .tl-row{
+    display:grid; grid-template-columns:1fr auto auto; gap:14px; align-items:center;
+    padding:20px 24px; background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  .tl-row:last-child{ border-bottom:none; }
+  .tl-row:nth-child(even){ background:var(--panel2); }
+  .tl-name{ font-family:var(--comic); color:var(--cream); font-size:15.5px; }
+  .tl-name .sysno{ color:var(--cyan-dim); font-family:var(--mono); font-size:11px; margin-right:8px; }
+  .tl-time{ font-family:var(--mono); font-size:12.5px; text-align:right; }
+  .tl-time .lbl{ display:block; color:var(--cyan-dim); font-size:10px; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
+  .tl-time.board .val{ color:var(--cyan); font-size:14.5px; }
+  .tl-time.observer .val{ color:var(--amber); font-size:14.5px; }
+  @media (max-width:640px){
+    .tl-row{ grid-template-columns:1fr; gap:8px; text-align:left; }
+    .tl-time{ text-align:left; }
+  }
+  .gap-note{ margin-top:22px; font-size:13.5px; color:var(--cyan-dim); font-style:italic; }
+
+  /* ---------- Fraktionen ---------- */
+  .factions{ display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin-top:10px; }
+  @media (max-width:760px){ .factions{ grid-template-columns:1fr; } }
+  .faction{
+    background:var(--panel); border:2px solid var(--ink); border-radius:14px; padding:26px 26px; box-shadow:0 4px 0 rgba(0,0,0,0.5);
+    border-left:3px solid var(--fc,var(--cyan)); transition:transform .2s, border-color .2s;
+  }
+  .faction:hover{ transform:translateY(-3px); }
+  .faction .fname{ font-family:var(--comic); font-size:17px; color:var(--fc,var(--cyan)); }
+  .faction .fshort{ font-family:var(--mono); font-size:10.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--cyan-dim); margin-top:2px; }
+  .faction .motto{ font-style:italic; color:#D9CFBE; font-size:14.5px; margin-top:14px; }
+  .faction .desc{ color:#B9AF9C; font-size:14px; margin-top:12px; line-height:1.6; }
+  .faction .trades{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+  .faction .trade-chip{
+    font-family:var(--mono); font-size:10.5px; padding:5px 11px; border-radius:20px;
+    border:1px solid var(--line); color:#B9AF9C;
+  }
+  .faction .trade-chip.cheap{ border-color:rgba(232,182,74,0.4); color:var(--cyan); }
+  .faction .trade-chip.dear{ border-color:rgba(200,30,44,0.4); color:#E4989E; }
+  .pirates-note{
+    margin-top:20px; display:flex; align-items:center; gap:12px; font-family:var(--mono);
+    font-size:12.5px; color:var(--cyan-dim); background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:14px 18px;
+  }
+  .pirates-note b{ color:#C81E2C; }
+
+  /* ---------- Imperium sandbox ---------- */
+  .imperium-grid{ display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; }
+  @media (max-width:900px){ .imperium-grid{ grid-template-columns:1fr; } }
+  .steps{ display:flex; flex-direction:column; gap:0; margin-top:24px; }
+  .step{ display:flex; gap:16px; padding:16px 0; border-top:1px solid var(--line); }
+  .step:first-child{ border-top:none; }
+  .step .num{
+    font-family:var(--mono); font-size:12px; color:var(--cyan); border:1px solid var(--cyan-soft);
+    border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; flex:none;
+  }
+  .step .stxt b{ color:var(--cream); font-family:var(--comic); font-weight:700; font-size:15px; }
+  .step .stxt p{ margin:4px 0 0; color:#B9AF9C; font-size:14px; }
+  .imperium-panel{
+    background:var(--panel); border:2px solid var(--ink); border-radius:16px; padding:28px; box-shadow:0 4px 0 rgba(0,0,0,0.5);
+  }
+  .imperium-panel .prow{ display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); font-family:var(--mono); font-size:13px; }
+  .imperium-panel .prow:last-child{ border-bottom:none; }
+  .imperium-panel .prow span:first-child{ color:#B9AF9C; }
+  .imperium-panel .prow span:last-child{ color:var(--cyan); }
+
+  /* ---------- Kampf / Flotten ---------- */
+  .chiprow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
+  .chip{
+    font-family:var(--mono); font-size:11.5px; padding:8px 14px; border-radius:20px;
+    border:1px solid var(--line); color:#B9AF9C; background:#100C0B;
+  }
+  .chip.cyan{ border-color:var(--cyan-soft); color:var(--cyan); }
+
+  /* ---------- Chronicle pull-quote ---------- */
+  .chronicle{
+    background:radial-gradient(ellipse at top, #241012, var(--bg));
+    border:2px solid var(--ink); border-radius:18px; padding:56px 48px; position:relative; overflow:hidden; box-shadow:0 4px 0 rgba(0,0,0,0.5);
+  }
+  .chronicle::before{
+    content:"※"; position:absolute; top:-40px; right:10px; font-family:var(--comic); font-size:200px;
+    color:var(--cyan); opacity:0.05; pointer-events:none;
+  }
+  .chronicle .eyebrow{ color:var(--cyan); }
+  .chronicle blockquote{
+    margin:0; font-style:italic; font-size:clamp(19px,2.4vw,25px); line-height:1.55; color:#E3DACB;
+    max-width:660px;
+  }
+  .chronicle .attrib{ margin-top:22px; font-family:var(--mono); font-size:12px; color:var(--cyan-dim); }
+
+  /* ---------- Weiterentwicklung ---------- */
+  .roadmap-cols{ display:grid; grid-template-columns:repeat(3,1fr); gap:22px; align-items:start; }
+  @media (max-width:900px){ .roadmap-cols{ grid-template-columns:1fr; } }
+  .roadmap-col{ background:var(--panel); border:2px solid var(--ink); border-radius:14px; padding:26px 24px; box-shadow:0 4px 0 rgba(0,0,0,0.5); }
+  .roadmap-status{
+    display:flex; align-items:center; gap:9px; font-family:var(--mono); font-size:11px;
+    letter-spacing:1.5px; text-transform:uppercase; color:var(--cyan-dim); margin-bottom:20px;
+  }
+  .roadmap-status .dot{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .roadmap-idea-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:11px; }
+  .roadmap-idea-list li{ font-size:13.5px; color:#B9AF9C; padding-left:16px; position:relative; line-height:1.5; }
+  .roadmap-idea-list li::before{ content:"–"; position:absolute; left:0; color:var(--cyan-dim); }
+  .roadmap-note{ margin-top:26px; font-size:12px; color:var(--cyan-dim); font-style:italic; }
+  .todo-note{
+    background:rgba(232,182,74,0.1); border:1px solid rgba(232,182,74,0.35); border-radius:8px;
+    padding:10px 14px; font-family:var(--mono); font-size:12px; color:#E8D8B0; margin-top:16px;
+  }
+
+  /* ---------- Final CTA ---------- */
+  .finalcta{ text-align:center; padding:130px 0 100px; }
+  .finalcta h2{ font-size:clamp(30px,5vw,46px); }
+  .finalcta p{ color:#B9AF9C; max-width:500px; margin:18px auto 0; }
+  .finalcta .ctas{ display:flex; gap:16px; justify-content:center; margin-top:34px; flex-wrap:wrap; }
+
+  footer{
+    border-top:1px solid var(--line); padding:32px 0 40px; text-align:center;
+    font-family:var(--mono); font-size:11px; color:var(--cyan-dim); letter-spacing:0.5px;
+  }
+  footer .fver{ color:var(--cyan); }
+  footer a{ color:var(--cyan-dim); }
+  footer a:hover{ color:var(--cyan); }
+
+  @media (prefers-reduced-motion:reduce){
+    html{ scroll-behavior:auto; }
+    .scroll-hint{ animation:none !important; }
+    .reveal{ transition:none; opacity:1; transform:none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div id="inkOverlay"></div>
+
+<div class="topnav">
+  <div class="logo" id="navLogo">PATH OF THE STARS<span>.</span></div>
+  <input type="checkbox" id="navToggle" class="nav-toggle-checkbox">
+  <div class="navlinks">
+    <a href="#reise">Die Reise</a>
+    <a href="#fraktionen">Fraktionen</a>
+    <a href="#imperium">Imperium</a>
+    <a href="#kampf">Kampf</a>
+    <a href="#chronik">Chronik</a>
+  </div>
+  <div class="navctas">
+    <a href="game.html" class="navcta">Spielen</a>
+    <label for="navToggle" class="nav-toggle-btn" aria-label="Menü öffnen/schließen">☰</label>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">BROWSERBASIERTE STERNENSAGA · KEIN DOWNLOAD</div>
+    <div class="hero-logo" id="heroLogo"></div>
+    <div id="heroTitleText">
+      <h1>PATH OF THE STARS<span>.</span></h1>
+      <div class="sub">Drifting Worlds</div>
+    </div>
+    <div class="credit">Ein <a href="../index.html">MC ORCA Games</a> Projekt</div>
+    <p class="pitch">Die Sonne stirbt. Die Erde flieht — als wandernde Welt, angetrieben von
+      gewaltigen Triebwerken, hinaus ins Unbekannte. Handle zwischen den Sternen, kolonisiere
+      neue Systeme und verfolge ein uraltes Signal, während an Bord nur Jahre vergehen und
+      draußen ganze Jahrtausende verstreichen.</p>
+    <div class="ctas">
+      <a href="game.html" class="btn primary">Jetzt spielen</a>
+      <a href="#reise" class="btn">Die Reise ansehen</a>
+    </div>
+    <div class="meta">
+      <span>v0_0243 <b>Open Beta</b></span>
+      <span>4 Fraktionen + Piraten</span>
+      <span>Bordzeit ≠ Beobachterzeit</span>
+    </div>
+  </div>
+  <div class="scroll-hint">Scrollen</div>
+</section>
+
+<section class="section reveal" id="reise">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">RELATIVISTISCHE REISE</div>
+      <h2>Bordzeit ist nicht Beobachterzeit.</h2>
+      <p>Während an Bord der Erde nur wenige Jahre vergehen, altert das Universum draußen um
+        Jahrtausende. Jede Zwischenstation zeigt beide Uhren — und macht spürbar, wie weit sich
+        die Menschheit von allem entfernt, was sie einmal kannte.</p>
+    </div>
+    <div class="timeline">
+      <div class="tl-row">
+        <div class="tl-name"><span class="sysno">01</span>Sol</div>
+        <div class="tl-time board"><span class="lbl">Bordzeit</span><span class="val">Jahr 0,0</span></div>
+        <div class="tl-time observer"><span class="lbl">Beobachterzeit</span><span class="val">Jahr 0</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-name"><span class="sysno">02</span>Alpha Centauri</div>
+        <div class="tl-time board"><span class="lbl">Bordzeit</span><span class="val">Jahr 2,7</span></div>
+        <div class="tl-time observer"><span class="lbl">Beobachterzeit</span><span class="val">Jahr 7.901</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-name"><span class="sysno">03</span>Barnards Stern</div>
+        <div class="tl-time board"><span class="lbl">Bordzeit</span><span class="val">Jahr 6,0</span></div>
+        <div class="tl-time observer"><span class="lbl">Beobachterzeit</span><span class="val">Jahr 17.644</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-name"><span class="sysno">04</span>Wolf 359</div>
+        <div class="tl-time board"><span class="lbl">Bordzeit</span><span class="val">Jahr 8,4</span></div>
+        <div class="tl-time observer"><span class="lbl">Beobachterzeit</span><span class="val">Jahr 24.743</span></div>
+      </div>
+    </div>
+    <div class="gap-note">Die Lücke zwischen beiden Uhren wächst mit jeder Etappe — und mit ihr
+      die Frage, wer oder was noch dort draußen auf die wandernde Erde wartet.</div>
+  </div>
+</section>
+
+<section class="section reveal" id="fraktionen">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">MÄCHTE ZWISCHEN DEN STERNEN</div>
+      <h2>Vier Fraktionen, ein geteilter Himmel.</h2>
+      <p>Du beginnst auf der Heimatwelt einer Fraktion und mit etwas Vertrauensvorschuss bei
+        ihr — verbünden oder verfeinden kannst du dich später mit jeder von ihnen.</p>
+    </div>
+    <div class="factions">
+      <div class="faction" style="--fc:#6E8B93">
+        <div class="fname">Meridian-Konföderation</div>
+        <div class="fshort">Handel &amp; Versorgungsnetze</div>
+        <div class="motto">„Jede Welt hat einen Wert. Jeder Handel eine Zukunft.“</div>
+        <div class="desc">Ein Bündnis kleiner Kolonien, die nach der Ankunft allein nicht
+          überlebt hätten. Ihre Macht liegt nicht in Armeen, sondern in Handelsrouten und
+          Informationen.</div>
+        <div class="trades">
+          <span class="trade-chip cheap">Günstig: Technik</span>
+          <span class="trade-chip dear">Teuer: Nahrung</span>
+        </div>
+      </div>
+      <div class="faction" style="--fc:#C81E2C">
+        <div class="fname">Valorianisches Reich</div>
+        <div class="fshort">Militär &amp; Ordnung</div>
+        <div class="motto">„Ordnung bewahrt das Leben.“</div>
+        <div class="desc">Entstanden aus dem Ruf nach starker Führung in chaotischen Zeiten.
+          Stärkste Flotten, beeindruckende Technologie — und ein Hang zur Kontrolle, der
+          Beschützer wie Kritiker gleichermaßen anzieht.</div>
+        <div class="trades">
+          <span class="trade-chip cheap">Günstig: Erz</span>
+          <span class="trade-chip dear">Teuer: Technik</span>
+        </div>
+      </div>
+      <div class="faction" style="--fc:#9B8CD9">
+        <div class="fname">Synthische Union</div>
+        <div class="fshort">Künstliches Bewusstsein</div>
+        <div class="motto">„Leben ist Information. Information darf nicht sterben.“</div>
+        <div class="desc">Ursprünglich als KI zur Unterstützung der Menschheit erschaffen —
+          heute ein eigenes Kollektiv aus synthetischen Körpern und digital gespeicherten
+          Persönlichkeiten, das sich weigert, wieder Werkzeug zu sein.</div>
+        <div class="trades">
+          <span class="trade-chip cheap">Günstig: Treibstoff</span>
+          <span class="trade-chip dear">Teuer: Nahrung</span>
+        </div>
+      </div>
+      <div class="faction" style="--fc:#C9793F">
+        <div class="fname">Freie Welten</div>
+        <div class="fshort">Unabhängigkeit</div>
+        <div class="motto">„Kein Stern gehört jemandem.“</div>
+        <div class="desc">Ein loser Zusammenschluss unabhängiger Planeten und Stationen ohne
+          zentrale Regierung oder gemeinsame Armee — dafür mit etwas, das andere verloren
+          haben: Freiheit.</div>
+        <div class="trades">
+          <span class="trade-chip cheap">Günstig: Nahrung</span>
+          <span class="trade-chip dear">Teuer: Treibstoff</span>
+        </div>
+      </div>
+    </div>
+    <div class="pirates-note">⚠ Jenseits der Sicherheitszonen hausen die <b>Piraten</b> — eine
+      dauerhaft feindselige Fraktion ohne Ruf, ohne Verhandlung, ohne Gnade.</div>
+  </div>
+</section>
+
+<section class="section reveal" id="imperium">
+  <div class="wrap">
+    <div class="imperium-grid">
+      <div>
+        <div class="eyebrow">DEIN IMPERIUM</div>
+        <h2>Aus herrenlosen Systemen wird dein Reich.</h2>
+        <p style="color:#B9AF9C;margin-top:16px">Neben der eigentlichen Sternenkarte wächst
+          im Hintergrund ein eigenes Aufbau-Modul — Systeme werden beansprucht, ausgebaut und
+          gegen Standgebühren fest ins eigene Imperium eingegliedert.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="num">1</div>
+            <div class="stxt"><b>Herrenloses System finden</b><p>Unbeanspruchte Sektoren lassen
+              sich direkt fürs eigene Imperium beanspruchen.</p></div>
+          </div>
+          <div class="step">
+            <div class="num">2</div>
+            <div class="stxt"><b>Fremdes System entreißen</b><p>Gehört ein System bereits einer
+              Fraktion, kostet die Eingliederung eine Standgebühr in Credits.</p></div>
+          </div>
+          <div class="step">
+            <div class="num">3</div>
+            <div class="stxt"><b>Ausbauen &amp; verwalten</b><p>Jedes eingegliederte System
+              zählt fortan zu deinem Imperium und trägt zu deinem passiven Einkommen bei.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="imperium-panel">
+        <div class="prow"><span>System „Kepler-Außenposten“</span><span>Herrenlos</span></div>
+        <div class="prow"><span>Standgebühr</span><span>—</span></div>
+        <div class="prow"><span>System „Rotes Tor“</span><span>Valorian</span></div>
+        <div class="prow"><span>Standgebühr</span><span>18.400 Cr.</span></div>
+        <div class="prow"><span>Eigene Systeme im Imperium</span><span>7</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="kampf">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">KAMPF &amp; FLOTTEN</div>
+      <h2>Rundenbasierte Gefechte mit echter Taktik.</h2>
+      <p>Kämpfe folgen einem rundenbasierten System nach dem Vorbild klassischer RPGs — mit
+        Flottenformationen, Gruppentaktik und Eskorte für verwundbare Schiffe im Gefecht.</p>
+    </div>
+    <div class="chiprow">
+      <span class="chip cyan">Rundenbasiertes Kampfsystem</span>
+      <span class="chip">Flottenformationen</span>
+      <span class="chip">Gruppentaktik</span>
+      <span class="chip">Eskorte im Gefecht</span>
+      <span class="chip">Truppentransporter</span>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="chronik">
+  <div class="wrap">
+    <div class="chronicle">
+      <div class="eyebrow">AUS DER CHRONIK · KAPITEL 1 — SOL</div>
+      <blockquote>„Zum ersten Mal in der Geschichte der Menschheit gab es keinen Sonnenaufgang
+        mehr – nur noch den Blick zurück auf die Heimat, die sie für immer hinter sich
+        ließen.“</blockquote>
+      <div class="attrib">— Drifting Worlds, Story-Archiv</div>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="roadmap">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">WEITERENTWICKLUNG</div>
+      <h2>Was als Nächstes kommt.</h2>
+      <p>Alles kostenlos, keine Bezahlinhalte.</p>
+    </div>
+    <div class="roadmap-cols">
+      <div class="roadmap-col">
+        <div class="roadmap-status"><span class="dot" style="background:#6E8B93"></span> In Arbeit</div>
+        <ul class="roadmap-idea-list">
+          <li>Weitere Story-Kapitel entlang der Signal-Route</li>
+          <li>Ausbau des Imperium-Aufbaumoduls</li>
+        </ul>
+      </div>
+      <div class="roadmap-col">
+        <div class="roadmap-status"><span class="dot" style="background:#9B8CD9"></span> Als Nächstes geplant</div>
+        <ul class="roadmap-idea-list">
+          <li>Weitere Zwischenstationen nach Wolf 359</li>
+          <li>Erweiterte Kampf- und Eskortmechaniken</li>
+        </ul>
+      </div>
+      <div class="roadmap-col">
+        <div class="roadmap-status"><span class="dot" style="background:#E8B64A"></span> Ideen für spätere Updates</div>
+        <ul class="roadmap-idea-list">
+          <li>Mehr Fraktions-Interaktionen und Reputation</li>
+          <li>Zufallsereignisse im All</li>
+        </ul>
+      </div>
+    </div>
+    <div class="todo-note">TODO: Diese Roadmap ist ein Platzhalter — sag mir einfach, was hier
+      wirklich rein soll, dann passe ich sie an.</div>
+    <div class="roadmap-note">Diese Liste wird laufend erweitert und ist keine feste Zusage für
+      Zeitpunkte — Reihenfolge kann sich ändern.</div>
+  </div>
+</section>
+
+<section class="finalcta reveal" id="start">
+  <div class="wrap">
+    <div class="eyebrow" style="justify-content:center">BEREIT ZUM AUFBRUCH?</div>
+    <h2>Die wandernde Erde wartet auf ihren nächsten Kurs.</h2>
+    <p>Keine Installation, kein Konto bei Dritten — öffnen und spielen.</p>
+    <div class="ctas">
+      <a href="game.html" class="btn primary">Jetzt spielen</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">PATH OF THE STARS — Drifting Worlds · <span class="fver">v0_0243 Open Beta</span> · Ein <a href="../index.html">MC ORCA Games</a> Projekt · <a href="impressum.html">Impressum &amp; Datenschutz</a></div>
+</footer>
+
+<script>
+/* ---------- Mobiles Nav-Menü: nach Linkklick automatisch schließen ---------- */
+(function(){
+  const toggle = document.getElementById('navToggle');
+  document.querySelectorAll('.navlinks a').forEach(a => {
+    a.addEventListener('click', () => { toggle.checked = false; });
+  });
+})();
+
+/* ---------- Starfield ---------- */
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], w, h;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    const count = Math.min(260, Math.floor((w*h)/9000));
+    stars = Array.from({length:count}, () => ({
+      x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.3+0.2,
+      p: Math.random()*Math.PI*2, s: Math.random()*0.015+0.005
+    }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#E8E2D4';
+    stars.forEach(st=>{
+      const tw = reduced ? 0.7 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.15 + tw*0.55;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if(!reduced) requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+  if(reduced) draw(0);
+})();
+
+/* ---------- Logo-Fallback (Nav + Hero) ----------
+   Probiert bilder/logo.png (wie im Spiel selbst). Lädt es, ersetzt es das Bild in Nav UND
+   Hero und blendet im Hero den Text-Schriftzug aus. Lädt es nicht, bleiben die bestehenden
+   Text-Fallbacks sichtbar. */
+(function initLogo(){
+  const heroSlot = document.getElementById('heroLogo');
+  const navSlot = document.getElementById('navLogo');
+  const heroText = document.getElementById('heroTitleText');
+  const src = 'bilder/logo.png';
+  const test = new Image();
+  test.onload = () => {
+    if(heroSlot){
+      const img = document.createElement('img');
+      img.src = src; img.alt = 'PATH OF THE STARS — Drifting Worlds';
+      heroSlot.appendChild(img);
+    }
+    if(heroText) heroText.style.display = 'none';
+    if(navSlot){
+      const img2 = document.createElement('img');
+      img2.src = src; img2.alt = 'PATH OF THE STARS';
+      navSlot.innerHTML = ''; navSlot.appendChild(img2);
+    }
+  };
+  test.src = src;
+})();
+
+/* ---------- Scroll reveal ---------- */
+(function(){
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+  }, { threshold:0.12 });
+  document.querySelectorAll('.reveal').forEach(el=> io.observe(el));
+})();
+</script>
+
+</body>
+</html>
