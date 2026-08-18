@@ -3,6 +3,43 @@
 ============================================================
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v1.0.4
+- Balancing: Energieverbrauch überarbeitet — bisher haben nur die 3 Minen sowie Forschungslabor,
+  Robotikfabrik, Nanitenfabrik und Werft Energie verbraucht. Speicher (Metall/Kristall/Deuterium),
+  Planetarer Schutzschirm und Handelsposten liefen komplett kostenlos, dadurch gab es im späteren Spiel
+  spürbar zu viel Energieüberschuss (Solarsatelliten/Fusionskraftwerk kaum noch nötig). Jetzt verbraucht
+  praktisch jedes Gebäude ab Stufe 1 laufend Energie — Ausnahmen bleiben bewusst nur die Energieerzeuger
+  selbst (Solarkraftwerk, Fusionskraftwerk, Solarsatellit) und der Ätherium-Extraktor (treibt sich laut
+  Beschreibung durchs Ringmaterial selbst an). Werte (nach Spieler-Feedback "noch zu wenig" gleich in
+  dieser Version nachjustiert, spürbar höher als der erste Wurf):
+  Speicher je 10/Stufe (vorher 3), Forschungslabor/Robotikfabrik 14/Stufe (vorher 8), Nanitenfabrik
+  40/Stufe (vorher 25), Werft 12/Stufe (vorher 6), Schutzschirm 40/Stufe (vorher 15),
+  Handelsposten 28/Stufe (vorher 10).
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.0.3" auf "v1.0.4" erhöht.
+
+v1.0.3
+- Autopilot: Kolonisierung wählt jetzt gezielt Planetentypen statt rein zufällig — bevorzugt zuerst die
+  5 für Dyson-Sphären-Bauteile benötigten Typen (Gestein/Vulkan/Ringwelt/Eis/Karg), die dem Spieler noch
+  fehlen, danach andere noch fehlende Typen, statt öfter denselben Typ zu treffen. Spart das nachträgliche
+  Abreißen/Umkolonisieren für Dyson-Materialien.
+- Autopilot: automatische Kolonisierung ist jetzt standardmäßig AUS auf normalen Spieler-Profilen (Haupt-
+  & Nebenprofile) — der Bot soll nicht ungefragt neue Kolonien gründen, die man von Hand managen muss.
+  Über einen neuen Schalter im Autopilot-Panel lässt sie sich gezielt wieder einschalten. Echte
+  Autopilot-Accounts (Bot-Nebenprofile) sind davon nicht betroffen, dort läuft Kolonisierung wie gehabt.
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.0.2" auf "v1.0.3" erhöht.
+
+v1.0.2
+- Fix: Werft-/Bau-/Forschungs-Warteschlangen liefen fälschlich weiter (bzw. wurden eingefroren) je
+  nach vorherigem Zwischenstand — jetzt wieder einheitlich: alle Warteschlangen zählen ganz normal
+  über echte Zeit weiter, auch während die App geschlossen ist (wie Ressourcen, Dyson-Sphäre usw.).
+- Fix: Bestätigungsdialog beim Bau-Abbrechen zeigte zweimal "Abbrechen" (Schließen-Button UND
+  Bestätigen-Button). Schließen-Button heißt jetzt "Zurück" — betrifft alle Bestätigungsdialoge im Spiel.
+- UI: Kopfzeile — Titel "AETHERIS" oben entfernt (unnötig, Platz war leer), stattdessen zeigt links
+  jetzt der aktuelle Planeten-/Mondname (🪐 Planet / 🌙 Mond von [Planet]) an.
+- Balancing: Standard-Musiklautstärke von 35% auf 10% gesenkt (Spieler-Feedback: Musik zu laut).
+  Gilt nur für neue/unveränderte Lautstärke-Einstellungen, gespeicherte eigene Werte bleiben erhalten.
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.0.1" auf "v1.0.2" erhöht.
+
 v1.0.1
 - Neu: 🎁 Geschenk-Code-Einlösebereich (Einstellungen -> "Code einlösen"). Feste, lokal hinterlegte
   Codeliste (`GIFT_CODES`), kein Server nötig. Jeder Code ist pro Profil genau einmal einlösbar
@@ -1031,7 +1068,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
     <canvas class="warp-canvas" id="warpGate"></canvas>
     <div class="game-logo" id="logoGate"></div>
     <div class="tap-hint" id="startGateBtn">Berühren zum Start</div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.1</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.4</div>
   </div>
 
   <div class="title-screen hidden" id="titleScreen">
@@ -1048,11 +1085,11 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <button class="menu-btn" id="titleMusicBtn" style="font-size:11px;width:100%">🎵 Musik</button>
       <input type="range" class="music-volume-input" id="titleMusicVolume" min="0" max="1" step="0.05" style="width:130px;margin-top:8px;accent-color:#D4AF37;display:block">
     </div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.1</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.4</div>
   </div>
   <div class="header">
     <div class="title-row">
-      <h1>AETHERIS<span>.</span></h1>
+      <span class="header-planet-name" id="headerPlanetName" style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#C9A855;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <span style="display:flex;align-items:center;gap:6px">
         <button id="autopilotBtn" title="Autopilot: schaltet einen automatischen Spielmodus ein/aus (läuft nur, solange die App offen ist)" style="background:none;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#8A7A6A;font-size:14px;padding:4px 7px;cursor:pointer;font-family:inherit;line-height:1">🤖</button>
         <button id="autopilotInfoBtn" title="Autopilot-Info" style="background:none;border:1px solid rgba(212,175,55,0.3);border-radius:50%;color:#8A7A6A;font-size:10px;width:18px;height:18px;padding:0;cursor:pointer;font-family:inherit;line-height:1">i</button>
@@ -1161,7 +1198,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <div class="confirm-dialog-title" id="confirmDialogTitle"></div>
       <div class="confirm-dialog-text" id="confirmDialogText"></div>
       <div class="confirm-dialog-actions">
-        <button class="confirm-dialog-btn cancel" id="confirmDialogCancel">Abbrechen</button>
+        <button class="confirm-dialog-btn cancel" id="confirmDialogCancel">Zurück</button>
         <button class="confirm-dialog-btn ok-danger" id="confirmDialogOk"></button>
       </div>
     </div>
@@ -1413,30 +1450,35 @@ const BUILDINGS = [
     requiresBuildings:[{key:"roboticsFactory",level:2},{key:"shipyard",level:1}],
     desc:"Einfache Plattform aus Solarzellen in einem hohen stationären Orbit — sammelt Sonnenlicht und gibt es per Laser an die Bodenstation weiter. Erzeugt 28 Energie pro Stück (abhängig von der Entfernung zur Sonne kann das auf anderen Planeten variieren). Wird pro Stück nicht teurer, nur die Gesamtmasse steigt mit der Anzahl. Technische Daten: 2.000 Strukturpunkte, Schildstärke 1, Angriffswert 1, Geschwindigkeit 0, Ladekapazität 0, Treibstoffverbrauch (Deuterium) 1." },
   { key:"metalStorage", name:"Metallspeicher", type:"storageMetal", baseCost:{metal:1000,crystal:0}, costFactor:2, icon:"▣",
-    desc:"Erhöht das Lagerlimit für Metall — überschüssige Produktion geht sonst über die Kapazitätsgrenze hinaus verloren." },
+    energyPerLevel:10,
+    desc:"Erhöht das Lagerlimit für Metall — überschüssige Produktion geht sonst über die Kapazitätsgrenze hinaus verloren. Verbraucht ab Stufe 1 (leicht) laufend Energie." },
   { key:"crystalStorage", name:"Kristallspeicher", type:"storageCrystal", baseCost:{metal:1000,crystal:500}, costFactor:2, icon:"▣",
-    desc:"Erhöht das Lagerlimit für Kristall — schützt die Produktion vor Überlauf bei längerer Abwesenheit." },
+    energyPerLevel:10,
+    desc:"Erhöht das Lagerlimit für Kristall — schützt die Produktion vor Überlauf bei längerer Abwesenheit. Verbraucht ab Stufe 1 (leicht) laufend Energie." },
   { key:"deutTank", name:"Deuteriumtank", type:"storageDeut", baseCost:{metal:1000,crystal:1000}, costFactor:2, icon:"▣",
-    desc:"Erhöht das Lagerlimit für Deuterium — wichtig, sobald Fusionskraftwerk und Flotte mehr verbrauchen." },
+    energyPerLevel:10,
+    desc:"Erhöht das Lagerlimit für Deuterium — wichtig, sobald Fusionskraftwerk und Flotte mehr verbrauchen. Verbraucht ab Stufe 1 (leicht) laufend Energie." },
   { key:"researchLab", name:"Forschungslabor", type:"researchSpeed", baseCost:{metal:200,crystal:400}, costFactor:2, icon:"🔬",
-    energyPerLevel:8,
+    energyPerLevel:14,
     desc:"Ermöglicht Forschung und beschleunigt sie mit jeder weiteren Stufe deutlich. Verbraucht ab Stufe 1 laufend Energie." },
   { key:"roboticsFactory", name:"Robotikfabrik", type:"buildSpeed", baseCost:{metal:400,crystal:120}, costFactor:2, icon:"🤖",
-    energyPerLevel:8,
+    energyPerLevel:14,
     desc:"Automatisiert Bauarbeiten auf dem Planeten und verkürzt dadurch die Bauzeit aller Ausbauten spürbar. Verbraucht ab Stufe 1 laufend Energie." },
   { key:"naniteFactory", name:"Nanitenfabrik", type:"naniteSpeed", baseCost:{metal:20000,crystal:8000,deuterium:4000}, costFactor:2, icon:"⚙️",
     requires:{key:"computerTech",level:10}, requiresBuildings:[{key:"roboticsFactory",level:10}],
-    energyPerLevel:25,
+    energyPerLevel:40,
     desc:"Winzige Nano-Roboter, die die Fertigung auf dem Planeten weiter beschleunigen — halbiert PRO STUFE zusätzlich zur Robotikfabrik die Bauzeit von Gebäuden, Schiffen UND Verteidigung. Enorm stark, aber teuer und erst spät verfügbar (Robotikfabrik Stufe 10 + Computertechnik Stufe 10 nötig). Verbraucht spürbar Energie." },
   { key:"shipyard", name:"Werft", type:"shipyard", baseCost:{metal:400,crystal:200}, costFactor:2, icon:"🏗",
-    energyPerLevel:6,
+    energyPerLevel:12,
     desc:"Ermöglicht den Bau von Schiffen und beschleunigt mit jeder Stufe deren Fertigungsgeschwindigkeit. Verbraucht ab Stufe 1 laufend Energie." },
   { key:"planetShield", name:"Planetarer Schutzschirm", type:"shieldReduction", baseCost:{metal:12000,crystal:10000}, costFactor:1.8, icon:"🔰",
     requires:{key:"laserTech",level:4},
-    desc:"Reduziert den Schaden eingehender Piratenüberfälle prozentual, statt nur HP zu bieten." },
+    energyPerLevel:40,
+    desc:"Reduziert den Schaden eingehender Piratenüberfälle prozentual, statt nur HP zu bieten. Verbraucht ab Stufe 1 laufend Energie." },
   { key:"tradingPost", name:"Handelsposten", type:"trade", baseCost:{metal:6000,crystal:4000}, costFactor:1.8, icon:"🏛",
     requires:{key:"astroTech",level:1},
-    desc:"Eröffnet eine feste NPC-Handelsroute — jede Stufe senkt die Gebühr beim Rohstofftausch auf diesem Planeten um 1 Prozentpunkt (Minimum 1%), deutlich günstiger als der normale Spielermarkt." },
+    energyPerLevel:28,
+    desc:"Eröffnet eine feste NPC-Handelsroute — jede Stufe senkt die Gebühr beim Rohstofftausch auf diesem Planeten um 1 Prozentpunkt (Minimum 1%), deutlich günstiger als der normale Spielermarkt. Verbraucht ab Stufe 1 laufend Energie." },
 ];
 
 const SOLAR_SATELLITE_ENERGY = 28; // Energieertrag pro Solarsatellit, unabhängig von der Stufe (keine Steigerung wie bei anderen Gebäuden)
@@ -3153,6 +3195,12 @@ let spyReports = [];               // letzte Spionageberichte, neueste zuerst
 let attackTarget = null;          // aktuell in der Flotten-Ansicht ausgewähltes Angriffsziel (id)
 let eventLog = [];                 // {id, type, time, ...} — Asteroideneinschläge & Bauplan-Funde
 let autopilotOn = false;           // 🤖 Autopilot — Grundgerüst, noch ohne eigenes Verhalten (folgt in Schritt 2)
+let autopilotColonizeEnabled = null; // 🤖 Autopilot — Kolonisierung (v1.0.2): null solange nicht aus dem Spielstand
+                                    // geladen/initialisiert. Bewusst standardmäßig AUS auf normalen Spieler-Profilen
+                                    // (siehe autopilotColonizeAllowed) — der Bot soll nicht eigenmächtig planlos neue
+                                    // Kolonien gründen, die man dann von Hand wieder aufräumen muss. Auf echten
+                                    // "Autopilot-Accounts" (Bot-Nebenprofile, siehe profileIsAutopilotAccount) bleibt
+                                    // Kolonisierung wie gehabt immer aktiv, unabhängig von diesem Flag.
 let autopilotFuelExpiry = 0;       // 🤖 Autopilot — Treibstoff (v0.50_92): Zeitstempel (ms), bis zu dem der Autopilot
                                     // laufen darf. Bezahlt mit Dunkler Materie + Ätherium im Shop (siehe
                                     // AUTOPILOT_FUEL_PACKAGES/buyAutopilotFuel). Autopilot-Accounts (siehe
@@ -5117,7 +5165,7 @@ const MUSIC_OST_TRACKS = [
   { file: "musik/hintergrundmusik (ost)/OST 09 — Eternal Night.mp3", title: "Eternal Night" },
 ];
 
-const MUSIC_VOLUME_DEFAULT = 0.35;
+const MUSIC_VOLUME_DEFAULT = 0.10;
 const TITLE_MUSIC_VOLUME_MULT = 0.55; // Titelmusik auf der Startseite bewusst leiser als die Gameplay-OST
 
 let musicOn = true;
@@ -5408,7 +5456,7 @@ function buildSavePayload() {
     pirateNests, debrisFields, anomalies, scannedSectors: Array.from(scannedSectors), missions, combatReports, spyReports, currentSystem,
     eventLog, traderOffer, blueprints, officerLounge, achievementsClaimed, stats, savedAt: Date.now(),
     allyCooldowns, pendingRaids, artifactFragments, signalFragments, autopilotOn, autopilotPriorityOrder, autopilotFocusMode,
-    autopilotFuelExpiry, redeemedGiftCodes,
+    autopilotFuelExpiry, redeemedGiftCodes, autopilotColonizeEnabled,
     storyUnlocked, storyHasUnread, darkMatter, darkMatterBoosts, darkMatterBoostMultVal,
     onboardingWelcomeSeen, onboardingChecklistDismissed, dysonState, starEnergy, dysonInstallations,
     shadowAnchor, shadowIncursion, shadowEssence, shadowVictories, shadowScanned,
@@ -5655,6 +5703,11 @@ function loadGame() {
       storyUnlocked = Array.isArray(data.storyUnlocked) ? data.storyUnlocked : [];
       storyHasUnread = data.storyHasUnread === true;
       autopilotOn = data.autopilotOn === true; // Standard: aus, auch bei alten Spielständen ohne dieses Feld
+      // Migration (v1.0.2): Bestandsspielstände ohne autopilotColonizeEnabled starten mit "aus" (false) —
+      // vorher hat der Autopilot ungefragt neue Kolonien gegründet, was viele Spieler nervig fanden, weil
+      // man die dann von Hand wieder abreißen/managen musste. Wer das ausdrücklich will, schaltet es im
+      // Autopilot-Panel selbst wieder ein.
+      autopilotColonizeEnabled = data.autopilotColonizeEnabled === true;
       autopilotPriorityOrder = normalizeAutopilotPriorityOrder(data.autopilotPriorityOrder); // fehlt/kaputt -> Standardreihenfolge
       autopilotFocusMode = normalizeAutopilotFocusMode(data.autopilotFocusMode); // fehlt/kaputt/nicht mehr freigeschaltet -> Standard (null)
       // Bestandsschutz: alte Spielstände (vor diesem Feature) hätten sonst 0 Treibstoff und der Autopilot
@@ -5821,6 +5874,7 @@ function resetGame() {
     spyReports = [];
     eventLog = [];
     autopilotOn = false;
+    autopilotColonizeEnabled = false;
     autopilotFuelExpiry = 0;
     traderOffer = null;
     blueprints = 0;
@@ -8746,6 +8800,10 @@ function renderHeader() {
       </div>`
     : "";
 
+  document.getElementById("headerPlanetName").innerHTML = currentView === "moon" && active.moon
+    ? `🌙 Mond von ${active.name}`
+    : `🪐 ${active.name}`;
+
   const dmHr = totalDarkMatterProdPerHour();
   const showAetherium = active.resources.aetherium > 0 || active.typeKey === "ringwelt";
 
@@ -10493,11 +10551,11 @@ function buildingProdLine(b, lvl, p) {
   } else if (b.type === "shipyard") {
     return lvl<=0 ? "Ermöglicht Schiffsbau" : `Baugeschwindigkeit ×${(1+lvl*0.2).toFixed(1)} · verbraucht ${fmt(facilityEnergyUse(b.energyPerLevel, lvl))} Energie`;
   } else if (b.type === "shieldReduction") {
-    return lvl<=0 ? "Kein Schutz" : `Schadensreduktion −${Math.round(planetShieldReduction(lvl)*100)}%`;
+    return lvl<=0 ? "Kein Schutz" : `Schadensreduktion −${Math.round(planetShieldReduction(lvl)*100)}% · verbraucht ${fmt(facilityEnergyUse(b.energyPerLevel, lvl))} Energie`;
   } else if (b.type === "trade") {
-    return lvl<=0 ? "Kein Handelsposten" : `Markt-Gebühr nur ${Math.round(marketFeeFor(p)*100)}% (statt ${Math.round(MARKET_FEE*100)}%)`;
+    return lvl<=0 ? "Kein Handelsposten" : `Markt-Gebühr nur ${Math.round(marketFeeFor(p)*100)}% (statt ${Math.round(MARKET_FEE*100)}%) · verbraucht ${fmt(facilityEnergyUse(b.energyPerLevel, lvl))} Energie`;
   } else {
-    return `Kapazität ${fmt(storageCap(lvl, p))}`;
+    return lvl<=0 ? `Kapazität ${fmt(storageCap(lvl, p))}` : `Kapazität ${fmt(storageCap(lvl, p))} · verbraucht ${fmt(facilityEnergyUse(b.energyPerLevel, lvl))} Energie`;
   }
 }
 
@@ -14670,6 +14728,16 @@ function profileIsAutopilotAccount(prof) {
   if (prof.autopilotAccount === undefined) return true; // altes Nebenprofil vor diesem Feature
   return prof.autopilotAccount === true;
 }
+// 🤖 Autopilot — Kolonisierung (v1.0.2): auf echten Autopilot-Accounts (Bot-Nebenprofile) läuft die
+// Kolonisierung immer wie gehabt automatisch mit. Auf dem eigenen Spieler-Profil (egal ob Hauptprofil
+// oder ein normales Nebenprofil) ist sie standardmäßig AUS und muss im Autopilot-Panel per Schalter
+// erst aktiviert werden (siehe autopilotColonizeEnabled) — sonst gründet der Bot ungefragt neue
+// Kolonien, die man danach von Hand wieder abreißen muss.
+function autopilotColonizeAllowed() {
+  const prof = loadProfiles().find(p => p.id === activeProfileId);
+  if (profileIsAutopilotAccount(prof)) return true;
+  return autopilotColonizeEnabled === true;
+}
 function autopilotAvailable() {
   const prof = loadProfiles().find(p => p.id === activeProfileId);
   return profileIsAutopilotAccount(prof) || autopilotUnlockedForMain();
@@ -15026,6 +15094,38 @@ function autopilotFreeColonyTarget(opts) {
       if (!forbidden.has(id)) return { sys, slot: 11 };
     }
     // keine freie Ringwelt mehr übrig (sehr unwahrscheinlich) -> normal weiter unten
+  }
+
+  // Typen-Vielfalt (v1.0.2): der Slot bestimmt fest den Planetentyp (planetType(slot,sys)), rein zufälliges
+  // Würfeln über alle freien Slots landet daher in der Praxis oft wiederholt bei denselben Typen. Stattdessen
+  // wird zuerst geschaut, welche Typen dem Spieler noch komplett fehlen — und darunter zuerst die 5 für die
+  // Dyson-Sphäre benötigten Typen (siehe DYSON_PARTS.requiredType: gestein/vulkan/ringwelt/eis/karg), damit
+  // man nicht für jedes Bauteil extra manuell hinterherkolonisieren/-abreißen muss. Erst wenn alle Typen
+  // (bzw. alle Dyson-Typen) schon mindestens einmal besiedelt sind, zählt wieder reiner Zufall wie bisher.
+  const ownedTypes = new Set(Object.values(planets).map(p => p.typeKey));
+  colonizations.forEach(c => ownedTypes.add(planetType(c.slot, c.sys).key));
+  const dysonTypes = DYSON_PARTS.map(part => part.requiredType);
+  const missingDysonTypes = dysonTypes.filter(t => !ownedTypes.has(t));
+  const missingAnyTypes = PLANET_TYPES.map(t => t.key).filter(t => !ownedTypes.has(t) && t !== "ringwelt");
+
+  function findFreeSlotOfType(typeKey) {
+    const slot = PLANET_TYPES.findIndex(t => t.key === typeKey) + 1;
+    if (slot < 1) return null;
+    const systemsShuffled = SYSTEM_NAMES.map((_, i) => i).sort(() => Math.random() - 0.5);
+    for (const sys of systemsShuffled) {
+      const id = planetId(sys, slot);
+      if (!forbidden.has(id)) return { sys, slot };
+    }
+    return null;
+  }
+
+  for (const typeKey of missingDysonTypes.sort(() => Math.random() - 0.5)) {
+    const target = findFreeSlotOfType(typeKey);
+    if (target) return target;
+  }
+  for (const typeKey of missingAnyTypes.sort(() => Math.random() - 0.5)) {
+    const target = findFreeSlotOfType(typeKey);
+    if (target) return target;
   }
 
   let tries = 0;
@@ -15649,6 +15749,7 @@ function normalizeAutopilotPriorityOrder(order) {
 }
 
 function autopilotStepExpansion() {
+  if (!autopilotColonizeAllowed()) return [];
   const lines = [];
   const msg = autopilotExpansionStep();
   if (msg) lines.push(msg);
@@ -16010,6 +16111,25 @@ function buyAutopilotFuel(idx) {
   updateAutopilotButton();
   updateAutopilotLogBox();
 }
+// 🤖 Autopilot — Kolonisierung (v1.0.2): kleiner An/Aus-Schalter im Panel. Auf Autopilot-Accounts
+// (Bot-Nebenprofile) wird nur ein Hinweis angezeigt (dort läuft Kolonisierung ohnehin immer, kein
+// Schalter nötig) — auf dem eigenen Spieler-Profil kann man es hier gezielt selbst dazuschalten.
+function autopilotColonizePanelHtml() {
+  const prof = loadProfiles().find(p => p.id === activeProfileId);
+  if (profileIsAutopilotAccount(prof)) {
+    return `<div class="bmeta" style="color:#8A7A6A;margin-bottom:6px">🌌 Autopilot-Account — Kolonisierung läuft automatisch mit.</div>`;
+  }
+  return `<label style="display:flex;align-items:center;gap:7px;font-size:11px;color:#EDE4D3;cursor:pointer;margin-bottom:6px">
+    <input type="checkbox" id="autopilotColonizeToggle" onchange="toggleAutopilotColonize(this.checked)" ${autopilotColonizeEnabled ? "checked" : ""} style="width:15px;height:15px;accent-color:#D4AF37">
+    🌌 Automatisch neue Kolonien gründen <span style="color:#8A7A6A">(standardmäßig aus)</span>
+  </label>`;
+}
+function toggleAutopilotColonize(checked) {
+  autopilotColonizeEnabled = !!checked;
+  saveGame();
+  sfx.click();
+}
+
 function autopilotFuelPanelHtml() {
   if (autopilotFuelExempt()) {
     return `<div class="bmeta" style="color:#8A7A6A;margin-bottom:6px">🔓 Autopilot-Account — kein Treibstoffverbrauch auf diesem Profil.</div>`;
@@ -16200,7 +16320,7 @@ function updateAutopilotLogBox() {
     return;
   }
   const priorityHtml = autopilotAiUnlocked() ? (autopilotFocusPanelHtml() + autopilotPriorityListHtml()) : "";
-  const fuelHtml = autopilotFuelPanelHtml();
+  const fuelHtml = autopilotColonizePanelHtml() + autopilotFuelPanelHtml();
   if (!autopilotOn) {
     body.innerHTML = fuelHtml + priorityHtml + `<div class="bmeta" style="color:#8A7A6A">Autopilot ist gerade aus. Über den 🤖-Knopf oben einschalten.</div>`;
     if (autopilotAiUnlocked()) initAutopilotPriorityDrag();
