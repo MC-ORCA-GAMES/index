@@ -14,6 +14,7 @@
     --cyan:#4FD1C5; --cyan-soft:rgba(79,209,197,0.35); --cyan-dim:#6E8B93;
     --potsred:#C81E2C; --potsred-soft:rgba(200,30,44,0.4); --potsred-dim:#9C5A57;
     --astviolet:#7C5CFF; --astviolet-soft:rgba(124,92,255,0.4); --astviolet-dim:#9088B8;
+    --daorange:#FF6A2B; --daorange-soft:rgba(255,106,43,0.4); --daorange-dim:#B87A5A;
   }
   *{ box-sizing:border-box; }
   body{
@@ -58,10 +59,9 @@
   /* ---------- Portal-Karten ---------- */
   .portals{
     position:relative; z-index:2; max-width:1520px; margin:0 auto; padding:0 24px 100px;
-    display:grid; grid-template-columns:repeat(3,1fr); gap:26px;
+    display:grid; grid-template-columns:repeat(2,1fr); gap:26px;
   }
-  @media (max-width:1180px){ .portals{ grid-template-columns:1fr 1fr; } }
-  @media (max-width:640px){ .portals{ grid-template-columns:1fr; } }
+  @media (max-width:900px){ .portals{ grid-template-columns:1fr; } }
 
   .portal{
     --pc: var(--gold); --pc-soft: var(--gold-soft); --pc-dim: var(--gold-dim);
@@ -75,6 +75,8 @@
   .portal.pots h2, .portal.pots .psub{ font-family:'Bangers',cursive; }
   .portal.pots .psub{ letter-spacing:2px; }
   .portal.astrion{ --pc: var(--astviolet); --pc-soft: var(--astviolet-soft); --pc-dim: var(--astviolet-dim); background:#0F0D18; }
+  .portal.deepanchor{ --pc: var(--daorange); --pc-soft: var(--daorange-soft); --pc-dim: var(--daorange-dim); background:#0F0D0C; }
+  .portal.deepanchor h2, .portal.deepanchor .psub{ font-family:'IBM Plex Mono',monospace; }
 
   .portal-bg{
     position:absolute; inset:0; z-index:-2; width:100%; height:100%; object-fit:cover;
@@ -147,7 +149,7 @@
 </div>
 
 <header class="reveal">
-  <div class="eyebrow">ZWEI GALAXIEN · EIN STUDIO</div>
+  <div class="eyebrow">VIER GALAXIEN · SOLO ENTWICKELT</div>
   <h1>Browserbasierte Weltraumspiele<br>von <span class="accent1">MC</span> <span class="accent2">ORCA</span></h1>
   <p>Kein Download, kein Konto bei Dritten — einfach öffnen und spielen. Wähle dein
     Universum.</p>
@@ -220,6 +222,27 @@
     </div>
   </a>
 
+  <a class="portal deepanchor reveal" href="deep%20anchor/index.html">
+    <img class="portal-bg" src="deep%20anchor/art/bilder/logo.png" onerror="this.style.display='none'" alt="">
+    <div class="plabel">Satelliten-Simulation</div>
+    <div class="plogo" id="deepanchorLogo"></div>
+    <div id="deepanchorTitleText">
+      <h2>DEEP ANCHOR</h2>
+      <div class="psub">Satelliten-Produktion &amp; Orbital-Netzwerk</div>
+    </div>
+    <div class="mono" style="font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--pc-dim);margin-top:8px">Ein MC ORCA Games Projekt</div>
+    <p class="ppitch">Baue Satelliten vom ersten Chassis bis zur fertigen Konstellation und
+      expandiere von der Erdumlaufbahn bis in fremde Sonnensysteme und Galaxien.</p>
+    <div class="pmeta">
+      <span>Open Beta</span>
+      <span>Sonnensystem → Galaxien-Hub</span>
+    </div>
+    <div class="pctas">
+      <span class="pbtn primary">Entdecken →</span>
+      <span class="pbtn" onclick="event.preventDefault();event.stopPropagation();window.location.href='deep%20anchor/game.html'">Direkt spielen</span>
+    </div>
+  </a>
+
 </div>
 
 <footer>
@@ -227,6 +250,7 @@
   <span class="sep">·</span><a href="aetheris/impressum.html">AETHERIS: Impressum &amp; Datenschutz</a>
   <span class="sep">·</span><a href="path%20of%20the%20stars/impressum.html">Path of the Stars: Impressum &amp; Datenschutz</a>
   <span class="sep">·</span><a href="astrion/impressum.html">Astrion: Impressum &amp; Datenschutz</a>
+  <span class="sep">·</span><a href="deep%20anchor/impressum.html">Deep Anchor: Impressum &amp; Datenschutz</a>
 </footer>
 
 <script>
@@ -279,6 +303,7 @@ function initPortalLogo(slotId, textId, src, alt){
 initPortalLogo('aetherisLogo', 'aetherisTitleText', 'aetheris/bilder/logo.png', 'AETHERIS');
 initPortalLogo('potsLogo', 'potsTitleText', 'path%20of%20the%20stars/bilder/logo.png', 'PATH OF THE STARS');
 initPortalLogo('astrionLogo', 'astrionTitleText', 'astrion/art/logo.png', 'ASTRION');
+initPortalLogo('deepanchorLogo', 'deepanchorTitleText', 'deep%20anchor/art/bilder/logo.png', 'DEEP ANCHOR');
 
 /* ---------- Scroll reveal ---------- */
 (function(){
