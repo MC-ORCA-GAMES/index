@@ -1,3 +1,194 @@
+<!--
+CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
+
+v3.9-fix11 (deep_anchor_3_9_9.html)
+- Natives window.confirm()-Popup beim "Außer Dienst stellen"-Button (Orbit-Netzwerk-Liste)
+  ersetzt durch eigenes Bestätigungs-Modal im Spiel-Look (#confirmModal, gleicher Stil wie
+  Start-/Sondenmissions-Modal). Neue generische Hilfsfunktion showConfirmModal(title, text,
+  okLabel, onConfirm) — für spätere weitere Bestätigungsdialoge wiederverwendbar, statt
+  wieder auf das hässliche Browser-confirm() zurückzugreifen. decommissionSat() unverändert
+  in der Logik, nur der Dialog wurde ausgetauscht.
+
+v3.9-fix10 (deep_anchor_3_9_8.html)
+- Hintergrundmusik (Music-Modul): duck()/unduck() ergänzt — sanftes Runterfaden (nicht
+  abrupt) auf 5% der aktuellen Musiklautstärke zu Beginn von runLaunchSequence() (Erfolg
+  wie Fehlschlag), automatisches Wiederhochfaden auf den vorherigen Pegel in finish().
+  Faden läuft über 700ms per requestAnimationFrame; setVolume() merkt sich jetzt den
+  "Basis"-Pegel (baseVolume) getrennt vom aktuell gefadeten Wert, damit der Regler in den
+  Einstellungen während einer laufenden Start-Sequenz nicht überschrieben wird.
+  Bugfix nebenbei: Sound.launchFail() wurde bei Fehlschlag-mit-Video versehentlich doppelt
+  ausgelöst (einmal synchron zum Explosions-Cut, einmal in finish()) — jetzt nur noch
+  einmal, synchron zum jeweiligen Explosions-Bild (auch im reinen Canvas-Fallback ohne
+  Video, dort jetzt exakt beim Zünden der Explosion statt erst am Ende der Animation).
+- Einstellungen: neuer Button "Video-Sound an/aus" + neuer Regler "Video-Lautstärke"
+  (videoSoundMuted / videoVolume, global, Default: an / 80%), wirkt auf das jeweils aktive
+  Start-Video (art/video/launch.mp4) in beiden Fällen (Erfolg + Fehlschlag-Ausschnitt).
+  Ersetzt die bisherige Kopplung an Sound.isMuted() (Soundeffekte-Schalter) — Video-Ton
+  ist jetzt komplett unabhängig von Musik und Soundeffekten regelbar.
+
+v3.9-fix9 (deep_anchor_3_9_7.html)
+- Fehlschlag-Sequenz spielte bisher gar kein Video, nur direkt die alte Canvas-Animation.
+  Jetzt läuft auch bei Fehlschlag zuerst das echte Startvideo an (Sek. 25, wie beim Erfolg),
+  bis Sek. 32 (kurz nach Zündung/Liftoff-Beginn) — dann harter Cut: Video pausiert,
+  Sound.launchFail() (echter Explosions-Sound bzw. synthetischer Fallback) spielt, und eine
+  neue kurze Explosions-Canvas (runExplosionOnly(), reiner Feuerball-Burst ohne erneuten
+  Raketenaufstieg) läuft ~0.9s, bevor das Ergebnis erscheint.
+  Lädt das Video gar nicht (error-Event), greift weiterhin die alte komplette Canvas-Sequenz
+  (Aufstieg + Explosion) als Fallback — Verhalten dann identisch zu vor fix9.
+
+v3.9-fix8 (deep_anchor_3_9_6.html)
+- "⏭ Überspringen"-Button oben rechts über dem Startvideo ergänzt (nur beim Video, nicht
+  bei der Canvas-Fallback-Sequenz nötig), da das Video mit ~87 Sekunden recht lang ist und
+  nicht jeder es komplett ansehen will. Klick pausiert das Video, entfernt den Button und
+  springt direkt zu finish() (Ergebnis-Text/Rewards) — identisches Verhalten zum normalen
+  Video-Ende ('ended'-Event).
+
+v3.9-fix7 (deep_anchor_3_9_5.html)
+- Korrektur zu fix6: Startvideo läuft jetzt komplett von Anfang bis Ende (kein Zuschnitt
+  auf Sek. 25–45 mehr) und MIT Ton (video.muted = Sound.isMuted(), folgt also dem
+  Mute-Schalter des Spiels statt hart stummgeschaltet zu sein). Sound.launchRumble()
+  läuft nur noch bei der Canvas-Fallback-Sequenz, damit er sich nicht mit dem echten
+  Video-Ton überlagert. Blockiert der Browser Autoplay-mit-Ton, wird automatisch stumm
+  nachgestartet, damit die Sequenz nicht hängen bleibt. Anzeigegröße etwas verkleinert
+  (max-height 60vh statt 70vh), Hochformat (2:3) unverändert.
+
+v3.9-fix6 (deep_anchor_3_9_4.html)
+- #launchVideo lief bisher im alten Canvas-Querformat-Kasten (100% Breite, feste 320px Höhe,
+  object-fit:cover) — das Video ist aber Hochformat (720×1080, 2:3) und wurde dadurch
+  reingequetscht/beschnitten. Jetzt aspect-ratio:2/3 + object-fit:contain, Höhe/Breite über
+  max-height:70vh / max-width:100% automatisch passend zum Hochformat, zentriert im Modal.
+  Betrifft nur die Darstellungsgröße — Zuschnitt (Sek. 25–45) und Fallback-Logik unverändert.
+
+v3.9-fix5 (deep_anchor_3_9_3.html)
+- Echter Explosions-Sound für fehlgeschlagenen Start ergänzt (art/audio/explosion.mp3, vom
+  Nutzer lokal bereitzustellen). Sound.launchFail() lädt die Datei per fetch+decodeAudioData
+  und spielt sie über den bestehenden Master-Gain ab (Mute/Lautstärke wirkt weiterhin).
+  Fehlt die Datei oder lädt sie nicht, greift automatisch der bisherige synthetische
+  Fail-Sound (noiseBurst + absteigender Ton) als Fallback — kein Verhaltensbruch möglich.
+
+v3.9-fix4 (deep_anchor_3_9_2.html)
+- Start-Sequenz (runLaunchSequence): Bei ERFOLGREICHEM Start wird jetzt statt der Canvas-
+  Rakete ein echtes Saturn-V-Startvideo abgespielt (art/video/launch.mp4, vom Nutzer lokal
+  bereitzustellen). Video startet per JS bei Sek. 25 (Zündung) und wird bei Sek. 45 (kurz
+  nach Turmfreigabe/Liftoff) hart gestoppt, bevor das Ergebnis eingeblendet wird — die Datei
+  selbst bleibt unangetastet, nur der Ausschnitt wird per currentTime/timeupdate gesteuert.
+  Fällt das Video weg oder lädt nicht (error-Event), greift automatisch die alte Canvas-
+  Animation als Fallback.
+  Bei FEHLGESCHLAGENEM Start bleibt die bisherige Canvas-Explosion unverändert (kein
+  passendes Footage vorhanden) — Sound.launchFail() bleibt der synthetische Platzhalter-
+  Sound, bis ein echter Explosions-Sound gefunden/eingebaut wird.
+
+v3.9-fix3 (deep_anchor_3_9.html)
+- Galaxie-Karten (Sternenkarte, Galaxien-Hub, Andromeda-Detailkarte) im gleichen Stil wie die
+  überarbeitete Sonnensystem-Karte optisch aufgewertet:
+  - Hintergrundsterne sind jetzt deterministisch (statt bei jedem Redraw per Math.random() neu
+    gewürfelt) und funkeln dezent, statt bei Pan/Zoom/Reset zu "flackern".
+  - Sonne/Milchstraße/Galaxienkern nutzen jetzt einen mehrschichtigen Glüh-Kern (weiter Bloom +
+    hellerer Kern) statt eines einzelnen Flat-Gradients.
+  - Ziel-Marker (Sternensysteme in der Sternenkarte/Detailkarte, Galaxie-Knoten im Hub) haben
+    jetzt einen weichen, statusfarbenen Glow-Schein hinter sich statt reiner Flat-Fill-Punkte.
+  - Andromeda-Detailkarte: Spiralarme nutzen jetzt einen ausblendenden Gradient-Strich plus
+    eingestreute, je Galaxie deterministisch gestreute Sterne für Textur, statt einer einzelnen
+    dicken Einheitslinie; pro Galaxie ein eigenes stabiles Sternenfeld.
+  - Alle Beschriftungen mit dunklem Halo für bessere Lesbarkeit über Sternenfeld/Spiralarmen.
+  - Positionsberechnung, Klick-Erkennung im Galaxien-Hub (hubTargets) sowie sämtliche
+    Status-/Fortschrittslogik unverändert — nur die Optik wurde angepasst.
+
+v3.9-fix2 (deep_anchor_3_9.html)
+- Sonnensystem-Karte optisch aufgewertet und realistischer gemacht:
+  - Planeten: echte Kugel-Schattierung (Licht von der Sonnenseite) statt Flat-Fill-Kreisen.
+  - Jupiter/Saturn/Uranus/Neptun: feine, auf die Kugelform geclippte Wolkenbänder + weicher
+    Atmosphären-Schimmer.
+  - Ringe jetzt bei allen vier bekannten Ringplaneten statt nur bei Saturn, mit jeweils
+    eigener Charakteristik: Saturn breit/hell (Eis), Jupiter extrem schwach (Staub), Uranus
+    schmal/dunkel und wegen der ~98°-Achsneigung fast senkrecht gekippt, Neptun sehr schwach
+    mit ein paar helleren unregelmäßigen "Ringbögen" statt eines geschlossenen Rings —
+    Ringe werden zweischichtig (hinter/vor der Kugel) gezeichnet statt flach über den Planeten.
+  - Sonne: zusätzlicher Kern-Bloom + dezente Flare-Strahlen.
+  - Monde: dünne gepunktete Verbindungslinie zum Mutterplaneten.
+  - Sternenfeld im Hintergrund (leichtes Funkeln) ergänzt; Asteroidengürtel nutzt jetzt
+    deterministische statt bei jedem Redraw neu gewürfelte Positionen (kein Flackern mehr).
+  - Sonden-Marker im Transit mit dezentem Glüh-Punkt; alle Beschriftungen mit dunklem Halo
+    für bessere Lesbarkeit über Sternen/Asteroiden.
+
+v3.9-fix (deep_anchor_3_9.html)
+- Bugfix Karten-Zoom: Nach Klick auf Reset-Button konnte auf allen Karten (Orbit-Netzwerk,
+  Sonnensystem, Sternenkarte, Galaxien-Hub, Andromeda) nicht mehr gezoomt werden.
+  Ursache: resetMapView() ersetzte das View-Objekt in mapViews[id] durch ein komplett neues
+  Objekt. attachMapPanZoom() hält sich aber pro Karte eine Referenz auf das ursprüngliche
+  Objekt (const view = getMapView(id)), die von den Wheel-/Drag-Handlern verwendet wird.
+  Nach dem Reset zeigte diese Referenz auf das alte, verwaiste Objekt — Scrollen änderte
+  fortan nur noch dessen (nicht mehr gezeichneten) Zoom-Wert, während die Render-Funktionen
+  bereits das neue Objekt lasen und dort für immer bei zoom:1 verharrten.
+  Fix: resetMapView() setzt jetzt zoom/panX/panY direkt am bestehenden Objekt zurück,
+  statt es zu ersetzen — dadurch bleibt die Objekt-Referenz für alle Handler gültig.
+
+v3.9 (deep_anchor_3_9.html)
+- drawPreview() grundlegend überarbeitet — Module wirkten wie lose "Kästen" ohne echte
+  Befestigung (Solarpanels schwebten mit sichtbarem 6px-Spalt zum Rumpf, nur eine kaum
+  sichtbare 1px-Linie sollte das andeuten).
+  - Solarpanels: echter massiver Ausleger (Boom) beginnt jetzt EXAKT an der Rumpfkante
+    (kein Spalt mehr), mit sichtbarem Scharnier-Gelenk am Übergang zum Panel-Array.
+    Mehrere Power-Module ergeben ein länger werdendes, segmentiertes Array mit
+    Falt-Scharnier-Linien zwischen den Segmenten statt einer einzigen Fläche.
+  - Antenne: echte Parabolantenne (Schüssel mit konkavem Gradient, Feed-Horn, zwei
+    Stützstreben vom Schüsselrand zum Feed) statt schlichtem Punkt am Maststab.
+  - Payload-Pods: sichtbare Halterungsstrebe vom Rumpf zum ersten Pod sowie
+    Verbindungsstege zwischen aufeinanderfolgenden Pods, statt lose in der Luft zu hängen.
+  - Fuel-Tank: jetzt als zylindrischer Tank (abgerundete Kapselform) mit angeflanschter
+    Triebwerksdüse inkl. dezentem Glüh-Akzent unten am Rumpf, statt einem simplen Streifen.
+
+v3.8 (deep_anchor_3_8.html)
+- Kontinente sahen wie reine Kreise/Punkte aus statt wie Landmassen. Fix: neue
+  drawBlobPath()/blobRadius()-Funktionen zeichnen jetzt unregelmäßige Umrisse (Radius pro
+  Winkel via überlagerte Sinus-Harmonische, deterministisch je Kontinent-Seed) statt
+  ctx.arc()-Kreisen — inkl. dezenter Küstenlinien-Kontur. Gilt für Kontinente, die
+  Vegetations-Schicht obenauf und die Inselketten.
+- Stadtlichter lagen teils im Wasser, weil ihre Position unabhängig von der (früher
+  kreisrunden) Landmasse zufällig gejittert war. Fix: jedes Licht ist jetzt an einen
+  Kontinent-Index + Winkel + Radius-Anteil (rFrac<1) gebunden und nutzt exakt dieselbe
+  blobRadius()-Formel + denselben Seed wie die zugehörige Landmasse — dadurch liegt jedes
+  Licht garantiert innerhalb der tatsächlich gezeichneten Küstenlinie, nie im Wasser,
+  unabhängig von Rotation/Foreshortening/Zoom.
+
+v3.7 (deep_anchor_3_7.html)
+- Stadtlichter auf der Nachtseite ergänzt: 46 kleine Lichtpunkte (mit dezentem Glow und
+  leichtem Flackern) liegen an festen (lon,lat)-Positionen nahe den Kontinent-Umrissen und
+  rotieren mit der Erde mit. Sichtbarkeit hängt vom Tag/Nacht-Status ab (gleiche linke
+  Bildhälfte wie der bestehende Terminator): auf der Nachtseite voll sichtbar, blenden zur
+  Tagseite hin über die Breite des Terminator-Übergangs sanft aus — "Lichter gehen aus",
+  sobald ein Gebiet ins Tageslicht rotiert.
+
+v3.6 (deep_anchor_3_6.html)
+- Rückseite der Erde war beim Drehen komplett leerer Ozean, da alle Kontinente/Inseln/Wolken
+  nur in einem schmalen Längengrad-Band (~-25° bis 27°) lagen. Fix: Kontinente auf 17 Stück
+  erweitert (9 neue, verteilt über den vollen Längengrad-Bereich bis ~170°/-170°), Inselketten
+  von 5 auf 13 erweitert, Wolkenschleier von 4 auf 12 Patches — jetzt ist beim vollen Umlauf
+  immer Land/Wolken sichtbar, nicht nur eine Hälfte der Kugel.
+
+v3.5 (deep_anchor_3_5.html)
+- Fix: Erdrotation aus v3.4 drehte die komplette Textur flach um die Bildachse (wie ein
+  Uhrzeiger/eine Münze), statt wie ein echter Globus um die eigene Achse zu rotieren.
+  Ursache: 2D ctx.rotate() um den Mittelpunkt statt echter Kugel-Bewegung.
+  Fix: Kontinente, Inselketten und Wolken liegen jetzt an festen (lon,lat)-Koordinaten auf
+  einer Kugel und werden pro Frame per orthografischer Projektion neu berechnet
+  (sphereProject()). Features wandern dadurch seitlich über die Kugelform, werden zum
+  Rand hin schmaler (Verkürzungs-/Foreshortening-Effekt via z-Tiefe) und blenden sanft aus,
+  sobald sie auf die erdabgewandte Seite rotieren — sichtbar echte 3D-Rotation statt
+  2D-Drehung. Polkappen/Terminator/Rim-Light/Atmosphäre weiterhin unverändert raumfest.
+
+v3.4 (deep_anchor_3_4.html)
+- Erdrotation im Orbit-Netzwerk: Kontinente, Inselketten und Wolken wandern jetzt sichtbar
+  über die Oberfläche (drawOrbitScene, earthRotation aus ts abgeleitet). Wolken laufen mit
+  eigenem, leicht abweichendem Rotationstempo (Parallax). Polkappen, Terminator, Rim-Light
+  und Atmosphäre bleiben bewusst raumfest/lichtquellenabhängig und rotieren nicht mit.
+- Satelliten-Bauvorschau (drawPreview) optisch aufgewertet: Chassis-Flächen nutzen jetzt
+  Linear-Gradients statt Flat-Fill (Vorder-, Seiten- und Oberseite inkl. Highlight-Kante),
+  feine Panel-Nähte und Konturlinie. Solarpanels mit Gradient + Zellenraster + Halterungsstrebe
+  (Technik-Blau bewusst als Kontrast zur Akzentfarbe beibehalten). Antenne mit gestufter Linie
+  und Gradient-Dish. Payload-Pods als Kapselform mit Highlight statt reinem Kreis. Dezenter
+  Vignette-Glow im Canvas-Hintergrund für Showroom-Wirkung.
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -103,6 +294,23 @@ body{
 .btn.ghost{ background:transparent; }
 .btn.small{ padding:4px 8px; font-size:11px; }
 .btn.danger{ border-color:var(--red); color:var(--red); }
+.btn.icon-btn{ padding:7px 10px; }
+.btn.icon-btn svg{ width:14px; height:14px; fill:currentColor; display:block; }
+
+.speed-ctrl{
+  display:flex; border:1px solid var(--border-lit); border-radius:var(--radius); overflow:hidden;
+}
+.speed-btn{
+  display:flex; align-items:center;
+  background:var(--panel2); border:none; border-right:1px solid var(--border-lit);
+  color:var(--muted); padding:7px 9px; cursor:pointer; transition:all .12s ease;
+}
+.speed-btn:last-child{ border-right:none; }
+.speed-btn:hover{ color:var(--text); background:#222222; }
+.speed-btn.active{ background:var(--accent); color:#1a0a02; }
+.speed-btn svg.tri{ width:8px; height:13px; fill:currentColor; margin-left:-3px; flex:none; }
+.speed-btn svg.tri:first-child{ margin-left:0; }
+.speed-btn svg.pausei{ width:13px; height:13px; fill:currentColor; flex:none; }
 
 .tabs{
   display:flex; background:#0d0d0d; border-bottom:1px solid var(--border);
@@ -177,7 +385,7 @@ body{
 .chip .s{ color:var(--muted); font-size:10px; margin-top:3px; }
 .chip.sel{ border-color:var(--accent); background:#20140b; }
 .chip.locked{ opacity:.45; cursor:not-allowed; }
-.chip.locked .t::after{ content:' 🔒'; }
+.chip.locked .t::after{ content:''; }
 
 .subtabs{ display:flex; gap:4px; margin-bottom:8px; flex-wrap:wrap; }
 .subtab{
@@ -208,11 +416,20 @@ body{
 
 canvas{ display:block; }
 #previewCanvas{ width:100%; height:180px; background:radial-gradient(circle at 50% 30%, #181818, #0a0a0a); border:1px solid var(--border); border-radius:var(--radius); }
-#orbitCanvas{ width:100%; height:520px; background:#060606; border:1px solid var(--border); border-radius:var(--radius); cursor:pointer; }
-#solarMapCanvas{ width:100%; height:260px; background:radial-gradient(ellipse at 0% 55%, #1c1108 0%, #0a0a0a 45%, #060606 100%); border:1px solid var(--border); border-radius:var(--radius); }
-#galaxyMapCanvas{ width:100%; height:400px; background:radial-gradient(ellipse at 50% 50%, #121212 0%, #070707 55%, #030303 100%); border:1px solid var(--border); border-radius:var(--radius); }
-#andromedaMapCanvas{ width:100%; height:400px; margin-top:10px; background:radial-gradient(ellipse at 50% 50%, #14121a 0%, #070708 55%, #020203 100%); border:1px solid var(--border); border-radius:var(--radius); }
-#galaxyHubCanvas{ width:100%; height:220px; background:radial-gradient(ellipse at 50% 50%, #101014 0%, #060607 55%, #020203 100%); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer; }
+#orbitCanvas{ width:100%; height:clamp(260px, 62vh, 520px); background:#060606; border:1px solid var(--border); border-radius:var(--radius); cursor:grab; }
+#solarMapCanvas{ width:100%; height:260px; background:radial-gradient(ellipse at 0% 55%, #1c1108 0%, #0a0a0a 45%, #060606 100%); border:1px solid var(--border); border-radius:var(--radius); cursor:grab; }
+#galaxyMapCanvas{ width:100%; height:400px; background:radial-gradient(ellipse at 50% 50%, #121212 0%, #070707 55%, #030303 100%); border:1px solid var(--border); border-radius:var(--radius); cursor:grab; }
+#andromedaMapCanvas{ width:100%; height:400px; margin-top:10px; background:radial-gradient(ellipse at 50% 50%, #14121a 0%, #070708 55%, #020203 100%); border:1px solid var(--border); border-radius:var(--radius); cursor:grab; }
+#galaxyHubCanvas{ width:100%; height:220px; background:radial-gradient(ellipse at 50% 50%, #101014 0%, #060607 55%, #020203 100%); border:1px solid var(--border); border-radius:var(--radius); cursor:grab; }
+.map-wrap{ position:relative; }
+.map-reset-btn{
+  position:absolute; top:8px; right:8px; z-index:5;
+  background:rgba(15,15,15,0.8); border:1px solid var(--border-lit); color:var(--muted);
+  border-radius:var(--radius); padding:4px 9px; font-size:11px; font-family:'JetBrains Mono', monospace;
+  cursor:pointer; display:flex; align-items:center; gap:5px; user-select:none;
+}
+.map-reset-btn:hover{ border-color:var(--accent); color:#fff; background:rgba(30,20,15,0.9); }
+.map-reset-btn svg{ width:11px; height:11px; }
 
 .hangar-list{ display:flex; flex-direction:column; gap:8px; margin-top:8px; }
 .hangar-item{
@@ -282,6 +499,7 @@ canvas{ display:block; }
 .modal .mhead{ padding:12px 16px; border-bottom:1px solid var(--border); font-family:'Orbitron',sans-serif; font-size:13px; letter-spacing:1px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;}
 .modal .mbody{ padding:16px; overflow-y:auto; }
 #launchCanvas{ width:100%; height:320px; background:linear-gradient(180deg,#0a0a0a,#121212 60%,#0d1a12); display:block;}
+#launchVideo{ display:block; margin:0 auto; width:auto; height:auto; max-width:100%; max-height:60vh; aspect-ratio:2/3; background:#000; border-radius:2px; object-fit:contain;}
 .launch-result{ text-align:center; padding:14px; font-family:'Orbitron',sans-serif; font-size:16px; letter-spacing:1px; }
 
 .toast-wrap{ position:fixed; bottom:16px; right:16px; z-index:300; display:flex; flex-direction:column; gap:8px; max-width:320px;}
@@ -291,10 +509,15 @@ canvas{ display:block; }
   position:fixed; inset:0; z-index:400;
   background: radial-gradient(ellipse at 50% -10%, #191919 0%, var(--bg) 55%, #050505 100%);
   display:flex; align-items:center; justify-content:center;
-  padding:24px; cursor:pointer;
+  padding:24px; cursor:pointer; overflow:hidden;
 }
 .fullscreen-overlay.start{ cursor:default; }
+.warp-canvas{
+  position:absolute; inset:0; z-index:0; width:100%; height:100%; display:block;
+  pointer-events:none;
+}
 .splash-inner, .start-inner{
+  position:relative; z-index:1;
   display:flex; flex-direction:column; align-items:center; gap:14px;
   text-align:center; max-width:none; width:100%;
 }
@@ -369,6 +592,7 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
 <body>
 
 <div id="splashScreen" class="fullscreen-overlay splash">
+  <canvas class="warp-canvas" id="warpSplash"></canvas>
   <div class="splash-inner">
     <img src="art/bilder/logo.png" alt="Deep Anchor" class="splash-logo"
          onerror="this.style.display='none'; document.getElementById('splashLogoFallback').style.display='block';">
@@ -378,14 +602,15 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
 </div>
 
 <div id="startScreen" class="fullscreen-overlay start" style="display:none;">
+  <canvas class="warp-canvas" id="warpStart"></canvas>
   <div class="start-inner">
     <img src="art/bilder/logo.png" alt="Deep Anchor" class="start-logo"
          onerror="this.style.display='none'; document.getElementById('startLogoFallback').style.display='block';">
     <div id="startLogoFallback" class="logo-fallback" style="display:none;">DEEP <span class="dot">ANCHOR</span></div>
     <div class="start-menu">
-      <button class="btn primary" id="btnNewGame" style="justify-content:center;">🚀 Neues Spiel</button>
-      <button class="btn" id="btnContinueGame" style="justify-content:center;">▶️ Fortsetzen</button>
-      <button class="btn" id="btnImportFromStart" style="justify-content:center;">📂 Spielstand importieren</button>
+      <button class="btn primary" id="btnNewGame" style="justify-content:center;">Neues Spiel</button>
+      <button class="btn" id="btnContinueGame" style="justify-content:center;">Fortsetzen</button>
+      <button class="btn" id="btnImportFromStart" style="justify-content:center;">Spielstand importieren</button>
     </div>
     <input type="file" id="fileInputStart" class="file-inp" accept="application/json">
   </div>
@@ -400,19 +625,25 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
     <div class="hud-item"><span class="lbl">Reputation</span><span class="val rep" id="hudRep">0</span></div>
     <div class="hud-item"><span class="lbl">Einnahmen/Tag</span><span class="val good" id="hudIncome">€0</span></div>
   </div>
-  <button class="btn" id="btnPause">⏸ Pause</button>
-  <button class="btn" id="btnSettings" title="Einstellungen">⚙️ Einstellungen</button>
+  <div class="speed-ctrl" id="speedCtrl" role="group" aria-label="Pause &amp; Geschwindigkeit">
+    <button class="speed-btn" id="btnPause" title="Pause"><svg class="pausei" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    <button class="speed-btn active" data-speed="1" title="1× Geschwindigkeit"><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg></button>
+    <button class="speed-btn" data-speed="2" title="2× Geschwindigkeit"><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg></button>
+    <button class="speed-btn" data-speed="3" title="3× Geschwindigkeit"><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg></button>
+    <button class="speed-btn" data-speed="4" title="4× Geschwindigkeit"><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg><svg class="tri" viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg></button>
+  </div>
+  <button class="btn" id="btnSettings" title="Einstellungen">Einstellungen</button>
   <input type="file" id="fileInput" class="file-inp" accept="application/json">
 </div>
 </div>
 
 <div class="tabs">
 <div class="tabs-inner">
-  <div class="tab active" data-view="build">🏭 Fabrik</div>
-  <div class="tab" data-view="orbit">🛰️ Orbit-Netzwerk</div>
-  <div class="tab" data-view="research">🔬 Forschung</div>
-  <div class="tab" data-view="deepspace">🌌 Sonnensystem</div>
-  <div class="tab" data-view="galaxy">🌠 Galaxie</div>
+  <div class="tab active" data-view="build">Fabrik</div>
+  <div class="tab" data-view="orbit">Orbit-Netzwerk</div>
+  <div class="tab" data-view="research">Forschung</div>
+  <div class="tab" data-view="deepspace">Sonnensystem</div>
+  <div class="tab" data-view="galaxy">Galaxie</div>
 </div>
 </div>
 
@@ -447,7 +678,7 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
             <div class="stat-line"><span class="k">Bauzeit</span><span class="v" id="statTime">0 Tage</span></div>
             <div class="stat-line"><span class="k">Gesamtkosten</span><span class="v" id="statCost">€0</span></div>
           </div>
-          <button class="btn primary" id="btnBuild" style="width:100%; margin-top:12px; justify-content:center;">🛠️ Satellit bauen</button>
+          <button class="btn primary" id="btnBuild" style="width:100%; margin-top:12px; justify-content:center;">Satellit bauen</button>
         </div>
 
         <div class="panel">
@@ -474,8 +705,10 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
     <div class="view" id="view-orbit">
       <div class="panel">
         <h3>Orbital-Netzwerk</h3>
-        <canvas id="orbitCanvas" width="1000" height="520"></canvas>
-        <div class="small-muted" style="margin-top:6px;">Klicke auf einen Satelliten für Details.</div>
+        <div class="map-wrap">
+          <canvas id="orbitCanvas" width="1000" height="520"></canvas>
+          <button class="map-reset-btn" id="btnResetOrbitView" title="Ansicht zurücksetzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Reset</button>
+        </div>
       </div>
       <div class="panel" style="margin-top:14px;" id="satListPanel">
         <h3>Satelliten-Liste (<span id="satListCount">0</span>)</h3>
@@ -491,9 +724,9 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
         <div class="empty-hint" id="transitEmpty">Nichts im Transit.</div>
       </div>
       <div class="panel" style="margin-top:14px;">
-        <h3>🛠️ Wartung</h3>
+        <h3>Wartung</h3>
         <div class="small-muted" id="repairAllInfo" style="margin-bottom:8px;"></div>
-        <button class="btn" id="btnRepairAll" style="width:100%; justify-content:center;">🔧 Alle reparieren</button>
+        <button class="btn" id="btnRepairAll" style="width:100%; justify-content:center;">Alle reparieren</button>
         <div style="border-top:1px solid var(--border); margin:14px 0 10px;"></div>
         <div class="stat-line"><span class="k">Wartungsdrohnen im Orbit</span><span class="v" id="droneCount">0</span></div>
         <div class="stat-line"><span class="k">Verbleibende Reparaturen</span><span class="v" id="droneCapacity">0 Reparaturen übrig</span></div>
@@ -521,16 +754,19 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
     <div class="view" id="view-deepspace">
       <div class="panel">
         <h3>Live-Karte — Sonnensystem</h3>
-        <canvas id="solarMapCanvas" width="1000" height="260"></canvas>
-        <div class="small-muted" style="margin-top:6px;">Grüner Ring = Ziel erreicht, hellblauer Ring = bereits erforscht, oranges Dreieck = Sonde aktuell im Transit (Position aktualisiert sich mit jedem Spieltag). Diese Karte zeigt nur unser Sonnensystem — interstellare Ziele (✨) findest du im 🌠 Galaxie-Tab.</div>
+        <div class="map-wrap">
+          <canvas id="solarMapCanvas" width="1000" height="260"></canvas>
+          <button class="map-reset-btn" id="btnResetSolarView" title="Ansicht zurücksetzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Reset</button>
+        </div>
+        <div class="small-muted" style="margin-top:6px;">Grüner Ring = Ziel erreicht, hellblauer Ring = bereits erforscht, oranges Dreieck = Sonde aktuell im Transit (Position aktualisiert sich mit jedem Spieltag). Diese Karte zeigt nur unser Sonnensystem — interstellare Ziele findest du im Galaxie-Tab.</div>
       </div>
       <div class="panel" style="margin-top:14px;" id="terraformPanel">
-        <h3>🌍 Mars-Terraforming</h3>
+        <h3>Mars-Terraforming</h3>
         <div id="terraformBody"></div>
       </div>
       <div class="panel" style="margin-top:14px;">
         <h3>Sonnensystem — Erkundungsprogramm</h3>
-        <div class="small-muted" style="margin-bottom:10px;">Sonden werden im Hangar gebaut (mit mind. einem Forschungsinstrument) und von dort per Klick auf „🌌 Ins All“ zu einem Ziel geschickt. Jedes Ziel erfordert ausreichend ΔV-Reichweite der Trägerrakete sowie passende Forschung.</div>
+        <div class="small-muted" style="margin-bottom:10px;">Sonden werden im Hangar gebaut (mit mind. einem Forschungsinstrument) und von dort per Klick auf „Ins All“ zu einem Ziel geschickt. Jedes Ziel erfordert ausreichend ΔV-Reichweite der Trägerrakete sowie passende Forschung.</div>
         <div class="research-grid" id="deepSpaceGrid"></div>
       </div>
       <div class="panel" style="margin-top:14px;">
@@ -546,30 +782,36 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
 
     <div class="view" id="view-galaxy">
       <div class="panel">
-        <h3>🌌 Galaxien-Hub</h3>
+        <h3>Galaxien-Hub</h3>
         <div class="small-muted" style="margin-bottom:6px;">Unsere Milchstraße und jede erreichbare Nachbargalaxie erscheinen hier als Knotenpunkte. Klick auf einen Knoten öffnet die passende Karte darunter — bei der Milchstraße die Sternenkarte um Sol, bei einer anderen Galaxie deren Sprungziele.</div>
-        <canvas id="galaxyHubCanvas" width="1000" height="220"></canvas>
+        <div class="map-wrap">
+          <canvas id="galaxyHubCanvas" width="1000" height="220"></canvas>
+          <button class="map-reset-btn" id="btnResetGalaxyHubView" title="Ansicht zurücksetzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Reset</button>
+        </div>
       </div>
 
       <div id="milkywayPanels">
         <div class="panel" style="margin-top:14px;">
           <h3>Sternenkarte — Stellarnachbarschaft (bis ~14 Lj)</h3>
-          <canvas id="galaxyMapCanvas" width="1000" height="440"></canvas>
+          <div class="map-wrap">
+            <canvas id="galaxyMapCanvas" width="1000" height="440"></canvas>
+            <button class="map-reset-btn" id="btnResetGalaxyMapView" title="Ansicht zurücksetzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Reset</button>
+          </div>
           <div class="small-muted" style="margin-top:6px;">Sonne im Zentrum, Distanzringe bei 5 / 10 / 15 Lichtjahren. Grau = unerforscht, hellblau = erreicht, grün = gelandet, gold = Kolonie gegründet, violetter Ring = Erstkontakt mit außerirdischem Leben.</div>
         </div>
         <div class="panel" style="margin-top:14px;">
-          <h3>🏙️ Kolonien</h3>
+          <h3>Kolonien</h3>
           <div id="galaxyColoniesList"></div>
           <div class="empty-hint" id="galaxyColoniesEmpty">Noch keine Kolonien gegründet — dafür nötig: Kolonisierungstechnik erforschen, eine Sonde mit Kolonie-Modul zu einem kolonisierbaren Ziel schicken und dort erfolgreich landen.</div>
         </div>
         <div class="panel" style="margin-top:14px;">
-          <h3>👽 Erstkontakte</h3>
+          <h3>Erstkontakte</h3>
           <div id="galaxyContactsList"></div>
           <div class="empty-hint" id="galaxyContactsEmpty">Noch kein Kontakt mit außerirdischem Leben — irgendwo da draußen wartet mehr als nur Gestein und Gas.</div>
         </div>
         <div class="panel" style="margin-top:14px;">
           <h3>Interstellare Ziele</h3>
-          <div class="small-muted" style="margin-bottom:10px;">Erfordert Überlichtantrieb (Vorbeiflug) bzw. Exoplaneten-Kartierung (Landung). Sonden werden wie gewohnt über „🌌 Ins All“ im Hangar gestartet.</div>
+          <div class="small-muted" style="margin-bottom:10px;">Erfordert Überlichtantrieb (Vorbeiflug) bzw. Exoplaneten-Kartierung (Landung). Sonden werden wie gewohnt über „Ins All“ im Hangar gestartet.</div>
           <div class="research-grid" id="galaxyGrid"></div>
         </div>
         <div class="panel" style="margin-top:14px;">
@@ -581,14 +823,17 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
 
       <div id="galaxyDetailPanels">
         <div class="panel" style="margin-top:14px;">
-          <h3 id="galaxyDetailTitle">🌀 Andromeda-Galaxie (M31)</h3>
+          <h3 id="galaxyDetailTitle">Andromeda-Galaxie (M31)</h3>
           <div class="small-muted" id="galaxyDetailDesc" style="margin-bottom:6px;"></div>
           <div class="empty-hint" id="andromedaLocked" style="display:none;">Gesperrt.</div>
-          <canvas id="andromedaMapCanvas" width="1000" height="400"></canvas>
+          <div class="map-wrap">
+            <canvas id="andromedaMapCanvas" width="1000" height="400"></canvas>
+            <button class="map-reset-btn" id="btnResetAndromedaView" title="Ansicht zurücksetzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Reset</button>
+          </div>
           <div class="small-muted" style="margin-top:6px;">Kernregion im Zentrum, Sprungziele entlang der Spiralarme. Grau = unerforscht, hellblau = erreicht, grün = gelandet, gold = Kolonie gegründet, oranger Fortschrittsring = Sonde aktuell im Sprungtunnel (Ring füllt sich mit der Flugzeit).</div>
         </div>
         <div class="panel" style="margin-top:14px;">
-          <h3 id="galaxyColoniesTitle">🏙️ Kolonien in M31</h3>
+          <h3 id="galaxyColoniesTitle">Kolonien in M31</h3>
           <div id="andromedaColoniesList"></div>
           <div class="empty-hint" id="andromedaColoniesEmpty">Noch keine Kolonien jenseits der Milchstraße.</div>
         </div>
@@ -618,39 +863,52 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
 
 <div class="modal-bg" id="launchModal">
   <div class="modal">
-    <div class="mhead"><span>🚀 Startvorbereitung</span><button class="btn small ghost" id="closeLaunchModal">✕</button></div>
+    <div class="mhead"><span>Startvorbereitung</span><button class="btn small ghost" id="closeLaunchModal">✕</button></div>
     <div class="mbody" id="launchModalBody"></div>
   </div>
 </div>
 
 <div class="modal-bg" id="deepSpaceModal">
   <div class="modal">
-    <div class="mhead"><span>🌌 Sondenmission vorbereiten</span><button class="btn small ghost" id="closeDeepSpaceModal">✕</button></div>
+    <div class="mhead"><span>Sondenmission vorbereiten</span><button class="btn small ghost" id="closeDeepSpaceModal">✕</button></div>
     <div class="mbody" id="deepSpaceModalBody"></div>
   </div>
 </div>
 
 <div class="modal-bg" id="helpModal">
   <div class="modal" style="max-width:640px;">
-    <div class="mhead"><span>❓ Auftrag → Bauplan Spickzettel</span><button class="btn small ghost" id="closeHelpModal">✕</button></div>
+    <div class="mhead"><span>Auftrag → Bauplan Spickzettel</span><button class="btn small ghost" id="closeHelpModal">✕</button></div>
     <div class="mbody" id="helpModalBody"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="confirmModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="mhead"><span id="confirmModalTitle">Bestätigen</span><button class="btn small ghost" id="closeConfirmModal">✕</button></div>
+    <div class="mbody">
+      <div class="small-muted" id="confirmModalText" style="line-height:1.5;"></div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn" id="confirmModalCancel" style="flex:1; justify-content:center;">Abbrechen</button>
+        <button class="btn primary" id="confirmModalOk" style="flex:1; justify-content:center;">Bestätigen</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <div class="modal-bg" id="settingsModal">
   <div class="modal" style="max-width:420px;">
-    <div class="mhead"><span>⚙️ Einstellungen</span><button class="btn small ghost" id="closeSettingsModal">✕</button></div>
+    <div class="mhead"><span>Einstellungen</span><button class="btn small ghost" id="closeSettingsModal">✕</button></div>
     <div class="mbody">
       <div class="settings-row">
-        <button class="btn" id="btnHelp" style="width:100%;">❓ Hilfe — Auftrag → Bauplan Spickzettel</button>
+        <button class="btn" id="btnHelp" style="width:100%;">Hilfe — Auftrag → Bauplan Spickzettel</button>
       </div>
 
       <div class="settings-row" style="margin-top:14px;">
-        <button class="btn" id="btnMute" style="width:100%;">🔊 Soundeffekte an</button>
+        <button class="btn" id="btnMute" style="width:100%;">Soundeffekte an</button>
       </div>
 
       <div class="settings-row" style="margin-top:10px;">
-        <button class="btn" id="btnMusicMute" style="width:100%;">🎵 Musik an</button>
+        <button class="btn" id="btnMusicMute" style="width:100%;">Musik an</button>
       </div>
 
       <div class="settings-row" style="margin-top:14px;">
@@ -658,13 +916,22 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
         <input type="range" id="musicVolumeSlider" min="0" max="100" value="35" style="width:100%;">
       </div>
 
+      <div class="settings-row" style="margin-top:14px;">
+        <button class="btn" id="btnVideoSoundMute" style="width:100%;">Video-Sound an</button>
+      </div>
+
+      <div class="settings-row" style="margin-top:10px;">
+        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Video-Lautstärke</label>
+        <input type="range" id="videoVolumeSlider" min="0" max="100" value="80" style="width:100%;">
+      </div>
+
       <div class="settings-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
-        <span class="small-muted" id="autosaveStatus">🟢 Auto-Speicherung aktiv</span>
+        <span class="small-muted" id="autosaveStatus">Auto-Speicherung aktiv</span>
       </div>
 
       <div class="settings-row" style="margin-top:10px; display:flex; gap:8px;">
-        <button class="btn" id="btnSave" style="flex:1;">💾 Export</button>
-        <button class="btn" id="btnLoad" style="flex:1;">📂 Import</button>
+        <button class="btn" id="btnSave" style="flex:1;">Export</button>
+        <button class="btn" id="btnLoad" style="flex:1;">Import</button>
       </div>
     </div>
   </div>
@@ -679,6 +946,7 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
 /* ============================== AUDIO ============================== */
 const Sound = (() => {
   let ctx = null, master = null, muted = false;
+  let explosionBuffer = null, explosionLoading = null;
   function ensure(){
     if(!ctx){
       ctx = new (window.AudioContext||window.webkitAudioContext)();
@@ -725,6 +993,26 @@ const Sound = (() => {
     src.connect(filt); filt.connect(g); g.connect(master);
     src.start(t0);
   }
+  function loadExplosionBuffer(){
+    if(explosionBuffer) return Promise.resolve(explosionBuffer);
+    if(explosionLoading) return explosionLoading;
+    const c = ensure();
+    explosionLoading = fetch('art/audio/explosion.mp3')
+      .then(r=>{ if(!r.ok) throw new Error('explosion.mp3 nicht gefunden'); return r.arrayBuffer(); })
+      .then(arr=>c.decodeAudioData(arr))
+      .then(decoded=>{ explosionBuffer = decoded; return decoded; })
+      .catch(err=>{ explosionLoading = null; throw err; });
+    return explosionLoading;
+  }
+  function playExplosionBuffer(gainVal=0.9){
+    const c = ensure();
+    const src = c.createBufferSource();
+    src.buffer = explosionBuffer;
+    const g = c.createGain();
+    g.gain.value = gainVal;
+    src.connect(g); g.connect(master);
+    src.start();
+  }
   return {
     click(){ tone(720,0.05,'square',0.15); },
     buildOk(){ [0,0.08,0.16].forEach((d,i)=>tone(440+i*160,0.15,'triangle',0.2,d)); },
@@ -738,9 +1026,15 @@ const Sound = (() => {
       [523,659,784,1046].forEach((f,i)=>tone(f,0.3,'triangle',0.22,i*0.09));
     },
     launchFail(){
-      noiseBurst(0.6,0,0.5,900);
-      tone(140,0.5,'sawtooth',0.25,0,40);
-      tone(90,0.7,'sine',0.2,0.15,30);
+      // Echter Explosions-Sound (art/audio/explosion.mp3); falls Datei fehlt/nicht lädt,
+      // greift automatisch der alte synthetische Sound als Fallback.
+      loadExplosionBuffer().then(()=>{
+        playExplosionBuffer(0.9);
+      }).catch(()=>{
+        noiseBurst(0.6,0,0.5,900);
+        tone(140,0.5,'sawtooth',0.25,0,40);
+        tone(90,0.7,'sine',0.2,0.15,30);
+      });
     },
     contractDone(){
       [660,880,660,990].forEach((f,i)=>tone(f,0.18,'sine',0.2,i*0.1));
@@ -776,6 +1070,29 @@ const Music = (() => {
   let muted = false, idx = 0, started = false;
   const audio = new Audio();
   audio.volume = VOL;
+  let baseVolume = VOL;
+  let fadeRAF = null;
+
+  function fadeTo(target, durationMs){
+    if(fadeRAF) cancelAnimationFrame(fadeRAF);
+    const startVol = audio.volume;
+    const startTime = performance.now();
+    if(durationMs <= 0){ audio.volume = Math.max(0, Math.min(1, target)); fadeRAF = null; return; }
+    function step(now){
+      const t = Math.min(1, (now-startTime)/durationMs);
+      audio.volume = Math.max(0, Math.min(1, startVol + (target-startVol)*t));
+      if(t < 1){ fadeRAF = requestAnimationFrame(step); }
+      else { fadeRAF = null; }
+    }
+    fadeRAF = requestAnimationFrame(step);
+  }
+  // Sanftes Runter-/Wiederhochdrehen (z.B. während Start-Sequenz), statt abrupt umzuschalten.
+  function duck(toFraction=0.05, durationMs=700){
+    fadeTo(baseVolume * toFraction, durationMs);
+  }
+  function unduck(durationMs=700){
+    fadeTo(baseVolume, durationMs);
+  }
 
   function loadCurrent(){
     audio.src = PLAYLIST[idx];
@@ -803,7 +1120,8 @@ const Music = (() => {
   }
 
   function setVolume(v){
-    audio.volume = Math.max(0, Math.min(1, v));
+    baseVolume = Math.max(0, Math.min(1, v));
+    if(!fadeRAF) audio.volume = baseVolume;
   }
 
   // Falls der Browser Autoplay ohne Interaktion blockiert: beim ersten
@@ -818,7 +1136,7 @@ const Music = (() => {
     document.addEventListener('keydown', unlock, { once: true });
   }
 
-  return { start, toggleMute, isMuted: () => muted, armAutoplayUnlock, setVolume };
+  return { start, toggleMute, isMuted: () => muted, armAutoplayUnlock, setVolume, duck, unduck };
 })();
 
 /* ============================== DATA CATALOG ============================== */
@@ -868,22 +1186,22 @@ const MODULES = {
     { id:'colonymod1', cat:'colony', name:'Kolonie-Modul', cost:120000, mass:140, powerDraw:35, locked:true, reqResearch:'kolonisierungstechnik', isColonyModule:true, desc:'Autonomes Habitat mit Selbstversorgung — bei erfolgreicher Landung auf einem kolonisierbaren Exoplaneten wird automatisch eine dauerhafte Kolonie gegründet, die passives Einkommen liefert.' },
   ],
   role: [
-    { id:'roleSonde',   cat:'role', name:'📛 Sonde',          cost:0, mass:0, roleLabel:'Sonde',          locked:false, noSlot:true, desc:'Reine Kennzeichnung ohne Funktion und ohne Slotverbrauch — markiert dieses Fahrzeug im Hangar & bei der Fertigung klar als „Sonde" statt als generischen Satelliten.' },
-    { id:'roleLander',  cat:'role', name:'📛 Lander',         cost:0, mass:0, roleLabel:'Lander',         locked:false, noSlot:true, desc:'Reine Kennzeichnung ohne Funktion und ohne Slotverbrauch — markiert dieses Fahrzeug als Lander.' },
-    { id:'roleKolonieschiff', cat:'role', name:'📛 Kolonieschiff', cost:0, mass:0, roleLabel:'Kolonieschiff', locked:false, noSlot:true, desc:'Reine Kennzeichnung ohne Funktion und ohne Slotverbrauch — markiert dieses Fahrzeug als Kolonieschiff.' },
-    { id:'roleAussenposten', cat:'role', name:'📛 Außenposten', cost:0, mass:0, roleLabel:'Außenposten', locked:false, noSlot:true, desc:'Reine Kennzeichnung ohne Funktion und ohne Slotverbrauch — markiert dieses Fahrzeug als Außenposten-Schiff.' },
+    { id:'roleSonde',   cat:'role', name:'Sonde',          cost:0, mass:0, roleLabel:'Sonde',          locked:false, noSlot:true, desc:'Reine Kennzeichnung ohne Funktion und ohne Slotverbrauch — markiert dieses Fahrzeug im Hangar & bei der Fertigung klar als „Sonde" statt als generischen Satelliten.' },
+    { id:'roleLander',  cat:'role', name:'Lander',         cost:0, mass:0, roleLabel:'Lander',         locked:false, noSlot:true, desc:'Reine Kennzeichnung ohne Funktion und ohne Slotverbrauch — markiert dieses Fahrzeug als Lander.' },
+    { id:'roleKolonieschiff', cat:'role', name:'Kolonieschiff', cost:0, mass:0, roleLabel:'Kolonieschiff', locked:false, noSlot:true, desc:'Reine Kennzeichnung ohne Funktion und ohne Slotverbrauch — markiert dieses Fahrzeug als Kolonieschiff.' },
+    { id:'roleAussenposten', cat:'role', name:'Außenposten', cost:0, mass:0, roleLabel:'Außenposten', locked:false, noSlot:true, desc:'Reine Kennzeichnung ohne Funktion und ohne Slotverbrauch — markiert dieses Fahrzeug als Außenposten-Schiff.' },
   ],
 };
 const MOD_CATS = [
-  {id:'role', label:'📛 Rolle'},
-  {id:'power', label:'⚡ Energie'},
-  {id:'comm', label:'📡 Kommunikation'},
-  {id:'payload', label:'📦 Nutzlast'},
-  {id:'fuel', label:'🔥 Treibstoff'},
-  {id:'lander', label:'🛬 Landung'},
-  {id:'crew', label:'🧑‍🚀 Besatzung'},
-  {id:'terraform', label:'🌱 Terraforming'},
-  {id:'colony', label:'🏙️ Kolonisierung'},
+  {id:'role', label:'Rolle'},
+  {id:'power', label:'Energie'},
+  {id:'comm', label:'Kommunikation'},
+  {id:'payload', label:'Nutzlast'},
+  {id:'fuel', label:'Treibstoff'},
+  {id:'lander', label:'Landung'},
+  {id:'crew', label:'Besatzung'},
+  {id:'terraform', label:'Terraforming'},
+  {id:'colony', label:'Kolonisierung'},
 ];
 
 const ORBITS = {
@@ -1514,7 +1832,7 @@ function confirmLaunchArea(sat, derived, orbitKey, rocketKey){
     <div class="stat-line"><span class="k">Flugzeit</span><span class="v">${transferTimeFor(orbitKey, rocket)} Tag(e)</span></div>
     ${derived.powerBalance<0?'<div class="stat-line"><span class="k">Warnung</span><span class="v bad">Energiedefizit — reduzierte Leistung</span></div>':''}
     ${derived.deltaV<=0?'<div class="stat-line"><span class="k">Hinweis</span><span class="v">Keine eigene Treibstoffreserve — höherer Verschleiß im Orbit</span></div>':''}
-    <button class="btn primary" id="confirmLaunchBtn" style="width:100%; margin-top:10px; justify-content:center;">🚀 Start freigeben</button>
+    <button class="btn primary" id="confirmLaunchBtn" style="width:100%; margin-top:10px; justify-content:center;">Start freigeben</button>
   `;
   document.getElementById('confirmLaunchBtn').addEventListener('click', ()=>{
     if(state.money < launchCost){ toast('Nicht genug Guthaben für den Start.', 'bad'); Sound.error(); return; }
@@ -1531,16 +1849,111 @@ document.getElementById('closeDeepSpaceModal').addEventListener('click', closeDe
 function runLaunchSequence(sat, orbitKey, reliability, derived, rocket){
   const modal = document.getElementById('launchModal');
   const body = document.getElementById('launchModalBody');
-  body.innerHTML = `<canvas id="launchCanvas" width="640" height="320"></canvas><div class="launch-result" id="launchResultText"></div>`;
   modal.classList.add('active');
+  const success = Math.random() < reliability;
+  Music.duck(0.05, 700); // Hintergrundmusik sanft runterdrosseln während der Start-Sequenz
+
+  // Bei Erfolg: komplettes Startvideo (art/video/launch.mp4) mit Ton, statt Canvas-Animation.
+  // Läuft von Anfang bis Ende durch (kein Zuschnitt) — Ergebnis erscheint erst nach 'ended'.
+  // Kein Sound.launchRumble() hier, da das Video seinen eigenen echten Ton mitbringt.
+  if(success){
+    body.innerHTML = `<div style="position:relative;"><video id="launchVideo" src="art/video/launch.mp4" playsinline autoplay></video><button class="btn small ghost" id="skipLaunchVideo" style="position:absolute; top:8px; right:8px; z-index:2;">⏭ Überspringen</button></div><div class="launch-result" id="launchResultText"></div>`;
+    const video = document.getElementById('launchVideo');
+    const skipBtn = document.getElementById('skipLaunchVideo');
+    video.muted = videoSoundMuted;
+    video.volume = videoVolume;
+    let doneVideo = false;
+    function finishVideo(){
+      if(doneVideo) return;
+      doneVideo = true;
+      video.pause();
+      skipBtn.remove();
+      finish();
+    }
+    skipBtn.addEventListener('click', finishVideo);
+    video.addEventListener('loadedmetadata', ()=>{
+      video.play().catch(()=>{
+        // Autoplay mit Ton blockiert -> stumm nochmal versuchen, damit die Sequenz nicht hängen bleibt
+        video.muted = true;
+        video.play().catch(()=>{});
+      });
+    });
+    video.addEventListener('ended', finishVideo);
+    video.addEventListener('error', ()=>{
+      // Video fehlt/lädt nicht -> alte Canvas-Animation als Fallback
+      if(doneVideo) return;
+      doneVideo = true;
+      runCanvasSequence();
+    });
+  } else {
+    // Fehlschlag: kurz das echte Video zeigen (Zündung/Liftoff-Beginn), dann harter Cut
+    // zur Explosion (kein Kaputt-Footage vorhanden) inkl. Explosions-Sound.
+    body.innerHTML = `<video id="launchVideo" src="art/video/launch.mp4" playsinline autoplay></video><div class="launch-result" id="launchResultText"></div>`;
+    const video = document.getElementById('launchVideo');
+    video.muted = videoSoundMuted;
+    video.volume = videoVolume;
+    const FAIL_CLIP_START = 25;
+    const FAIL_CLIP_END = 32;
+    let cutDone = false;
+    function cutToExplosion(){
+      if(cutDone) return;
+      cutDone = true;
+      video.pause();
+      Sound.launchFail();
+      runExplosionOnly();
+    }
+    video.addEventListener('loadedmetadata', ()=>{
+      try{ video.currentTime = FAIL_CLIP_START; }catch(e){}
+      video.play().catch(()=>{
+        video.muted = true;
+        video.play().catch(()=>{});
+      });
+    });
+    video.addEventListener('timeupdate', ()=>{
+      if(video.currentTime >= FAIL_CLIP_END) cutToExplosion();
+    });
+    video.addEventListener('error', ()=>{
+      // Video fehlt/lädt nicht -> komplett alte Canvas-Sequenz (Aufstieg + Explosion) als Fallback
+      if(cutDone) return;
+      cutDone = true;
+      runCanvasSequence();
+    });
+  }
+
+  function runExplosionOnly(){
+    body.innerHTML = `<canvas id="launchCanvas" width="640" height="320"></canvas><div class="launch-result" id="launchResultText"></div>`;
+    const canvas = document.getElementById('launchCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const cx = W*0.5, cy = H*0.5;
+    const duration = 900;
+    const start = performance.now();
+    function frame(now){
+      const t = Math.min(1, (now-start)/duration);
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle = '#0b1f14';
+      ctx.fillRect(0, H-40, W, 40);
+      ctx.globalAlpha = Math.max(0, 1-t);
+      const grd = ctx.createRadialGradient(cx,cy,2,cx,cy,90*t+5);
+      grd.addColorStop(0,'#fff3d0'); grd.addColorStop(0.4,'#ff8a2b'); grd.addColorStop(1,'rgba(255,60,20,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(cx,cy,90*t+5,0,7); ctx.fill();
+      ctx.globalAlpha = 1;
+      if(t < 1){ requestAnimationFrame(frame); } else { finish(); }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function runCanvasSequence(){
   Sound.launchRumble();
+  body.innerHTML = `<canvas id="launchCanvas" width="640" height="320"></canvas><div class="launch-result" id="launchResultText"></div>`;
   const canvas = document.getElementById('launchCanvas');
   const ctx = canvas.getContext('2d');
-  const success = Math.random() < reliability;
   const duration = 2200;
   const start = performance.now();
   const stars = Array.from({length:60},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.4}));
   const smoke = [];
+  let explosionSoundPlayed = false;
 
   function frame(now){
     const t = Math.min(1, (now-start)/duration);
@@ -1561,6 +1974,7 @@ function runLaunchSequence(sat, orbitKey, reliability, derived, rocket){
     if(!success && t >= failT){
       exploded = true;
       rocketY = H-60 - (failT*0.85)*(H-140);
+      if(!explosionSoundPlayed){ explosionSoundPlayed = true; Sound.launchFail(); }
     } else {
       rocketY = H-60 - t*0.85*(H-140);
     }
@@ -1621,8 +2035,10 @@ function runLaunchSequence(sat, orbitKey, reliability, derived, rocket){
     }
   }
   requestAnimationFrame(frame);
+  } // Ende runCanvasSequence()
 
   function finish(){
+    Music.unduck(700); // Hintergrundmusik wieder auf den vorherigen Pegel hochziehen
     const resultEl = document.getElementById('launchResultText');
     // remove from hangar
     state.hangar = state.hangar.filter(s=>s.id!==sat.id);
@@ -1636,7 +2052,8 @@ function runLaunchSequence(sat, orbitKey, reliability, derived, rocket){
       });
       state.reputation = Math.min(100, state.reputation + 1);
     } else {
-      Sound.launchFail();
+      // Sound.launchFail() wird bereits synchron zum Explosions-Bild ausgelöst
+      // (cutToExplosion() bzw. im Canvas-Fallback beim Zünden der Explosion) — hier NICHT nochmal.
       resultEl.innerHTML = `<span style="color:var(--red)">✗ START FEHLGESCHLAGEN</span><div class="small-muted" style="margin-top:6px;">${sat.name} ging beim Start mit der ${rocket.name} verloren.</div>`;
       state.reputation = Math.max(0, state.reputation - 3);
     }
@@ -1695,7 +2112,7 @@ function renderDeepSpaceDestChoice(sat, derived, rocketKey){
     if(!unlocked) reason = 'noch nicht erforscht';
     else if(rocket.deltaV < d.deltaVReq) reason = `${rocket.name} reicht nicht (ΔV ${rocket.deltaV} < ${d.deltaVReq})`;
     return `<div class="chip ${!reachable?'locked':''}" data-dest="${k}" style="cursor:${reachable?'pointer':'not-allowed'}">
-      <div class="t"><span>${d.intergalactic?'🌀 ':d.interstellar?'✨ ':''}${d.name}${state.exploredTargets.includes(k)?' ✓':''}</span><span>${fmtMoney(cost)}</span></div>
+      <div class="t"><span>${d.intergalactic?'':d.interstellar?'':''}${d.name}${state.exploredTargets.includes(k)?' ✓':''}</span><span>${fmtMoney(cost)}</span></div>
       <div class="s">${reachable? '✓ erreichbar · '+Math.max(1,Math.round(destTravelDays(d)*(ROCKET_SPEED_FACTOR[rocket.tier]||1)))+' Tage Flugzeit'+(d.interstellar?` · ${d.distanceLy} Lj`:'')+(d.intergalactic?` · ${d.distanceMly} Mio. Lj (Sprung)`:'') : '✗ '+reason}</div>
     </div>`;
   }).join('');
@@ -1751,18 +2168,18 @@ function confirmDeepSpaceArea(sat, derived, destKey, rocketKey){
       ${!landingPossible?`<div class="small-muted" style="margin-top:6px;">${d.noLandingReason||'Keine feste Oberfläche'} — keine Landung möglich, nur Vorbeiflug.</div>`:`
       <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:11px; ${canToggleLanding?'':'opacity:.4;'}">
         <input type="checkbox" id="landingToggle" ${canToggleLanding?'':'disabled'} ${attemptCrewed?'checked':''}>
-        🛬 Landung versuchen ${hasLanderKit ? `(Landechance ${Math.round(landingChance*100)}%, +${Math.round((d.landingRewardMult-1)*100)}% Ertrag, +40% Startkosten)` : '(benötigt Landestufe-Modul)'}
+        Landung versuchen ${hasLanderKit ? `(Landechance ${Math.round(landingChance*100)}%, +${Math.round((d.landingRewardMult-1)*100)}% Ertrag, +40% Startkosten)` : '(benötigt Landestufe-Modul)'}
       </label>
       ${attemptLanding&&!attemptCrewed?`<div class="small-muted" style="margin-top:4px;">Landung ist ein eigenes Risiko nach der Ankunft — bei Fehlschlag gibt es trotzdem Vorbeiflugdaten (reduzierter Ertrag).</div>`:''}
       `}
       ${crewCfg ? `
       <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:11px; ${canToggleCrewed?'':'opacity:.4;'}">
         <input type="checkbox" id="crewedToggle" ${canToggleCrewed?'':'disabled'}>
-        🧑‍🚀 Bemannte Mission ${crewAvailable ? (lifeSupportOk ? `(x${crewCfg.rewardMult} Ertrag, +${crewCfg.extraRep} Reputation, +90% Startkosten)` : `(Lebenserhaltung reicht nicht — ${Math.round(derived.lifeSupportDays)}/${requiredDays} Tage)`) : '(benötigt Crew-Kapsel-Technik + Crew-Kapsel-Modul)'}
+        Bemannte Mission ${crewAvailable ? (lifeSupportOk ? `(x${crewCfg.rewardMult} Ertrag, +${crewCfg.extraRep} Reputation, +90% Startkosten)` : `(Lebenserhaltung reicht nicht — ${Math.round(derived.lifeSupportDays)}/${requiredDays} Tage)`) : '(benötigt Crew-Kapsel-Technik + Crew-Kapsel-Modul)'}
       </label>
       <div class="small-muted" style="margin-top:4px;">Besatzung ist per Abbruchsystem abgesichert: bei Fehlschlag kehrt die Crew sicher zurück, nur der wissenschaftliche Ertrag fällt geringer aus.</div>
       `:''}
-      <button class="btn primary" id="confirmDeepSpaceBtn" style="width:100%; margin-top:10px; justify-content:center;">🚀 Mission freigeben</button>
+      <button class="btn primary" id="confirmDeepSpaceBtn" style="width:100%; margin-top:10px; justify-content:center;">Mission freigeben</button>
     `;
     const toggle = document.getElementById('landingToggle');
     if(toggle){
@@ -1789,7 +2206,7 @@ function runDeepSpaceLaunchSequence(sat, destKey, reliability, derived, rocket, 
   const d = DEEP_SPACE[destKey];
   state.hangar = state.hangar.filter(s=>s.id!==sat.id);
   Sound.launchRumble();
-  toast(`🚀 Start läuft: ${sat.name} auf dem Weg zur ${d.name}-Mission…`, '');
+  toast(`Start läuft: ${sat.name} auf dem Weg zur ${d.name}-Mission…`, '');
   setTimeout(()=>{
     const success = Math.random() < reliability;
     if(success){
@@ -1807,6 +2224,15 @@ function runDeepSpaceLaunchSequence(sat, destKey, reliability, derived, rocket, 
 }
 
 /* ============================== CONTRACTS ============================== */
+// Bandbreite aus Antennen-Modulen erhöht die Tageseinnahme bei Kommunikations-
+// Aufträgen — pro 100 Bandbreite +50% Bonus (z.B. Antenne III mit 70 Bandbreite: +35%).
+function contractDailyIncome(contract, derived){
+  let income = contract.rewardPerTick;
+  if(contract.type === 'kommunikation' && derived.bandwidth){
+    income = Math.round(income * (1 + derived.bandwidth/200));
+  }
+  return income;
+}
 function generateContract(){
   const type = pickWeighted(TYPE_WEIGHTS);
   const orbitKey = pickWeighted(ORBIT_WEIGHTS);
@@ -1857,23 +2283,49 @@ function repairSat(satId){
   renderAll();
 }
 
+/* ============================== BESTÄTIGUNGS-MODAL (Ersatz für window.confirm) ============================== */
+let confirmModalOkHandler = null;
+function showConfirmModal(title, text, okLabel, onConfirm){
+  document.getElementById('confirmModalTitle').textContent = title;
+  document.getElementById('confirmModalText').textContent = text;
+  const okBtn = document.getElementById('confirmModalOk');
+  okBtn.textContent = okLabel || 'Bestätigen';
+  document.getElementById('confirmModal').classList.add('active');
+  if(confirmModalOkHandler) okBtn.removeEventListener('click', confirmModalOkHandler);
+  confirmModalOkHandler = ()=>{
+    document.getElementById('confirmModal').classList.remove('active');
+    onConfirm();
+  };
+  okBtn.addEventListener('click', confirmModalOkHandler);
+}
+function closeConfirmModal(){ document.getElementById('confirmModal').classList.remove('active'); }
+document.getElementById('closeConfirmModal').addEventListener('click', closeConfirmModal);
+document.getElementById('confirmModalCancel').addEventListener('click', closeConfirmModal);
+
 function decommissionSat(satId){
   const s = state.orbitSats.find(s=>s.id===satId);
   if(!s) return;
   const d = computeSatDerived(s.chassisId, s.mods);
   const buildCost = (CHASSIS[s.chassisId]?.cost||0) + (s.mods||[]).reduce((sum,mid)=>{ const m=findMod(mid); return sum + (m?m.cost:0); },0);
   const refund = Math.round(buildCost * 0.25);
-  if(!confirm(`${s.name} wirklich außer Dienst stellen? Der Satellit wird deorbitiert und ist danach unwiderruflich weg. Du erhältst ${fmtMoney(refund)} Schrottwert zurück.`)) return;
-  if(s.assignedContract){
-    const c = state.contracts.find(c=>c.id===s.assignedContract);
-    if(c){ c.status='offen'; c.satId=null; c.remaining=c.duration; }
-  }
-  state.orbitSats = state.orbitSats.filter(x=>x.id!==satId);
-  state.money += refund;
-  if(selectedSatId===satId) selectedSatId = null;
-  Sound.warn();
-  toast(`${s.name} außer Dienst gestellt — Orbit-Slot frei, +${fmtMoney(refund)} Schrottwert.`, '');
-  renderAll();
+  Sound.click();
+  showConfirmModal(
+    'Außer Dienst stellen',
+    `${s.name} wirklich außer Dienst stellen? Der Satellit wird deorbitiert und ist danach unwiderruflich weg. Du erhältst ${fmtMoney(refund)} Schrottwert zurück.`,
+    'Außer Dienst stellen',
+    ()=>{
+      if(s.assignedContract){
+        const c = state.contracts.find(c=>c.id===s.assignedContract);
+        if(c){ c.status='offen'; c.satId=null; c.remaining=c.duration; }
+      }
+      state.orbitSats = state.orbitSats.filter(x=>x.id!==satId);
+      state.money += refund;
+      if(selectedSatId===satId) selectedSatId = null;
+      Sound.warn();
+      toast(`${s.name} außer Dienst gestellt — Orbit-Slot frei, +${fmtMoney(refund)} Schrottwert.`, '');
+      renderAll();
+    }
+  );
 }
 
 function repairAllSats(){
@@ -1930,7 +2382,7 @@ function runAutoRepairDrones(){
     toast(`⚠️ ${broken} Wartungsdrohne(n) ${broken===1?'ist':'sind'} nach Erreichen ihrer Lebensdauer ausgefallen.`, 'bad');
   }
   if(repaired>0){
-    toast(`🛠️ Wartungsdrohnen: ${repaired} Satellit(en) automatisch repariert.`, 'good');
+    toast(`Wartungsdrohnen: ${repaired} Satellit(en) automatisch repariert.`, 'good');
   }
 }
 
@@ -1961,7 +2413,7 @@ function tick(){
   if(doneBuilds.length){
     doneBuilds.forEach(q=>{
       state.hangar.push({ id:q.id, name:q.name, chassisId:q.chassisId, mods:q.mods });
-      toast(`🏗️ ${q.name} fertiggestellt — einsatzbereit im Hangar.`, 'good');
+      toast(`${q.name} fertiggestellt — einsatzbereit im Hangar.`, 'good');
       Sound.buildOk();
     });
     state.constructionQueue = state.constructionQueue.filter(q=>q.daysLeft>0);
@@ -1976,7 +2428,7 @@ function tick(){
         id:q.id, name:q.name, chassisId:q.chassisId, mods:q.mods,
         orbit:q.orbit, angle:Math.random()*Math.PI*2, health:100, assignedContract:null,
       });
-      toast(`🛰️ ${q.name} hat ${ORBITS[q.orbit].name} erreicht — einsatzbereit.`, 'good');
+      toast(`${q.name} hat ${ORBITS[q.orbit].name} erreicht — einsatzbereit.`, 'good');
       Sound.contractDone();
     });
     state.transitQueue = state.transitQueue.filter(q=>q.daysLeft>0);
@@ -2005,9 +2457,9 @@ function tick(){
           if(firstCrewedLanding) state.crewedLandings.push(q.destKey);
           state.missionLog.unshift({ destKey:q.destKey, name:q.name, day:state.day, success:true, landed:true, crewed:!!q.crewed, firstTime:firstLanding });
           if(firstCrewedLanding){
-            toast(`🧑‍🚀🚩 ${q.name} — erste bemannte Landung auf ${d.name}! +${fmtMoney(reward)}, +15 Bonus-Reputation.`, 'good');
+            toast(`${q.name} — erste bemannte Landung auf ${d.name}! +${fmtMoney(reward)}, +15 Bonus-Reputation.`, 'good');
           } else {
-            toast(`🏳️ ${q.name} ist erfolgreich auf ${d.name} gelandet! +${fmtMoney(reward)}${q.crewed?' (bemannt)':''}${firstLanding?' (erste Landung dort!)':''}.`, 'good');
+            toast(`${q.name} ist erfolgreich auf ${d.name} gelandet! +${fmtMoney(reward)}${q.crewed?' (bemannt)':''}${firstLanding?' (erste Landung dort!)':''}.`, 'good');
           }
           if(q.destKey==='mars'){
             const tPts = (q.mods||[]).reduce((sum,mid)=>{ const m=findMod(mid); return sum + (m&&m.terraformPoints?m.terraformPoints:0); },0);
@@ -2017,9 +2469,9 @@ function tick(){
               state.terraforming.mars.points += tPts;
               const afterIdx = terraformStageIndex('mars');
               if(afterIdx>beforeIdx){
-                toast(`🌍 Mars-Terraforming: Stufe „${TERRAFORM_STAGES[afterIdx].name}" erreicht!`, 'good');
+                toast(`Mars-Terraforming: Stufe „${TERRAFORM_STAGES[afterIdx].name}" erreicht!`, 'good');
               } else {
-                toast(`🌱 +${tPts} Terraforming-Punkte für Mars.`, 'good');
+                toast(`+${tPts} Terraforming-Punkte für Mars.`, 'good');
               }
             }
           }
@@ -2031,7 +2483,7 @@ function tick(){
               const bonusIncome = contact && state.firstContacts.includes(q.destKey) ? contact.incomeBonus : 0;
               state.colonies.push({ destKey:q.destKey, name:d.name, day:state.day, income: income + bonusIncome });
               state.reputation = Math.min(100, state.reputation + 20);
-              toast(`🏙️ Kolonie auf ${d.name} gegründet! Liefert ab sofort +${fmtMoney(income + bonusIncome)} passives Einkommen pro Tag.`, 'good');
+              toast(`Kolonie auf ${d.name} gegründet! Liefert ab sofort +${fmtMoney(income + bonusIncome)} passives Einkommen pro Tag.`, 'good');
             }
           }
           const alienContact = alienContactFor(q.destKey);
@@ -2041,7 +2493,7 @@ function tick(){
             state.reputation = Math.min(100, state.reputation + alienContact.repBonus);
             const existingColony = state.colonies.find(c=>c.destKey===q.destKey);
             if(existingColony) existingColony.income += alienContact.incomeBonus;
-            toast(`👽 ${alienContact.title} — Kontakt mit den ${alienContact.raceLabel} hergestellt! +${fmtMoney(alienContact.scienceBonus)}, +${alienContact.repBonus} Reputation.`, 'good');
+            toast(`${alienContact.title} — Kontakt mit den ${alienContact.raceLabel} hergestellt! +${fmtMoney(alienContact.scienceBonus)}, +${alienContact.repBonus} Reputation.`, 'good');
           }
         } else {
           const reward = Math.round(d.scienceReward * 0.35);
@@ -2058,7 +2510,7 @@ function tick(){
         state.money += d.scienceReward;
         state.reputation = Math.min(100, state.reputation + d.repReward + (firstTimeReach?5:0));
         state.missionLog.unshift({ destKey:q.destKey, name:q.name, day:state.day, success:true, landed:false, firstTime:firstTimeReach });
-        toast(`🔭 ${q.name} hat ${d.name} erreicht! +${fmtMoney(d.scienceReward)} wissenschaftlicher Ertrag${firstTimeReach?' (Premiere!)':''}.`, 'good');
+        toast(`${q.name} hat ${d.name} erreicht! +${fmtMoney(d.scienceReward)} wissenschaftlicher Ertrag${firstTimeReach?' (Premiere!)':''}.`, 'good');
       }
       state.missionLog = state.missionLog.slice(0,12);
       Sound.contractDone();
@@ -2076,7 +2528,7 @@ function tick(){
     if(s.assignedContract){
       const c = state.contracts.find(c=>c.id===s.assignedContract);
       if(c && s.health > 0){
-        incomeTotal += c.rewardPerTick;
+        incomeTotal += contractDailyIncome(c, d);
       }
     }
   });
@@ -2087,10 +2539,11 @@ function tick(){
       c.remaining -= 1;
       if(c.remaining <= 0){
         c.status = 'abgeschlossen';
-        const bonus = Math.round(c.rewardPerTick * 3);
+        const s = state.orbitSats.find(s=>s.id===c.satId);
+        const d = s ? computeSatDerived(s.chassisId, s.mods) : null;
+        const bonus = Math.round((d ? contractDailyIncome(c, d) : c.rewardPerTick) * 3);
         state.money += bonus;
         state.reputation = Math.min(100, state.reputation + 2);
-        const s = state.orbitSats.find(s=>s.id===c.satId);
         if(s) s.assignedContract = null;
         toast(`Auftrag abgeschlossen: +${fmtMoney(bonus)} Bonus.`, 'good');
         Sound.contractDone();
@@ -2210,12 +2663,12 @@ function renderBuild(){
     payDue = Math.max(0, delta);
     costEl.textContent = (delta>=0?'+':'−') + fmtMoney(Math.abs(delta)) + ' (Umbau)';
     costEl.className = 'v ' + (delta>0?'bad': delta<0 ? 'good' : '');
-    buildBtn.textContent = '💾 Änderungen speichern';
+    buildBtn.textContent = 'Änderungen speichern';
   } else {
     editBanner.style.display = 'none';
     costEl.textContent = fmtMoney(st.cost);
     costEl.className = 'v';
-    buildBtn.textContent = '🛠️ Satellit bauen';
+    buildBtn.textContent = 'Satellit bauen';
   }
   buildBtn.disabled = !st.chassis || st.mods.length===0 || state.money < payDue;
 
@@ -2234,10 +2687,10 @@ function renderBuild(){
       return `<div class="hangar-item">
         <div><div class="name">${s.name}</div><div class="meta">${CHASSIS[s.chassisId].name} · ${Math.round(d.mass)}kg · Treibstoffreserve ${Math.round(d.deltaV)}</div></div>
         <div class="actions">
-          <button class="btn small" data-edit="${s.id}">✏️ Bearbeiten</button>
-          <button class="btn small danger" data-scrap="${s.id}">${pendingScrapId===s.id?'⚠ Wirklich?':'♻️ Zerlegen'}</button>
-          <button class="btn small" data-deepspace="${s.id}">🌌 Ins All</button>
-          <button class="btn primary small" data-launch="${s.id}">🚀 Starten</button>
+          <button class="btn small" data-edit="${s.id}">Bearbeiten</button>
+          <button class="btn small danger" data-scrap="${s.id}">${pendingScrapId===s.id?'⚠ Wirklich?':'Zerlegen'}</button>
+          <button class="btn small" data-deepspace="${s.id}">Ins All</button>
+          <button class="btn primary small" data-launch="${s.id}">Starten</button>
         </div>
       </div>`;
     }).join('');
@@ -2284,6 +2737,14 @@ function drawPreview(st){
   const cx = w/2, cy = h/2+10;
   const scale = st.chassis.id==='klein'?1: st.chassis.id==='mittel'?1.2:1.45;
 
+  // Vignette/Showroom-Hintergrund — dezenter Radial-Glow hinter dem Modell
+  const vignette = ctx.createRadialGradient(cx,cy,4,cx,cy,Math.max(w,h)*0.6);
+  vignette.addColorStop(0,'rgba(255,106,43,0.07)');
+  vignette.addColorStop(0.5,'rgba(255,106,43,0.02)');
+  vignette.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0,0,w,h);
+
   // stars bg
   ctx.fillStyle='rgba(255,255,255,.15)';
   for(let i=0;i<25;i++){ const x=(i*53.7)%w, y=(i*29.3)%h; ctx.fillRect(x,y,1,1); }
@@ -2292,48 +2753,194 @@ function drawPreview(st){
   ctx.translate(cx,cy);
   // isometric-ish chassis box
   const bw = 26*scale, bh = 34*scale, depth = 12*scale;
-  ctx.fillStyle = '#cfcfcf';
+
+  // Vorderseite — Linear-Gradient statt Flat-Fill für Materialtiefe
+  const frontGrd = ctx.createLinearGradient(-bw/2,-bh/2,bw/2,bh/2);
+  frontGrd.addColorStop(0,   '#e2e2e2');
+  frontGrd.addColorStop(0.45,'#c6c6c6');
+  frontGrd.addColorStop(1,   '#a8a8a8');
+  ctx.fillStyle = frontGrd;
   ctx.beginPath();
   ctx.moveTo(-bw/2,-bh/2); ctx.lineTo(bw/2,-bh/2); ctx.lineTo(bw/2,bh/2); ctx.lineTo(-bw/2,bh/2); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#9b9b9b';
+  // feine Panel-Nähte auf der Vorderseite
+  ctx.strokeStyle = 'rgba(60,60,60,0.35)'; ctx.lineWidth = 0.6;
+  for(let i=1;i<3;i++){
+    const yy = -bh/2 + (bh/3)*i;
+    ctx.beginPath(); ctx.moveTo(-bw/2+1,yy); ctx.lineTo(bw/2-1,yy); ctx.stroke();
+  }
+
+  // Seitenfläche (Schattenkante) — dunkler Gradient
+  const sideGrd = ctx.createLinearGradient(bw/2,-bh/2,bw/2+depth*0.6,bh/2);
+  sideGrd.addColorStop(0,'#87878a');
+  sideGrd.addColorStop(1,'#5c5c60');
+  ctx.fillStyle = sideGrd;
   ctx.beginPath();
   ctx.moveTo(bw/2,-bh/2); ctx.lineTo(bw/2+depth*0.6,-bh/2-depth*0.4); ctx.lineTo(bw/2+depth*0.6,bh/2-depth*0.4); ctx.lineTo(bw/2,bh/2); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#e8e8e8';
+
+  // Oberseite — Highlight-Kante, hellster Punkt des Chassis
+  const topGrd = ctx.createLinearGradient(-bw/2,-bh/2-depth*0.4,bw/2+depth*0.6,-bh/2);
+  topGrd.addColorStop(0,'#f4f4f4');
+  topGrd.addColorStop(1,'#d6d6d6');
+  ctx.fillStyle = topGrd;
   ctx.beginPath();
   ctx.moveTo(-bw/2,-bh/2); ctx.lineTo(bw/2,-bh/2); ctx.lineTo(bw/2+depth*0.6,-bh/2-depth*0.4); ctx.lineTo(-bw/2+depth*0.6,-bh/2-depth*0.4); ctx.closePath(); ctx.fill();
+  // Highlight-Linie entlang der oberen Vorderkante
+  ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(-bw/2,-bh/2); ctx.lineTo(bw/2,-bh/2); ctx.stroke();
+  // dünne Kontur ums gesamte Chassis für mehr Definition
+  ctx.strokeStyle = 'rgba(30,30,32,0.4)'; ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(-bw/2,-bh/2); ctx.lineTo(bw/2,-bh/2); ctx.lineTo(bw/2+depth*0.6,-bh/2-depth*0.4);
+  ctx.lineTo(bw/2+depth*0.6,bh/2-depth*0.4); ctx.lineTo(bw/2,bh/2); ctx.lineTo(-bw/2,bh/2); ctx.closePath(); ctx.stroke();
 
-  // solar panels for each power module
+  // solar panels for each power module — jetzt mit echtem Ausleger (Boom), der DIREKT am
+  // Rumpf ansetzt (kein Spalt mehr!), Scharnier-Gelenk am Übergang und segmentierten
+  // Panel-Feldern (mehr Module = längerer, sichtbar angeflanschter Array).
+  // "Technik-Blau" bewusst als Kontrast zur Akzentfarbe beibehalten.
   const powerCount = st.mods.filter(m=>m.cat==='power').length;
   if(powerCount>0){
-    ctx.fillStyle = 'rgba(63,200,255,0.85)';
+    const boomLen = 6*scale, segW = 13*scale, segGap = 1.6*scale, panelH = 15*scale;
+    const segCount = Math.min(powerCount,4);
     for(let side=-1; side<=1; side+=2){
-      const px = side*(bw/2+6);
-      for(let i=0;i<Math.min(powerCount,3);i++){
-        ctx.fillRect(px + (side>0?0:-34), -bh/2+i*2 -14, 34, 12);
-        ctx.strokeStyle='rgba(10,20,30,.5)'; ctx.lineWidth=0.5;
-        for(let g=1;g<4;g++){ ctx.beginPath(); ctx.moveTo(px+(side>0?0:-34)+g*8.5,-bh/2+i*2-14); ctx.lineTo(px+(side>0?0:-34)+g*8.5,-bh/2+i*2-2); ctx.stroke(); }
+      const chassisEdgeX = side*(bw/2);
+      const boomEndX = side*(bw/2+boomLen);
+      // Ausleger — solide Metallstrebe, beginnt EXAKT an der Rumpfkante
+      const boomGrd = ctx.createLinearGradient(chassisEdgeX,0,boomEndX,0);
+      boomGrd.addColorStop(0,'#8c8c90'); boomGrd.addColorStop(1,'#b8b8bc');
+      ctx.strokeStyle = boomGrd; ctx.lineWidth = 2.6*scale; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(chassisEdgeX,0); ctx.lineTo(boomEndX,0); ctx.stroke();
+      // Scharnier-Gelenk am Übergang Ausleger→Panel-Array
+      const hingeGrd = ctx.createRadialGradient(boomEndX,0,0.3,boomEndX,0,2.4*scale);
+      hingeGrd.addColorStop(0,'#e8e8ea'); hingeGrd.addColorStop(1,'#6e6e72');
+      ctx.fillStyle = hingeGrd;
+      ctx.beginPath(); ctx.arc(boomEndX,0,2.2*scale,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(20,20,22,.5)'; ctx.lineWidth=0.6;
+      ctx.beginPath(); ctx.arc(boomEndX,0,2.2*scale,0,Math.PI*2); ctx.stroke();
+
+      for(let i=0;i<segCount;i++){
+        const dStart = boomLen + i*(segW+segGap), dEnd = dStart+segW;
+        const xA = side*(bw/2+dStart), xB = side*(bw/2+dEnd);
+        const segX = Math.min(xA,xB), segRectW = Math.abs(xB-xA);
+        const panelGrd = ctx.createLinearGradient(segX,-panelH/2,segX,panelH/2);
+        panelGrd.addColorStop(0,  'rgba(130,224,255,0.92)');
+        panelGrd.addColorStop(0.5,'rgba(63,200,255,0.88)');
+        panelGrd.addColorStop(1,  'rgba(24,110,160,0.92)');
+        ctx.fillStyle = panelGrd;
+        ctx.fillRect(segX,-panelH/2,segRectW,panelH);
+        // Zellen-Raster
+        ctx.strokeStyle='rgba(8,18,28,.55)'; ctx.lineWidth=0.5;
+        for(let g=1;g<3;g++){ const gx=segX+segRectW*(g/3); ctx.beginPath(); ctx.moveTo(gx,-panelH/2); ctx.lineTo(gx,panelH/2); ctx.stroke(); }
+        ctx.beginPath(); ctx.moveTo(segX,0); ctx.lineTo(segX+segRectW,0); ctx.stroke();
+        ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=0.5;
+        ctx.strokeRect(segX+0.5,-panelH/2+0.5,segRectW-1,panelH-1);
+        // Falt-Scharnier zwischen Segmenten
+        if(i>0){
+          ctx.strokeStyle='rgba(10,10,12,.5)'; ctx.lineWidth=0.8;
+          ctx.beginPath(); ctx.moveTo(segX,-panelH/2); ctx.lineTo(segX,panelH/2); ctx.stroke();
+        }
       }
     }
   }
-  // antenna for comm modules
+  // antenna for comm modules — echte Parabolantenne (Dish) statt Lutscher-Punkt:
+  // Mast + Schüssel mit konkaver Schattierung + Feed-Horn + Stützstreben
   const commCount = st.mods.filter(m=>m.cat==='comm').length;
   if(commCount>0){
-    ctx.strokeStyle = '#ff6a2b'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(0,-bh/2); ctx.lineTo(0,-bh/2-14); ctx.stroke();
-    ctx.beginPath(); ctx.arc(0,-bh/2-16,4,0,Math.PI*2); ctx.stroke();
+    const mastTopY = -bh/2-9*scale;
+    ctx.strokeStyle = '#ff6a2b'; ctx.lineWidth = 2*scale;
+    ctx.beginPath(); ctx.moveTo(0,-bh/2); ctx.lineTo(0,mastTopY); ctx.stroke();
+    const dishCY = mastTopY - 5.5*scale;
+    ctx.strokeStyle = '#ffb02e'; ctx.lineWidth = 1.1*scale;
+    ctx.beginPath(); ctx.moveTo(0,mastTopY); ctx.lineTo(0,dishCY); ctx.stroke();
+    // Schüssel — Ellipse mit konkavem Gradient (hell am Rand, dunkler zur Mitte = Bowl-Look)
+    const dishRX = 7*scale, dishRY = 3.6*scale;
+    const dishGrd = ctx.createRadialGradient(0,dishCY,0.5*scale,0,dishCY,dishRX);
+    dishGrd.addColorStop(0,'#c9ccd0');
+    dishGrd.addColorStop(0.55,'#e8eaec');
+    dishGrd.addColorStop(1,'#9a9ea2');
+    ctx.fillStyle = dishGrd;
+    ctx.beginPath(); ctx.ellipse(0,dishCY,dishRX,dishRY,0.12,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(30,30,32,0.4)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.ellipse(0,dishCY,dishRX,dishRY,0.12,0,Math.PI*2); ctx.stroke();
+    // Feed-Horn (Empfänger) über der Schüsselmitte
+    const feedY = dishCY - 5*scale;
+    ctx.strokeStyle = '#ff6a2b'; ctx.lineWidth = 0.9*scale;
+    ctx.beginPath(); ctx.moveTo(0,dishCY-1*scale); ctx.lineTo(0,feedY); ctx.stroke();
+    const feedGrd = ctx.createRadialGradient(0,feedY,0.2,0,feedY,2*scale);
+    feedGrd.addColorStop(0,'#ffe0b0'); feedGrd.addColorStop(1,'#ff6a2b');
+    ctx.fillStyle = feedGrd;
+    ctx.beginPath(); ctx.arc(0,feedY,1.8*scale,0,Math.PI*2); ctx.fill();
+    // Stützstreben vom Schüsselrand zum Feed-Horn
+    ctx.strokeStyle = 'rgba(150,150,155,0.7)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(-dishRX*0.85,dishCY-dishRY*0.2); ctx.lineTo(0,feedY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(dishRX*0.85,dishCY-dishRY*0.2); ctx.lineTo(0,feedY); ctx.stroke();
   }
-  // payload pods
+  // payload pods — Kapselform mit Highlight, jetzt an einer sichtbaren Halterungsstrebe
+  // vom Rumpf aufgehängt statt lose in der Luft zu schweben
   const payloads = st.mods.filter(m=>m.cat==='payload');
+  if(payloads.length>0){
+    const boomBottomY = bh/2+6;
+    ctx.strokeStyle = 'rgba(150,150,155,0.7)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,bh/2); ctx.lineTo(0,boomBottomY); ctx.stroke();
+  }
   payloads.forEach((p,i)=>{
     const col = PAYLOAD_TYPES[p.type].color;
+    const py = bh/2+6+i*9;
+    // Verbindungssteg zwischen aufeinanderfolgenden Pods
+    if(i>0){
+      ctx.strokeStyle = 'rgba(150,150,155,0.7)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0,bh/2+6+(i-1)*9); ctx.lineTo(0,py); ctx.stroke();
+    }
+    ctx.save();
+    ctx.translate(0,py);
+    // Kapselkörper (abgerundetes Rechteck als Stadium-Form)
+    const capW = 8.5, capH = 4.4, rad = capH/2;
     ctx.fillStyle = col;
-    ctx.beginPath(); ctx.arc(0, bh/2+6+i*9, 3.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-capW/2+rad,-rad);
+    ctx.lineTo(capW/2-rad,-rad);
+    ctx.arc(capW/2-rad,0,rad,-Math.PI/2,Math.PI/2);
+    ctx.lineTo(-capW/2+rad,rad);
+    ctx.arc(-capW/2+rad,0,rad,Math.PI/2,Math.PI*1.5);
+    ctx.closePath(); ctx.fill();
+    // Highlight-Streifen oben für plastischere Wirkung
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath(); ctx.ellipse(-capW/6,-rad*0.35,capW*0.28,rad*0.4,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(-capW/2+rad,-rad);
+    ctx.lineTo(capW/2-rad,-rad);
+    ctx.arc(capW/2-rad,0,rad,-Math.PI/2,Math.PI/2);
+    ctx.lineTo(-capW/2+rad,rad);
+    ctx.arc(-capW/2+rad,0,rad,Math.PI/2,Math.PI*1.5);
+    ctx.closePath(); ctx.stroke();
+    ctx.restore();
   });
-  // fuel tank glow
+  // fuel tank — jetzt als zylindrischer Tank (statt schlichtem Streifen) mit Triebwerksdüse
   const fuelCount = st.mods.filter(m=>m.cat==='fuel').length;
   if(fuelCount>0){
-    ctx.fillStyle = 'rgba(255,176,46,.7)';
-    ctx.fillRect(-bw/2+3, bh/2-6, bw-6, 5);
+    const tankY = bh/2-6, tankH = 6, tankW = bw-6;
+    const fuelGrd = ctx.createLinearGradient(-tankW/2,0,tankW/2,0);
+    fuelGrd.addColorStop(0,  'rgba(200,130,40,.85)');
+    fuelGrd.addColorStop(0.5,'rgba(255,200,100,.95)');
+    fuelGrd.addColorStop(1,  'rgba(200,130,40,.85)');
+    ctx.fillStyle = fuelGrd;
+    ctx.beginPath();
+    ctx.moveTo(-tankW/2+2,tankY); ctx.lineTo(tankW/2-2,tankY);
+    ctx.quadraticCurveTo(tankW/2,tankY, tankW/2,tankY+tankH/2);
+    ctx.quadraticCurveTo(tankW/2,tankY+tankH, tankW/2-2,tankY+tankH);
+    ctx.lineTo(-tankW/2+2,tankY+tankH);
+    ctx.quadraticCurveTo(-tankW/2,tankY+tankH, -tankW/2,tankY+tankH/2);
+    ctx.quadraticCurveTo(-tankW/2,tankY, -tankW/2+2,tankY);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='rgba(120,70,15,.6)'; ctx.lineWidth=0.5; ctx.stroke();
+    // Triebwerksdüse unten mittig
+    const nozzleGrd = ctx.createLinearGradient(0,bh/2,0,bh/2+6);
+    nozzleGrd.addColorStop(0,'#6e6e72'); nozzleGrd.addColorStop(1,'#3a3a3d');
+    ctx.fillStyle = nozzleGrd;
+    ctx.beginPath();
+    ctx.moveTo(-4,bh/2); ctx.lineTo(4,bh/2); ctx.lineTo(2.4,bh/2+6); ctx.lineTo(-2.4,bh/2+6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='rgba(255,150,60,0.55)';
+    ctx.beginPath(); ctx.ellipse(0,bh/2+6,2.2,0.8,0,0,Math.PI*2); ctx.fill();
   }
   ctx.restore();
 }
@@ -2343,6 +2950,67 @@ let selectedSatId = null;
 let selectedGalaxyId = 'milchstrasse'; // aktuell gewählter Knoten im Hub: 'milchstrasse' (Sternenkarte) oder eine Galaxie-ID aus GALAXIES
 let orbitAnimHandle = null;
 const starfield = Array.from({length:140},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.3+0.2,tw:Math.random()*Math.PI*2}));
+
+/* ============================== GENERISCHES PAN/ZOOM FÜR KARTEN-CANVASSE ============================== */
+// Gilt für alle Karten-Canvasse (Orbit-Netzwerk, Sonnensystem, Sternenkarte, Galaxien-Hub, Andromeda):
+// Linke Maustaste gedrückt halten + ziehen = verschieben (pan), Scrollrad = zoomen, Reset-Button = Standardansicht.
+const mapViews = {};
+function getMapView(id){
+  if(!mapViews[id]) mapViews[id] = { zoom:1, panX:0, panY:0 };
+  return mapViews[id];
+}
+function resetMapView(id, redraw){
+  // Wichtig: bestehendes View-Objekt in-place zurücksetzen statt zu ersetzen.
+  // attachMapPanZoom() haelt sich eine Referenz auf das Objekt (const view = getMapView(id)),
+  // die in den mousedown/wheel-Handlern verwendet wird. Wuerde man hier ein neues Objekt
+  // in mapViews[id] ablegen, zeigt diese Referenz weiter auf das alte (verwaiste) Objekt —
+  // Scroll/Zoom aendert dann nur noch das alte Objekt, waehrend die Zeichenfunktionen bereits
+  // wieder frisch per getMapView(id) das neue lesen. Ergebnis: nach Reset "friert" der Zoom ein.
+  const view = getMapView(id);
+  view.zoom = 1; view.panX = 0; view.panY = 0;
+  if(redraw) redraw();
+}
+function attachMapPanZoom(canvasId, opts={}){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || canvas._panZoomAttached) return;
+  canvas._panZoomAttached = true;
+  const view = getMapView(canvasId);
+  const minZoom = opts.minZoom!=null ? opts.minZoom : 0.5;
+  const maxZoom = opts.maxZoom!=null ? opts.maxZoom : 2.5;
+  const redraw = opts.redraw || function(){};
+  let dragging = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
+  canvas.addEventListener('mousedown', (e)=>{
+    if(e.button !== 0) return;
+    dragging = true;
+    canvas._wasDragged = false;
+    startX = e.clientX; startY = e.clientY;
+    startPanX = view.panX; startPanY = view.panY;
+    canvas.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mousemove', (e)=>{
+    if(!dragging) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if(Math.hypot(dx,dy) > 3) canvas._wasDragged = true;
+    view.panX = startPanX + dx;
+    view.panY = startPanY + dy;
+    redraw();
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(!dragging) return;
+    dragging = false;
+    canvas.style.cursor = 'grab';
+  });
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const dir = e.deltaY > 0 ? -1 : 1;
+    view.zoom = Math.min(maxZoom, Math.max(minZoom, view.zoom + dir*0.1));
+    redraw();
+  }, { passive:false });
+  const resetBtn = opts.resetBtnId ? document.getElementById(opts.resetBtnId) : null;
+  if(resetBtn){
+    resetBtn.addEventListener('click', ()=>{ resetMapView(canvasId, redraw); Sound.click(); });
+  }
+}
 
 function orbitPoint(cx,cy,rx,ry,angle,inclineRad){
   const ir = inclineRad||0;
@@ -2369,6 +3037,10 @@ function drawOrbitScene(ts){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,cw,ch);
 
+  const view = getMapView('orbitCanvas');
+  ctx.save();
+  ctx.translate(view.panX, view.panY); // Verschiebung per Maus-Drag
+
   // starfield
   starfield.forEach(s=>{
     const tw = 0.5+0.5*Math.sin(ts/600 + s.tw);
@@ -2376,9 +3048,17 @@ function drawOrbitScene(ts){
     ctx.fillRect(s.x*cw, s.y*ch, s.r, s.r);
   });
 
-  const ZOOM = 0.72; // etwas rausgezoomt für mehr Überblick
+  const orbitZoom = view.zoom;
+  const ZOOM_BASE = 0.72; // Basis-Zoom fürs Einpassen, unabhängig vom Nutzer-Zoom
   const cx = cw/2, cy = ch/2+20;
-  const earthR = Math.min(cw,ch)*0.16*ZOOM;
+
+  // "contain"-Skalierung: rx/ry werden gemeinsam von einem Faktor S abgeleitet,
+  // statt rx unabhängig an cw und ry unabhängig an ch zu koppeln. So bleibt die
+  // Ellipsenform bei jedem Seitenverhältnis proportional (wie bei object-fit: contain)
+  // und die geneigten Bahnebenen (bis 68°) ragen nicht mehr über Ober-/Unterkante hinaus.
+  const REF_W = 1000, REF_H = 520; // Referenz-Design-Größe (ursprüngliches Layout)
+  const S = Math.min(cw/REF_W, ch/REF_H);
+  const earthR = Math.min(cw,ch)*0.16*ZOOM_BASE*orbitZoom;
 
   // update satellite angles
   const dt = 0.006;
@@ -2386,10 +3066,35 @@ function drawOrbitScene(ts){
 
   // sort rings LEO->GEO for radii
   const ringOrder = ['LEO','MEO','GEO'];
-  const rings = ringOrder.map(k=>{
+  let rings = ringOrder.map(k=>{
     const o = ORBITS[k];
-    return { key:k, rx: cw*o.rx*ZOOM, ry: ch*o.ry*0.9*ZOOM };
+    return { key:k, rx: REF_W*o.rx*ZOOM_BASE*S, ry: REF_H*o.ry*0.9*ZOOM_BASE*S };
   });
+
+  // Zusätzlicher Clamp für geneigte Bahnebenen: eine breite Ellipse (rx>>ry), die um
+  // bis zu 68° rotiert wird, bekommt eine vertikale Bounding-Box von
+  // rx*sin(θ)+ry*cos(θ) — bei θ=68° wird daraus fast der volle rx-Wert an Höhe.
+  // Das passiert auch bei der Referenzgröße selbst (nicht nur bei Breitbild), darum
+  // hier den tatsächlichen Platzbedarf für die stärkste Neigung berechnen und alle
+  // Ringe gemeinsam so weit herunterskalieren, dass nichts oben/unten/seitlich clippt.
+  // Dieser Clamp bezieht sich bewusst auf den Basis-Zoom — der Nutzer-Zoom (Scrollrad)
+  // wird danach separat draufmultipliziert, damit reinzoomen tatsächlich sichtbar größer wird.
+  const maxInclRad = Math.max(...ORBIT_INCLINATIONS.map(d=>Math.abs(d))) * Math.PI/180;
+  const sinM = Math.sin(maxInclRad), cosM = Math.cos(maxInclRad);
+  const padding = 0.9; // kleine Sicherheitsmarge
+  const availTop = cy * padding;
+  const availBottom = (ch - cy) * padding;
+  const availHalfH = Math.min(availTop, availBottom);
+  const availLeft = cx * padding;
+  const availRight = (cw - cx - 40) * padding; // 40px Platz für die Ring-Labels rechts
+  const availHalfW = Math.min(availLeft, availRight);
+
+  const outer = rings[rings.length-1]; // GEO ist der größte Ring
+  const neededH = outer.rx*sinM + outer.ry*cosM;
+  const neededW = outer.rx*cosM + outer.ry*sinM;
+  const clamp = Math.min(1, availHalfH/neededH, availHalfW/neededW);
+  rings = rings.map(r=>({ key:r.key, rx:r.rx*clamp*orbitZoom, ry:r.ry*clamp*orbitZoom }));
+
 
   function ringPath(rx,ry,rot,a0,a1){
     ctx.beginPath();
@@ -2397,11 +3102,12 @@ function drawOrbitScene(ts){
   }
 
   // BACK halves of rings — mehrere Bahnebenen pro Höhe (nicht nur äquatorial)
+  // Radardarstellung: Ringe in der Akzentfarbe des Spiels statt Blau
   rings.forEach(r=>{
     ORBIT_INCLINATIONS.forEach(deg=>{
       ctx.save();
       ctx.setLineDash([3,5]);
-      ctx.strokeStyle = deg===0 ? 'rgba(63,200,255,0.22)' : 'rgba(63,200,255,0.10)';
+      ctx.strokeStyle = deg===0 ? 'rgba(255,106,43,0.24)' : 'rgba(255,106,43,0.10)';
       ctx.lineWidth = 1;
       ringPath(r.rx,r.ry,deg*Math.PI/180,Math.PI,Math.PI*2);
       ctx.stroke();
@@ -2415,40 +3121,246 @@ function drawOrbitScene(ts){
     drawSatDot(ctx, cx, cy, s, rings);
   });
 
-  // EARTH
-  const grd = ctx.createRadialGradient(cx-earthR*0.3, cy-earthR*0.3, earthR*0.1, cx, cy, earthR);
-  grd.addColorStop(0, '#2a6fb0');
-  grd.addColorStop(0.5, '#1c4c82');
-  grd.addColorStop(1, '#0a2038');
+  // EARTH — detailreicher: Grundkugel, Terrain, Wolken, Polkappen, Atmosphäre, Terminator, Rim-Light
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx,cy,earthR,0,Math.PI*2); ctx.clip();
+
+  // Ozean-Grundkörper
+  const grd = ctx.createRadialGradient(cx-earthR*0.35, cy-earthR*0.35, earthR*0.05, cx, cy, earthR*1.05);
+  grd.addColorStop(0,   '#3f8fd6');
+  grd.addColorStop(0.35,'#2a6fb0');
+  grd.addColorStop(0.7, '#1c4c82');
+  grd.addColorStop(1,   '#081b31');
   ctx.fillStyle = grd;
   ctx.beginPath(); ctx.arc(cx,cy,earthR,0,Math.PI*2); ctx.fill();
-  // continents (static blobs)
-  ctx.fillStyle = 'rgba(53,217,153,0.55)';
-  [[-0.35,-0.25,0.5],[0.15,0.05,0.42],[-0.1,0.35,0.3],[0.35,-0.35,0.28]].forEach(([ox,oy,r])=>{
-    ctx.beginPath(); ctx.arc(cx+ox*earthR, cy+oy*earthR, r*earthR*0.55, 0, Math.PI*2); ctx.fill();
+
+  // Eigenrotation der Erde — ECHTE Kugel-Projektion statt 2D-Drehung um die Bildachse:
+  // Jedes Oberflächen-Feature liegt an einer festen (lon,lat)-Koordinate auf der Kugel.
+  // Pro Frame wird lon += earthRotation gerechnet, daraus x/y/z auf der Einheitskugel
+  // (Orthografische Projektion), und Features werden zum Rand hin schmaler (Verkürzung,
+  // via z-Faktor) und verschwinden komplett, sobald sie auf die erdabgewandte Seite wandern.
+  // So läuft die Textur wie bei einem echten rotierenden Globus über die Kugelform,
+  // statt sich wie ein Uhrzeiger flach im Kreis zu drehen.
+  // Polkappen, Terminator, Atmosphäre & Rim-Light bleiben davon unberührt (siehe unten),
+  // da sie entweder fix an den Polen liegen oder von der Lichtquelle abhängen statt vom Planeten selbst.
+  const earthRotation = (ts/24000) % (Math.PI*2);
+
+  // projiziert eine feste (lon,lat)-Koordinate (Radiant) auf Bildschirm-Offset + Sichtbarkeits-/Skalierungsfaktor
+  function sphereProject(lon, lat, rot){
+    const lonEff = lon + rot;
+    const cosLat = Math.cos(lat);
+    const x3d = cosLat * Math.sin(lonEff);      // -1..1, Bildschirm-X
+    const y3d = Math.sin(lat);                  // -1..1, Bildschirm-Y (rotationsunabhängig)
+    const z3d = cosLat * Math.cos(lonEff);       // >0 = Vorderseite (sichtbar), <0 = Rückseite
+    return { ox:x3d, oy:y3d, z:z3d };
+  }
+
+  // Kontinente — organische Blob-Formen statt Kreise: jede Landmasse bekommt eine
+  // unregelmäßige Umrisslinie (Radius pro Winkel via überlagerte Sinus-Harmonische,
+  // deterministisch je Seed), damit es wie echte Küstenlinien statt Kreis-Stempel aussieht.
+  // Koordinaten als [lon, lat, r, seed] in Radiant (feste Position auf der Kugel)
+  const continents = [
+    [-0.407,-0.284,0.52,0], [0.181,0.020,0.46,1], [-0.087,0.390,0.34,2],
+    [0.420,-0.368,0.30,3], [-0.441,0.181,0.22,4], [0.470,0.242,0.20,5],
+    [0.022,-0.456,0.18,6], [-0.233,0.524,0.15,7],
+    // Rückseite/Flanken — ohne diese wäre die halbe Kugel beim Drehen leerer Ozean
+    [1.15,-0.30,0.40,8], [1.75,0.22,0.28,9], [2.35,-0.15,0.34,10],
+    [-1.15,0.28,0.36,11], [-1.75,-0.22,0.26,12], [-2.35,0.12,0.30,13],
+    [2.95,0.45,0.20,14], [-2.95,-0.42,0.22,15], [1.05,0.55,0.16,16], [-1.05,-0.55,0.18,17]
+  ];
+  // Radius an einem gegebenen Winkel entlang eines Blob-Umrisses (deterministisches "Rauschen")
+  function blobRadius(baseR, angle, seed){
+    let r = baseR;
+    r *= 1 + 0.30*Math.sin(angle*2.1 + seed*1.7);
+    r *= 1 + 0.18*Math.sin(angle*3.4 + seed*0.9 + 1.1);
+    r *= 1 + 0.10*Math.sin(angle*5.7 + seed*2.3 + 2.4);
+    return Math.max(baseR*0.35, r);
+  }
+  function drawBlobPath(centerX, centerY, baseR, seed, xScale){
+    const pts = 26;
+    ctx.beginPath();
+    for(let i=0;i<=pts;i++){
+      const angle = (i/pts)*Math.PI*2;
+      const rr = blobRadius(baseR, angle, seed);
+      const x = centerX + Math.cos(angle)*rr*xScale;
+      const y = centerY + Math.sin(angle)*rr;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+  }
+  // Projektionsdaten je Kontinent merken (für Stadtlichter unten wiederverwendet,
+  // damit Lichter garantiert INNERHALB der tatsächlich gezeichneten Landmasse liegen)
+  const contState = continents.map(([lon,lat,r,seed])=>{
+    const p = sphereProject(lon,lat,earthRotation);
+    return { p, r, seed, visible: p.z >= -0.06 };
   });
-  // atmosphere glow
+  contState.forEach(({p,r,seed,visible})=>{
+    if(!visible) return;
+    const vis = Math.max(0, Math.min(1, (p.z+0.06)/0.35));
+    const foreshorten = Math.max(0.12, p.z);
+    const baseR = r*earthR*0.58;
+    const cxp = cx+p.ox*earthR, cyp = cy+p.oy*earthR;
+    ctx.globalAlpha = vis;
+    ctx.fillStyle = 'rgba(28,90,58,0.65)';
+    drawBlobPath(cxp, cyp, baseR, seed, foreshorten);
+    ctx.fill();
+    // feine Küstenlinie für mehr Definition
+    ctx.strokeStyle = 'rgba(18,60,38,0.5)'; ctx.lineWidth = 0.6;
+    ctx.stroke();
+  });
+  // hellere Vegetations-Schicht obenauf, kleinerer verschachtelter Blob (eigener Seed-Offset
+  // für organische Variation statt reiner Skalierung des Umrisses)
+  contState.forEach(({p,r,seed,visible},i)=>{
+    if(!visible || i%2) return;
+    const vis = Math.max(0, Math.min(1, (p.z+0.06)/0.35));
+    const foreshorten = Math.max(0.12, p.z);
+    const baseR = r*earthR*0.38;
+    const cxp = cx+p.ox*earthR*1.02, cyp = cy+p.oy*earthR*0.98;
+    ctx.globalAlpha = vis;
+    ctx.fillStyle = 'rgba(63,190,120,0.6)';
+    drawBlobPath(cxp, cyp, baseR, seed+4.2, foreshorten);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // kleine Inselketten für Detail — gleiche Kugel-Projektion, feste (lon,lat), leicht unregelmäßig
+  ctx.fillStyle = 'rgba(53,217,153,0.5)';
+  [[0.583,-0.050,0],[-0.619,0.326,1],[0.354,0.524,2],[-0.354,-0.524,3],[0.654,0.305,4],
+   [1.45,0.05,5],[1.95,-0.35,6],[2.55,0.30,7],[-1.45,-0.10,8],[-1.95,0.38,9],[-2.55,-0.28,10],
+   [3.10,0.05,11],[-3.10,-0.15,12]].forEach(([lon,lat,seed])=>{
+    const p = sphereProject(lon,lat,earthRotation);
+    if(p.z < -0.06) return;
+    const vis = Math.max(0, Math.min(1, (p.z+0.06)/0.35));
+    const foreshorten = Math.max(0.12, p.z);
+    ctx.globalAlpha = vis;
+    drawBlobPath(cx+p.ox*earthR, cy+p.oy*earthR, earthR*0.045, seed, foreshorten);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Wolkenschleier — eigene, leicht höhere Rotationsgeschwindigkeit für Parallax-Effekt,
+  // ebenfalls über echte Kugel-Projektion (nicht 2D-Drehung)
+  const cloudRotation = earthRotation * 1.35;
+  ctx.fillStyle = 'rgba(255,255,255,0.16)';
+  [[-0.20,-0.15,0.55,0.16],[0.30,0.10,0.5,0.13],[-0.05,0.35,0.6,0.12],[0.15,-0.40,0.4,0.1],
+   [1.30,-0.20,0.45,0.14],[1.85,0.30,0.4,0.11],[2.45,-0.05,0.5,0.13],
+   [-1.30,0.15,0.42,0.12],[-1.85,-0.30,0.38,0.10],[-2.45,0.20,0.48,0.13],
+   [3.00,-0.40,0.35,0.10],[-3.00,0.40,0.35,0.10]].forEach(([lon,lat,w,h])=>{
+    const p = sphereProject(lon,lat,cloudRotation);
+    if(p.z < -0.06) return;
+    const vis = Math.max(0, Math.min(1, (p.z+0.06)/0.35));
+    const foreshorten = Math.max(0.12, p.z);
+    ctx.globalAlpha = vis * 0.9;
+    ctx.beginPath();
+    ctx.ellipse(cx+p.ox*earthR, cy+p.oy*earthR, w*earthR*foreshorten, h*earthR, 0.3, 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Polkappen — fix oben/unten, drehen sich NICHT mit der Erdoberfläche mit
+  ctx.fillStyle = 'rgba(235,245,255,0.85)';
+  ctx.beginPath(); ctx.ellipse(cx, cy-earthR*0.86, earthR*0.55, earthR*0.22, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx, cy+earthR*0.86, earthR*0.5, earthR*0.2, 0, 0, Math.PI*2); ctx.fill();
+
+  // Breitengrad-Linien (dezent, Radar-Look)
+  ctx.strokeStyle = 'rgba(255,106,43,0.10)';
+  ctx.lineWidth = 0.6;
+  for(let i=-2;i<=2;i++){
+    if(i===0) continue;
+    const yy = cy + i*earthR*0.32;
+    const rr = Math.sqrt(Math.max(0, earthR*earthR - (yy-cy)*(yy-cy)));
+    ctx.beginPath(); ctx.moveTo(cx-rr,yy); ctx.lineTo(cx+rr,yy); ctx.stroke();
+  }
+
+  // Terminator (Nachtseite)
+  ctx.fillStyle = 'rgba(2,6,12,0.4)';
+  ctx.beginPath(); ctx.arc(cx,cy,earthR,Math.PI*0.5,Math.PI*1.5); ctx.fill();
+  const termShade = ctx.createLinearGradient(cx-earthR*0.15,0,cx+earthR*0.15,0);
+  termShade.addColorStop(0,'rgba(2,6,12,0.45)');
+  termShade.addColorStop(1,'rgba(2,6,12,0)');
+  ctx.fillStyle = termShade;
+  ctx.beginPath(); ctx.arc(cx,cy,earthR,Math.PI*0.5,Math.PI*1.5); ctx.fill();
+
+  // Stadtlichter — nur auf der Nachtseite sichtbar, blenden zur Tagseite hin sanft aus.
+  // Jedes Licht ist an einen Kontinent-Index + Winkel + Radius-Anteil (rFrac<1) gebunden und
+  // nutzt exakt dieselbe blobRadius()-Formel + denselben Seed wie die Landmasse selbst —
+  // dadurch liegt das Licht IMMER innerhalb der tatsächlich gezeichneten Küstenlinie,
+  // nie im Wasser, unabhängig von Zoom/Rotation/Foreshortening.
+  const cityLights = [
+    [0,2.035,0.21],[0,4.09,0.179],[0,3.367,0.296],[0,0.364,0.353],
+    [1,0.236,0.323],[1,0.439,0.186],[1,2.667,0.481],[1,0.778,0.239],
+    [2,3.942,0.529],[2,3.626,0.309],[2,6.134,0.169],
+    [3,5.394,0.266],[3,0.906,0.197],
+    [4,1.938,0.476],[4,1.136,0.383],
+    [5,4.014,0.299],[5,3.441,0.175],
+    [6,0.374,0.232],[6,4.275,0.321],
+    [7,1.974,0.384],[7,2.847,0.27],
+    [8,4.991,0.43],[8,1.534,0.38],[8,3.3,0.5],
+    [9,4.583,0.265],[9,6.158,0.197],
+    [10,2.627,0.453],[10,0.955,0.346],[10,0.246,0.417],
+    [11,4.804,0.379],[11,5.501,0.275],[11,4.369,0.388],
+    [12,3.643,0.332],[12,5.278,0.528],
+    [13,2.979,0.416],[13,0.381,0.431],
+    [14,4.066,0.547],[14,5.164,0.264],
+    [15,2.424,0.417],[15,0.142,0.335],
+    [16,1.056,0.197],[16,0.37,0.457],
+    [17,0.813,0.249],[17,2.456,0.499]
+  ];
+  cityLights.forEach(([contIdx,angle,rFrac],i)=>{
+    const c = contState[contIdx];
+    if(!c || !c.visible) return; // Kontinent gerade auf der Rückseite — Licht mitverdeckt
+    const { p, r, seed } = c;
+    const limbVis = Math.max(0, Math.min(1, (p.z+0.06)/0.35));
+    const nightFactor = Math.max(0, Math.min(1, (0.15-p.ox)/0.30));
+    const a = limbVis * nightFactor;
+    if(a <= 0.01) return;
+    const foreshorten = Math.max(0.12, p.z);
+    const baseR = r*earthR*0.58;
+    const cxp = cx+p.ox*earthR, cyp = cy+p.oy*earthR;
+    // exakt dieselbe Formel wie drawBlobPath — Licht liegt bei rFrac<1 garantiert innerhalb
+    const localR = blobRadius(baseR, angle, seed) * rFrac;
+    const lx = cxp + Math.cos(angle)*localR*foreshorten;
+    const ly = cyp + Math.sin(angle)*localR;
+    const flicker = 0.75+0.25*Math.sin(ts/900 + i*1.7);
+    ctx.globalAlpha = a * flicker;
+    ctx.fillStyle = 'rgba(255,200,110,0.9)';
+    ctx.beginPath(); ctx.arc(lx, ly, earthR*0.012, 0, Math.PI*2); ctx.fill();
+    // dezenter Glow
+    ctx.fillStyle = 'rgba(255,180,80,0.35)';
+    ctx.beginPath(); ctx.arc(lx, ly, earthR*0.03, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  ctx.restore(); // Ende Clip
+
+  // Rim-Light in Akzentfarbe — betont die Kugelform, unterstreicht Radar-Ästhetik
+  ctx.save();
+  const rim = ctx.createRadialGradient(cx,cy,earthR*0.86,cx,cy,earthR*1.02);
+  rim.addColorStop(0,'rgba(255,106,43,0)');
+  rim.addColorStop(1,'rgba(255,106,43,0.35)');
+  ctx.fillStyle = rim;
+  ctx.beginPath(); ctx.arc(cx,cy,earthR*1.02,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // Atmosphäre-Glow
   const glow = ctx.createRadialGradient(cx,cy,earthR*0.95,cx,cy,earthR*1.35);
-  glow.addColorStop(0,'rgba(90,180,255,0.35)');
+  glow.addColorStop(0,'rgba(90,180,255,0.32)');
   glow.addColorStop(1,'rgba(90,180,255,0)');
   ctx.fillStyle = glow;
   ctx.beginPath(); ctx.arc(cx,cy,earthR*1.35,0,Math.PI*2); ctx.fill();
-  // terminator shading
-  ctx.fillStyle = 'rgba(2,6,12,0.35)';
-  ctx.beginPath(); ctx.arc(cx,cy,earthR,Math.PI*0.5,Math.PI*1.5); ctx.fill();
 
   // FRONT halves of rings — mehrere Bahnebenen pro Höhe
   rings.forEach(r=>{
     ORBIT_INCLINATIONS.forEach(deg=>{
       ctx.save();
       ctx.setLineDash([3,5]);
-      ctx.strokeStyle = deg===0 ? 'rgba(63,200,255,0.45)' : 'rgba(63,200,255,0.18)';
+      ctx.strokeStyle = deg===0 ? 'rgba(255,106,43,0.5)' : 'rgba(255,106,43,0.20)';
       ctx.lineWidth = 1;
       ringPath(r.rx,r.ry,deg*Math.PI/180,0,Math.PI);
       ctx.stroke();
       ctx.restore();
     });
-    ctx.fillStyle = 'rgba(63,200,255,0.55)';
+    ctx.fillStyle = 'rgba(255,106,43,0.65)';
     ctx.font = '9px JetBrains Mono';
     ctx.fillText(r.key, cx + r.rx + 4, cy);
   });
@@ -2468,6 +3380,7 @@ function drawOrbitScene(ts){
     clickTargets.push({s,p});
   });
   canvas._clickTargets = clickTargets;
+  ctx.restore(); // Ende Pan-Verschiebung
 
   orbitAnimHandle = requestAnimationFrame(drawOrbitScene);
 }
@@ -2501,8 +3414,10 @@ function payloadColorFor(s){
 function initOrbitCanvasClicks(){
   const canvas = document.getElementById('orbitCanvas');
   canvas.addEventListener('click', (e)=>{
+    if(canvas._wasDragged){ canvas._wasDragged = false; return; } // Drag zum Verschieben zählt nicht als Auswahl-Klick
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const view = getMapView('orbitCanvas');
+    const mx = e.clientX - rect.left - view.panX, my = e.clientY - rect.top - view.panY;
     const targets = canvas._clickTargets || [];
     let best=null, bestD=18;
     targets.forEach(t=>{
@@ -2511,6 +3426,8 @@ function initOrbitCanvasClicks(){
     });
     if(best){ selectedSatId = best.id; Sound.click(); renderSatDetail(); renderSatList(); }
   });
+  // Pan (linke Maustaste halten + ziehen) und Zoom (Scrollrad) — kein redraw nötig, die Szene animiert ohnehin laufend
+  attachMapPanZoom('orbitCanvas', { minZoom:0.5, maxZoom:2.5, redraw:()=>{}, resetBtnId:'btnResetOrbitView' });
 }
 
 function renderSatDetail(){
@@ -2533,13 +3450,13 @@ function renderSatDetail(){
     <div class="healthbar"><div style="width:${s.health}%; background:${s.health>60?'var(--green)':s.health>30?'var(--amber)':'var(--red)'}"></div></div>
     <div class="sat-detail">
       ${c ? `<div class="stat-line"><span class="k">Auftrag</span><span class="v good">Aktiv (${c.remaining} Tage übrig)</span></div>
-             <div class="stat-line"><span class="k">Einnahme/Tag</span><span class="v good">${fmtMoney(c.rewardPerTick)}</span></div>`
+             <div class="stat-line"><span class="k">Einnahme/Tag</span><span class="v good">${fmtMoney(contractDailyIncome(c, d))}${c.type==='kommunikation' && d.bandwidth ? ` <span style="color:var(--muted); font-weight:400;">(inkl. Bandbreiten-Bonus)</span>` : ''}</span></div>`
           : `<div class="stat-line"><span class="k">Auftrag</span><span class="v">Kein Auftrag zugewiesen</span></div>`}
-      ${s.health<100 ? `<button class="btn small" style="margin-top:8px; width:100%; justify-content:center;" id="btnRepair">🔧 Reparieren (${fmtMoney((100-s.health)*25)})</button>` : ''}
+      ${s.health<100 ? `<button class="btn small" style="margin-top:8px; width:100%; justify-content:center;" id="btnRepair">Reparieren (${fmtMoney((100-s.health)*25)})</button>` : ''}
       ${(!s.assignedContract && matchingContracts.length>0) ? `
         <div style="margin-top:10px; font-size:10.5px; color:var(--muted);">Passende Aufträge verfügbar — im Aufträge-Panel zuweisen.</div>
       ` : ''}
-      <button class="btn small ghost" style="margin-top:8px; width:100%; justify-content:center; color:var(--red);" id="btnDecommission">🗑️ Außer Dienst stellen</button>
+      <button class="btn small ghost" style="margin-top:8px; width:100%; justify-content:center; color:var(--red);" id="btnDecommission">Außer Dienst stellen</button>
     </div>
   `;
   const rb = document.getElementById('btnRepair');
@@ -2576,10 +3493,10 @@ function renderSatList(){
       </span>
       ${contractHtml}
       <span class="actions">
-        ${s.health<100 ? `<button class="btn small" data-repair="${s.id}" title="Reparieren">🔧</button>` : ''}
+        ${s.health<100 ? `<button class="btn small" data-repair="${s.id}" title="Reparieren">Rep.</button>` : ''}
       </span>
       <span class="actions">
-        <button class="btn small ghost" data-decommission="${s.id}" title="Außer Dienst stellen" style="color:var(--red);">🗑️</button>
+        <button class="btn small ghost" data-decommission="${s.id}" title="Außer Dienst stellen" style="color:var(--red);">✕</button>
       </span>
     </div>`;
   }).join('');
@@ -2679,21 +3596,133 @@ function renderResearch(){
 }
 
 /* ============================== SOLAR SYSTEM LIVE MAP ============================== */
+// Ring-Konfigurationen — an die realen Verhältnisse angelehnt:
+// Saturn: breit, hell, eisig. Jupiter: extrem schwach, dunkler Staubring, kaum sichtbar.
+// Uranus: schmal, dunkel, wegen ~98° Achsneigung fast senkrecht zur Bahnebene gekippt.
+// Neptun: sehr schwacher, teils unvollständiger Ring mit helleren "Ringbögen" (Klumpen).
+const SATURN_RING  = { tilt:-0.3,  flat:0.29, layers:[
+  {mult:1.9,  w:2.4, a:0.55, color:'#e0c893'},
+  {mult:1.65, w:1.6, a:0.75, color:'#e0c893'},
+  {mult:1.4,  w:1.1, a:0.4,  color:'#e0c893'},
+]};
+const JUPITER_RING = { tilt:-0.25, flat:0.28, layers:[
+  {mult:1.22, w:1.0, a:0.10, color:'#9c8b6e'},
+]};
+const URANUS_RING  = { tilt:1.18,  flat:0.55, layers:[
+  {mult:1.55, w:1.0, a:0.55, color:'#3d4b4b'},
+  {mult:1.42, w:0.6, a:0.4,  color:'#3d4b4b'},
+  {mult:1.68, w:0.7, a:0.32, color:'#3d4b4b'},
+]};
+const NEPTUN_RING  = { tilt:-0.28, flat:0.27, layers:[
+  {mult:1.5, w:1.0, a:0.16, color:'#8ea3c4'},
+], arcs:[
+  {start:-0.55, end:-0.15, a:0.55, w:1.6},
+  {start: 0.35, end: 0.62, a:0.4,  w:1.3},
+  {start: 2.0,  end: 2.35, a:0.32, w:1.2},
+]};
+
 const SOLAR_MAP_BODIES = [
-  {key:'merkur',   name:'Merkur',  x:0.13,  r:4,    color:'#9a8f80'},
-  {key:'venus',    name:'Venus',   x:0.205, r:6,    color:'#e0a95c'},
-  {key:'erde',     name:'Erde',    x:0.28,  r:6.5,  color:'#3f8fd6', home:true},
-  {key:'mond',     name:'Mond',    x:0.305, r:2.5,  color:'#cdcdcd', moonOf:'erde'},
-  {key:'mars',     name:'Mars',    x:0.355, r:4.5,  color:'#c1592f'},
-  {key:'ceres',    name:'Ceres',   x:0.44,  r:2.3,  color:'#a89a86'},
-  {key:'jupiter',  name:'Jupiter', x:0.57,  r:13,   color:'#d2a679'},
-  {key:'europa',   name:'Europa',  x:0.598, r:2,    color:'#d5d5d5', moonOf:'jupiter'},
-  {key:'saturn',   name:'Saturn',  x:0.70,  r:11,   color:'#e0c893', ring:true},
-  {key:'titanMond',name:'Titan',   x:0.728, r:2.3,  color:'#d9a94a', moonOf:'saturn'},
-  {key:'uranus',   name:'Uranus',  x:0.82,  r:8,    color:'#8fd6d6'},
-  {key:'neptun',   name:'Neptun',  x:0.90,  r:7.7,  color:'#4f7fd6'},
-  {key:'pluto',    name:'Pluto',   x:0.965, r:2,    color:'#b6a58e'},
+  {key:'merkur',   name:'Merkur',  x:0.13,  r:4,    color:'#9a8f80', kind:'rock'},
+  {key:'venus',    name:'Venus',   x:0.205, r:6,    color:'#e0a95c', kind:'rock'},
+  {key:'erde',     name:'Erde',    x:0.28,  r:6.5,  color:'#3f8fd6', kind:'rock', home:true},
+  {key:'mond',     name:'Mond',    x:0.305, r:2.5,  color:'#cdcdcd', kind:'rock', moonOf:'erde'},
+  {key:'mars',     name:'Mars',    x:0.355, r:4.5,  color:'#c1592f', kind:'rock'},
+  {key:'ceres',    name:'Ceres',   x:0.44,  r:2.3,  color:'#a89a86', kind:'rock'},
+  {key:'jupiter',  name:'Jupiter', x:0.57,  r:13,   color:'#d2a679', kind:'gas', ring:JUPITER_RING},
+  {key:'europa',   name:'Europa',  x:0.598, r:2,    color:'#d5d5d5', kind:'rock', moonOf:'jupiter'},
+  {key:'saturn',   name:'Saturn',  x:0.70,  r:11,   color:'#e0c893', kind:'gas', ring:SATURN_RING},
+  {key:'titanMond',name:'Titan',   x:0.728, r:2.3,  color:'#d9a94a', kind:'rock', moonOf:'saturn'},
+  {key:'uranus',   name:'Uranus',  x:0.82,  r:8,    color:'#8fd6d6', kind:'ice', ring:URANUS_RING},
+  {key:'neptun',   name:'Neptun',  x:0.90,  r:7.7,  color:'#4f7fd6', kind:'ice', ring:NEPTUN_RING},
+  {key:'pluto',    name:'Pluto',   x:0.965, r:2,    color:'#b6a58e', kind:'rock'},
 ];
+
+/* -------- Visuelle Hilfsfunktionen für die Sonnensystem-Karte -------- */
+// Deterministischer Pseudo-Zufall (Seed -> [0,1)) statt Math.random(), damit
+// Sternenfeld/Asteroidengürtel bei jedem Redraw (Pan/Zoom/Resize) stabil bleiben
+// und nicht bei jedem Frame neu "flackern".
+function solarSrand(seed){ const x = Math.sin(seed*12.9898)*43758.5453; return x - Math.floor(x); }
+const SOLAR_MAP_STARS = Array.from({length:80},(_,i)=>({
+  fx: solarSrand(i*3.11+1), fy: solarSrand(i*7.73+2)*0.82,
+  r: solarSrand(i*5.37+3)*1.15+0.25, a: solarSrand(i*9.19+4)*0.5+0.25, tw: solarSrand(i*4.63+5)*Math.PI*2
+}));
+const SOLAR_MAP_BELT = Array.from({length:38},(_,i)=>({
+  fx: 0.393 + solarSrand(i*2.31+11)*0.088, fy: (solarSrand(i*4.17+13)-0.5)*38,
+  r: solarSrand(i*6.53+17)*0.7+0.5
+}));
+
+function solarShade(hex, pct){
+  const num = parseInt(hex.slice(1),16);
+  const amt = Math.round(2.55*pct);
+  let r = Math.min(255,Math.max(0,(num>>16)+amt));
+  let g = Math.min(255,Math.max(0,((num>>8)&0xff)+amt));
+  let b = Math.min(255,Math.max(0,(num&0xff)+amt));
+  return `rgb(${r},${g},${b})`;
+}
+function solarRgba(hex, a){
+  const num = parseInt(hex.slice(1),16);
+  return `rgba(${(num>>16)&0xff},${(num>>8)&0xff},${num&0xff},${a})`;
+}
+// Kugel mit Beleuchtung von der Sonnenseite (links/unten-links) statt Flat-Fill.
+function drawSolarSphere(ctx, x, y, r, hex){
+  const grd = ctx.createRadialGradient(x-r*0.42, y-r*0.4, r*0.05, x, y, r*1.05);
+  grd.addColorStop(0, solarShade(hex, 48));
+  grd.addColorStop(0.55, hex);
+  grd.addColorStop(1, solarShade(hex, -52));
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+}
+// Feine horizontale Bänder für Gas-/Eisriesen, auf die Kugelform geclippt.
+function drawSolarBands(ctx, x, y, r, seedBase){
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.clip();
+  const bands = 6;
+  for(let i=0;i<bands;i++){
+    const by = y - r + (r*2)*((i+0.5)/bands);
+    const bh = (r*2/bands)*0.85;
+    const a = 0.05 + solarSrand(seedBase+i)*0.08;
+    ctx.fillStyle = i%2===0 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`;
+    ctx.beginPath(); ctx.ellipse(x,by,r*1.02,bh/2,0,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+// Dezenter Atmosphärenschimmer um Gas-/Eisriesen.
+function drawSolarGlow(ctx, x, y, r, hex, strength){
+  const grd = ctx.createRadialGradient(x,y,r*0.9,x,y,r*1.4);
+  grd.addColorStop(0, solarRgba(hex, strength));
+  grd.addColorStop(1, solarRgba(hex, 0));
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(x,y,r*1.4,0,Math.PI*2); ctx.fill();
+}
+// Saturnring in zwei Schichten (hinterer Bogen vor, vorderer Bogen nach der Kugel),
+// mit mehreren halbtransparenten Ellipsen für etwas Bändertiefe statt einer Linie.
+// `ring` ist eine der Konfigurationen oben (SATURN_RING/JUPITER_RING/URANUS_RING/NEPTUN_RING) —
+// jeder Planet bekommt seine eigene Neigung, Helligkeit und Ellipsen-Abflachung.
+function drawSolarRingPass(ctx, x, y, rOuter, front, ring){
+  ctx.save();
+  ctx.translate(x,y); ctx.rotate(ring.tilt);
+  ring.layers.forEach(l=>{
+    ctx.strokeStyle = solarRgba(l.color, l.a);
+    ctx.lineWidth = l.w;
+    ctx.beginPath();
+    ctx.ellipse(0,0, rOuter*l.mult, rOuter*l.mult*ring.flat, 0, front?0.02:Math.PI+0.02, front?Math.PI-0.02:Math.PI*2-0.02);
+    ctx.stroke();
+  });
+  // Helle, unregelmäßige Ringbögen (z.B. Neptuns "Liberté/Égalité/Fraternité"-Klumpen) —
+  // nur im vorderen Pass gezeichnet, damit sie nicht doppelt erscheinen.
+  if(front && ring.arcs){
+    const baseMult = ring.layers[0].mult;
+    ring.arcs.forEach(seg=>{
+      ctx.strokeStyle = solarRgba(ring.layers[0].color, seg.a);
+      ctx.lineWidth = seg.w;
+      ctx.beginPath();
+      ctx.ellipse(0,0, rOuter*baseMult, rOuter*baseMult*ring.flat, 0, seg.start, seg.end);
+      ctx.stroke();
+    });
+  }
+  ctx.restore();
+}
+
 function drawSolarMapBracket(ctx, cw, ch, x0, x1, label, color){
   const y = ch*0.16;
   ctx.strokeStyle = color;
@@ -2706,6 +3735,14 @@ function drawSolarMapBracket(ctx, cw, ch, x0, x1, label, color){
   ctx.textAlign = 'center';
   ctx.fillText(label, cw*(x0+x1)/2, y-6);
 }
+// Label mit dunklem Halo für bessere Lesbarkeit über Sternenfeld/Asteroiden.
+function drawSolarLabel(ctx, text, x, y){
+  ctx.strokeStyle = 'rgba(6,6,6,0.85)';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
+}
 function drawSolarMap(){
   const canvas = document.getElementById('solarMapCanvas');
   if(!canvas) return;
@@ -2717,9 +3754,22 @@ function drawSolarMap(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,cw,ch);
 
+  const view = getMapView('solarMapCanvas');
+  ctx.save();
+  ctx.translate(view.panX, view.panY);
+  ctx.translate(cw/2, ch/2); ctx.scale(view.zoom, view.zoom); ctx.translate(-cw/2, -ch/2);
+
   const baseY = ch*0.66;
 
-  // Sonne — glühender Kreis, der links aus dem Bild "strahlt"
+  // Sternenfeld im Hintergrund — dezent, deterministisch, mit leichtem Funkeln.
+  const twNow = Date.now()/900;
+  SOLAR_MAP_STARS.forEach(s=>{
+    const tw = 0.55 + 0.45*Math.sin(twNow + s.tw);
+    ctx.fillStyle = `rgba(230,235,245,${(s.a*tw).toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(cw*s.fx, ch*s.fy, s.r, 0, Math.PI*2); ctx.fill();
+  });
+
+  // Sonne — mehrschichtiger Glüh-Kern samt weichem Bloom und ein paar Flare-Strahlen.
   const sunX = 0, sunR = ch*1.1;
   const sunGrd = ctx.createRadialGradient(sunX, baseY, sunR*0.04, sunX, baseY, sunR);
   sunGrd.addColorStop(0, '#fff4d6');
@@ -2728,6 +3778,26 @@ function drawSolarMap(){
   sunGrd.addColorStop(1, 'rgba(255,106,43,0)');
   ctx.fillStyle = sunGrd;
   ctx.beginPath(); ctx.arc(sunX, baseY, sunR, 0, Math.PI*2); ctx.fill();
+  // zusätzlicher enger Kernbloom für einen helleren Kern nahe am Bildrand
+  const coreGrd = ctx.createRadialGradient(sunX, baseY, 0, sunX, baseY, ch*0.32);
+  coreGrd.addColorStop(0, 'rgba(255,244,214,0.55)');
+  coreGrd.addColorStop(1, 'rgba(255,244,214,0)');
+  ctx.fillStyle = coreGrd;
+  ctx.beginPath(); ctx.arc(sunX, baseY, ch*0.32, 0, Math.PI*2); ctx.fill();
+  // dezente Flare-Strahlen
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for(let i=0;i<5;i++){
+    const ang = -0.55 + i*0.28;
+    const len = ch*(0.5+solarSrand(i*3.3)*0.35);
+    const rayGrd = ctx.createLinearGradient(sunX, baseY, sunX+Math.cos(ang)*len, baseY+Math.sin(ang)*len);
+    rayGrd.addColorStop(0, 'rgba(255,207,107,0.14)');
+    rayGrd.addColorStop(1, 'rgba(255,207,107,0)');
+    ctx.strokeStyle = rayGrd;
+    ctx.lineWidth = 10 - i*1.4;
+    ctx.beginPath(); ctx.moveTo(sunX,baseY); ctx.lineTo(sunX+Math.cos(ang)*len, baseY+Math.sin(ang)*len); ctx.stroke();
+  }
+  ctx.restore();
   ctx.fillStyle = '#ffcf6b';
   ctx.font = '10px JetBrains Mono';
   ctx.textAlign = 'left';
@@ -2746,13 +3816,14 @@ function drawSolarMap(){
   ctx.beginPath(); ctx.moveTo(cw*0.06, baseY); ctx.lineTo(cw*0.99, baseY); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Asteroidengürtel-Streuung
-  ctx.fillStyle = 'rgba(109,127,156,0.5)';
-  for(let i=0;i<36;i++){
-    const bx = cw*(0.395+Math.random()*0.085);
-    const by = baseY + (Math.random()-0.5)*36;
-    ctx.beginPath(); ctx.arc(bx,by,0.9,0,Math.PI*2); ctx.fill();
-  }
+  // Asteroidengürtel-Streuung (stabile Positionen, leichter Glanzpunkt statt Flat-Dot)
+  SOLAR_MAP_BELT.forEach(a=>{
+    const bx = cw*a.fx, by = baseY + a.fy;
+    ctx.fillStyle = 'rgba(60,64,74,0.6)';
+    ctx.beginPath(); ctx.arc(bx,by,a.r*1.3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(160,170,190,0.65)';
+    ctx.beginPath(); ctx.arc(bx-a.r*0.25,by-a.r*0.25,a.r*0.55,0,Math.PI*2); ctx.fill();
+  });
 
   ctx.textAlign = 'center';
   const posOf = {};
@@ -2761,13 +3832,16 @@ function drawSolarMap(){
     const y = b.moonOf ? baseY - 15 : baseY;
     posOf[b.key] = {x,y};
 
-    if(b.ring){
-      ctx.strokeStyle = 'rgba(224,200,147,0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.ellipse(x,y,b.r*1.9,b.r*0.55,-0.3,0,Math.PI*2);
-      ctx.stroke();
+    // Verbindungslinie Mond -> Mutterkörper
+    if(b.moonOf && posOf[b.moonOf]){
+      const p = posOf[b.moonOf];
+      ctx.strokeStyle = 'rgba(150,160,180,0.25)';
+      ctx.setLineDash([1.5,2.5]);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x,y+b.r+2); ctx.lineTo(p.x, p.y-2); ctx.stroke();
+      ctx.setLineDash([]);
     }
+
     let fillColor = b.color;
     if(b.key==='mars'){
       const tIdx = terraformStageIndex('mars');
@@ -2776,12 +3850,19 @@ function drawSolarMap(){
         fillColor = `rgb(${Math.round(193-tPct*130)}, ${Math.round(89+tPct*110)}, ${Math.round(47+tPct*70)})`;
       }
     }
-    ctx.fillStyle = fillColor;
-    ctx.beginPath(); ctx.arc(x,y,b.r,0,Math.PI*2); ctx.fill();
+
+    if(b.kind==='gas' || b.kind==='ice'){ drawSolarGlow(ctx, x, y, b.r, fillColor, b.kind==='gas'?0.28:0.32); }
+    if(b.ring){ drawSolarRingPass(ctx, x, y, b.r, false, b.ring); } // hinterer Ringbogen, hinter der Kugel
+
+    drawSolarSphere(ctx, x, y, b.r, fillColor);
+    if(b.kind==='gas' || b.kind==='ice'){ drawSolarBands(ctx, x, y, b.r, (b.key.charCodeAt(0)+b.key.length)*7); }
+
+    if(b.ring){ drawSolarRingPass(ctx, x, y, b.r, true, b.ring); } // vorderer Ringbogen, vor der Kugel
+
     if(b.key==='mars' && terraformStageIndex('mars')>=TERRAFORM_STAGES.length-1){
       ctx.font = '9px sans-serif';
       ctx.fillStyle = '#35d999';
-      ctx.fillText('🌱', x, y - b.r - (state.crewedLandings.includes('mars')?14:6));
+      ctx.fillText('', x, y - b.r - (state.crewedLandings.includes('mars')?14:6));
     }
 
     if(b.home){
@@ -2803,13 +3884,13 @@ function drawSolarMap(){
         ctx.beginPath(); ctx.arc(x,y,b.r+6,0,Math.PI*2); ctx.stroke();
         ctx.font = '9px sans-serif';
         ctx.fillStyle = '#ffb02e';
-        ctx.fillText('🧑‍🚀', x, y - b.r - 6);
+        ctx.fillText('', x, y - b.r - 6);
       }
     }
 
     ctx.fillStyle = 'rgba(220,230,245,0.85)';
     ctx.font = b.moonOf ? '8px JetBrains Mono' : '9.5px JetBrains Mono';
-    ctx.fillText(b.name, x, y + b.r + (b.moonOf?10:14));
+    drawSolarLabel(ctx, b.name, x, y + b.r + (b.moonOf?10:14));
   });
 
   // Sonden im Transit
@@ -2832,6 +3913,13 @@ function drawSolarMap(){
     ctx.setLineDash([]);
 
     const angle = Math.atan2(target.y-start.y, target.x-start.x);
+    // dezenter Glüh-Punkt hinter der Sondenspitze
+    const glowGrd = ctx.createRadialGradient(px,py,0,px,py,7);
+    glowGrd.addColorStop(0,'rgba(255,138,60,0.55)');
+    glowGrd.addColorStop(1,'rgba(255,138,60,0)');
+    ctx.fillStyle = glowGrd;
+    ctx.beginPath(); ctx.arc(px,py,7,0,Math.PI*2); ctx.fill();
+
     ctx.save();
     ctx.translate(px,py);
     ctx.rotate(angle);
@@ -2841,9 +3929,75 @@ function drawSolarMap(){
 
     ctx.fillStyle = '#ff6a2b';
     ctx.font = '8px JetBrains Mono';
-    ctx.fillText(q.name, px, py-8);
+    drawSolarLabel(ctx, q.name, px, py-8);
+  });
+  ctx.restore();
+}
+
+/* -------- Gemeinsame visuelle Hilfsfunktionen für Sternenkarte / Galaxien-Hub / Galaxie-Detail -------- */
+// Deterministisches Sternenfeld (fx/fy relativ zur Canvas-Größe), damit es bei Pan/Zoom/Reset
+// nicht wie zuvor bei jedem Redraw neu gewürfelt wird und "flackert" — gleiches Prinzip wie
+// beim Asteroidengürtel der Sonnensystem-Karte.
+function starFieldFor(count, seedBase){
+  return Array.from({length:count},(_,i)=>({
+    fx: solarSrand(seedBase + i*3.11+1),
+    fy: solarSrand(seedBase + i*7.73+2),
+    r:  solarSrand(seedBase + i*5.37+3)*1.1+0.25,
+    a:  solarSrand(seedBase + i*9.19+4)*0.45+0.15,
+    tw: solarSrand(seedBase + i*4.63+5)*Math.PI*2,
+  }));
+}
+function drawStarfield(ctx, cw, ch, stars, twNow){
+  stars.forEach(s=>{
+    const tw = 0.55 + 0.45*Math.sin(twNow + s.tw);
+    ctx.fillStyle = `rgba(220,230,245,${(s.a*tw).toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(cw*s.fx, ch*s.fy, s.r, 0, Math.PI*2); ctx.fill();
   });
 }
+// Nimmt Hex- ODER rgba(...)-Farbstrings entgegen und liefert dieselbe Farbe mit neuer Alpha.
+function colorWithAlpha(c, a){
+  if(c[0]==='#') return solarRgba(c, a);
+  const m = c.match(/rgba?\(([^)]+)\)/);
+  if(!m) return c;
+  const parts = m[1].split(',').map(s=>s.trim());
+  return `rgba(${parts[0]},${parts[1]},${parts[2]},${a})`;
+}
+// Mehrschichtiger Glüh-Kern (Sonne / Milchstraße / Galaxienzentrum): weiter Bloom + hellerer Kern.
+function drawGlowCore(ctx, x, y, r, innerHex, midHex, bloomMult){
+  const bloomR = r*(bloomMult||2.4);
+  const bloom = ctx.createRadialGradient(x,y,0,x,y,bloomR);
+  bloom.addColorStop(0, colorWithAlpha(midHex,0.35));
+  bloom.addColorStop(1, colorWithAlpha(midHex,0));
+  ctx.fillStyle = bloom;
+  ctx.beginPath(); ctx.arc(x,y,bloomR,0,Math.PI*2); ctx.fill();
+
+  const grd = ctx.createRadialGradient(x,y,0,x,y,r);
+  grd.addColorStop(0, innerHex);
+  grd.addColorStop(0.45, midHex);
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+}
+// Weicher Schein hinter einem Ziel-Marker (Sternensystem / Galaxie), farblich passend zum Status.
+function drawTargetGlow(ctx, x, y, r, color){
+  const grd = ctx.createRadialGradient(x,y,0,x,y,r*3.2);
+  grd.addColorStop(0, colorWithAlpha(color,0.35));
+  grd.addColorStop(1, colorWithAlpha(color,0));
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(x,y,r*3.2,0,Math.PI*2); ctx.fill();
+}
+function hashSeed(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) | 0;
+  return Math.abs(h) % 100000;
+}
+const GALAXY_STAR_CACHE = {};
+function starsForGalaxy(galaxyId, count){
+  if(!GALAXY_STAR_CACHE[galaxyId]) GALAXY_STAR_CACHE[galaxyId] = starFieldFor(count, hashSeed(galaxyId)+500);
+  return GALAXY_STAR_CACHE[galaxyId];
+}
+const STARMAP_STARS = starFieldFor(90, 12000);
+const HUB_STARS = starFieldFor(70, 34000);
 
 function drawGalaxyMap(){
   const canvas = document.getElementById('galaxyMapCanvas');
@@ -2856,16 +4010,18 @@ function drawGalaxyMap(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,cw,ch);
 
+  const view = getMapView('galaxyMapCanvas');
+  ctx.save();
+  ctx.translate(view.panX, view.panY);
+  ctx.translate(cw/2, ch/2); ctx.scale(view.zoom, view.zoom); ctx.translate(-cw/2, -ch/2);
+
   const cx = cw/2, cy = ch/2;
   const maxLy = 15;
   const maxR = Math.min(cw,ch)*0.46;
+  const twNow = Date.now()/900;
 
-  // Hintergrundsterne
-  ctx.fillStyle = 'rgba(220,230,245,0.35)';
-  for(let i=0;i<80;i++){
-    const sx = Math.random()*cw, sy = Math.random()*ch;
-    ctx.beginPath(); ctx.arc(sx,sy,Math.random()*1.1,0,Math.PI*2); ctx.fill();
-  }
+  // Hintergrundsterne (stabil, mit dezentem Funkeln)
+  drawStarfield(ctx, cw, ch, STARMAP_STARS, twNow);
 
   // Distanzringe bei 5/10/15 Lj
   ctx.strokeStyle = 'rgba(109,127,156,0.35)';
@@ -2881,16 +4037,11 @@ function drawGalaxyMap(){
   ctx.setLineDash([]);
 
   // Sonne im Zentrum
-  const sunGrd = ctx.createRadialGradient(cx,cy,0,cx,cy,18);
-  sunGrd.addColorStop(0, '#fff4d6');
-  sunGrd.addColorStop(0.4, '#ffcf6b');
-  sunGrd.addColorStop(1, 'rgba(255,106,43,0)');
-  ctx.fillStyle = sunGrd;
-  ctx.beginPath(); ctx.arc(cx,cy,18,0,Math.PI*2); ctx.fill();
+  drawGlowCore(ctx, cx, cy, 18, '#fff4d6', '#ffcf6b', 2.6);
   ctx.fillStyle = '#ffcf6b';
   ctx.font = '9px JetBrains Mono';
   ctx.textAlign = 'center';
-  ctx.fillText('Sonne', cx, cy+30);
+  drawSolarLabel(ctx, 'Sonne', cx, cy+30);
 
   INTERSTELLAR_KEYS.forEach(k=>{
     const d = DEEP_SPACE[k];
@@ -2911,6 +4062,7 @@ function drawGalaxyMap(){
     // in-transit indicator
     const inTransit = state.deepSpaceQueue.some(q=>q.destKey===k);
 
+    drawTargetGlow(ctx, px, py, colonized?5:4, color);
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.arc(px,py, colonized?5:4, 0, Math.PI*2); ctx.fill();
     if(ALIEN_CONTACTS[k] && state.firstContacts.includes(k)){
@@ -2926,8 +4078,9 @@ function drawGalaxyMap(){
     ctx.fillStyle = 'rgba(230,236,248,0.85)';
     ctx.font = '8px JetBrains Mono';
     ctx.textAlign = 'center';
-    ctx.fillText(d.name, px, py-9);
+    drawSolarLabel(ctx, d.name, px, py-9);
   });
+  ctx.restore();
 }
 
 function drawGalaxyHub(){
@@ -2941,23 +4094,20 @@ function drawGalaxyHub(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,cw,ch);
 
+  const view = getMapView('galaxyHubCanvas');
+  ctx.save();
+  ctx.translate(view.panX, view.panY);
+  ctx.translate(cw/2, ch/2); ctx.scale(view.zoom, view.zoom); ctx.translate(-cw/2, -ch/2);
+
   const cx = cw/2, cy = ch/2;
   const maxR = Math.min(cw,ch)*0.42;
+  const twNow = Date.now()/900;
 
-  // Hintergrundsterne
-  ctx.fillStyle = 'rgba(220,230,245,0.25)';
-  for(let i=0;i<60;i++){
-    const sx = Math.random()*cw, sy = Math.random()*ch;
-    ctx.beginPath(); ctx.arc(sx,sy,Math.random()*1,0,Math.PI*2); ctx.fill();
-  }
+  // Hintergrundsterne (stabil, mit dezentem Funkeln)
+  drawStarfield(ctx, cw, ch, HUB_STARS, twNow);
 
   // Milchstraße (unser Ausgangspunkt) im Zentrum
-  const homeGrd = ctx.createRadialGradient(cx,cy,0,cx,cy,16);
-  homeGrd.addColorStop(0, '#fff4d6');
-  homeGrd.addColorStop(0.4, '#ffcf6b');
-  homeGrd.addColorStop(1, 'rgba(255,106,43,0)');
-  ctx.fillStyle = homeGrd;
-  ctx.beginPath(); ctx.arc(cx,cy,16,0,Math.PI*2); ctx.fill();
+  drawGlowCore(ctx, cx, cy, 16, '#fff4d6', '#ffcf6b', 2.4);
   if(selectedGalaxyId==='milchstrasse'){
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(cx,cy,20,0,Math.PI*2); ctx.stroke();
@@ -2965,7 +4115,7 @@ function drawGalaxyHub(){
   ctx.fillStyle = 'rgba(230,236,248,0.75)';
   ctx.font = '9px JetBrains Mono';
   ctx.textAlign = 'center';
-  ctx.fillText('Milchstraße', cx, cy+26);
+  drawSolarLabel(ctx, 'Milchstraße', cx, cy+26);
 
   const hubTargets = [{ gid:'milchstrasse', x:cx, y:cy }];
   GALAXY_KEYS.forEach(gid=>{
@@ -2992,8 +4142,10 @@ function drawGalaxyHub(){
     if(anyColony) color = '#ffcf6b';
     else if(anyReached) color = '#afafaf';
 
+    const nodeR = gid===selectedGalaxyId?7:5.5;
+    drawTargetGlow(ctx, px, py, nodeR, color);
     ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(px,py, gid===selectedGalaxyId?7:5.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px,py, nodeR, 0, Math.PI*2); ctx.fill();
     if(gid===selectedGalaxyId){
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(px,py,11,0,Math.PI*2); ctx.stroke();
@@ -3005,24 +4157,29 @@ function drawGalaxyHub(){
     if(!unlocked){
       ctx.fillStyle = 'rgba(230,236,248,0.6)';
       ctx.font = '9px sans-serif';
-      ctx.fillText('🔒', px+9, py-9);
+      ctx.fillText('', px+9, py-9);
     }
     ctx.fillStyle = 'rgba(230,236,248,0.85)';
     ctx.font = '9px JetBrains Mono';
     ctx.textAlign = 'center';
-    ctx.fillText(g.shortName||g.name, px, py-13);
+    drawSolarLabel(ctx, g.shortName||g.name, px, py-13);
 
     hubTargets.push({ gid, x:px, y:py });
   });
   canvas._hubTargets = hubTargets;
+  ctx.restore();
 }
 
 function initGalaxyHubClicks(){
   const canvas = document.getElementById('galaxyHubCanvas');
   if(!canvas) return;
   canvas.addEventListener('click', (e)=>{
+    if(canvas._wasDragged){ canvas._wasDragged = false; return; } // Drag zum Verschieben zählt nicht als Auswahl-Klick
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const view = getMapView('galaxyHubCanvas');
+    const cw = canvas.clientWidth, ch = canvas.clientHeight;
+    const sx = e.clientX - rect.left - view.panX, sy = e.clientY - rect.top - view.panY;
+    const mx = cw/2 + (sx - cw/2)/view.zoom, my = ch/2 + (sy - ch/2)/view.zoom;
     const targets = canvas._hubTargets || [];
     let best=null, bestD=22;
     targets.forEach(t=>{
@@ -3035,6 +4192,7 @@ function initGalaxyHubClicks(){
       renderGalaxy();
     }
   });
+  attachMapPanZoom('galaxyHubCanvas', { minZoom:0.5, maxZoom:2.5, redraw:drawGalaxyHub, resetBtnId:'btnResetGalaxyHubView' });
 }
 
 function drawGalaxyDetailMap(galaxyId){
@@ -3050,41 +4208,59 @@ function drawGalaxyDetailMap(galaxyId){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,cw,ch);
 
+  const view = getMapView('andromedaMapCanvas');
+  ctx.save();
+  ctx.translate(view.panX, view.panY);
+  ctx.translate(cw/2, ch/2); ctx.scale(view.zoom, view.zoom); ctx.translate(-cw/2, -ch/2);
+
   const cx = cw/2, cy = ch/2;
   const maxR = Math.min(cw,ch)*0.44;
+  const twNow = Date.now()/900;
 
-  // Hintergrundsterne
-  ctx.fillStyle = 'rgba(220,230,245,0.3)';
-  for(let i=0;i<100;i++){
-    const sx = Math.random()*cw, sy = Math.random()*ch;
-    ctx.beginPath(); ctx.arc(sx,sy,Math.random()*1.1,0,Math.PI*2); ctx.fill();
-  }
+  // Hintergrundsterne (pro Galaxie eigenes, stabiles Sternenfeld)
+  drawStarfield(ctx, cw, ch, starsForGalaxy(galaxyId, 100), twNow);
 
-  // Spiralarme der Galaxie andeuten
-  ctx.save();
-  ctx.strokeStyle = g.armColor || 'rgba(177,107,255,0.25)';
-  ctx.lineWidth = 6;
-  ctx.lineCap = 'round';
+  // Spiralarme: Gradient-Strich (an Kern/Rand ausblendend) + eingestreute Sterne für Textur,
+  // statt einer einzelnen dicken Einheitslinie.
+  const armColor = g.armColor || 'rgba(177,107,255,0.25)';
   for(let arm=0; arm<3; arm++){
-    ctx.beginPath();
     const armOffset = (arm/3)*Math.PI*2;
+    const pts = [];
     for(let t=0; t<=1; t+=0.02){
       const rad = t*maxR*1.05;
       const ang = armOffset + t*Math.PI*2.2;
-      const px = cx+Math.cos(ang)*rad, py = cy+Math.sin(ang)*rad*0.55;
-      if(t===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      pts.push({ x: cx+Math.cos(ang)*rad, y: cy+Math.sin(ang)*rad*0.55, t });
     }
+    const armGrd = ctx.createLinearGradient(pts[0].x, pts[0].y, pts[pts.length-1].x, pts[pts.length-1].y);
+    armGrd.addColorStop(0, colorWithAlpha(armColor, 0.05));
+    armGrd.addColorStop(0.4, armColor);
+    armGrd.addColorStop(1, colorWithAlpha(armColor, 0.05));
+    ctx.save();
+    ctx.strokeStyle = armGrd;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    pts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
     ctx.stroke();
+    ctx.restore();
+
+    // eingestreute Sterne entlang des Arms, deterministisch je Galaxie+Arm
+    const armSeed = hashSeed(galaxyId+'-arm'+arm);
+    for(let i=0;i<16;i++){
+      const t = solarSrand(armSeed+i*3.7)*0.92+0.04;
+      const idx = Math.min(pts.length-1, Math.floor(t*(pts.length-1)));
+      const p = pts[idx];
+      const jitter = (solarSrand(armSeed+i*5.1+1)-0.5)*10;
+      const perpAng = Math.atan2(p.y-cy,p.x-cx)+Math.PI/2;
+      const sx = p.x + Math.cos(perpAng)*jitter, sy = p.y + Math.sin(perpAng)*jitter*0.55;
+      const sr = solarSrand(armSeed+i*7.3+2)*0.9+0.35;
+      ctx.fillStyle = colorWithAlpha(armColor, 0.35 + solarSrand(armSeed+i*2.9+3)*0.35);
+      ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
+    }
   }
-  ctx.restore();
 
   // Kern-Glow
-  const coreGrd = ctx.createRadialGradient(cx,cy,0,cx,cy,26);
-  coreGrd.addColorStop(0, '#fff4d6');
-  coreGrd.addColorStop(0.4, g.coreColor || '#e0c893');
-  coreGrd.addColorStop(1, 'rgba(177,107,255,0)');
-  ctx.fillStyle = coreGrd;
-  ctx.beginPath(); ctx.arc(cx,cy,26,0,Math.PI*2); ctx.fill();
+  drawGlowCore(ctx, cx, cy, 26, '#fff4d6', g.coreColor || '#e0c893', 2.5);
 
   const maxDist = Math.max(...galaxyTargets(galaxyId).map(k=>DEEP_SPACE[k].distanceMly), 2.5);
   const minDist = Math.min(...galaxyTargets(galaxyId).map(k=>DEEP_SPACE[k].distanceMly), maxDist);
@@ -3114,6 +4290,7 @@ function drawGalaxyDetailMap(galaxyId){
       py = cy + Math.sin(rad)*r*0.55;
     }
 
+    drawTargetGlow(ctx, px, py, colonized?5:4, color);
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.arc(px,py, colonized?5:4, 0, Math.PI*2); ctx.fill();
     if(q){
@@ -3129,8 +4306,9 @@ function drawGalaxyDetailMap(galaxyId){
     ctx.fillStyle = 'rgba(230,236,248,0.85)';
     ctx.font = '8px JetBrains Mono';
     ctx.textAlign = 'center';
-    ctx.fillText(d.name, px, py-9);
+    drawSolarLabel(ctx, d.name, px, py-9);
   });
+  ctx.restore();
 }
 /* ============================== RENDER: DEEP SPACE ============================== */
 function renderTerraforming(){
@@ -3146,13 +4324,13 @@ function renderTerraforming(){
   const next = TERRAFORM_STAGES[idx+1];
   const pct = next ? Math.min(100, Math.max(0, Math.round((pts-stage.threshold)/(next.threshold-stage.threshold)*100))) : 100;
   body.innerHTML = `
-    <div class="small-muted" style="margin-bottom:8px;">Langzeitprojekt: Sonden mit Terraforming-Modul (Kategorie 🌱) müssen erfolgreich auf dem Mars landen, um Punkte beizusteuern — höhere Stufen brauchen deutlich mehr Punkte, ganz wie ein echtes Terraforming Jahrhunderte dauern würde.</div>
+    <div class="small-muted" style="margin-bottom:8px;">Langzeitprojekt: Sonden mit Terraforming-Modul müssen erfolgreich auf dem Mars landen, um Punkte beizusteuern — höhere Stufen brauchen deutlich mehr Punkte, ganz wie ein echtes Terraforming Jahrhunderte dauern würde.</div>
     <div class="stat-line"><span class="k">Aktuelle Stufe</span><span class="v good">${stage.name}</span></div>
     <div class="rcard desc" style="border:none; padding:0; margin-bottom:8px;">${stage.desc}</div>
     ${next
       ? `<div class="progress-bar"><div style="width:${pct}%"></div></div>
          <div class="small-muted" style="margin-top:4px;">${pts.toLocaleString('de-DE')} / ${next.threshold.toLocaleString('de-DE')} Punkte bis „${next.name}"</div>`
-      : `<div class="small-muted" style="margin-top:4px;">🏁 Maximale Stufe erreicht — Mars ist bewohnbar!</div>`}
+      : `<div class="small-muted" style="margin-top:4px;">Maximale Stufe erreicht — Mars ist bewohnbar!</div>`}
     <div class="chip-row" style="margin-top:10px;">
       ${TERRAFORM_STAGES.map((s,i)=>`<span class="chip ${i<=idx?'sel':'locked'}" style="flex:0 0 auto; min-width:auto; cursor:default; padding:4px 8px; font-size:10px;">${i<=idx?'✓ ':''}${s.name}</span>`).join('')}
     </div>
@@ -3172,13 +4350,13 @@ function renderDeepSpace(){
     const crewedLanded = state.crewedLandings.includes(k);
     const crewCfg = crewedConfigFor(k);
     return `<div class="rcard ${reached?'done':''}">
-      <div class="name">${d.name} ${crewedLanded?'🧑‍🚀🚩 bemannt gelandet':landed?'🏳️ gelandet':reached?'✓ erreicht':''}</div>
+      <div class="name">${d.name} ${crewedLanded?'bemannt gelandet':landed?'gelandet':reached?'✓ erreicht':''}</div>
       <div class="desc">${d.desc}</div>
       <div class="stat-line"><span class="k">Benötigt ΔV</span><span class="v">${d.deltaVReq}</span></div>
       <div class="stat-line"><span class="k">Flugzeit (Basis)</span><span class="v">${destTravelDays(d)} Tage${d.outer&&hasResearch('gravityAssist')?' (Swing-by aktiv)':''}</span></div>
       <div class="stat-line"><span class="k">Wiss. Ertrag (Vorbeiflug)</span><span class="v good">${fmtMoney(d.scienceReward)}</span></div>
       ${d.landingBaseChance>0 ? `<div class="stat-line"><span class="k">Landechance</span><span class="v">${Math.round(d.landingBaseChance*100)}% (mit Landestufe)</span></div>` : `<div class="stat-line"><span class="k">Landung</span><span class="v">nicht möglich (${d.noLandingReason||'keine feste Oberfläche'})</span></div>`}
-      ${crewCfg ? `<div class="stat-line"><span class="k">Bemannt möglich</span><span class="v">${hasResearch(crewCfg.reqResearch)?'🧑‍🚀 ja (Crew-Kapsel + Lebenserhaltung nötig)':'gesperrt — '+RESEARCH.find(r=>r.id===crewCfg.reqResearch).name}</span></div>` : ''}
+      ${crewCfg ? `<div class="stat-line"><span class="k">Bemannt möglich</span><span class="v">${hasResearch(crewCfg.reqResearch)?'ja (Crew-Kapsel + Lebenserhaltung nötig)':'gesperrt — '+RESEARCH.find(r=>r.id===crewCfg.reqResearch).name}</span></div>` : ''}
       <div class="cost">${unlocked ? 'Freigeschaltet — Sonde im Hangar starten' : 'Voraussetzung: '+RESEARCH.find(r=>r.id===d.reqResearch).name}</div>
     </div>`;
   }).join('');
@@ -3193,7 +4371,7 @@ function renderDeepSpace(){
       const d = DEEP_SPACE[q.destKey];
       const pct = Math.round((1-q.daysLeft/q.daysTotal)*100);
       return `<div class="queue-item">
-        <div class="top"><span class="qname">${q.crewed?'🧑‍🚀 ':''}${q.name} → ${d.name}</span><span class="qmeta">${q.daysLeft} Tag(e) übrig</span></div>
+        <div class="top"><span class="qname">${q.crewed?'':''}${q.name} → ${d.name}</span><span class="qmeta">${q.daysLeft} Tag(e) übrig</span></div>
         <div class="progress-bar"><div style="width:${pct}%"></div></div>
       </div>`;
     }).join('');
@@ -3205,7 +4383,7 @@ function renderDeepSpace(){
     log.innerHTML = solarLog.length
       ? solarLog.map(m=>{
           const dname = DEEP_SPACE[m.destKey].name;
-          const tag = m.crewed?'🧑‍🚀 ':'';
+          const tag = m.crewed?'':'';
           if(m.landed) return `Tag ${m.day}: ${tag}${m.name} landete auf ${dname}${m.firstTime?' — erste Landung dort!':''}`;
           if(m.crashed) return `Tag ${m.day}: ${tag}${m.name} musste die Landung auf ${dname} abbrechen, ${m.crewed?'Besatzung sicher zurück':'Daten gerettet'}`;
           return `Tag ${m.day}: ${m.name} erreichte ${dname}${m.firstTime?' — erste Sonde dort!':''}`;
@@ -3238,7 +4416,7 @@ function renderGalaxy(){
       colList.innerHTML = state.colonies.map(c=>{
         const d = DEEP_SPACE[c.destKey];
         return `<div class="rcard done">
-          <div class="name">🏙️ ${c.name}</div>
+          <div class="name">${c.name}</div>
           <div class="desc">${d?d.desc:''}</div>
           <div class="stat-line"><span class="k">Gegründet</span><span class="v">Tag ${c.day}</span></div>
           <div class="stat-line"><span class="k">Passives Einkommen</span><span class="v good">+${fmtMoney(c.income)} / Tag</span></div>
@@ -3258,7 +4436,7 @@ function renderGalaxy(){
         const d = DEEP_SPACE[k];
         if(!contact) return '';
         return `<div class="rcard done">
-          <div class="name">👽 ${contact.title}</div>
+          <div class="name">${contact.title}</div>
           <div class="desc">${contact.desc}</div>
           <div class="stat-line"><span class="k">Ort</span><span class="v">${d.name}</span></div>
           <div class="stat-line"><span class="k">Spezies</span><span class="v">${contact.raceLabel}</span></div>
@@ -3276,7 +4454,7 @@ function renderGalaxy(){
       const landed = state.landedTargets.includes(k);
       const colonized = state.colonies.some(c=>c.destKey===k);
       return `<div class="rcard ${reached?'done':''}">
-        <div class="name">✨ ${d.name} ${colonized?'🏙️ Kolonie':landed?'🏳️ gelandet':reached?'✓ erreicht':''}${state.firstContacts.includes(k)?' 👽':''}</div>
+        <div class="name">${d.name} ${colonized?'Kolonie':landed?'gelandet':reached?'✓ erreicht':''}${state.firstContacts.includes(k)?'':''}</div>
         <div class="desc">${d.desc}</div>
         <div class="stat-line"><span class="k">Entfernung</span><span class="v">${d.distanceLy} Lichtjahre</span></div>
         <div class="stat-line"><span class="k">Benötigt ΔV</span><span class="v">${d.deltaVReq}</span></div>
@@ -3300,7 +4478,7 @@ function renderGalaxy(){
         const d = DEEP_SPACE[q.destKey];
         const pct = Math.round((1-q.daysLeft/q.daysTotal)*100);
         return `<div class="queue-item">
-          <div class="top"><span class="qname">✨ ${q.name} → ${d.name}</span><span class="qmeta">${q.daysLeft} Tag(e) übrig</span></div>
+          <div class="top"><span class="qname">${q.name} → ${d.name}</span><span class="qmeta">${q.daysLeft} Tag(e) übrig</span></div>
           <div class="progress-bar"><div style="width:${pct}%"></div></div>
         </div>`;
       }).join('');
@@ -3316,11 +4494,11 @@ function renderAndromeda(){
   drawGalaxyDetailMap(g.id);
 
   const titleEl = document.getElementById('galaxyDetailTitle');
-  if(titleEl) titleEl.textContent = `🌀 ${g.name}-Galaxie (${g.shortName})`;
+  if(titleEl) titleEl.textContent = `${g.name}-Galaxie (${g.shortName})`;
   const descEl = document.getElementById('galaxyDetailDesc');
   if(descEl) descEl.textContent = g.desc;
   const colTitleEl = document.getElementById('galaxyColoniesTitle');
-  if(colTitleEl) colTitleEl.textContent = `🏙️ Kolonien in ${g.shortName}`;
+  if(colTitleEl) colTitleEl.textContent = `Kolonien in ${g.shortName}`;
 
   const targets = galaxyTargets(g.id);
   const anyUnlocked = targets.some(k=>isDestUnlocked(DEEP_SPACE[k]));
@@ -3340,7 +4518,7 @@ function renderAndromeda(){
       colList.innerHTML = galaxyColonies.map(c=>{
         const d = DEEP_SPACE[c.destKey];
         return `<div class="rcard done">
-          <div class="name">🏙️ ${c.name}</div>
+          <div class="name">${c.name}</div>
           <div class="desc">${d?d.desc:''}</div>
           <div class="stat-line"><span class="k">Gegründet</span><span class="v">Tag ${c.day}</span></div>
           <div class="stat-line"><span class="k">Passives Einkommen</span><span class="v good">+${fmtMoney(c.income)} / Tag</span></div>
@@ -3358,7 +4536,7 @@ function renderAndromeda(){
       const landed = state.landedTargets.includes(k);
       const colonized = state.colonies.some(c=>c.destKey===k);
       return `<div class="rcard ${reached?'done':''}">
-        <div class="name">🌀 ${d.name} ${colonized?'🏙️ Kolonie':landed?'🏳️ gelandet':reached?'✓ erreicht':''}</div>
+        <div class="name">${d.name} ${colonized?'Kolonie':landed?'gelandet':reached?'✓ erreicht':''}</div>
         <div class="desc">${d.desc}</div>
         <div class="stat-line"><span class="k">Entfernung</span><span class="v">${d.distanceMly} Mio. Lichtjahre (Sprung)</span></div>
         <div class="stat-line"><span class="k">Benötigt ΔV</span><span class="v">${d.deltaVReq}</span></div>
@@ -3382,7 +4560,7 @@ function renderAndromeda(){
         const d = DEEP_SPACE[q.destKey];
         const pct = Math.round((1-q.daysLeft/q.daysTotal)*100);
         return `<div class="queue-item">
-          <div class="top"><span class="qname">🌀 ${q.name} → ${d.name}</span><span class="qmeta">${q.daysLeft} Tag(e) übrig</span></div>
+          <div class="top"><span class="qname">${q.name} → ${d.name}</span><span class="qmeta">${q.daysLeft} Tag(e) übrig</span></div>
           <div class="progress-bar"><div style="width:${pct}%"></div></div>
         </div>`;
       }).join('');
@@ -3440,11 +4618,11 @@ function renderMaintenance(){
   const btn = document.getElementById('btnRepairAll');
   if(damaged.length===0){
     info.textContent = 'Alle Satelliten sind in Topzustand.';
-    btn.disabled = true; btn.textContent = '🔧 Alle reparieren';
+    btn.disabled = true; btn.textContent = 'Alle reparieren';
   } else {
     info.textContent = `${damaged.length} Satellit(en) beschädigt.`;
     btn.disabled = state.money < totalCost;
-    btn.textContent = `🔧 Alle reparieren (${fmtMoney(totalCost)})`;
+    btn.textContent = `Alle reparieren (${fmtMoney(totalCost)})`;
   }
   document.getElementById('droneCount').textContent = state.repairDrones;
   document.getElementById('droneCapacity').textContent = `${state.repairDroneCharges} Reparaturen übrig`;
@@ -3485,9 +4663,31 @@ document.querySelectorAll('.tab').forEach(tab=>{
 
 /* ============================== HEADER CONTROLS ============================== */
 document.getElementById('btnPause').addEventListener('click', (e)=>{
-  state.paused = !state.paused;
-  e.target.textContent = state.paused ? '▶ Weiter' : '⏸ Pause';
+  state.paused = true;
+  e.currentTarget.classList.add('active');
+  document.querySelectorAll('.speed-btn[data-speed]').forEach(b=>b.classList.remove('active'));
   Sound.click();
+});
+
+/* ---------- Geschwindigkeit (1×/2×/3×/4×) ---------- */
+const TICK_MS_BASE = 4000;
+state.gameSpeed = state.gameSpeed || 1;
+let tickIntervalId = null;
+function applyGameSpeed(mult){
+  state.gameSpeed = mult;
+  state.paused = false;
+  document.getElementById('btnPause').classList.remove('active');
+  document.querySelectorAll('.speed-btn[data-speed]').forEach(b=>{
+    b.classList.toggle('active', Number(b.dataset.speed)===mult);
+  });
+  if(tickIntervalId) clearInterval(tickIntervalId);
+  tickIntervalId = setInterval(tick, TICK_MS_BASE / mult);
+}
+document.querySelectorAll('.speed-btn[data-speed]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    applyGameSpeed(Number(btn.dataset.speed));
+    Sound.click();
+  });
 });
 document.getElementById('btnSettings').addEventListener('click', ()=>{
   document.getElementById('settingsModal').classList.add('active');
@@ -3499,14 +4699,27 @@ document.getElementById('closeSettingsModal').addEventListener('click', ()=>{
 });
 document.getElementById('btnMute').addEventListener('click', (e)=>{
   const m = Sound.toggleMute();
-  e.target.textContent = m ? '🔇 Soundeffekte aus' : '🔊 Soundeffekte an';
+  e.target.textContent = m ? 'Soundeffekte aus' : 'Soundeffekte an';
 });
 document.getElementById('btnMusicMute').addEventListener('click', (e)=>{
   const m = Music.toggleMute();
-  e.target.textContent = m ? '🎵 Musik aus' : '🎵 Musik an';
+  e.target.textContent = m ? 'Musik aus' : 'Musik an';
 });
 document.getElementById('musicVolumeSlider').addEventListener('input', (e)=>{
   Music.setVolume(Number(e.target.value) / 100);
+});
+let videoSoundMuted = false;
+let videoVolume = 0.8;
+document.getElementById('btnVideoSoundMute').addEventListener('click', (e)=>{
+  videoSoundMuted = !videoSoundMuted;
+  e.target.textContent = videoSoundMuted ? 'Video-Sound aus' : 'Video-Sound an';
+  const activeVideo = document.getElementById('launchVideo');
+  if(activeVideo) activeVideo.muted = videoSoundMuted;
+});
+document.getElementById('videoVolumeSlider').addEventListener('input', (e)=>{
+  videoVolume = Number(e.target.value) / 100;
+  const activeVideo = document.getElementById('launchVideo');
+  if(activeVideo) activeVideo.volume = videoVolume;
 });
 Music.armAutoplayUnlock();
 Music.start();
@@ -3538,22 +4751,22 @@ document.getElementById('btnHelp').addEventListener('click', ()=>{
     ${rocketRows}
     <div class="small-muted" style="margin-top:12px;">Tipp: Treibstofftanks im Satelliten sind optional, senken aber den Verschleiß im Orbit (Bahnkorrektur). Solarpanels & Antennen sind für Energiebilanz gut, aber für die Auftragserfüllung selbst nicht zwingend nötig.</div>
 
-    <h3 style="font-size:11px; margin-top:16px;">🌌 Wie baue ich eine Sonde für Deep-Space-Missionen?</h3>
+    <h3 style="font-size:11px; margin-top:16px;">Wie baue ich eine Sonde für Deep-Space-Missionen?</h3>
     <div class="small-muted" style="margin-bottom:6px;">Eine „Sonde" ist kein eigenes Bauteil, sondern ein ganz normaler Satellit mit einem <b>Forschungsinstrument</b> an Bord ${instrumentMod ? `${instrumentUnlocked?'<span class="v good">(✓ bei dir bereits freigeschaltet)</span>':'<span class="v bad">(bei dir noch gesperrt — erst „'+RESEARCH.find(r=>r.id===instrumentMod.reqResearch).name+'" erforschen)</span>'}` : ''}. So geht's:</div>
     <ol style="margin:0 0 8px 18px; padding:0; font-size:11px; line-height:1.6; color:var(--muted);">
       <li>Im <b>Fertigung</b>-Tab ein Chassis wählen.</li>
-      <li>Im Nutzlast-Reiter <b>📦</b> das <b>Forschungsinstrument</b> hinzufügen (mind. 1 Stück).</li>
+      <li>Im Nutzlast-Reiter das <b>Forschungsinstrument</b> hinzufügen (mind. 1 Stück).</li>
       <li>Optional Treibstofftank(s) dazu für mehr ΔV-Reichweite zum Zielkörper.</li>
-      <li>Auf „🛠️ Satellit bauen" klicken — nach Bauzeit landet er im <b>Hangar</b>.</li>
-      <li>Im Hangar beim fertigen Satelliten auf <b>„🌌 Ins All"</b> klicken (nicht den normalen Orbit-Start-Button!) — dort Rakete und Ziel wählen und Mission freigeben.</li>
+      <li>Auf „Satellit bauen" klicken — nach Bauzeit landet er im <b>Hangar</b>.</li>
+      <li>Im Hangar beim fertigen Satelliten auf <b>„Ins All"</b> klicken (nicht den normalen Orbit-Start-Button!) — dort Rakete und Ziel wählen und Mission freigeben.</li>
     </ol>
     <div class="small-muted">Der normale Start-Button schickt den Satelliten nur in LEO/MEO/GEO. Für Mond, Venus, Mars & Co. immer „Ins All" im Hangar-Eintrag nutzen.</div>
 
-    <h3 style="font-size:11px; margin-top:16px;">📛 Rollenschilder</h3>
-    <div class="small-muted">Im Reiter <b>📛 Rolle</b> gibt es reine Kennzeichnungs-Module (z.B. „Sonde", „Lander", „Kolonieschiff") — sie kosten nichts, wiegen nichts und belegen keinen Slot. Sie ändern nur den Namen des fertigen Fahrzeugs (z.B. „Sonde-004" statt „Forschung-SAT-004"), damit auf einen Blick klar ist, wofür es gedacht ist. Die eigentliche Funktion (z.B. Forschungsinstrument für Deep-Space, Landestufe für Landungen) muss trotzdem als echtes Modul verbaut werden — das Rollenschild ist nur die Beschriftung.</div>
+    <h3 style="font-size:11px; margin-top:16px;">Rollenschilder</h3>
+    <div class="small-muted">Im Reiter <b>Rolle</b> gibt es reine Kennzeichnungs-Module (z.B. „Sonde", „Lander", „Kolonieschiff") — sie kosten nichts, wiegen nichts und belegen keinen Slot. Sie ändern nur den Namen des fertigen Fahrzeugs (z.B. „Sonde-004" statt „Forschung-SAT-004"), damit auf einen Blick klar ist, wofür es gedacht ist. Die eigentliche Funktion (z.B. Forschungsinstrument für Deep-Space, Landestufe für Landungen) muss trotzdem als echtes Modul verbaut werden — das Rollenschild ist nur die Beschriftung.</div>
 
-    <h3 style="font-size:11px; margin-top:16px;">🛠️ Wartung & Wartungsdrohnen</h3>
-    <div class="small-muted">Im <b>Orbit</b>-Tab gibt es unter der Karte ein Wartungs-Panel: „🔧 Alle reparieren" repariert auf einen Klick alle beschädigten Satelliten gegen die Gesamtkosten. Zusätzlich kannst du dort <b>Wartungsdrohnen</b> kaufen — jede Drohne kostet einmalig ${fmtMoney(REPAIR_DRONE_COST)} und repariert danach automatisch und kostenlos Satelliten, sobald deren Zustand auf ${REPAIR_DRONE_TRIGGER_HEALTH}% oder weniger fällt, kurz bevor sie ausfallen würden. Eine Drohne hält für ${REPAIR_DRONE_CAPACITY} Reparaturen — danach ist sie verbraucht und fällt aus dem Bestand, du musst also regelmäßig neue nachkaufen.</div>
+    <h3 style="font-size:11px; margin-top:16px;">Wartung & Wartungsdrohnen</h3>
+    <div class="small-muted">Im <b>Orbit</b>-Tab gibt es unter der Karte ein Wartungs-Panel: „Alle reparieren" repariert auf einen Klick alle beschädigten Satelliten gegen die Gesamtkosten. Zusätzlich kannst du dort <b>Wartungsdrohnen</b> kaufen — jede Drohne kostet einmalig ${fmtMoney(REPAIR_DRONE_COST)} und repariert danach automatisch und kostenlos Satelliten, sobald deren Zustand auf ${REPAIR_DRONE_TRIGGER_HEALTH}% oder weniger fällt, kurz bevor sie ausfallen würden. Eine Drohne hält für ${REPAIR_DRONE_CAPACITY} Reparaturen — danach ist sie verbraucht und fällt aus dem Bestand, du musst also regelmäßig neue nachkaufen.</div>
   `;
   document.getElementById('helpModal').classList.add('active');
   Sound.click();
@@ -3650,7 +4863,7 @@ function autosave(force){
       if(result){
         state.lastSaveDay = state.day;
         const tag = STORAGE_MODE === 'local' ? ' (lokal)' : '';
-        updateAutosaveStatus(`🟢 Auto-gespeichert${tag} · Tag ${state.day}`);
+        updateAutosaveStatus(`Auto-gespeichert${tag} · Tag ${state.day}`);
       } else {
         updateAutosaveStatus('⚠ Autosave fehlgeschlagen');
       }
@@ -3672,7 +4885,7 @@ async function loadAutosave(){
       if(loaded.repairDroneCharges === undefined && state.repairDrones > 0){
         state.repairDroneCharges = state.repairDrones * REPAIR_DRONE_CAPACITY;
       }
-      toast(`🔄 Automatischer Spielstand geladen — Tag ${state.day}.`, 'good');
+      toast(`Automatischer Spielstand geladen — Tag ${state.day}.`, 'good');
       return true;
     }
   }catch(err){
@@ -3685,9 +4898,12 @@ async function loadAutosave(){
 function beginCommonGameLoop(){
   initOrbitCanvasClicks();
   initGalaxyHubClicks();
+  attachMapPanZoom('solarMapCanvas', { minZoom:0.5, maxZoom:2.5, redraw:drawSolarMap, resetBtnId:'btnResetSolarView' });
+  attachMapPanZoom('galaxyMapCanvas', { minZoom:0.5, maxZoom:2.5, redraw:drawGalaxyMap, resetBtnId:'btnResetGalaxyMapView' });
+  attachMapPanZoom('andromedaMapCanvas', { minZoom:0.5, maxZoom:2.5, redraw:()=>drawGalaxyDetailMap(selectedGalaxyId), resetBtnId:'btnResetAndromedaView' });
   renderAll();
   requestAnimationFrame(drawOrbitScene);
-  setInterval(tick, 4000);
+  applyGameSpeed(state.gameSpeed || 1);
   window.addEventListener('resize', ()=>{ renderBuild(); drawSolarMap(); drawGalaxyMap(); drawGalaxyHub(); drawGalaxyDetailMap(selectedGalaxyId); });
   document.addEventListener('visibilitychange', ()=>{
     if(document.visibilityState === 'hidden') autosave(true);
@@ -3698,6 +4914,7 @@ function beginCommonGameLoop(){
 function showGameRoot(){
   document.getElementById('startScreen').style.display = 'none';
   document.getElementById('gameRoot').style.display = '';
+  if (window.stopWarpTunnel) window.stopWarpTunnel();
 }
 
 async function startNewGame(){
@@ -3730,9 +4947,9 @@ async function init(){
   if(STORAGE_MODE === 'none'){
     updateAutosaveStatus('⚠ Kein Autosave — bitte regelmäßig exportieren');
   } else if(STORAGE_MODE === 'local'){
-    updateAutosaveStatus('🟢 Auto-Speicherung aktiv (lokal im Browser)');
+    updateAutosaveStatus('Auto-Speicherung aktiv (lokal im Browser)');
   } else {
-    updateAutosaveStatus('🟢 Auto-Speicherung aktiv');
+    updateAutosaveStatus('Auto-Speicherung aktiv');
   }
 
   const continueBtn = document.getElementById('btnContinueGame');
@@ -3742,7 +4959,7 @@ async function init(){
     continueBtn.disabled = true;
     const available = await hasAutosave();
     continueBtn.disabled = !available;
-    continueBtn.textContent = available ? '▶️ Fortsetzen' : '▶️ Fortsetzen (kein Spielstand)';
+    continueBtn.textContent = available ? 'Fortsetzen' : 'Fortsetzen (kein Spielstand)';
   };
   document.getElementById('splashScreen').addEventListener('click', goToStartScreen, { once: true });
 
@@ -3778,6 +4995,145 @@ async function init(){
   });
 }
 init();
+
+/* ---------- Warp-Tunnel-Hintergrund (Splash- & Startbildschirm) ----------
+   Läuft in einer 15-Sekunden-Schleife: 5s voller Warp-Speed, dann Abbremsen,
+   6s gemächliche Fahrt, dann wieder beschleunigen — und von vorn. Farbgebung
+   an das Deep-Anchor-Terminal-Schema angelehnt (warmes Grau + Akzent-Orange,
+   dazu vereinzelt Grün als zweite Signalfarbe). Stoppt automatisch, sobald
+   das eigentliche Spiel startet. */
+(function initWarpTunnel() {
+  const canvases = ["warpSplash", "warpStart"].map(id => document.getElementById(id)).filter(Boolean);
+  if (canvases.length === 0) return;
+  const ctxs = canvases.map(c => c.getContext("2d"));
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const STAR_COUNT = 220;
+  const Z_MAX = 2.0;
+  const Z_MIN = 0.045;
+  let stars = [];
+  let running = true;
+  let lastNow = null;
+
+  function resize() {
+    canvases.forEach(c => {
+      c.width = Math.max(1, Math.round(c.clientWidth * dpr));
+      c.height = Math.max(1, Math.round(c.clientHeight * dpr));
+    });
+  }
+  window.addEventListener("resize", resize);
+
+  // Grundfarbe der Schlieren: helles Terminal-Grau (var(--text): #e5e5e5),
+  // dazu vereinzelt Akzent-Orange und Grün, die nur im Warp-Übergang aufblitzen.
+  const CREAM = "229,229,229";
+  const COLOR_STREAKS = ["255,106,43", "255,106,43", "255,140,60", "255,176,46"];
+  function randomStreak() {
+    if (Math.random() < 0.25) return { color: COLOR_STREAKS[Math.floor(Math.random() * COLOR_STREAKS.length)], isColored: true };
+    return { color: CREAM, isColored: false };
+  }
+
+  function randomStar(z) {
+    const streak = randomStreak();
+    return { x: Math.random() * 2 - 1, y: Math.random() * 2 - 1, z, prevZ: z, color: streak.color, isColored: streak.isColored };
+  }
+
+  function initStars() {
+    stars = Array.from({ length: STAR_COUNT }, () => randomStar(Z_MIN + Math.random() * (Z_MAX - Z_MIN)));
+  }
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp01 = (t) => Math.max(0, Math.min(1, t));
+  const easeInOutCubic = (t) => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+
+  const CYCLE = 15; // Sekunden
+  function speedAt(t) {
+    if (t < 5) return 1;
+    if (t < 7) return lerp(1, 0.15, easeInOutCubic(clamp01((t-5)/2)));
+    if (t < 13) return 0.15;
+    return lerp(0.15, 1, easeInOutCubic(clamp01((t-13)/2)));
+  }
+  function colorVisibility(speed) {
+    return clamp01((speed - 0.15) / (1 - 0.15));
+  }
+  function warpFlash(t) {
+    const d = Math.min(t, CYCLE - t);
+    if (d > 0.35) return 0;
+    return Math.pow(1 - d / 0.35, 2);
+  }
+
+  function drawFrame(now) {
+    if (!running) return;
+    const dt = lastNow === null ? 0.016 : Math.min(0.05, (now - lastNow) / 1000);
+    lastNow = now;
+    const t = (now / 1000) % CYCLE;
+    const speed = speedAt(t);
+    const colorVis = colorVisibility(speed);
+    const flash = warpFlash(t);
+
+    canvases.forEach((canvas, i) => {
+      if (!canvas.clientWidth) return;
+      const wantW = Math.max(1, Math.round(canvas.clientWidth * dpr));
+      const wantH = Math.max(1, Math.round(canvas.clientHeight * dpr));
+      if (canvas.width !== wantW || canvas.height !== wantH) {
+        canvas.width = wantW;
+        canvas.height = wantH;
+        ctxs[i].fillStyle = "#0a0a0a";
+        ctxs[i].fillRect(0, 0, wantW, wantH);
+      }
+      const ctx = ctxs[i];
+      const w = canvas.width, h = canvas.height;
+      const cx = w/2, cy = h/2;
+
+      ctx.fillStyle = "rgba(10,10,10,0.32)"; // Bewegungs-Trails
+      ctx.fillRect(0, 0, w, h);
+
+      // Echte 3D-Perspektiv-Projektion: x/z, y/z -> gleichmäßig radial strahlender
+      // Warp-Effekt, kein Klumpen im Zentrum.
+      const focal = Math.min(w, h) * 0.62;
+      ctx.lineCap = "round";
+      for (const s of stars) {
+        s.prevZ = s.z;
+        s.z -= speed * dt * 1.35;
+        if (s.z <= Z_MIN) {
+          const fresh = randomStar(Z_MAX);
+          s.x = fresh.x; s.y = fresh.y; s.z = Z_MAX; s.prevZ = Z_MAX; s.color = fresh.color; s.isColored = fresh.isColored;
+        }
+        if (s.isColored && colorVis <= 0.01) continue;
+
+        const x1 = cx + (s.x / s.prevZ) * focal, y1 = cy + (s.y / s.prevZ) * focal;
+        const x2 = cx + (s.x / s.z) * focal,     y2 = cy + (s.y / s.z) * focal;
+
+        const proximity = clamp01(1 - (s.z - Z_MIN) / (Z_MAX - Z_MIN));
+        const baseAlpha = lerp(0.1, 1, proximity);
+        ctx.lineWidth = lerp(0.6, lerp(1.8, 3.2, speed), proximity) * dpr;
+        ctx.strokeStyle = s.isColored
+          ? `rgba(${s.color},${clamp01(baseAlpha * colorVis)})`
+          : `rgba(${s.color},${baseAlpha})`;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+
+      // Warp-Blitz beim Wiedererreichen der vollen Geschwindigkeit — in warmem
+      // Orangeton statt kaltem Blau, passend zur Deep-Anchor-Palette.
+      if (flash > 0.01) {
+        const flashGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.75);
+        flashGrad.addColorStop(0,    `rgba(255,240,225,${0.85 * flash})`);
+        flashGrad.addColorStop(0.35, `rgba(255,180,130,${0.55 * flash})`);
+        flashGrad.addColorStop(1,    `rgba(255,106,43,0)`);
+        ctx.fillStyle = flashGrad;
+        ctx.fillRect(0, 0, w, h);
+      }
+    });
+
+    requestAnimationFrame(drawFrame);
+  }
+
+  resize();
+  initStars();
+  requestAnimationFrame(drawFrame);
+  window.stopWarpTunnel = () => { running = false; };
+})();
 </script>
 </body>
 </html>
