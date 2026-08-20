@@ -1,6 +1,18 @@
 <!--
 CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
 
+v3.9-fix12 (deep_anchor_3_9_10.html)
+- Massenproduktion in der Fabrik: neuer Stückzahl-Stepper (−/Eingabefeld/+, 1–999) im
+  Konfigurationspanel unter "Gesamtkosten", nur sichtbar/aktiv beim Neubau (nicht beim
+  Umbau eines bestehenden Satelliten — dort weiterhin fest 1). Gesamtkosten-Anzeige und
+  Bau-Button-Beschriftung skalieren live mit der gewählten Stückzahl (z.B. "€45.000
+  (9× €5.000)" / "9 Satelliten bauen"). buildSatellite() zieht die Gesamtsumme auf einmal
+  ab und erzeugt beim Bestätigen N einzelne Warteschlangen-Einträge (jeweils eigene
+  fortlaufende ID/Name wie bisher), alle mit identischer Bauzeit parallel in der
+  Bauwarteschlange — kein neues Fabrik-Kapazitätslimit eingeführt, entspricht dem
+  bisherigen Parallel-Verhalten der Queue, nur eben mit einem Klick für mehrere Stück.
+  Stepper-Wert wird nach erfolgreichem Bau auf 1 zurückgesetzt.
+
 v3.9-fix11 (deep_anchor_3_9_9.html)
 - Natives window.confirm()-Popup beim "Außer Dienst stellen"-Button (Orbit-Netzwerk-Liste)
   ersetzt durch eigenes Bestätigungs-Modal im Spiel-Look (#confirmModal, gleicher Stil wie
@@ -378,6 +390,14 @@ body{
 .view.active{ display:block; }
 
 /* Build screen */
+.qty-row{ display:flex; align-items:center; gap:8px; margin-top:12px; }
+.qty-row .qty-label{ font-size:12px; color:var(--muted); flex:1; }
+.qty-stepper{ display:flex; border:1px solid var(--border-lit); border-radius:var(--radius); overflow:hidden; }
+.qty-stepper button{ background:var(--panel2); border:none; color:var(--text); width:26px; height:28px; cursor:pointer; font-size:14px; line-height:1; transition:all .12s ease; }
+.qty-stepper button:hover{ background:#222222; color:var(--accent); }
+.qty-stepper button:disabled{ opacity:.35; cursor:not-allowed; }
+.qty-stepper input{ font-family:'JetBrains Mono', monospace; width:48px; text-align:center; background:var(--panel); border:none; border-left:1px solid var(--border-lit); border-right:1px solid var(--border-lit); color:var(--text); font-size:13px; padding:0; -moz-appearance:textfield; }
+.qty-stepper input::-webkit-outer-spin-button, .qty-stepper input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
 .build-grid{ display:grid; grid-template-columns: 1fr 1fr 260px; gap:14px; }
 @media (max-width: 1100px){ .build-grid{ grid-template-columns:1fr; } }
 .chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
@@ -704,7 +724,15 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
             <div class="stat-line"><span class="k">Bauzeit</span><span class="v" id="statTime">0 Tage</span></div>
             <div class="stat-line"><span class="k">Gesamtkosten</span><span class="v" id="statCost">€0</span></div>
           </div>
-          <button class="btn primary" id="btnBuild" style="width:100%; margin-top:12px; justify-content:center;">Satellit bauen</button>
+          <div class="qty-row" id="qtyRow">
+            <span class="qty-label">Stückzahl</span>
+            <div class="qty-stepper">
+              <button type="button" id="qtyMinus">−</button>
+              <input type="number" id="qtyInput" value="1" min="1" max="999" inputmode="numeric">
+              <button type="button" id="qtyPlus">+</button>
+            </div>
+          </div>
+          <button class="btn primary" id="btnBuild" style="width:100%; margin-top:10px; justify-content:center;">Satellit bauen</button>
         </div>
 
         <div class="panel">
@@ -1707,19 +1735,27 @@ function buildSatellite(){
     return;
   }
 
-  if(state.money < st.cost){ toast('Nicht genug Guthaben.', 'bad'); Sound.error(); return; }
-  state.money -= st.cost;
-  const id = state.nextSatId++;
+  const qty = getBuildQty();
+  const totalCost = st.cost * qty;
+  if(state.money < totalCost){ toast(qty>1 ? `Nicht genug Guthaben für ${qty} Satelliten.` : 'Nicht genug Guthaben.', 'bad'); Sound.error(); return; }
+  state.money -= totalCost;
   const payloadLabel = st.payloadTypes.length ? PAYLOAD_TYPES[st.payloadTypes[0]].label : 'Universal';
-  const name = st.roleLabel ? `${st.roleLabel}-${String(id).padStart(3,'0')}` : `${payloadLabel}-SAT-${String(id).padStart(3,'0')}`;
   const days = buildTimeFor(st.chassis.id, st.mods.length);
-  state.constructionQueue.push({
-    id, name, chassisId: st.chassis.id, mods:[...state.draft.mods],
-    daysTotal: days, daysLeft: days,
-  });
+  let firstName = '', lastName = '';
+  for(let i=0;i<qty;i++){
+    const id = state.nextSatId++;
+    const name = st.roleLabel ? `${st.roleLabel}-${String(id).padStart(3,'0')}` : `${payloadLabel}-SAT-${String(id).padStart(3,'0')}`;
+    if(i===0) firstName = name;
+    lastName = name;
+    state.constructionQueue.push({
+      id, name, chassisId: st.chassis.id, mods:[...state.draft.mods],
+      daysTotal: days, daysLeft: days,
+    });
+  }
   state.draft = { chassisId:null, mods:[], editingId:null, editingName:null, editingOriginalCost:0, editingOriginalChassisId:null, editingOriginalMods:[] };
+  document.getElementById('qtyInput').value = 1;
   Sound.buildOk();
-  toast(`Fertigung gestartet: ${name} ist in ${days} Tagen einsatzbereit.`, 'good');
+  toast(qty>1 ? `Fertigung gestartet: ${qty}× ${firstName.split('-').slice(0,-1).join('-')||'Satellit'} (${firstName} … ${lastName}) in ${days} Tagen einsatzbereit.` : `Fertigung gestartet: ${firstName} ist in ${days} Tagen einsatzbereit.`, 'good');
   renderAll();
 }
 
@@ -2686,8 +2722,10 @@ function renderBuild(){
   const costEl = document.getElementById('statCost');
   const editBanner = document.getElementById('editBanner');
   const buildBtn = document.getElementById('btnBuild');
+  const qtyRow = document.getElementById('qtyRow');
   let payDue = st.cost;
   if(editing){
+    qtyRow.style.display = 'none';
     editBanner.style.display = 'flex';
     document.getElementById('editBannerText').textContent = `Bearbeite: ${state.draft.editingName}`;
     const delta = st.cost - state.draft.editingOriginalCost;
@@ -2696,10 +2734,13 @@ function renderBuild(){
     costEl.className = 'v ' + (delta>0?'bad': delta<0 ? 'good' : '');
     buildBtn.textContent = 'Änderungen speichern';
   } else {
+    qtyRow.style.display = 'flex';
     editBanner.style.display = 'none';
-    costEl.textContent = fmtMoney(st.cost);
+    const qty = getBuildQty();
+    payDue = st.cost * qty;
+    costEl.textContent = qty>1 ? `${fmtMoney(payDue)} (${qty}× ${fmtMoney(st.cost)})` : fmtMoney(st.cost);
     costEl.className = 'v';
-    buildBtn.textContent = 'Satellit bauen';
+    buildBtn.textContent = qty>1 ? `${qty} Satelliten bauen` : 'Satellit bauen';
   }
   buildBtn.disabled = !st.chassis || st.mods.length===0 || state.money < payDue;
 
@@ -4804,6 +4845,35 @@ document.getElementById('videoVolumeSlider').addEventListener('input', (e)=>{
 Music.armAutoplayUnlock();
 Music.start();
 document.getElementById('btnBuild').addEventListener('click', buildSatellite);
+function clampQty(v){
+  v = Math.round(Number(v));
+  if(!Number.isFinite(v) || v<1) v = 1;
+  if(v>999) v = 999;
+  return v;
+}
+function getBuildQty(){
+  if(state.draft.editingId) return 1;
+  return clampQty(document.getElementById('qtyInput').value);
+}
+document.getElementById('qtyInput').addEventListener('input', (e)=>{
+  renderBuild();
+});
+document.getElementById('qtyInput').addEventListener('blur', (e)=>{
+  e.target.value = clampQty(e.target.value);
+  renderBuild();
+});
+document.getElementById('qtyMinus').addEventListener('click', ()=>{
+  const inp = document.getElementById('qtyInput');
+  inp.value = clampQty(Number(inp.value||1) - 1);
+  Sound.click();
+  renderBuild();
+});
+document.getElementById('qtyPlus').addEventListener('click', ()=>{
+  const inp = document.getElementById('qtyInput');
+  inp.value = clampQty(Number(inp.value||1) + 1);
+  Sound.click();
+  renderBuild();
+});
 document.getElementById('btnCancelEdit').addEventListener('click', cancelEdit);
 document.getElementById('btnRepairAll').addEventListener('click', repairAllSats);
 document.getElementById('btnBuyDrone1').addEventListener('click', ()=>buyRepairDrone(1));
