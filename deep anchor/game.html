@@ -219,6 +219,16 @@ v3.4 (deep_anchor_3_4.html)
 }
 *{box-sizing:border-box;}
 html,body{height:100%;}
+/* Scrollbalken überall im Spiel unsichtbar machen (Scrollen bleibt funktionsfähig) */
+*{
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* alte Edge/IE */
+}
+*::-webkit-scrollbar{          /* Chrome, Edge, Safari */
+  display:none;
+  width:0;
+  height:0;
+}
 body{
   margin:0;
   background: radial-gradient(ellipse at 50% -10%, #191919 0%, var(--bg) 55%, #050505 100%);
@@ -563,6 +573,22 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
 
 /* satellite list */
 .sat-list{ display:flex; flex-direction:column; gap:6px; max-height:420px; overflow-y:auto; }
+.collapsible-head{
+  display:flex; align-items:center; justify-content:space-between;
+  cursor:pointer; user-select:none;
+}
+.collapsible-head .chevron{
+  width:16px; height:16px; flex:0 0 auto; color:var(--muted);
+  transition:transform .2s ease;
+}
+.collapsible-head[aria-expanded="false"] .chevron{ transform:rotate(-90deg); }
+#satListBody{
+  overflow:hidden;
+  transition:max-height .25s ease, opacity .2s ease, margin-top .2s ease;
+}
+#satListBody.collapsed{
+  max-height:0 !important; opacity:0; margin-top:0; pointer-events:none;
+}
 .sat-list-row{
   display:grid;
   grid-template-columns: 1.4fr .8fr .7fr 1fr 1fr auto auto;
@@ -711,12 +737,17 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
         </div>
       </div>
       <div class="panel" style="margin-top:14px;" id="satListPanel">
-        <h3>Satelliten-Liste (<span id="satListCount">0</span>)</h3>
-        <div class="sat-list-head">
-          <span>Name</span><span>Orbit</span><span>Größe</span><span>Zustand</span><span>Auftrag</span><span></span><span></span>
+        <h3 class="collapsible-head" id="satListToggle" role="button" tabindex="0" aria-expanded="true" aria-controls="satListBody">
+          <span>Satelliten-Liste (<span id="satListCount">0</span>)</span>
+          <svg class="chevron" id="satListChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </h3>
+        <div id="satListBody">
+          <div class="sat-list-head">
+            <span>Name</span><span>Orbit</span><span>Größe</span><span>Zustand</span><span>Auftrag</span><span></span><span></span>
+          </div>
+          <div class="sat-list" id="satListContainer"></div>
+          <div class="empty-hint" id="satListEmpty">Noch keine Satelliten im Orbit.</div>
         </div>
-        <div class="sat-list" id="satListContainer"></div>
-        <div class="empty-hint" id="satListEmpty">Noch keine Satelliten im Orbit.</div>
       </div>
       <div class="panel" style="margin-top:14px;" id="transitPanelWrap">
         <h3>Im Transit</h3>
@@ -3429,6 +3460,55 @@ function initOrbitCanvasClicks(){
   // Pan (linke Maustaste halten + ziehen) und Zoom (Scrollrad) — kein redraw nötig, die Szene animiert ohnehin laufend
   attachMapPanZoom('orbitCanvas', { minZoom:0.5, maxZoom:2.5, redraw:()=>{}, resetBtnId:'btnResetOrbitView' });
 }
+
+/* --- Satelliten-Liste ein-/ausklappbar --- */
+const SATLIST_COLLAPSE_KEY = 'deepanchor_satListCollapsed';
+function setSatListCollapsed(collapsed){
+  const body = document.getElementById('satListBody');
+  const head = document.getElementById('satListToggle');
+  if(!body || !head) return;
+  if(collapsed){
+    body.style.maxHeight = body.scrollHeight + 'px';
+    body.offsetHeight; // reflow erzwingen, damit die Höhe vor dem Kollabieren "ankommt"
+    body.classList.add('collapsed');
+    body.style.maxHeight = '0px';
+  } else {
+    body.classList.remove('collapsed');
+    const target = body.scrollHeight + 'px';
+    body.style.maxHeight = target;
+    const clearFixedHeight = (e)=>{
+      if(e && e.propertyName !== 'max-height') return;
+      body.style.maxHeight = ''; // danach frei wachsen lassen (z.B. wenn neue Satelliten dazukommen)
+      body.removeEventListener('transitionend', clearFixedHeight);
+    };
+    body.addEventListener('transitionend', clearFixedHeight);
+  }
+  head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  try{ localStorage.setItem(SATLIST_COLLAPSE_KEY, collapsed ? '1' : '0'); }catch(err){}
+}
+function initSatListCollapse(){
+  const head = document.getElementById('satListToggle');
+  if(!head) return;
+  let startCollapsed = false;
+  try{ startCollapsed = localStorage.getItem(SATLIST_COLLAPSE_KEY) === '1'; }catch(err){}
+  if(startCollapsed){
+    const body = document.getElementById('satListBody');
+    if(body){ body.classList.add('collapsed'); body.style.maxHeight = '0px'; }
+    head.setAttribute('aria-expanded', 'false');
+  }
+  head.addEventListener('click', ()=>{
+    const isCollapsed = head.getAttribute('aria-expanded') === 'false';
+    setSatListCollapsed(!isCollapsed);
+  });
+  head.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      const isCollapsed = head.getAttribute('aria-expanded') === 'false';
+      setSatListCollapsed(!isCollapsed);
+    }
+  });
+}
+initSatListCollapse();
 
 function renderSatDetail(){
   const panel = document.getElementById('satDetailPanel');
