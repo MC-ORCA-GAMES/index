@@ -1,6 +1,138 @@
 <!--
 CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
 
+v4-13 (deep_anchor_4_5_3.html, gleiche Datei weiter genutzt)
+- Galaxien-Content erweitert (Punkt 9 der IDEENLISTE): drei neue Galaxien ans Ende der
+  Forschungskette angehängt (nach sombreroKartierung): Antennen-Galaxien (NGC 4038/4039,
+  antennaeReichweite/antennaeKartierung), Virgo A / M87 (m87Reichweite/m87Kartierung), NGC 1365
+  / Große Balkenspirale (ngc1365Reichweite/ngc1365Kartierung) — Kosten steigen weiter von
+  10,2 Mio. bis 20,2 Mio. €, GALAXIES/DEST_GALAXY_NAMES entsprechend ergänzt, Hub-Layout und
+  Detailkarte brauchen dank generischem GALAXY_KEYS-basiertem Rendering keine Anpassung.
+- Zielanzahl bewusst NICHT mehr einheitlich 6 pro Galaxie: Antennen-Galaxien bekommen 8 Ziele
+  (kollidierendes Paar — zwei Kerne NGC 4038/4039 plus zwei getrennte Gezeitenschweife bieten
+  mehr eigenständige Regionen als eine ungestörte Galaxie), Virgo A/M87 bewusst nur 4 (die
+  Strahlung des 2019 erstmals fotografierten aktiven Schwarzen Lochs samt relativistischem Jet
+  lässt kaum landbare Regionen übrig), NGC 1365 bekommt 5 (Balkenspiralen-Thema mit zwei
+  Balkenarmen statt der üblichen drei Außenziele). Bei mehreren Kernen pro Galaxie trägt bewusst
+  NUR EIN Ziel mapCore:true (siehe drawGalaxyDetailMap()) — ein zweiter Kern (Antennen-Südkern)
+  bekommt eine normale mapAngle-Position, sonst würden sich die Marker exakt überlappen.
+
+v4-12 (deep_anchor_4_5_3.html, gleiche Datei weiter genutzt)
+- Erfolge-Tab um Belohnungen erweitert (TODO-ACHIEVEMENT-REWARDS): jeder Erfolg in ACHIEVEMENTS
+  hat jetzt ein reward-Feld (500 € bis 180.000 € je nach Aufwand). Die Belohnung wird NICHT
+  automatisch beim Freischalten gutgeschrieben, sondern muss aktiv im Erfolge-Tab abgeholt
+  werden: freigeschaltete, aber noch nicht abgeholte Erfolge sind jetzt anklickbar (eigener
+  claimable-Zustand mit Akzentrahmen, leichtem Glow via pulseGlow-Animation und sichtbarem
+  "🎁 X € — jetzt abholen"-Hinweis), ein Klick ruft claimAchievement() auf, schreibt state.money
+  gut, markiert den Eintrag als claimed und rendert neu. state.achievementsUnlocked-Einträge
+  tragen dafür zusätzlich ein claimed-Flag (Default false beim Freischalten in
+  checkAchievements()). Altspielstände mit Erfolgen ohne dieses Feld gelten automatisch als
+  unclaimed (undefined ist genauso falsy wie false) — kein Migrationscode nötig, Spieler können
+  bereits erreichte Erfolge beim nächsten Laden einfach nachträglich abholen.
+- Erfolge-Tab blinkt jetzt (TODO-ACHIEVEMENT-REWARDS): neue Funktion
+  updateAchievementsTabIndicator() (aufgerufen am Ende von renderAchievements()) setzt die
+  CSS-Klasse has-reward auf den Tab-Button, solange mindestens eine Belohnung offen ist
+  (@keyframes tabBlink, pulsiert zwischen --muted und --accent), und zeigt zusätzlich ein kleines
+  Zähler-Badge mit der Anzahl offener Belohnungen — wiederverwendet die bisher ungenutzte
+  .tab .badge-Klasse aus dem CSS. Blinken/Badge bleiben bestehen, bis WIRKLICH alle offenen
+  Belohnungen abgeholt wurden, nicht schon nach bloßem Besuch des Tabs.
+
+v4-11 (deep_anchor_4_5_3.html, gleiche Datei weiter genutzt)
+- Auftraggeber-Reputationssystem ergänzt (TODO-AUFTRAGSSYSTEM, Punkt 7 der IDEENLISTE): jeder
+  Auftrag gehört jetzt zu einem von fünf Auftraggebern (CONTRACT_CLIENTS: EarthWatch Institute,
+  Comsat Union, GlobalWeather Agency, NavCore Systems, Deep Space Grant Council) statt anonym zu
+  sein. state.clientRep verfolgt pro Auftraggeber einen Vertrauenswert (0 aufwärts, fehlende
+  Einträge gelten als 0, siehe clientRepOf() — kein Migrationscode nötig, defaultet über
+  freshState()+Object.assign() für Altspielstände automatisch auf leeres Objekt). CLIENT_TIERS
+  übersetzt den Vertrauenswert in vier Stufen (Neukunde ×1.00, Vertraut ×1.10 ab 25, Bevorzugt
+  ×1.22 ab 60, Premium-Partner ×1.40 ab 120), deren Multiplikator generateContract() direkt beim
+  Erzeugen eines neuen Angebots in rewardUpfront/rewardPerTick einpreist (clientTierFor()) —
+  bereits laufende Aufträge ändern sich dadurch NICHT rückwirkend. Erfolgreicher Abschluss eines
+  Auftrags (tick()) erhöht das Vertrauen beim jeweiligen Auftraggeber um 4–8, Ablehnen
+  (declineContract()) kostet 5 Vertrauen. Ab Tier "Bevorzugt" (chainEligible:true) besteht bei
+  Abschluss eine 30%-Chance auf einen direkten Kettenauftrag desselben Auftraggebers
+  (generateContract({clientId, isChain:true}), zusätzlicher ×1.15-Bonus, eigenes 🔗-Badge in
+  renderContracts()). Die Sonderaufträge aus den Zufallsereignissen (EVENTS.specialContract)
+  wurden auf denselben generateContract()-Pfad umgestellt (specialMult-Option) statt die
+  Belohnungslogik zu duplizieren — bekommen dabei ebenfalls ganz normal einen zufälligen
+  Auftraggeber zugewiesen. Auftrags-Tab (renderContracts()) zeigt jetzt bei jeder Karte
+  (offen wie aktiv) eine kompakte Auftraggeber-Zeile mit Icon, Name und aktuellem Vertrauens-Tier.
+
+v4-10 (deep_anchor_4_5_2.html, gleiche Datei weiter genutzt)
+- Aufräumarbeiten (Punkt 5 der IDEENLISTE): die veralteten Planungs-/STATUS-Kommentarblöcke
+  "TODO-WERFT-PFLICHT" und "TODO-WERFT-PFLICHT-2" am Dateianfang entfernt — beide Features sind
+  seit CHANGELOG v3.9-fix21 bzw. v3.9-fix22 vollständig umgesetzt und dort bereits ausführlich
+  dokumentiert, die Blöcke waren laut eigenem Hinweistext ohnehin nur bis zur Fertigstellung
+  vorgesehen (analog zum bereits in v4-fix4 entfernten TODO-FABRIK-UMBAU-Block). Reine
+  Kommentar-Bereinigung, keine Logik-/Verhaltensänderung.
+
+v4-9 (deep_anchor_4_5_2.html, gleiche Datei weiter genutzt)
+- Zufallsereignisse ergänzt (TODO-ZUFALLSEREIGNISSE, Punkt 4 der IDEENLISTE): neue EVENTS-Registry
+  mit vier Ereignissen, gewichtete Auswahl aus allen Kandidaten mit erfüllter condition(state),
+  ausgelöst über maybeTriggerRandomEvent() (~12% Chance pro Spieltag, Aufruf am Ende von tick()):
+  Sonnensturm (beschädigt 20–50% der Orbit-Flotte, Delta-V der Satelliten mindert den Schaden,
+  dieselbe stationKeeping-Formel wie bei der normalen Weltraumschrott-Abnutzung), Sonderauftrag
+  (deutlich lukrativerer, aber auf 4–6 Tage befristeter Vertrag — verfällt automatisch in tick(),
+  wenn nicht rechtzeitig angenommen, eigenes Badge+Countdown im Auftrags-Tab) sowie Marktboom/
+  Kurseinbruch (temporärer Multiplikator ±20–35% auf das Vertrags-Tageseinkommen aller aktiven
+  Verträge, 5–10 Tage, wirkt in contractDailyIncome(), zählt in tick() runter und hebt sich
+  automatisch wieder auf). Neues Ereignis-Log-Panel im Statistiken-Tab (state.eventLog, gecappt
+  auf die letzten 20 Einträge, analog missionLog/deepSpaceLog) sowie eine Markt-Effekt-Anzeige im
+  Header (nur sichtbar, solange ein Boom/Einbruch läuft). Zwei neue state-Felder (eventLog,
+  marketEvent) — kein Migrationscode nötig, defaulten über freshState()+Object.assign() für
+  Altspielstände automatisch.
+
+v4-8 (deep_anchor_4_5.html, gleiche Datei weiter genutzt)
+- Tutorial/Onboarding ergänzt (TODO-TUTORIAL, Punkt 2 der IDEENLISTE): neue 6-schrittige
+  Einführungs-Tour (TUTORIAL_STEPS-Konstante, ein Modal mit ausgetauschtem Inhalt statt mehrerer
+  Modals — heading/text pro Schritt, Fortschritts-Punkte, Zurück/Weiter/Überspringen). Öffnet sich
+  automatisch NUR direkt nach der allerersten Firmengründung (createNewProfile(), Modus 'found'),
+  NICHT bei jedem weiteren "Neues Spiel" einer bereits bestehenden Firma und NICHT beim normalen
+  Fortsetzen. Behandelt Fabrik, Orbit-Netzwerk, Forschung, Werft/Erkundung sowie Statistiken/
+  Erfolge/Hilfe in kurzen, allgemeinverständlichen Absätzen. Jederzeit über neuen Button
+  "Einführungs-Tour erneut ansehen" im Einstellungen-Modal erneut aufrufbar. Bewusst KEIN neues
+  state-Feld/keine Migration nötig — die Anzeige hängt rein am Aufrufort (createNewProfile()),
+  nicht an gespeicherten Daten, daher auch keine Auswirkung auf Altspielstände.
+
+v4-7 (deep_anchor_4_5.html, gleiche Datei weiter genutzt)
+- Offline-Fortschritt ergänzt (TODO-OFFLINE-PROGRESS, Punkt 1 der IDEENLISTE): beim "Fortsetzen"
+  wird jetzt die seit dem letzten Verlassen vergangene ECHTE Zeit nachgeholt statt einfach zu
+  ignorieren. Neues Feld state.lastRealTimestamp (Date.now()) in freshState(), wird bei JEDEM
+  tick() aktualisiert. computeAndApplyOfflineProgress() (aufgerufen in startContinueGame() nach
+  erfolgreichem loadAutosave()) rechnet die vergangene Echtzeit über TICK_MS_BASE/state.gameSpeed
+  in Spieltage um und holt sie per stillem tick(true)-Loop nach (neuer optionaler silent-Parameter
+  an tick(), unterdrückt renderAll() pro Durchlauf; neues Flag offlineCatchupActive unterdrückt
+  zusätzlich Toast/Sound in toast() sowie Sound.tone()/noiseBurst()/playExplosionBuffer()) — sonst
+  bei ggf. hunderten nachgeholten Tagen Performance-Problem + Toast-/Sound-Flut. Auf 500 Spieltage
+  gedeckelt (sehr lange Abwesenheiten werden nicht unbegrenzt nachsimuliert), Mindestschwelle 30
+  echte Sekunden + 1 voller Spieltag (kein Trigger bei kurzem Tab-Wechsel). Respektiert eine
+  pausierte Firma (state.paused) — keine Nachholung, wenn pausiert verlassen wurde. Neues Modal
+  "🕒 Während du weg warst" (offlineReportModal) zeigt danach eine Zusammenfassung (Kontostand,
+  Einnahmen/Unterhalt, angekommene/verlorene Satelliten, fertiggestellte Schiffe/Module,
+  abgeschlossene Forschung/Aufträge, neue Kolonien/Erstkontakte — nur Zeilen mit tatsächlichem
+  Delta). Bewusst NICHT an manuellen Datei-Import (fileInput/fileInputStart) gekoppelt — dort wird
+  state.lastRealTimestamp nur zurückgesetzt, keine automatische Nachholung (könnte z.B. gezielt
+  ein alter Backup-Stand sein). Kein Migrationscode nötig — Altspielstände ohne
+  lastRealTimestamp lösen beim ersten Laden einfach keine Nachholung aus, das Feld wird danach
+  normal gesetzt.
+
+v4-6 (deep_anchor_4.4.html, gleiche Datei weiter genutzt)
+- Erfolge/Meilensteine-System ergänzt (TODO-ACHIEVEMENTS, Punkt 3 der IDEENLISTE): neuer Tab
+  "Erfolge" (view-achievements, immer sichtbar, keine Forschungssperre) neben Statistiken, zeigt
+  20 Erfolge in 5 Kategorien (Flotte & Starts, Fertigung, Wirtschaft, Forschung, Erkundung,
+  Sonstiges — nach Kategorie gruppiert, gesperrte Erfolge abgedunkelt mit 🔒 statt Icon). Rein
+  kosmetisch, KEIN Spiel-Effekt/Bonus — nutzt ausschließlich bereits bestehende Lifetime-Zähler
+  (state.stats, seit fix31) und Bestandslisten (state.orbitSats/colonies/exploredTargets/
+  firstContacts/crewedLandings/purchasedResearch), kein neuer Tracking-Code nötig.
+  Neue ACHIEVEMENTS-Konstante (id/category/icon/name/desc/check-Funktion) + checkAchievements(),
+  läuft bei jedem renderAll() mit (bei ~20 simplen check()-Aufrufen vernachlässigbar). Neues Feld
+  state.achievementsUnlocked ([{id,day}]) in freshState(), abwärtskompatibel zu Altspielständen
+  über Object.assign(freshState(), loaded). Beim Laden eines Spielstands (beginCommonGameLoop())
+  läuft VOR dem ersten renderAll() ein einmaliger STILLER Nachtrag (checkAchievements(true)) —
+  verhindert eine Toast-Flut, falls der Spielstand längst erreichte Meilensteine noch nicht
+  gespeichert hatte. Neue Freischaltungen während des Spiels lösen Toast + Sound.contractDone()
+  aus.
+
 v4-5 (deep_anchor_4.4.html, gleiche Datei weiter genutzt)
 - Namenskonvention geändert (auf Wunsch): ab sofort kein "-fix"-Suffix mehr in Versionsnummern
   (bisher v4-fix1, v4-fix2, …) — nicht jede Version ist ein Bugfix, daher ab jetzt schlicht
@@ -837,59 +969,30 @@ v3.4 (deep_anchor_3_4.html)
   Vignette-Glow im Canvas-Hintergrund für Showroom-Wirkung.
 -->
 <!--
-TODO-WERFT-PFLICHT (Anschlussfeature an TODO-FABRIK-UMBAU — noch NICHT umgesetzt, nur geplant)
+IDEENLISTE (gesammelte, noch NICHT umgesetzte Verbesserungsideen — bei Bearbeitung eines Punktes
+hier entfernen und stattdessen als eigener CHANGELOG-Eintrag dokumentieren. Reihenfolge = grobe
+Priorität nach Aufwand/Wirkung, kein festes Commitment auf Reihenfolge.)
 
-Ausgangsproblem (Nutzer-Feedback): "wo kann ich dan den grosen schiffe bauen kann immer noch
-nur die sataliten chassis bauen" — es gibt aktuell KEINE eigenen großen Chassis-Klassen für
-Kolonieschiffe/Frachter, nur die Satelliten-Chassis (Klein/Mittel/Groß, siehe CHASSIS). Das
-Rollenschild "Kolonieschiff" (roleKolonieschiff) ist reine Beschriftung ohne eigene Funktion.
+1. (erledigt, siehe CHANGELOG v4-7 — Offline-Fortschritt)
 
-Vereinbartes Zielbild:
-1. Neue eigene Chassis-Klassen "Kolonieschiff" und "Frachter" mit deutlich MEHR SLOTS als
-   Groß (7 Slots) — "mehr Laderaum" heißt hier Modul-Slot-Anzahl, NICHT kg-Massebudget.
-2. Diese neuen großen Chassis-Klassen sind WERFT-PFLICHTIG: sie können NUR über die
-   Schiffsmontage im Werft-Tab (Modul-Pool + Chassis vor Ort) entstehen, nicht über den
-   normalen Fabrik-Direktbau (state.constructionQueue). Klein/Mittel/Groß bleiben UNVERÄNDERT
-   normal über die Fabrik baubar (keine Werft-Pflicht für die bestehenden drei).
-3. Trägerraketen von der Erde bleiben wie bisher auf zwei Zwecke beschränkt: (a) Fracht/
-   Module zur Werft liefern (launchModuleStack) oder (b) direkt nahe Sonnensystem-Ziele
-   anfliegen (normale Satelliten/Sonden mit Klein/Mittel/Groß-Chassis). Das ergibt sich bei
-   den neuen Klassen automatisch daraus, dass sie gar nicht im Fabrik-Direktbau wählbar sind.
+2. (erledigt, siehe CHANGELOG v4-8 — Tutorial/Onboarding)
 
-Rückfrage an Nutzer beantwortet: NUR die neuen großen Chassis-Klassen sind werft-pflichtig,
-nicht rückwirkend Klein/Mittel/Groß.
+3. (erledigt, siehe CHANGELOG v4-6 — Erfolge/Meilensteine-System)
 
-Umsetzung:
-  a) Neue CHASSIS-Einträge kolonie/frachter mit Flag werftOnly:true, mehr Slots als gross,
-     eigene reqResearch-Forschung (setzt orbitalWerft voraus, da ohne Werft ohnehin nicht
-     montierbar).
-  b) isChassisUnlocked() bleibt unverändert (reqResearch-Check reicht).
-  c) selectChassis() (normaler Fabrik-Direktbau) lehnt werftOnly-Chassis explizit ab, auch
-     falls sie je aus Versehen anklickbar wären.
-  d) renderBuild() (Fabrik-Chip-Liste) blendet werftOnly-Chassis komplett aus — nur in
-     renderAssembly() (Werft-Tab) sichtbar/wählbar.
-  e) Werft-Montage (assemblySelectChassis/renderAssembly) bleibt unverändert und zeigt ALLE
-     Chassis inkl. der neuen — Klein/Mittel/Groß dürfen weiterhin auch über die Werft montiert
-     werden, das ist kein Widerspruch zu (b).
+4. (erledigt, siehe CHANGELOG v4-9 — Zufallsereignisse)
 
-WICHTIG: Dies ist reine Planung für diesen Abschnitt, bis STATUS-Kommentar direkt darunter
-ERLEDIGT vermerkt. Block nicht löschen, sondern nach Fertigstellung in CHANGELOG überführen.
--->
-<!--
-STATUS TODO-WERFT-PFLICHT: Schritte (a)–(e) sind umgesetzt, siehe CHANGELOG v3.9-fix21. Als
-Nächstes: im Spiel durchtesten (Forschungsfreischaltung chassisKolonie/chassisFrachter, Slots
-im Werft-Tab bei Montage, Ausblendung im Fabrik-Direktbau). Danach kann dieser gesamte
-TODO-WERFT-PFLICHT-Kommentarblock entfernt/archiviert werden.
--->
-<!--
-STATUS TODO-WERFT-PFLICHT-2: ERLEDIGT, siehe CHANGELOG v3.9-fix22. Lichtschiff/Sprungschiff
-sind von ROCKETS nach CHASSIS (werftOnly:true) umgezogen, Werft-Montage unterstützt jetzt
-Orbit- UND Deep-Space-Ziele mit ΔV aus eigenen Treibstofftank-Modulen statt Lieferrakete.
-Syntax- und Konsistenz-Check (Tier-Reste, ROCKET_SPEED_FACTOR, Rundung deepInsertionCost)
-durchgeführt, keine offenen Punkte gefunden. Als Nächstes: im Spiel durchtesten (Montage
-Lichtschiff/Sprungschiff mit genug Tanks, Ankunft in deepSpaceQueue, Andromeda/interstellare
-Ziele erreichbar). Danach kann dieser TODO-WERFT-PFLICHT-2-Status-Kommentar entfernt/
-archiviert werden.
+5. (erledigt, siehe CHANGELOG v4-10 — Aufräumen alter TODO-Kommentare)
+
+6. (erledigt — alle 7 Galaxien haben inzwischen je 6 Ziele samt vollständiger Forschungsketten,
+   Text war veraltet, siehe CHANGELOG der galaxienbezogenen Versionen)
+
+7. (erledigt, siehe CHANGELOG v4-11 — Auftraggeber-Reputationssystem mit Vertrauens-Tiers und
+   Kettenaufträgen)
+
+8. (erledigt, siehe CHANGELOG v4-12 — Erfolge-Belohnungen zum Abholen + blinkender Erfolge-Tab)
+
+9. (erledigt, siehe CHANGELOG v4-13 — 3 neue Galaxien mit unterschiedlicher Zielanzahl:
+   Antennen-Galaxien (8), Virgo A/M87 (4), NGC 1365 (5))
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -1051,6 +1154,10 @@ body{
   display:inline-block; margin-left:6px; background:var(--accent); color:#1a0a02;
   font-size:9px; padding:1px 5px; border-radius:8px; font-weight:700;
 }
+/* NEU (TODO-ACHIEVEMENT-REWARDS): Erfolge-Tab blinkt, solange mindestens eine Belohnung noch
+   nicht abgeholt wurde (Klasse wird von updateAchievementsTabIndicator() gesetzt/entfernt). */
+.tab.has-reward{ animation: tabBlink 1.4s ease-in-out infinite; }
+@keyframes tabBlink{ 0%,100%{ color:var(--muted); } 50%{ color:var(--accent); } }
 
 .layout{
   display:grid;
@@ -1450,6 +1557,43 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
   </div>
 </div>
 
+<!-- NEU (TODO-OFFLINE-PROGRESS): Zusammenfassungs-Modal "Während du weg warst" — ebenfalls
+     AUSSERHALB von #gameRoot platziert (siehe patchNotesModal-Kommentar), wird aber erst NACH
+     showGameRoot() geöffnet (siehe startContinueGame()), daher spielt die Platzierung hier
+     eigentlich keine Rolle, hält aber die Modal-Struktur konsistent. Inhalt (#offlineReportBody)
+     wird per renderOfflineReport() aus dem Rückgabewert von computeAndApplyOfflineProgress()
+     gefuellt. -->
+<div class="modal-bg" id="offlineReportModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="mhead"><span>🕒 Während du weg warst</span><button class="btn small ghost" id="closeOfflineReportModal">✕</button></div>
+    <div class="mbody">
+      <div id="offlineReportBody" style="display:flex; flex-direction:column; gap:0;"></div>
+      <button class="btn" id="btnOfflineReportOk" style="width:100%; justify-content:center; margin-top:14px;">Weiter</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEU (TODO-TUTORIAL): kurze Einführungs-Tour, mehrere Schritte in EINEM Modal (Inhalt wird
+     per renderTutorialStep() ausgetauscht statt mehrere Modals zu verwenden — schlanker Ansatz,
+     TUTORIAL_STEPS-Konstante + tutorialStepIndex). Wird automatisch NUR bei der allerersten
+     Firmengründung geöffnet (siehe createNewProfile(), Modus 'found') sowie jederzeit über
+     "Einführungs-Tour erneut ansehen" im Einstellungen-Modal (btnTutorialReplay). Ebenfalls
+     AUSSERHALB von #gameRoot platziert, aus denselben Gründen wie die Modals oben. -->
+<div class="modal-bg" id="tutorialModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="mhead"><span id="tutorialHeading">Willkommen</span><button class="btn small ghost" id="closeTutorialModal">✕</button></div>
+    <div class="mbody">
+      <div id="tutorialBody" style="font-size:12px; line-height:1.65; min-height:90px;"></div>
+      <div id="tutorialDots" style="display:flex; gap:6px; justify-content:center; margin-top:16px;"></div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="btn small ghost" id="btnTutorialBack" style="flex:1; justify-content:center;">Zurück</button>
+        <button class="btn small ghost" id="btnTutorialSkip" style="flex:1; justify-content:center;">Überspringen</button>
+        <button class="btn" id="btnTutorialNext" style="flex:1; justify-content:center;">Weiter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="newProfileModal">
   <div class="modal" style="max-width:400px;">
     <div class="mhead"><span id="newProfileModalTitle">Neue Firma anlegen</span><button class="btn small ghost" id="closeNewProfileModal">✕</button></div>
@@ -1538,6 +1682,10 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
     <div class="hud-item"><span class="lbl">Guthaben</span><span class="val money" id="hudMoney">€0</span></div>
     <div class="hud-item"><span class="lbl">Reputation</span><span class="val rep" id="hudRep">0</span></div>
     <div class="hud-item"><span class="lbl">Einnahmen/Tag</span><span class="val good" id="hudIncome">€0</span></div>
+    <!-- NEU (TODO-ZUFALLSEREIGNISSE): nur sichtbar (display gesetzt in renderHud()), solange
+         state.marketEvent aktiv ist — zeigt Boom/Einbruch inkl. Resttage direkt im Header,
+         da es das laufende Vertragseinkommen betrifft. -->
+    <div class="hud-item" id="hudMarketEventWrap" style="display:none;"><span class="lbl">Markt</span><span class="val" id="hudMarketEvent">–</span></div>
   </div>
   <div class="speed-ctrl" id="speedCtrl" role="group" aria-label="Pause &amp; Geschwindigkeit">
     <button class="speed-btn" id="btnPause" title="Pause"><svg class="pausei" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
@@ -1561,6 +1709,7 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
   <div class="tab" data-view="deepspace">Sonnensystem</div>
   <div class="tab" data-view="galaxy">Galaxie</div>
   <div class="tab" data-view="stats">Statistiken</div>
+  <div class="tab" data-view="achievements">Erfolge</div>
 </div>
 </div>
 
@@ -1943,6 +2092,12 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
         </div>
         <div class="empty-hint" id="statsChartEmpty">Noch keine Verlaufsdaten — der Chart füllt sich, sobald sich der Kontostand ändert bzw. ab dem ersten vergangenen Firmentag.</div>
       </div>
+      <!-- NEU (TODO-ZUFALLSEREIGNISSE, Punkt 4 der IDEENLISTE): einfaches Textprotokoll,
+           analog zum bestehenden deepSpaceLog im Erkundungs-Tab. -->
+      <div class="panel">
+        <h3>Ereignis-Log</h3>
+        <div style="font-size:11.5px; line-height:1.7; color:var(--muted);" id="eventLogList">Noch keine Zufallsereignisse aufgetreten.</div>
+      </div>
       <div class="panel">
         <h3>Flotte &amp; Fertigung</h3>
         <div class="stat-line"><span class="k">Satelliten/Sonden im Orbit</span><span class="v" id="statsFleetActive">0</span></div>
@@ -1974,6 +2129,16 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
         <div class="stat-line"><span class="k">Aufträge abgeschlossen</span><span class="v" id="statsContractsDone">0</span></div>
         <div class="stat-line"><span class="k">Aufträge aktiv / offen</span><span class="v" id="statsContractsOpen">0 / 0</span></div>
         <div class="stat-line"><span class="k">Forschung abgeschlossen</span><span class="v" id="statsResearchDone">0 / 0</span></div>
+      </div>
+    </div>
+
+    <!-- ERFOLGE VIEW (NEU, TODO-ACHIEVEMENTS): reiner Auswertungs-Tab wie Statistiken, immer
+         sichtbar (keine Forschungssperre). Erfolge sind rein kosmetisch (kein Spiel-Effekt),
+         gruppiert nach Kategorie über renderAchievements(). -->
+    <div class="view" id="view-achievements">
+      <div class="panel">
+        <h3>Erfolge <span class="small-muted" id="achievementsCount" style="font-weight:normal;">0 / 0</span></h3>
+        <div id="achievementsList"></div>
       </div>
     </div>
 
@@ -2037,6 +2202,10 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
         <button class="btn" id="btnHelp" style="width:100%;">Hilfe — Auftrag → Bauplan Spickzettel</button>
       </div>
 
+      <div class="settings-row" style="margin-top:10px;">
+        <button class="btn" id="btnTutorialReplay" style="width:100%;">Einführungs-Tour erneut ansehen</button>
+      </div>
+
       <div class="settings-row" style="margin-top:14px;">
         <button class="btn" id="btnMute" style="width:100%;">Soundeffekte an</button>
       </div>
@@ -2097,6 +2266,7 @@ const Sound = (() => {
     return muted;
   }
   function tone(freq, dur, type='sine', startGain=0.25, delay=0, glideTo=null){
+    if(offlineCatchupActive) return; // NEU (TODO-OFFLINE-PROGRESS): stumm beim Catch-up-Loop
     const c = ensure();
     const t0 = c.currentTime + delay;
     const osc = c.createOscillator();
@@ -2111,6 +2281,7 @@ const Sound = (() => {
     osc.start(t0); osc.stop(t0+dur+0.02);
   }
   function noiseBurst(dur, delay=0, gainVal=0.3, lowpass=1800){
+    if(offlineCatchupActive) return; // NEU (TODO-OFFLINE-PROGRESS): stumm beim Catch-up-Loop
     const c = ensure();
     const t0 = c.currentTime + delay;
     const bufSize = Math.floor(c.sampleRate * dur);
@@ -2139,6 +2310,7 @@ const Sound = (() => {
     return explosionLoading;
   }
   function playExplosionBuffer(gainVal=0.9){
+    if(offlineCatchupActive) return; // NEU (TODO-OFFLINE-PROGRESS): stumm beim Catch-up-Loop
     const c = ensure();
     const src = c.createBufferSource();
     src.buffer = explosionBuffer;
@@ -2464,6 +2636,12 @@ const RESEARCH = [
   { id:'whirlpoolKartierung', name:'Whirlpool-Kartierung', desc:'Kartierung der ausgeprägten Spiralarme von M51 erlaubt erste Landungen trotz der andauernden Gezeiten-Wechselwirkung.', cost:6350000, reqAll:['whirlpoolReichweite'] },
   { id:'sombreroReichweite', name:'Sombrero-Reichweite', desc:'Erschließt die Sombrero-Galaxie (M104) — bekannt für ihren markanten Staubring und den ungewöhnlich großen zentralen Bulge.', cost:7400000, reqAll:['whirlpoolKartierung'] },
   { id:'sombreroKartierung', name:'Sombrero-Kartierung', desc:'Kartierung des Staubrings von M104 erlaubt letzte, riskante Landeversuche am äußersten Rand der bekannten Reichweite.', cost:8600000, reqAll:['sombreroReichweite'] },
+  { id:'antennaeReichweite', name:'Antennen-Reichweite', desc:'Erschließt die Antennen-Galaxien (NGC 4038/4039) — ein kollidierendes Galaxienpaar mit ausgeprägten Gezeitenschweifen.', cost:10200000, reqAll:['sombreroKartierung'] },
+  { id:'antennaeKartierung', name:'Antennen-Kartierung', desc:'Kartierung der von der Kollision aufgewühlten Regionen erlaubt erste Landeversuche in den ruhigeren Außenbereichen des Paars.', cost:11800000, reqAll:['antennaeReichweite'] },
+  { id:'m87Reichweite', name:'Virgo-A-Reichweite', desc:'Erschließt M87 (Virgo A) — eine gewaltige aktive elliptische Galaxie mit dem 2019 erstmals fotografierten supermassiven Schwarzen Loch.', cost:13800000, reqAll:['antennaeKartierung'] },
+  { id:'m87Kartierung', name:'Virgo-A-Kartierung', desc:'Kartierung des riesigen Kugelsternhaufensystems von M87 erlaubt vorsichtige Landeversuche weit abseits des Jets.', cost:15600000, reqAll:['m87Reichweite'] },
+  { id:'ngc1365Reichweite', name:'NGC-1365-Reichweite', desc:'Erschließt NGC 1365 im Fornax-Galaxienhaufen — eine Lehrbuch-Balkenspirale mit außergewöhnlich geradem Zentralbalken.', cost:17800000, reqAll:['m87Kartierung'] },
+  { id:'ngc1365Kartierung', name:'NGC-1365-Kartierung', desc:'Kartierung der Balkenarme von NGC 1365 erlaubt Landeversuche in den ruhigeren Außenregionen der Balkenspirale.', cost:20200000, reqAll:['ngc1365Reichweite'] },
 ];
 
 /* ============================== DEEP SPACE TARGETS (Sonnensystem) ============================== */
@@ -2558,6 +2736,39 @@ const DEEP_SPACE = {
   sombreroKugelsternhaufenfeld: { id:'sombreroKugelsternhaufenfeld', name:'Kugelsternhaufenfeld', desc:'Gesteinsplanet nahe einem der zahlreichen Kugelsternhaufen — M104 besitzt eines der größten bekannten Kugelsternhaufensysteme.', deltaVReq:2555, costMult:620, travelDays:3800, reqResearch:'sombreroKartierung', scienceReward:4680000, repReward:470, landingBaseChance:0.1, landingRewardMult:3.1, colonizable:true, intergalactic:true, galaxy:'sombrero', distanceMly:29.45, mapAngle:190 },
   sombreroBulgeRand: { id:'sombreroBulgeRand', name:'Bulgerand', desc:'Isolierter Gesteinsplanet am Rand des riesigen zentralen Bulge, kaum erforscht.', deltaVReq:2580, costMult:660, travelDays:4080, reqResearch:'sombreroKartierung', scienceReward:4980000, repReward:500, landingBaseChance:0.08, landingRewardMult:3.3, colonizable:true, intergalactic:true, galaxy:'sombrero', distanceMly:29.6, mapAngle:260 },
   sombreroRandzone: { id:'sombreroRandzone', name:'Sombrero-Randzone', desc:'Äußerste erreichbare Region von M104 — der bislang am weitesten entfernte Punkt der bekannten Reichweite.', deltaVReq:2600, costMult:708, travelDays:4440, reqResearch:'sombreroReichweite', scienceReward:5700000, repReward:540, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'sombrero', distanceMly:29.8, mapAngle:330, noLandingReason:'zu weit entfernt für eine Landestufe' },
+
+  // --- Antennen-Galaxien (NGC 4038/4039) --- kollidierendes Galaxienpaar, daher bewusst MEHR
+  // Ziele (8 statt der bisherigen 6) — beide Kerne, zwei separate Gezeitenschweife und die
+  // dichte Überlappungszone der beiden verschmelzenden Scheiben bieten mehr eigenständige
+  // Regionen als eine einzelne ungestörte Galaxie. Nur EIN Ziel trägt mapCore:true (siehe
+  // drawGalaxyDetailMap(), fixe Position neben dem Zentrum) — der zweite Kern (Südkern,
+  // NGC 4039) bekommt bewusst eine normale Polar-Position, sonst würden sich beide Marker
+  // exakt überlappen.
+  antennaeKernregion: { id:'antennaeKernregion', name:'Antennen-Kernregion (NGC 4038)', desc:'Nordkern des kollidierenden Galaxienpaars — durch die Verschmelzung stark gestörte Sternentstehung, extreme Gezeitenkräfte machen jede Landung unmöglich.', deltaVReq:2430, costMult:820, travelDays:5040, reqResearch:'antennaeReichweite', scienceReward:6300000, repReward:580, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'antennae', distanceMly:45, mapAngle:0, mapCore:true, noLandingReason:'extreme Gezeitenkräfte durch die laufende Galaxienkollision' },
+  antennaeSuedkern: { id:'antennaeSuedkern', name:'Südkern (NGC 4039)', desc:'Zweiter Kern des Antennen-Paars — nähert sich dem Nordkern durch die fortlaufende Verschmelzung immer weiter an.', deltaVReq:2450, costMult:860, travelDays:5140, reqResearch:'antennaeReichweite', scienceReward:6500000, repReward:600, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'antennae', distanceMly:45.05, mapAngle:40, noLandingReason:'extreme Gezeitenkräfte durch die laufende Galaxienkollision' },
+  antennaeGezeitenschweifOst: { id:'antennaeGezeitenschweifOst', name:'Östlicher Gezeitenschweif', desc:'Einer der beiden langgestreckten Sternenschweife, die der Kollision ihren Namen geben (namensgebend für die "Antennen") — herausgerissenes Material ohne feste Oberfläche.', deltaVReq:2470, costMult:900, travelDays:5260, reqResearch:'antennaeReichweite', scienceReward:6750000, repReward:620, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'antennae', distanceMly:45.1, mapAngle:80, noLandingReason:'diffuser Sternenschweif ohne festen Zielkörper' },
+  antennaeGezeitenschweifWest: { id:'antennaeGezeitenschweifWest', name:'Westlicher Gezeitenschweif', desc:'Zweiter Gezeitenschweif des Paars, spiegelbildlich zum östlichen Schweif aus der Kollision herausgeschleudert.', deltaVReq:2490, costMult:940, travelDays:5380, reqResearch:'antennaeReichweite', scienceReward:7000000, repReward:640, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'antennae', distanceMly:45.15, mapAngle:120, noLandingReason:'diffuser Sternenschweif ohne festen Zielkörper' },
+  antennaeSternentstehungsfeld: { id:'antennaeSternentstehungsfeld', name:'Sternentstehungsfeld', desc:'Region mit außergewöhnlich dichten jungen Sternhaufen (Super-Sternhaufen) — von der Kollision ausgelöste, besonders intensive Sternentstehung.', deltaVReq:2510, costMult:990, travelDays:5520, reqResearch:'antennaeKartierung', scienceReward:7300000, repReward:665, landingBaseChance:0.14, landingRewardMult:2.9, colonizable:true, intergalactic:true, galaxy:'antennae', distanceMly:45.2, mapAngle:160 },
+  antennaeUeberlappungszone: { id:'antennaeUeberlappungszone', name:'Überlappungszone', desc:'Dichteste Region, in der sich die Scheiben beider Galaxien bereits überlagern — turbulent, aber mit vereinzelten stabilen Gesteinsplaneten.', deltaVReq:2530, costMult:1040, travelDays:5680, reqResearch:'antennaeKartierung', scienceReward:7650000, repReward:695, landingBaseChance:0.12, landingRewardMult:3.0, colonizable:true, intergalactic:true, galaxy:'antennae', distanceMly:45.3, mapAngle:220 },
+  antennaeAussenhalo: { id:'antennaeAussenhalo', name:'Außenhalo', desc:'Ruhiger äußerer Halo-Bereich, kaum von der zentralen Kollision der beiden Galaxien betroffen.', deltaVReq:2560, costMult:1090, travelDays:5860, reqResearch:'antennaeKartierung', scienceReward:8000000, repReward:725, landingBaseChance:0.1, landingRewardMult:3.1, colonizable:true, intergalactic:true, galaxy:'antennae', distanceMly:45.4, mapAngle:280 },
+  antennaeRandzone: { id:'antennaeRandzone', name:'Antennen-Randzone', desc:'Äußerste erreichbare Region des kollidierenden Paars — an der Grenze der Sprungreichweite.', deltaVReq:2600, costMult:1150, travelDays:6100, reqResearch:'antennaeReichweite', scienceReward:8600000, repReward:770, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'antennae', distanceMly:45.5, mapAngle:330, noLandingReason:'zu weit entfernt für eine Landestufe' },
+
+  // --- Virgo A / M87 --- riesige aktive elliptische Galaxie mit dem 2019 vom Event Horizon
+  // Telescope erstmals abgebildeten supermassiven Schwarzen Loch samt relativistischem Jet.
+  // Bewusst NUR 4 Ziele (statt der üblichen 6) — die extreme Strahlung des aktiven Kerns lässt
+  // kaum ungefährliche Regionen übrig, entsprechend karg fällt das Zielangebot aus.
+  m87Kernregion: { id:'m87Kernregion', name:'Virgo-A-Kernregion', desc:'Zentralbereich von M87 mit dem supermassiven Schwarzen Loch, das 2019 als erstes seiner Art fotografiert wurde — die Strahlung des aktiven Kerns macht jede Annäherung riskant.', deltaVReq:2440, costMult:1350, travelDays:6800, reqResearch:'m87Reichweite', scienceReward:9500000, repReward:850, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'virgoA', distanceMly:53.5, mapAngle:0, mapCore:true, noLandingReason:'extreme Strahlung durch den aktiven galaktischen Kern' },
+  m87Jetkanal: { id:'m87Jetkanal', name:'Relativistischer Jetkanal', desc:'Über 5000 Lichtjahre langer Materiejet, der na­hezu mit Lichtgeschwindigkeit aus dem Kern schießt — eines der bekanntesten Objekte der modernen Astronomie.', deltaVReq:2500, costMult:1450, travelDays:7050, reqResearch:'m87Reichweite', scienceReward:10200000, repReward:900, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'virgoA', distanceMly:53.6, mapAngle:100, noLandingReason:'hochenergetischer Teilchenjet, keine feste Oberfläche erreichbar' },
+  m87Kugelsternhaufenschwarm: { id:'m87Kugelsternhaufenschwarm', name:'Kugelsternhaufenschwarm', desc:'M87 besitzt eines der größten bekannten Kugelsternhaufensysteme (geschätzt über 12.000 Haufen) — einzelne Außenläufer sind weit genug vom Kern entfernt für einen riskanten Landeversuch.', deltaVReq:2560, costMult:1560, travelDays:7300, reqResearch:'m87Kartierung', scienceReward:11000000, repReward:960, landingBaseChance:0.09, landingRewardMult:3.3, colonizable:true, intergalactic:true, galaxy:'virgoA', distanceMly:53.7, mapAngle:210 },
+  m87Randzone: { id:'m87Randzone', name:'Virgo-A-Randzone', desc:'Äußerste erreichbare Region von M87, weit genug vom Jet entfernt, aber jenseits der sicheren Landereichweite.', deltaVReq:2600, costMult:1680, travelDays:7600, reqResearch:'m87Reichweite', scienceReward:11800000, repReward:1020, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'virgoA', distanceMly:53.9, mapAngle:330, noLandingReason:'zu weit entfernt für eine Landestufe' },
+
+  // --- NGC 1365 (Große Balkenspirale, Fornax-Galaxienhaufen) --- Lehrbuchbeispiel einer
+  // Balkenspirale mit ungewöhnlich geradem, massereichem Zentralbalken. 5 Ziele.
+  ngc1365Kernregion: { id:'ngc1365Kernregion', name:'NGC-1365-Kernregion', desc:'Zentralbereich der Großen Balkenspirale — ein außergewöhnlich massereicher, gerader Zentralbalken lenkt große Mengen Gas direkt in den Kern.', deltaVReq:2450, costMult:1760, travelDays:7850, reqResearch:'ngc1365Reichweite', scienceReward:12300000, repReward:1060, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'ngc1365', distanceMly:56, mapAngle:0, mapCore:true, noLandingReason:'galaktischer Kernbereich ohne festen Zielkörper' },
+  ngc1365BalkenarmOst: { id:'ngc1365BalkenarmOst', name:'Balkenarm Ost', desc:'Östlicher Ausläufer des markanten Zentralbalkens, der Gas mit hoher Geschwindigkeit in Richtung Kern transportiert.', deltaVReq:2490, costMult:1850, travelDays:8050, reqResearch:'ngc1365Kartierung', scienceReward:12900000, repReward:1100, landingBaseChance:0.12, landingRewardMult:3.0, colonizable:true, intergalactic:true, galaxy:'ngc1365', distanceMly:56.1, mapAngle:70 },
+  ngc1365BalkenarmWest: { id:'ngc1365BalkenarmWest', name:'Balkenarm West', desc:'Westlicher Ausläufer des Zentralbalkens, spiegelbildlich zum östlichen Arm.', deltaVReq:2530, costMult:1940, travelDays:8250, reqResearch:'ngc1365Kartierung', scienceReward:13500000, repReward:1145, landingBaseChance:0.11, landingRewardMult:3.1, colonizable:true, intergalactic:true, galaxy:'ngc1365', distanceMly:56.2, mapAngle:150 },
+  ngc1365Spiralaussenring: { id:'ngc1365Spiralaussenring', name:'Spiral-Außenring', desc:'Ruhiger äußerer Spiralarmring, deutlich von der turbulenten Balkenregion entkoppelt.', deltaVReq:2570, costMult:2040, travelDays:8480, reqResearch:'ngc1365Kartierung', scienceReward:14200000, repReward:1190, landingBaseChance:0.09, landingRewardMult:3.3, colonizable:true, intergalactic:true, galaxy:'ngc1365', distanceMly:56.35, mapAngle:240 },
+  ngc1365Randzone: { id:'ngc1365Randzone', name:'NGC-1365-Randzone', desc:'Äußerste erreichbare Region der Großen Balkenspirale — der bislang am weitesten entfernte Punkt der bekannten Reichweite.', deltaVReq:2600, costMult:2150, travelDays:8750, reqResearch:'ngc1365Reichweite', scienceReward:15000000, repReward:1240, landingBaseChance:0, landingRewardMult:1, intergalactic:true, galaxy:'ngc1365', distanceMly:56.5, mapAngle:330, noLandingReason:'zu weit entfernt für eine Landestufe' },
 };
 const DEEP_SPACE_KEYS = Object.keys(DEEP_SPACE);
 const SOLAR_DEEP_SPACE_KEYS = DEEP_SPACE_KEYS.filter(k=>!DEEP_SPACE[k].interstellar && !DEEP_SPACE[k].intergalactic);
@@ -2620,6 +2831,27 @@ const GALAXIES = {
     reqResearch:'sombreroReichweite',
     coreColor:'#e0c893', armColor:'rgba(255,200,110,0.2)',
   },
+  antennae: {
+    id:'antennae', name:'Antennen-Galaxien', shortName:'NGC 4038/4039',
+    desc:'Rund 45 Millionen Lichtjahre entfernt — ein Paar kollidierender Spiralgalaxien, benannt nach den zwei langgestreckten, antennenförmigen Gezeitenschweifen, die die Kollision aus beiden Scheiben herausgerissen hat. Deutlich mehr eigenständige Regionen als eine ungestörte Galaxie, da beide Kerne und beide Schweife getrennt erfasst werden.',
+    distanceLabel:'~45 Mio. Lichtjahre',
+    reqResearch:'antennaeReichweite',
+    coreColor:'#ffcf9e', armColor:'rgba(255,90,140,0.25)',
+  },
+  virgoA: {
+    id:'virgoA', name:'Virgo A', shortName:'M87',
+    desc:'Rund 53,5 Millionen Lichtjahre entfernt — eine gewaltige aktive elliptische Galaxie im Zentrum des Virgo-Galaxienhaufens, deren supermassives Schwarzes Loch 2019 als erstes seiner Art direkt fotografiert wurde. Der relativistische Jet macht die meisten Regionen zu gefährlich für eine Landung, entsprechend wenige Ziele gibt es hier.',
+    distanceLabel:'~53,5 Mio. Lichtjahre',
+    reqResearch:'m87Reichweite',
+    coreColor:'#eaf6ff', armColor:'rgba(110,225,255,0.22)',
+  },
+  ngc1365: {
+    id:'ngc1365', name:'NGC 1365', shortName:'Große Balkenspirale',
+    desc:'Rund 56 Millionen Lichtjahre entfernt im Fornax-Galaxienhaufen — ein Lehrbuchbeispiel einer Balkenspirale mit einem ungewöhnlich geraden, massereichen Zentralbalken, der große Gasmengen direkt in den Kern lenkt.',
+    distanceLabel:'~56 Mio. Lichtjahre',
+    reqResearch:'ngc1365Reichweite',
+    coreColor:'#f4d99a', armColor:'rgba(200,215,80,0.2)',
+  },
 };
 const GALAXY_KEYS = Object.keys(GALAXIES);
 // Automatisches Hub-Layout: verteilt Galaxien wie Sonnenblumenkerne (goldener Winkel) gleichmäßig
@@ -2646,6 +2878,9 @@ const DEST_GALAXY_NAMES = {
   centaurusA: 'Centaurus A (NGC 5128)',
   whirlpool: 'Whirlpool-Galaxie (M51)',
   sombrero: 'Sombrero-Galaxie (M104)',
+  antennae: 'Antennen-Galaxien (NGC 4038/4039)',
+  virgoA: 'Virgo A (M87)',
+  ngc1365: 'NGC 1365 (Große Balkenspirale)',
 };
 // Welche Zielkörper-Gruppen im aktuellen Startvorbereitungs-Dialog aufgeklappt sind
 // (per Gruppenschlüssel), damit das beim Rakete-Wechsel innerhalb desselben Dialogs erhalten bleibt.
@@ -2726,6 +2961,35 @@ const ORBIT_KEYS = Object.keys(ORBITS);
 // Frühe Aufträge sollen überwiegend mit Start-Ausrüstung (Sprinter/LEO) machbar sein
 const ORBIT_WEIGHTS = { LEO:0.55, MEO:0.30, GEO:0.15 };
 const TYPE_WEIGHTS = { erdbeobachtung:1, kommunikation:1, wetter:1, navigation:1, forschung:0.4 };
+
+// NEU (TODO-AUFTRAGSSYSTEM, Punkt 7 der IDEENLISTE): jeder Auftrag gehört jetzt zu einem
+// Auftraggeber (CONTRACT_CLIENTS) statt anonym zu sein. state.clientRep verfolgt pro
+// Auftraggeber einen Vertrauenswert (0 aufwärts, keine Obergrenze), der über CLIENT_TIERS in
+// einen Belohnungs-Multiplikator übersetzt wird — Aufträge desselben Auftraggebers werden also
+// lukrativer, je öfter man erfolgreich für ihn arbeitet. Ablehnen eines Auftrags kostet etwas
+// Vertrauen bei diesem Auftraggeber (siehe declineContract()). Ab der Stufe "Bevorzugt" besteht
+// bei Auftragsabschluss eine Chance auf einen direkten Folgeauftrag (Kettenauftrag, isChain:true,
+// siehe tick()) desselben Auftraggebers mit zusätzlichem Bonus.
+const CONTRACT_CLIENTS = {
+  earthwatch: { id:'earthwatch', name:'EarthWatch Institute', icon:'🛰️', desc:'Unabhängiges Forschungsinstitut mit breit gefächerten Erdbeobachtungsaufträgen.' },
+  comsatUnion: { id:'comsatUnion', name:'Comsat Union', icon:'📡', desc:'Telekommunikationsverbund mit Fokus auf Kommunikationsnutzlasten.' },
+  globalWeather: { id:'globalWeather', name:'GlobalWeather Agency', icon:'🌦️', desc:'Wetterdienst-Konsortium, vergibt vor allem Wetterbeobachtungs-Kontrakte.' },
+  navcore: { id:'navcore', name:'NavCore Systems', icon:'🧭', desc:'Betreiber ziviler Navigations- und Positionsdienste.' },
+  deepGrant: { id:'deepGrant', name:'Deep Space Grant Council', icon:'🔭', desc:'Wissenschaftsstiftung — seltenere, aber besonders lukrative Forschungsaufträge.' },
+};
+const CONTRACT_CLIENT_KEYS = Object.keys(CONTRACT_CLIENTS);
+const CLIENT_TIERS = [
+  { min:0,   mult:1.00, label:'Neukunde' },
+  { min:25,  mult:1.10, label:'Vertraut' },
+  { min:60,  mult:1.22, label:'Bevorzugt', chainEligible:true },
+  { min:120, mult:1.40, label:'Premium-Partner', chainEligible:true },
+];
+function clientTierFor(rep){
+  let tier = CLIENT_TIERS[0];
+  for(const t of CLIENT_TIERS){ if(rep >= t.min) tier = t; }
+  return tier;
+}
+function clientRepOf(clientId){ return (state.clientRep && state.clientRep[clientId]) || 0; }
 function pickWeighted(weights){
   const entries = Object.entries(weights);
   const total = entries.reduce((s,[,w])=>s+w,0);
@@ -2828,6 +3092,32 @@ function freshState(difficultyId){
       // 300 Einträge.
       liveMoneyHistory: [], // {t: Date.now(), money}
     },
+    // NEU (TODO-ACHIEVEMENTS): Liste freigeschalteter Erfolge, {id, day} — id referenziert einen
+    // Eintrag in der ACHIEVEMENTS-Konstante, day hält den Firmentag der Freischaltung fest (für
+    // die Anzeige im Erfolge-Tab). Kein Migrationscode nötig — defaultet über
+    // freshState()+Object.assign() für Altspielstände automatisch auf leeres Array; die dort
+    // bereits erreichten Meilensteine werden beim nächsten Laden über checkAchievements(true)
+    // (siehe beginCommonGameLoop()) einmalig OHNE Toast/Sound nachgetragen, statt beim ersten
+    // Render eine Toast-Flut auszulösen.
+    achievementsUnlocked: [],
+    // NEU (TODO-ZUFALLSEREIGNISSE, Punkt 4 der IDEENLISTE): Verlaufsprotokoll ausgelöster
+    // Zufallsereignisse, {day, name, icon, message, kind:'good'|'bad'}, gecappt auf die letzten
+    // 20 Einträge, analog missionLog. marketEvent hält einen AKTUELL laufenden Markt-Effekt
+    // (Boom/Einbruch) auf das Vertrags-Tageseinkommen fest, siehe contractDailyIncome() sowie
+    // den Countdown/die Aufhebung in tick(). Kein Migrationscode nötig — beide Felder defaulten
+    // über freshState()+Object.assign() für Altspielstände automatisch (leeres Array bzw. null).
+    eventLog: [],
+    marketEvent: null, // {mult, daysLeft, daysTotal, label, kind:'boost'|'slump'} oder null
+    // NEU (TODO-AUFTRAGSSYSTEM): Vertrauenswert pro Auftraggeber, {clientId: number}. Fehlende
+    // Einträge gelten als 0 (siehe clientRepOf()) — kein Migrationscode nötig, defaultet über
+    // freshState()+Object.assign() für Altspielstände automatisch auf leeres Objekt.
+    clientRep: {},
+    // NEU (TODO-OFFLINE-PROGRESS): Echtzeit-Zeitstempel (Date.now()), wird bei JEDEM tick()
+    // aktualisiert (siehe dort) — beim nächsten "Fortsetzen" wird die seitdem vergangene
+    // Echtzeit in computeAndApplyOfflineProgress() ausgewertet und als simulierte Spieltage
+    // nachgeholt. Kein Migrationscode nötig — Altspielstände ohne dieses Feld lösen dort
+    // einfach KEINE Nachholung aus (erster Fall wird übersprungen, Feld danach normal gesetzt).
+    lastRealTimestamp: Date.now(),
   };
 }
 
@@ -2909,6 +3199,12 @@ function applyDifficultyCostScaling(){
 
 let state = freshState();
 
+// NEU (TODO-OFFLINE-PROGRESS): globaler Stumm-Schalter für den Catch-up-Loop in
+// computeAndApplyOfflineProgress() — dort wird tick() bis zu mehrere hundert Mal hintereinander
+// synchron aufgerufen, ohne diesen Schalter würde das eine Toast-/Sound-Flut auslösen. toast()
+// sowie Sound.tone()/noiseBurst()/playExplosionBuffer() prüfen dieses Flag jeweils ganz oben.
+let offlineCatchupActive = false;
+
 function hasResearch(id){ return state.purchasedResearch.includes(id); }
 function isChassisUnlocked(c){ return !c.reqResearch || hasResearch(c.reqResearch); }
 function isModUnlocked(m){ return !m.reqResearch || hasResearch(m.reqResearch); }
@@ -2921,6 +3217,7 @@ function findMod(id){
 
 /* ============================== TOASTS ============================== */
 function toast(msg, kind=''){
+  if(offlineCatchupActive) return; // NEU (TODO-OFFLINE-PROGRESS): keine Toast-Flut beim Catch-up
   const wrap = document.getElementById('toastWrap');
   const el = document.createElement('div');
   el.className = 'toast ' + kind;
@@ -5072,29 +5369,54 @@ function contractDailyIncome(contract, derived){
   if(contract.type === 'kommunikation' && derived.bandwidth){
     income = Math.round(income * (1 + derived.bandwidth/200));
   }
+  // NEU (TODO-ZUFALLSEREIGNISSE): aktiver Markt-Effekt (Boom/Einbruch, siehe EVENTS) wirkt
+  // multiplikativ auf JEDES laufende Vertrags-Tageseinkommen, nicht nur auf neu erzeugte Aufträge.
+  if(state.marketEvent) income = Math.round(income * state.marketEvent.mult);
   return income;
 }
-function generateContract(){
+function generateContract(opts){
+  opts = opts || {};
   const type = pickWeighted(TYPE_WEIGHTS);
   const orbitKey = pickWeighted(ORBIT_WEIGHTS);
   const orbit = ORBITS[orbitKey];
   const baseVal = 300 + Math.random()*400;
+  // NEU (TODO-AUFTRAGSSYSTEM): Auftraggeber zufällig gewählt (außer bei Kettenaufträgen, die
+  // explizit denselben Auftraggeber wie der abgeschlossene Auftrag bekommen, siehe tick()).
+  // Der aktuelle Vertrauens-Tier bei diesem Auftraggeber (clientTierFor()) wird direkt in den
+  // Belohnungswert eingepreist — bereits laufende Aufträge ändern sich dadurch NICHT rückwirkend,
+  // nur neu erzeugte Angebote profitieren vom gewachsenen Vertrauen.
+  const clientId = opts.clientId || CONTRACT_CLIENT_KEYS[Math.floor(Math.random()*CONTRACT_CLIENT_KEYS.length)];
+  const tier = clientTierFor(clientRepOf(clientId));
+  // NEU (TODO-ZUFALLSEREIGNISSE): Sonderaufträge (EVENTS.specialContract) nutzen denselben Weg,
+  // multiplizieren aber zusätzlich mit einem eigenen Aufschlag statt fest 1.8 wie zuvor separat.
+  const specialMult = opts.specialMult || 1;
+  const chainMult = opts.isChain ? 1.15 : 1;
   // NEU (TODO-SCHWIERIGKEITSGRAD): Einkommens-Multiplikator der gewählten Schwierigkeit wirkt hier
   // direkt beim Erzeugen des Auftrags — die gespeicherten reward-Werte sind damit die tatsächlich
   // ausgezahlten, keine Anzeige-Diskrepanz zu anderen Stellen im UI.
-  const rewardPerTick = Math.round(baseVal * orbit.incomeMult * getDifficulty().incomeMult);
+  const rewardPerTick = Math.round(baseVal * orbit.incomeMult * getDifficulty().incomeMult * tier.mult * specialMult * chainMult);
   const rewardUpfront = Math.round(rewardPerTick * (4 + Math.random()*4));
   const duration = 8 + Math.floor(Math.random()*10);
-  state.contracts.push({
-    id: state.nextContractId++, type, orbit: orbitKey,
+  const contract = {
+    id: state.nextContractId++, type, orbit: orbitKey, client: clientId,
     rewardUpfront, rewardPerTick, duration, remaining: duration,
     status: 'offen', satId: null,
-  });
+  };
+  if(opts.isSpecial){ contract.isSpecial = true; contract.expiresDay = state.day + opts.acceptWindow; }
+  if(opts.isChain) contract.isChain = true;
+  state.contracts.push(contract);
+  return contract;
 }
 
 function declineContract(contractId){
   const idx = state.contracts.findIndex(c=>c.id===contractId);
   if(idx<0 || state.contracts[idx].status !== 'offen') return;
+  const declined = state.contracts[idx];
+  // NEU (TODO-AUFTRAGSSYSTEM): Ablehnen kostet etwas Vertrauen beim jeweiligen Auftraggeber —
+  // symmetrisch zum Vertrauensgewinn bei Abschluss weiter unten in tick().
+  if(declined.client){
+    state.clientRep[declined.client] = Math.max(0, clientRepOf(declined.client) - 5);
+  }
   state.contracts.splice(idx,1);
   generateContract();
   Sound.click();
@@ -5273,9 +5595,101 @@ function buyResearch(id){
   renderAll();
 }
 
+/* ============================== ZUFALLSEREIGNISSE (NEU, TODO-ZUFALLSEREIGNISSE) ==============================
+   Punkt 4 der IDEENLISTE: sorgt für Abwechslung im Idle-Loop, unabhängig vom normalen
+   Tagesablauf. Pro Tag eine kleine Chance auf GENAU EIN Ereignis (siehe maybeTriggerRandomEvent(),
+   Aufruf am Ende von tick()) — gewichtete Auswahl aus EVENTS, wobei nur Ereignisse mit erfüllter
+   condition(state) überhaupt in Frage kommen (z.B. kein Sonnensturm ohne Satelliten im Orbit).
+   Jedes Ereignis liefert eine Logzeile (state.eventLog, siehe Statistiken-Tab) + Toast + Sound,
+   ganz analog zu den bestehenden Meldungen in tick(). Absichtlich als eigene, kleine Registry
+   gehalten (wie ACHIEVEMENTS) — neue Ereignisse lassen sich einfach unten ergänzen, ohne
+   bestehende Logik anzufassen. */
+const EVENT_CHANCE_PER_DAY = 0.12; // ~1 Ereignis alle ~8 Spieltage im Schnitt, sobald mind. 1 Kandidat in Frage kommt
+
+const EVENTS = [
+  {
+    id:'solarstorm', name:'Sonnensturm', icon:'☀️', weight:3, kind:'bad',
+    condition: s => s.orbitSats.length > 0,
+    apply(s){
+      // trifft 20–50% der Flotte (mind. 1 Satellit), Schadenshöhe pro Treffer 15–35% Health —
+      // Satelliten mit viel Delta-V (eigene Treibstoffreserve fürs Ausweichen/Stabilisieren)
+      // kommen glimpflicher davon, exakt dieselbe stationKeeping-Formel wie bei der normalen
+      // Weltraumschrott-Abnutzung weiter unten in tick().
+      const hitCount = Math.max(1, Math.round(s.orbitSats.length * (0.2 + Math.random()*0.3)));
+      const hit = [...s.orbitSats].sort(()=>Math.random()-0.5).slice(0, hitCount);
+      hit.forEach(sat=>{
+        const d = computeSatDerived(sat.chassisId, sat.mods);
+        const stationKeeping = Math.min(0.6, d.deltaV/250);
+        const dmg = (15 + Math.random()*20) * (1 - stationKeeping*0.5);
+        sat.health = Math.max(0, sat.health - dmg);
+      });
+      return { message:`Ein Sonnensturm hat ${hitCount} Satellit(en) beschädigt.` };
+    }
+  },
+  {
+    id:'specialContract', name:'Sonderauftrag', icon:'⭐', weight:4, kind:'good',
+    condition: s => s.contracts.filter(c=>c.status==='offen').length < 6,
+    apply(s){
+      // deutlich lukrativer als ein regulärer Auftrag, aber befristet: wird er nicht innerhalb
+      // von acceptWindow Tagen angenommen, verfällt er wieder (siehe Ablauf-Check in tick()).
+      // NEU (TODO-AUFTRAGSSYSTEM): läuft jetzt über generateContract({specialMult, isSpecial,
+      // acceptWindow}) statt eigener Kopie der Reward-Formel — Auftraggeber-Vertrauen wirkt damit
+      // auch hier automatisch mit rein.
+      const acceptWindow = 4 + Math.floor(Math.random()*3);
+      generateContract({ specialMult:1.8, isSpecial:true, acceptWindow });
+      return { message:`Sonderauftrag eingetroffen — lukrativ, aber nur ${acceptWindow} Tage gültig.` };
+    }
+  },
+  {
+    id:'marketBoom', name:'Marktboom', icon:'📈', weight:2, kind:'good',
+    condition: s => !s.marketEvent,
+    apply(s){
+      const days = 5 + Math.floor(Math.random()*6);
+      const mult = 1.2 + Math.random()*0.3;
+      s.marketEvent = { mult, daysLeft:days, daysTotal:days, label:'Marktboom', kind:'boost' };
+      return { message:`Marktboom: Vertragseinkommen +${Math.round((mult-1)*100)}% für ${days} Tage.` };
+    }
+  },
+  {
+    id:'marketSlump', name:'Kurseinbruch', icon:'📉', weight:2, kind:'bad',
+    condition: s => !s.marketEvent,
+    apply(s){
+      const days = 5 + Math.floor(Math.random()*6);
+      const mult = 0.65 + Math.random()*0.15;
+      s.marketEvent = { mult, daysLeft:days, daysTotal:days, label:'Kurseinbruch', kind:'slump' };
+      return { message:`Kurseinbruch: Vertragseinkommen −${Math.round((1-mult)*100)}% für ${days} Tage.` };
+    }
+  },
+];
+
+function pickWeightedEvent(candidates){
+  const total = candidates.reduce((sum,e)=>sum+e.weight, 0);
+  let r = Math.random()*total;
+  for(const e of candidates){
+    if(r < e.weight) return e;
+    r -= e.weight;
+  }
+  return candidates[candidates.length-1];
+}
+
+function maybeTriggerRandomEvent(){
+  if(Math.random() >= EVENT_CHANCE_PER_DAY) return;
+  const candidates = EVENTS.filter(e=>e.condition(state));
+  if(candidates.length===0) return;
+  const ev = pickWeightedEvent(candidates);
+  const result = ev.apply(state);
+  state.eventLog.unshift({ day: state.day, name: ev.name, icon: ev.icon, message: result.message, kind: ev.kind });
+  state.eventLog = state.eventLog.slice(0, 20);
+  toast(`${ev.icon} ${result.message}`, ev.kind==='bad' ? 'bad' : 'good');
+  if(ev.kind==='bad') Sound.warn(); else Sound.coin();
+}
+
 /* ============================== GAME TICK ============================== */
-function tick(){
+function tick(silent){
   if(state.paused) return;
+  // NEU (TODO-OFFLINE-PROGRESS): merkt sich bei JEDEM Tick den echten Zeitpunkt — Basis für die
+  // Catch-up-Berechnung in computeAndApplyOfflineProgress() beim nächsten "Fortsetzen".
+  state.lastRealTimestamp = Date.now();
   state.day += 1;
   let incomeTotal = 0, upkeepTotal = 0;
   const maintFactor = hasResearch('maintenance') ? 0.75 : 1;
@@ -5497,7 +5911,27 @@ function tick(){
         if(s) s.assignedContract = null;
         toast(`Auftrag abgeschlossen: +${fmtMoney(bonus)} Bonus.`, 'good');
         Sound.contractDone();
+        // NEU (TODO-AUFTRAGSSYSTEM): erfolgreicher Abschluss stärkt das Vertrauen beim jeweiligen
+        // Auftraggeber — ab Tier "Bevorzugt" besteht danach eine Chance auf einen direkten
+        // Kettenauftrag desselben Auftraggebers (isChain:true, +15% Bonus obendrauf).
+        if(c.client){
+          state.clientRep[c.client] = clientRepOf(c.client) + 4 + Math.random()*4;
+          const tier = clientTierFor(clientRepOf(c.client));
+          if(tier.chainEligible && Math.random() < 0.3){
+            generateContract({ clientId:c.client, isChain:true });
+            toast(`🔗 ${CONTRACT_CLIENTS[c.client].icon} ${CONTRACT_CLIENTS[c.client].name}: Folgeauftrag eingetroffen.`, 'good');
+          }
+        }
       }
+    }
+  });
+  // NEU (TODO-ZUFALLSEREIGNISSE): befristete Sonderaufträge (siehe EVENTS.specialContract) laufen
+  // ab, wenn sie bis expiresDay nicht angenommen wurden — normale Aufträge haben kein expiresDay
+  // und sind davon nicht betroffen.
+  state.contracts.forEach(c=>{
+    if(c.status==='offen' && c.isSpecial && state.day >= c.expiresDay){
+      c.status = 'abgelaufen';
+      toast(`⏳ Sonderauftrag ist ausgelaufen, ohne angenommen zu werden.`, 'bad');
     }
   });
   state.contracts = state.contracts.filter(c => c.status === 'offen' || c.status === 'aktiv');
@@ -5544,7 +5978,128 @@ function tick(){
     generateContract();
   }
 
-  renderAll();
+  // NEU (TODO-ZUFALLSEREIGNISSE): laufenden Markt-Effekt (Boom/Einbruch) runterzählen und bei
+  // Ablauf aufheben — die eigentliche Wirkung sitzt in contractDailyIncome().
+  if(state.marketEvent){
+    state.marketEvent.daysLeft -= 1;
+    if(state.marketEvent.daysLeft <= 0){
+      toast(`${state.marketEvent.label} ist vorbei — Vertragseinkommen wieder normal.`, '');
+      state.marketEvent = null;
+    }
+  }
+
+  // NEU (TODO-ZUFALLSEREIGNISSE): Punkt 4 der IDEENLISTE — kleine Tageschance auf ein Ereignis.
+  maybeTriggerRandomEvent();
+
+  // NEU (TODO-OFFLINE-PROGRESS): computeAndApplyOfflineProgress() ruft tick(true) bis zu
+  // mehrere hundert Mal hintereinander synchron auf — renderAll() dabei jedes Mal auszuführen
+  // wäre teuer und unnötig, da ohnehin erst am Ende der Schleife einmal neu gerendert wird.
+  if(!silent) renderAll();
+}
+
+// NEU (TODO-OFFLINE-PROGRESS): "Während du weg warst"-Nachholung. Wird nur beim Fortsetzen über
+// startContinueGame() (nach erfolgreichem loadAutosave()) aufgerufen, NICHT bei manuellem
+// Datei-Import (siehe dortige Kommentare) — dort wäre eine automatische Nachholung u.U.
+// unerwünscht, falls bewusst ein alter Spielstand geladen wird. Rechnet die seit
+// state.lastRealTimestamp vergangene ECHTE Zeit in Spieltage um (Basis: aktuelle TICK_MS_BASE/
+// state.gameSpeed-Rate, wie sie beim Verlassen zuletzt lief) und holt sie per stillem
+// tick(true)-Loop nach (kein Toast/Sound, kein Render pro Tag — siehe offlineCatchupActive-Flag
+// sowie den silent-Parameter von tick()). Auf CAP_DAYS begrenzt, damit sehr lange Abwesenheiten
+// (Wochen/Monate) weder den Browser mit hunderttausenden Iterationen blockieren noch absurde
+// Sprünge erzeugen. Respektiert eine pausierte Firma (state.paused) — wer pausiert verlässt,
+// erwartet beim Wiederkommen keinen Fortschritt.
+function computeAndApplyOfflineProgress(){
+  if(state.paused) return null;
+  if(!state.lastRealTimestamp){ state.lastRealTimestamp = Date.now(); return null; }
+
+  const elapsedMs = Date.now() - state.lastRealTimestamp;
+  const speed = state.gameSpeed || 1;
+  const msPerDay = TICK_MS_BASE / speed;
+  const rawDays = Math.floor(elapsedMs / msPerDay);
+
+  // Mindestens 30 echte Sekunden UND mindestens 1 voller Spieltag müssen vergangen sein —
+  // verhindert, dass ein kurzer Tab-Wechsel (z.B. bei hoher Geschwindigkeit) schon das Modal
+  // auslöst.
+  if(elapsedMs < 30000 || rawDays < 1){
+    state.lastRealTimestamp = Date.now();
+    return null;
+  }
+
+  const CAP_DAYS = 500;
+  const simDays = Math.min(rawDays, CAP_DAYS);
+  const wasCapped = rawDays > CAP_DAYS;
+
+  const before = {
+    money: state.money,
+    lifetimeIncome: state.stats.lifetimeIncome,
+    lifetimeUpkeep: state.stats.lifetimeUpkeep,
+    hangarCount: state.hangar.length,
+    moduleHangarCount: state.moduleHangar.length,
+    orbitSatsCount: state.orbitSats.length,
+    satellitesLost: state.stats.satellitesLost,
+    contractsCompleted: state.stats.contractsCompleted,
+    researchCompleted: state.stats.researchCompleted,
+    coloniesCount: state.colonies.length,
+    firstContactsCount: state.firstContacts.length,
+  };
+
+  offlineCatchupActive = true;
+  for(let i=0; i<simDays; i++){ tick(true); }
+  offlineCatchupActive = false;
+
+  state.lastRealTimestamp = Date.now();
+  checkAchievements(true); // still nachtragen, falls während des Catch-ups Meilensteine erreicht wurden
+
+  const satsLost = state.stats.satellitesLost - before.satellitesLost;
+  // Ankünfte = Netto-Bestandsänderung + zwischenzeitliche Verluste (da beides gegenläufig
+  // in orbitSats.length einfließt).
+  const arrivals = Math.max(0, (state.orbitSats.length - before.orbitSatsCount) + satsLost);
+
+  return {
+    days: simDays,
+    wasCapped, rawDays,
+    moneyDelta: state.money - before.money,
+    incomeDelta: state.stats.lifetimeIncome - before.lifetimeIncome,
+    upkeepDelta: state.stats.lifetimeUpkeep - before.lifetimeUpkeep,
+    shipsFinished: state.hangar.length - before.hangarCount,
+    modulesFinished: state.moduleHangar.length - before.moduleHangarCount,
+    arrivals, satsLost,
+    contractsCompleted: state.stats.contractsCompleted - before.contractsCompleted,
+    researchCompleted: state.stats.researchCompleted - before.researchCompleted,
+    newColonies: state.colonies.length - before.coloniesCount,
+    newContacts: state.firstContacts.length - before.firstContactsCount,
+  };
+}
+
+// NEU (TODO-OFFLINE-PROGRESS): baut die Zeilen im "Während du weg warst"-Modal aus dem
+// Rückgabewert von computeAndApplyOfflineProgress(). Zeilen mit Delta 0 werden weggelassen,
+// damit nicht jedes Mal eine lange Liste voller Nullen erscheint.
+function fmtSigned(n){
+  return (n>=0?'+':'-') + fmtMoney(Math.abs(n));
+}
+function renderOfflineReport(r){
+  const wrap = document.getElementById('offlineReportBody');
+  if(!wrap) return;
+  const rowStyle = 'display:flex; justify-content:space-between; align-items:center; font-size:11.5px; padding:7px 0; border-top:1px solid var(--border);';
+  const line = (label, value) => value ? `<div style="${rowStyle}"><span class="small-muted">${label}</span><span>${value}</span></div>` : '';
+  let html = `<div style="font-size:12px; line-height:1.5; padding-bottom:8px;">${r.days} Tag(e) sind vergangen, während du weg warst${r.wasCapped ? ' (auf dieses Maximum begrenzt — du warst tatsächlich noch länger weg)' : ''}. Hier die Zusammenfassung:</div>`;
+  html += line('Kontostand', fmtSigned(r.moneyDelta));
+  html += line('Einnahmen', r.incomeDelta>0 ? '+'+fmtMoney(r.incomeDelta) : '');
+  html += line('Unterhalt', r.upkeepDelta>0 ? '-'+fmtMoney(r.upkeepDelta) : '');
+  html += line('Satelliten im Orbit angekommen', r.arrivals>0 ? '+'+r.arrivals : '');
+  html += line('Satelliten durch Weltraumschrott verloren', r.satsLost>0 ? '-'+r.satsLost : '');
+  html += line('Schiffe fertiggestellt', r.shipsFinished>0 ? '+'+r.shipsFinished : '');
+  html += line('Module fertiggestellt', r.modulesFinished>0 ? '+'+r.modulesFinished : '');
+  html += line('Forschung abgeschlossen', r.researchCompleted>0 ? '+'+r.researchCompleted : '');
+  html += line('Aufträge abgeschlossen', r.contractsCompleted>0 ? '+'+r.contractsCompleted : '');
+  html += line('Neue Kolonien gegründet', r.newColonies>0 ? '+'+r.newColonies : '');
+  html += line('Neue Erstkontakte', r.newContacts>0 ? '+'+r.newContacts : '');
+  wrap.innerHTML = html;
+}
+function showOfflineReportModal(r){
+  renderOfflineReport(r);
+  const modal = document.getElementById('offlineReportModal');
+  if(modal) modal.classList.add('active');
 }
 
 /* ============================== RENDER: BUILD VIEW ============================== */
@@ -6586,6 +7141,14 @@ function renderContracts(){
     list.innerHTML=''; empty.style.display='block'; return;
   }
   empty.style.display='none';
+  // NEU (TODO-AUFTRAGSSYSTEM): kompakte Auftraggeber-Zeile (Icon, Name, aktueller Vertrauens-
+  // Tier) für beide Kartenzustände (offen/aktiv) — Kettenaufträge zusätzlich mit 🔗-Hinweis.
+  function clientLine(c){
+    const client = CONTRACT_CLIENTS[c.client];
+    if(!client) return '';
+    const tier = clientTierFor(clientRepOf(c.client));
+    return `<div class="status" style="color:var(--cyan);">${client.icon} ${client.name} · ${tier.label}${c.isChain?' · 🔗 Folgeauftrag':''}</div>`;
+  }
   list.innerHTML = active.map(c=>{
     const info = PAYLOAD_TYPES[c.type];
     if(c.status === 'offen'){
@@ -6595,9 +7158,17 @@ function renderContracts(){
         const d = computeSatDerived(s.chassisId, s.mods);
         return d.payloadTypes.includes(c.type);
       });
+      // NEU (TODO-ZUFALLSEREIGNISSE): Sonderaufträge aus EVENTS.specialContract sind befristet
+      // (state.day >= expiresDay lässt sie in tick() verfallen) — eigenes Badge + Countdown,
+      // damit das im Auftrags-Tab sofort auffällt statt wie ein normaler Auftrag unterzugehen.
+      const specialBadge = c.isSpecial
+        ? `<div class="status" style="color:var(--accent);">⭐ Sonderauftrag — läuft ab in ${Math.max(0,c.expiresDay-state.day)} Tag(en)</div>`
+        : '';
       return `<div class="contract">
         <div class="top"><span class="type" style="color:${info.color}">${info.label}</span><span class="orbit-tag">${c.orbit}</span></div>
+        ${clientLine(c)}
         <div class="rewards">Vorschuss ${fmtMoney(c.rewardUpfront)} · ${fmtMoney(c.rewardPerTick)}/Tag · ${c.duration} Tage</div>
+        ${specialBadge}
         <div class="status">Status: Offen</div>
         ${candidates.length>0 ? `
           <select data-contract="${c.id}">
@@ -6616,6 +7187,7 @@ function renderContracts(){
       const pct = Math.round((1 - c.remaining/c.duration)*100);
       return `<div class="contract">
         <div class="top"><span class="type" style="color:${info.color}">${info.label}</span><span class="orbit-tag">${c.orbit}</span></div>
+        ${clientLine(c)}
         <div class="rewards">${fmtMoney(c.rewardPerTick)}/Tag</div>
         <div class="status">Aktiv · ${c.remaining} Tage übrig</div>
         <div class="bar"><div style="width:${pct}%"></div></div>
@@ -8081,6 +8653,20 @@ function renderHud(){
   const colonyIncome = state.colonies.reduce((sum,c)=>sum+c.income,0);
   const upkeep = state.orbitSats.length * 15 * (hasResearch('maintenance')?0.75:1);
   document.getElementById('hudIncome').textContent = fmtMoney(income + colonyIncome - upkeep);
+
+  // NEU (TODO-ZUFALLSEREIGNISSE): Markt-Effekt-Anzeige im Header, nur sichtbar wenn aktiv.
+  const meWrap = document.getElementById('hudMarketEventWrap');
+  const meVal = document.getElementById('hudMarketEvent');
+  if(meWrap && meVal){
+    if(state.marketEvent){
+      meWrap.style.display = '';
+      const pct = Math.round((state.marketEvent.mult-1)*100);
+      meVal.textContent = `${state.marketEvent.kind==='boost'?'📈':'📉'} ${pct>0?'+':''}${pct}% (${state.marketEvent.daysLeft}d)`;
+      meVal.style.color = state.marketEvent.kind==='boost' ? 'var(--green)' : 'var(--red)';
+    } else {
+      meWrap.style.display = 'none';
+    }
+  }
 }
 
 function renderConstructionQueue(){
@@ -8181,6 +8767,130 @@ function recordLiveMoneySample(){
   if(hist.length > 300) hist.shift();
 }
 
+// NEU (TODO-ACHIEVEMENTS): Erfolge/Meilensteine, aufbauend auf den seit fix31 vorhandenen
+// Lifetime-Zählern in state.stats sowie bestehenden Bestandslisten (state.orbitSats,
+// state.colonies, state.exploredTargets usw.). check(s) bekommt den kompletten state übergeben
+// und liefert true/false. Bei neuen Erfolgen: einfach unten anhängen, keine Migration nötig
+// (Freischaltung läuft rein über checkAchievements() zur Laufzeit, nicht über gespeicherte
+// Zielwerte).
+// NEU (TODO-ACHIEVEMENT-REWARDS, Punkt 8 der IDEENLISTE): jeder Erfolg hat jetzt einen
+// Geld-Belohnungswert (reward). Die Belohnung wird NICHT automatisch beim Freischalten
+// gutgeschrieben, sondern muss im Erfolge-Tab manuell per Klick auf die freigeschaltete,
+// noch nicht abgeholte Karte eingesammelt werden (claimAchievement()) — daher trägt jeder
+// Eintrag in state.achievementsUnlocked jetzt zusätzlich ein claimed-Flag. Altspielstände
+// haben dieses Feld noch nicht gesetzt; da undefined dort genauso falsy ist wie false, gelten
+// alle VOR diesem Update bereits freigeschalteten Erfolge beim nächsten Laden automatisch als
+// noch nicht abgeholt — kein Migrationscode nötig, der Spieler kann die verpassten Belohnungen
+// einfach nachträglich im Tab abholen.
+const ACHIEVEMENTS = [
+  // --- Flotte & Starts ---
+  { id:'firstLaunch', category:'Flotte & Starts', icon:'🚀', name:'Erster Start', desc:'Die erste Rakete gezündet.', reward:500, check:s=>s.stats.launchesTotal>=1 },
+  { id:'provenPilot', category:'Flotte & Starts', icon:'🛰️', name:'Bewährter Pilot', desc:'10 erfolgreiche Starts.', reward:2500, check:s=>s.stats.launchesSuccess>=10 },
+  { id:'frequentFlyer', category:'Flotte & Starts', icon:'🔁', name:'Vielflieger', desc:'50 Raketenstarts insgesamt.', reward:9000, check:s=>s.stats.launchesTotal>=50 },
+  { id:'fleetAdmiral', category:'Flotte & Starts', icon:'🌌', name:'Flottenadmiral', desc:'20 Satelliten/Sonden gleichzeitig im Orbit.', reward:15000, check:s=>s.orbitSats.length>=20 },
+  // --- Fertigung ---
+  { id:'manufacturer', category:'Fertigung', icon:'🏭', name:'Fabrikant', desc:'10 Satelliten gebaut.', reward:2000, check:s=>s.stats.satellitesBuilt>=10 },
+  { id:'massProduction', category:'Fertigung', icon:'📦', name:'Massenproduktion', desc:'50 Satelliten gebaut.', reward:14000, check:s=>s.stats.satellitesBuilt>=50 },
+  { id:'moduleMaster', category:'Fertigung', icon:'🔧', name:'Modul-Meister', desc:'50 Einzelmodule gefertigt.', reward:6000, check:s=>s.stats.modulesBuilt>=50 },
+  { id:'shipyardEngineer', category:'Fertigung', icon:'⚓', name:'Werft-Ingenieur', desc:'5 Schiffe in der Orbitalwerft montiert.', reward:12000, check:s=>s.stats.shipsAssembled>=5 },
+  // --- Wirtschaft ---
+  { id:'firstMillion', category:'Wirtschaft', icon:'💰', name:'Erste Million', desc:'1.000.000 € Gesamteinnahmen.', reward:25000, check:s=>s.stats.lifetimeIncome>=1000000 },
+  { id:'tycoon', category:'Wirtschaft', icon:'💎', name:'Großunternehmer', desc:'10.000.000 € Gesamteinnahmen.', reward:180000, check:s=>s.stats.lifetimeIncome>=10000000 },
+  { id:'contractor', category:'Wirtschaft', icon:'📋', name:'Auftragnehmer', desc:'10 Aufträge abgeschlossen.', reward:5000, check:s=>s.stats.contractsCompleted>=10 },
+  { id:'contractorYear', category:'Wirtschaft', icon:'🏆', name:'Vertragspartner des Jahres', desc:'100 Aufträge abgeschlossen.', reward:70000, check:s=>s.stats.contractsCompleted>=100 },
+  // --- Forschung ---
+  { id:'researcher', category:'Forschung', icon:'🔬', name:'Forschergeist', desc:'10 Technologien erforscht.', reward:8000, check:s=>s.purchasedResearch.length>=10 },
+  { id:'allResearched', category:'Forschung', icon:'🧠', name:'Alles erforscht', desc:'Den kompletten Forschungsbaum abgeschlossen.', reward:120000, check:s=>s.purchasedResearch.length>=RESEARCH.length },
+  // --- Erkundung ---
+  { id:'firstContact', category:'Erkundung', icon:'👽', name:'Erstkontakt', desc:'Die erste außerirdische Zivilisation entdeckt.', reward:18000, check:s=>s.firstContacts.length>=1 },
+  { id:'colonizer', category:'Erkundung', icon:'🏳️', name:'Kolonialherr', desc:'Die erste Kolonie gegründet.', reward:20000, check:s=>s.colonies.length>=1 },
+  { id:'expansion', category:'Erkundung', icon:'🌍', name:'Expansion', desc:'5 Kolonien gegründet.', reward:90000, check:s=>s.colonies.length>=5 },
+  { id:'spacefarer', category:'Erkundung', icon:'🪐', name:'Weltraumfahrer', desc:'10 verschiedene Ziele erreicht.', reward:16000, check:s=>s.exploredTargets.length>=10 },
+  { id:'crewedMission', category:'Erkundung', icon:'👨‍🚀', name:'Bemannte Mission', desc:'Die erste bemannte Landung geglückt.', reward:28000, check:s=>s.crewedLandings.length>=1 },
+  // --- Sonstiges ---
+  { id:'perseverance', category:'Sonstiges', icon:'🔥', name:'Durchhaltevermögen', desc:'10 Satelliten durch Weltraumschrott verloren — und trotzdem weitergemacht.', reward:5000, check:s=>s.stats.satellitesLost>=10 },
+  { id:'veteran', category:'Sonstiges', icon:'📅', name:'Alter Hase', desc:'Firma seit 365 Tagen im Geschäft.', reward:12000, check:s=>s.day>=365 },
+];
+// silent=true unterdrückt Toast + Sound (für den einmaligen Nachtrag beim Laden eines
+// Spielstands, siehe beginCommonGameLoop() — verhindert eine Toast-Flut für längst erreichte
+// Meilensteine). Läuft ansonsten bei jedem renderAll()/renderStats()-Aufruf mit, ist bei ~20
+// simplen check()-Aufrufen vernachlässigbar günstig. Schaltet NUR frei (pusht den Eintrag mit
+// claimed:false) — die Geldgutschrift passiert erst separat über claimAchievement().
+function checkAchievements(silent){
+  ACHIEVEMENTS.forEach(a=>{
+    if(state.achievementsUnlocked.some(u=>u.id===a.id)) return;
+    if(!a.check(state)) return;
+    state.achievementsUnlocked.push({ id:a.id, day: state.day, claimed:false });
+    if(!silent){
+      toast(`Erfolg freigeschaltet: ${a.icon} ${a.name} — Belohnung im Erfolge-Tab abholen!`, 'good');
+      Sound.contractDone();
+    }
+  });
+}
+// NEU (TODO-ACHIEVEMENT-REWARDS): Belohnung eines bereits freigeschalteten, aber noch nicht
+// abgeholten Erfolgs einsammeln (Klick auf die Karte im Erfolge-Tab, siehe renderAchievements()).
+function claimAchievement(id){
+  const entry = state.achievementsUnlocked.find(u=>u.id===id);
+  if(!entry || entry.claimed) return;
+  const a = ACHIEVEMENTS.find(a=>a.id===id);
+  if(!a) return;
+  entry.claimed = true;
+  state.money += a.reward;
+  toast(`Belohnung abgeholt: +${fmtMoney(a.reward)} (${a.icon} ${a.name})`, 'good');
+  Sound.contractDone();
+  renderAll();
+}
+// NEU (TODO-ACHIEVEMENT-REWARDS): steuert das Blinken des Erfolge-Tabs (Klasse has-reward, siehe
+// CSS @keyframes tabBlink) sowie ein kleines Zähler-Badge (wiederverwendet die bisher ungenutzte
+// .tab .badge-Klasse) — beides bleibt aktiv, bis ALLE offenen Belohnungen abgeholt wurden, nicht
+// nur bis der Tab einmal besucht wurde (reiner Besuch ohne Abholen soll das Blinken nicht stoppen).
+function updateAchievementsTabIndicator(){
+  const tab = document.querySelector('.tab[data-view="achievements"]');
+  if(!tab) return;
+  const unclaimedCount = state.achievementsUnlocked.filter(u=>!u.claimed).length;
+  tab.classList.toggle('has-reward', unclaimedCount>0);
+  let badge = tab.querySelector('.badge');
+  if(unclaimedCount>0){
+    if(!badge){ badge = document.createElement('span'); badge.className='badge'; tab.appendChild(badge); }
+    badge.textContent = unclaimedCount;
+  } else if(badge){
+    badge.remove();
+  }
+}
+function renderAchievements(){
+  const wrap = document.getElementById('achievementsList');
+  if(!wrap) return;
+  const countEl = document.getElementById('achievementsCount');
+  if(countEl) countEl.textContent = `${state.achievementsUnlocked.length} / ${ACHIEVEMENTS.length}`;
+  const byCat = {};
+  ACHIEVEMENTS.forEach(a=>{ (byCat[a.category] = byCat[a.category] || []).push(a); });
+  wrap.innerHTML = Object.keys(byCat).map(cat=>{
+    const items = byCat[cat].map(a=>{
+      const unlockedEntry = state.achievementsUnlocked.find(u=>u.id===a.id);
+      const unclaimed = !!(unlockedEntry && !unlockedEntry.claimed);
+      return `
+        <div class="ach-item${unlockedEntry?' unlocked':''}${unclaimed?' claimable':''}" ${unclaimed?`data-claim="${a.id}"`:''} style="display:flex; gap:10px; align-items:center; padding:8px 10px; border:1px solid ${unclaimed?'var(--accent)':'var(--border)'}; border-radius:var(--radius); ${unlockedEntry?'':'opacity:.45;'} ${unclaimed?'cursor:pointer; background:rgba(255,176,46,.08); animation:pulseGlow 1.6s infinite;':''}">
+          <div style="font-size:20px; line-height:1;">${unlockedEntry?a.icon:'🔒'}</div>
+          <div style="flex:1;">
+            <div style="font-size:11.5px; font-weight:600;">${a.name}</div>
+            <div style="font-size:10.5px; color:var(--muted); margin-top:2px;">${a.desc}</div>
+            ${unclaimed?`<div style="font-size:10.5px; color:var(--accent); margin-top:3px; font-weight:700;">🎁 ${fmtMoney(a.reward)} — jetzt abholen</div>`:''}
+          </div>
+          ${unlockedEntry && unlockedEntry.claimed?`<div class="small-muted" style="white-space:nowrap;">Tag ${unlockedEntry.day}</div>`:''}
+        </div>`;
+    }).join('');
+    return `
+      <div style="margin-bottom:16px;">
+        <h3 style="margin-bottom:8px;">${cat}</h3>
+        <div style="display:flex; flex-direction:column; gap:6px;">${items}</div>
+      </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-claim]').forEach(el=>{
+    el.addEventListener('click', ()=>claimAchievement(el.dataset.claim));
+  });
+  updateAchievementsTabIndicator();
+}
+
 function renderStats(){
   const dayEl = document.getElementById('statsDay');
   if(!dayEl) return;
@@ -8224,6 +8934,19 @@ function renderStats(){
   document.getElementById('statsContractsOpen').textContent = `${state.contracts.filter(c=>c.status==='aktiv').length} / ${state.contracts.filter(c=>c.status==='offen').length}`;
   document.getElementById('statsResearchDone').textContent = `${state.purchasedResearch.length} / ${RESEARCH.length}`;
 
+  // NEU (TODO-ZUFALLSEREIGNISSE): Ereignis-Log-Panel, analog zum deepSpaceLog-Muster im
+  // Erkundungs-Tab — reines Textprotokoll, neueste zuerst (state.eventLog ist bereits unshift-
+  // befüllt, siehe maybeTriggerRandomEvent()).
+  const evLog = document.getElementById('eventLogList');
+  if(evLog){
+    evLog.innerHTML = state.eventLog.length
+      ? state.eventLog.map(e=>{
+          const color = e.kind==='bad' ? 'var(--red)' : 'var(--green)';
+          return `<div>Tag ${e.day}: <span style="color:${color}">${e.icon} ${e.name}</span> — ${e.message}</div>`;
+        }).join('')
+      : 'Noch keine Zufallsereignisse aufgetreten.';
+  }
+
   renderStatsChartModeRow();
   drawMoneyChart();
 }
@@ -8232,6 +8955,15 @@ function drawMoneyChart(){
   const canvas = document.getElementById('statsMoneyChart');
   const emptyHint = document.getElementById('statsChartEmpty');
   if(!canvas) return;
+  // BUGFIX (statsMoneyChart-Firefox): renderStats()/drawMoneyChart() läuft bei JEDEM
+  // renderAll()-Tick mit, auch wenn der Stats-Tab gerade unsichtbar ist (display:none auf
+  // .view). In dem Fall ist canvas.clientWidth/Height 0 — würden wir trotzdem unten
+  // "canvas.width = w*dpr" setzen, schreibt das dauerhaft 0 ins width/height-Attribut des
+  // Canvas (es gibt keine CSS-Breite, die das überschreiben würde). Der Chart bliebe dann für
+  // immer 0×0 groß, auch nachdem man wieder auf den Tab klickt. Also: bei unsichtbarem Tab
+  // einfach gar nicht zeichnen/resizen und auf den nächsten Aufruf warten (der Tab-Klick-Handler
+  // ruft drawMoneyChart() per requestAnimationFrame erneut auf, sobald der Tab sichtbar ist).
+  if(canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
 
   const isLive = statsChartMode === 'live';
   let points;
@@ -8354,6 +9086,8 @@ function renderAll(){
   renderSatList();
   renderMaintenance();
   renderStats();
+  checkAchievements();
+  renderAchievements();
   autosave();
 }
 
@@ -8592,6 +9326,11 @@ document.getElementById('fileInput').addEventListener('change', (e)=>{
       }
       ensureFoundingDate();
       state.lastSaveDay = state.day;
+      // NEU (TODO-OFFLINE-PROGRESS): bewusster manueller Import löst KEINE automatische
+      // Nachholung aus (könnte z.B. gezielt ein alter Backup-Stand sein) — Zeitstempel wird
+      // hier nur zurückgesetzt, damit ein späteres normales "Fortsetzen" nicht plötzlich einen
+      // riesigen Catch-up-Sprung anhand des alten Datei-Zeitstempels berechnet.
+      state.lastRealTimestamp = Date.now();
       selectedSatId = null;
       toast('Spielstand aus Datei importiert.', 'good');
       Sound.buildOk();
@@ -8608,7 +9347,7 @@ document.getElementById('fileInput').addEventListener('change', (e)=>{
 /* ============================== VERSION / PATCH NOTES ============================== */
 // NEU (TODO-PATCH-NOTES): GAME_VERSION wird auf dem Startbildschirm im Patch-Notes-Button
 // angezeigt (siehe init()). Bei jeder neuen Version hier hochzaehlen.
-const GAME_VERSION = 'v4-5';
+const GAME_VERSION = 'v4-13';
 // NAMENSKONVENTION (ab v4-5): kein "-fix"-Suffix mehr, da nicht jede Version ein Bugfix ist —
 // fortlaufend v4-1, v4-2, v4-3, … Aeltere Versionsnummern (v4-fix1 bis v4-fix4, v3.9-fix-Reihe)
 // behalten im CHANGELOG-Kommentarblock oben ihre historische Bezeichnung, nur ab hier gilt das
@@ -8629,6 +9368,7 @@ const PATCH_NOTES_SUMMARY = [
   { heading:'Fabrik & Produktion', text:'Satelliten und Module lassen sich jetzt in Stückzahlen statt einzeln bauen, die Bauwarteschlange hat eine per Forschung erweiterbare Kapazitätsgrenze, und fertige Konfigurationen lassen sich als Bauplan speichern und wiederverwenden. Der neue Blaupausen-Kreator erlaubt außerdem, Schiffe komplett am Reißbrett zu entwerfen, ganz ohne vorhandene Bauteile. Modul-Hangar und Orbit-Lager wurden aufgeräumt (gruppierte Zeilen pro Modultyp statt einer Zeile pro Einzelteil), und Module lassen sich jetzt gestapelt gemeinsam auf einer Rakete starten.' },
   { heading:'Forschung', text:'Der Forschungsbaum wurde komplett neu aufgebaut — ein echter, handytauglicher Tech-Baum mit Zoom und Pan statt eines unübersichtlichen Grids. Forschung dauert jetzt außerdem echte Spielzeit statt sofort abgeschlossen zu sein, und läuft immer nur ein Projekt gleichzeitig.' },
   { heading:'Mars & Erkundung', text:'Nach abgeschlossenem Terraforming lässt sich der Mars jetzt tatsächlich kolonisieren — die nächste Landung mit einem Kolonie-Modul an Bord gründet automatisch eine echte Kolonie mit passivem Einkommen.' },
+  { heading:'Erfolge', text:'Neuer Erfolge-Tab mit 20 Meilensteinen in 6 Kategorien (Flotte & Starts, Fertigung, Wirtschaft, Forschung, Erkundung, Sonstiges) — rein zur Anerkennung, ohne Spiel-Effekt.' },
   { heading:'Sonstiges', text:'Der Header zeigt jetzt zusätzlich zur Firmenzeit ein echtes Kalenderdatum, die Sternenkarte zeigt die Restflugzeit unterwegs jetzt live an, und ganz frisch gibt es diesen Patch-Notes-Screen selbst, der genau diese Übersicht direkt auf dem Startbildschirm zeigt.' },
 ];
 function renderPatchNotes(){
@@ -8642,6 +9382,61 @@ function renderPatchNotes(){
     </div>
   `).join('');
 }
+
+/* ============================== TUTORIAL / ONBOARDING ============================== */
+// NEU (TODO-TUTORIAL, Punkt 2 der IDEENLISTE): kurze Einführungs-Tour. Wird automatisch NUR bei
+// der allerersten Firmengründung geöffnet (siehe createNewProfile(), Modus 'found') — NICHT bei
+// jedem "Neues Spiel" einer bereits bestehenden Firma und NICHT beim normalen Fortsetzen. Braucht
+// deshalb bewusst KEIN eigenes state-Feld/keine Migration: die Anzeige hängt rein am Aufrufort,
+// nicht an gespeicherten Daten. Zusätzlich jederzeit über "Einführungs-Tour erneut ansehen" im
+// Einstellungen-Modal aufrufbar (btnTutorialReplay).
+const TUTORIAL_STEPS = [
+  { heading:'👋 Willkommen bei DEEP ANCHOR', text:'Du leitest ab sofort ein privates Raumfahrtunternehmen. Die Zeit läuft von selbst weiter — alle paar Sekunden vergeht ein Firmentag (Geschwindigkeit oben rechts einstellbar, jederzeit pausierbar). Diese kurze Tour zeigt in 6 Schritten die wichtigsten Bereiche.' },
+  { heading:'🏭 Fabrik', text:'Im Tab „Fabrik" wählst du ein Chassis (die Grundstruktur) und bestückst es mit Modulen (Antrieb, Instrumente, …) zu einem Satelliten oder einer Sonde. Fertige Bauten landen im Hangar und warten dort auf den Start.' },
+  { heading:'🛰️ Orbit-Netzwerk', text:'Im Tab „Orbit-Netzwerk" startest du Fahrzeuge aus dem Hangar per Rakete und weist sie offenen Aufträgen zu — erst eine Zuweisung bringt laufendes Einkommen. Neue Aufträge tauchen automatisch von selbst auf.' },
+  { heading:'🔬 Forschung', text:'Im Tab „Forschung" schaltest du neue Chassis, Module und Verbesserungen frei. Es läuft immer nur ein Projekt gleichzeitig und braucht echte Spielzeit — es lohnt sich, vorauszuplanen.' },
+  { heading:'⚓ Werft & 🪐 Erkundung', text:'Große Schiffe wie Kolonieschiff oder Frachter entstehen NUR in der „Orbitalwerft", nicht in der Fabrik. Damit erreichst du das Sonnensystem und irgendwann sogar andere Galaxien — inklusive Kolonien, Erstkontakt und Terraforming.' },
+  { heading:'📊 Und sonst?', text:'„Statistiken" und „Erfolge" geben dir jederzeit einen Überblick über deine Firmengeschichte. Der Hilfe-Button in den Einstellungen hat außerdem einen Spickzettel „Auftrag → Bauplan" sowie diese Tour zum erneuten Ansehen. Viel Erfolg da draußen!' },
+];
+let tutorialStepIndex = 0;
+function renderTutorialStep(){
+  const step = TUTORIAL_STEPS[tutorialStepIndex];
+  document.getElementById('tutorialHeading').textContent = step.heading;
+  document.getElementById('tutorialBody').textContent = step.text;
+  document.getElementById('tutorialDots').innerHTML = TUTORIAL_STEPS.map((_,i)=>
+    `<div style="width:6px; height:6px; border-radius:50%; background:${i===tutorialStepIndex?'var(--accent)':'var(--border)'};"></div>`
+  ).join('');
+  const isFirst = tutorialStepIndex === 0;
+  const isLast = tutorialStepIndex === TUTORIAL_STEPS.length-1;
+  document.getElementById('btnTutorialBack').style.visibility = isFirst ? 'hidden' : 'visible';
+  document.getElementById('btnTutorialSkip').style.display = isLast ? 'none' : '';
+  document.getElementById('btnTutorialNext').textContent = isLast ? "Los geht's!" : 'Weiter';
+}
+function openTutorial(){
+  tutorialStepIndex = 0;
+  renderTutorialStep();
+  document.getElementById('tutorialModal').classList.add('active');
+}
+function closeTutorial(){
+  document.getElementById('tutorialModal').classList.remove('active');
+}
+document.getElementById('closeTutorialModal').addEventListener('click', closeTutorial);
+document.getElementById('btnTutorialSkip').addEventListener('click', ()=>{ Sound.click(); closeTutorial(); });
+document.getElementById('btnTutorialBack').addEventListener('click', ()=>{
+  if(tutorialStepIndex > 0){ tutorialStepIndex--; renderTutorialStep(); Sound.click(); }
+});
+document.getElementById('btnTutorialNext').addEventListener('click', ()=>{
+  if(tutorialStepIndex < TUTORIAL_STEPS.length-1){
+    tutorialStepIndex++; renderTutorialStep(); Sound.click();
+  } else {
+    closeTutorial(); Sound.buildOk();
+  }
+});
+document.getElementById('btnTutorialReplay').addEventListener('click', ()=>{
+  Sound.click();
+  document.getElementById('settingsModal').classList.remove('active');
+  openTutorial();
+});
 
 /* ============================== AUTOSAVE (persistent storage, mit Fallback) ============================== */
 const AUTOSAVE_KEY = 'deepanchor_save';
@@ -8887,6 +9682,9 @@ async function createNewProfile(){
   await switchToProfile(id);
   if(wasFounding){
     await startNewGame(chosenDifficulty);
+    // NEU (TODO-TUTORIAL): Tour nur bei DIESER allerersten Gründung, nicht bei jedem weiteren
+    // "Neues Spiel" (siehe openNewGameDifficultyModal() — nutzt bewusst nicht createNewProfile()).
+    openTutorial();
   }
 }
 document.getElementById('newProfileCreateBtn').addEventListener('click', createNewProfile);
@@ -9093,6 +9891,12 @@ function beginCommonGameLoop(){
   attachMapPanZoom('solarMapCanvas', { minZoom:0.5, maxZoom:2.5, redraw:drawSolarMap, resetBtnId:'btnResetSolarView' });
   attachMapPanZoom('galaxyMapCanvas', { minZoom:0.5, maxZoom:2.5, redraw:drawGalaxyMap, resetBtnId:'btnResetGalaxyMapView' });
   attachMapPanZoom('andromedaMapCanvas', { minZoom:0.5, maxZoom:2.5, redraw:()=>drawGalaxyDetailMap(selectedGalaxyId), resetBtnId:'btnResetAndromedaView' });
+  // NEU (TODO-ACHIEVEMENTS): einmaliger STILLER Nachtrag VOR dem ersten renderAll() — falls der
+  // geladene Spielstand (Autosave/Import) bereits Meilensteine erreicht hat, die es beim letzten
+  // Speichern noch nicht gab (z.B. weil das Achievement-System erst nachträglich ergänzt wurde),
+  // werden die sofort nachgetragen, aber OHNE Toast/Sound-Flut. renderAll() ruft
+  // checkAchievements() danach ganz normal (nicht-still) für alles Weitere während des Spiels auf.
+  checkAchievements(true);
   renderAll();
   requestAnimationFrame(drawOrbitScene);
   applyGameSpeed(state.gameSpeed || 1);
@@ -9123,6 +9927,7 @@ async function startNewGame(difficultyId){
 
 async function startContinueGame(){
   const restored = await loadAutosave();
+  let offlineReport = null;
   if(!restored){
     toast('Kein automatischer Spielstand gefunden — neues Spiel gestartet.', 'bad');
     // NEU (TODO-SCHWIERIGKEITSGRAD): dieser Fallback hat keine Schwierigkeitsauswahl (unerwarteter
@@ -9131,9 +9936,14 @@ async function startContinueGame(){
     state = freshState(DEFAULT_DIFFICULTY);
     state.foundingDate = todayISODate();
     generateContract(); generateContract();
+  } else {
+    // NEU (TODO-OFFLINE-PROGRESS): nur bei tatsächlich geladenem Autosave sinnvoll (frisches
+    // Spiel hat keine "vergangene" Zeit nachzuholen).
+    offlineReport = computeAndApplyOfflineProgress();
   }
   showGameRoot();
   beginCommonGameLoop();
+  if(offlineReport) showOfflineReportModal(offlineReport);
 }
 
 async function hasAutosave(){
@@ -9195,6 +10005,16 @@ async function init(){
   document.getElementById('closePatchNotesModal').addEventListener('click', ()=>{
     patchNotesModal.classList.remove('active');
   });
+  // NEU (TODO-OFFLINE-PROGRESS): beide Schließwege (X-Button und "Weiter") tun dasselbe —
+  // das Modal wird ohnehin erst NACH bereits angewandter Nachholung gezeigt, "schließen" heißt
+  // hier nur "zur Kenntnis genommen", nicht "verwerfen".
+  document.getElementById('closeOfflineReportModal').addEventListener('click', ()=>{
+    document.getElementById('offlineReportModal').classList.remove('active');
+  });
+  document.getElementById('btnOfflineReportOk').addEventListener('click', ()=>{
+    document.getElementById('offlineReportModal').classList.remove('active');
+    Sound.click();
+  });
   document.getElementById('btnImportFromStart').addEventListener('click', ()=>{
     Sound.click();
     document.getElementById('fileInputStart').click();
@@ -9212,6 +10032,10 @@ async function init(){
         }
         ensureFoundingDate();
         state.lastSaveDay = state.day;
+        // NEU (TODO-OFFLINE-PROGRESS): siehe Kommentar beim anderen Datei-Import (#fileInput) —
+        // bewusster manueller Import löst KEINE automatische Nachholung aus, Zeitstempel wird
+        // nur zurückgesetzt.
+        state.lastRealTimestamp = Date.now();
         selectedSatId = null;
         Sound.buildOk();
         showGameRoot();
