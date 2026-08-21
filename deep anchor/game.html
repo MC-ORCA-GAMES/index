@@ -1,6 +1,41 @@
 <!--
 CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
 
+v4-14 (deep_anchor_4_5_3_3.html, neue Datei)
+- Langzeitaufträge ergänzt (Wunsch: Firma sagt "wir wollen N Satelliten mit Ausstattung X und
+  Größe Y dauerhaft im Orbit"): komplett eigenes System, bewusst GETRENNT von den bestehenden
+  Schnellaufträgen (state.contracts/generateContract() bleiben unangetastet) — neue Datenstruktur
+  state.longContracts mit eigenem generateLongContract()/renderLongContracts(). Ein Langzeitauftrag
+  verlangt eine Ziel-Stückzahl an Satelliten (targetCount), optional eingeschränkt auf Orbit-Typ,
+  Nutzlast-Kategorie und Mindest-Chassisgröße (LONG_CONTRACT_SIZE_ORDER: klein<mittel<groß). Bei
+  Annahme (acceptLongContract()) gibt es sofort einen Signing-Bonus, danach werden nach und nach
+  passende, noch unbeschäftigte Satelliten zugewiesen (assignSatToLongContract()) — jeder erfüllte
+  Slot bringt taegliches Einkommen (longContractDailyIncome() in tick()), beim erstmaligen
+  Erreichen der vollen Stückzahl gibt es einen einmaligen Abschluss-Bonus plus 20% Dauerbonus auf
+  das laufende Einkommen alle erfüllten Slots. Läuft die Vertragslaufzeit ab, werden alle
+  zugewiesenen Satelliten automatisch wieder frei (assignedLongContract=null). Satelliten, die
+  bereits einem Schnellauftrag, einem Langzeitauftrag oder dem neuen Eigenen Netzwerk (siehe
+  unten) zugewiesen sind, gelten für alle drei Systeme als belegt (gegenseitige
+  Ausschluss-Prüfung in assignContract()/renderContracts()/assignSatToLongContract()/
+  toggleNetworkSat()). Eigener Tab "Langzeit" (data-view="langzeit") — bewusst NICHT im
+  bestehenden Schnellaufträge-Panel (Seitenleiste) untergebracht, wie gewünscht.
+- Eigenes Satelliten-Netzwerk ergänzt (Wunsch: "eigenes Projekt bauen wo Leute Lizenzgebühren
+  zahlen, z.B. GPS oder Internet wie Starlink" — passives Einkommen): neue Forschung
+  'eigenesNetzwerk' (80.000 €, schaltet den Projektstart frei). Im neuen Langzeit-Tab kann nach
+  Freischaltung eines von zwei Netzwerken gestartet werden (startOwnNetworkProject()):
+  Navigationsdienst (eigene GPS-artige Positionslösung, Navigationschip-Nutzlast nötig) ODER
+  Kommunikationsnetz (Internet-Konstellation nach Starlink-Vorbild, Kommunikationsmodul-Nutzlast
+  nötig) — Startgebühr 25.000 €, danach state.ownNetwork.active=true. Zugewiesene Satelliten
+  (toggleNetworkSat(), passender Nutzlasttyp + noch unbeschäftigt vorausgesetzt) zahlen täglich
+  Lizenzgebühren (networkDailyIncome() in tick()): Basis-Betrag pro Satellit, der mit wachsender
+  Netzwerkgröße pro Satellit ANSTEIGT (Netzwerkeffekt, gedeckelt bei 40 Satelliten) sowie ein
+  Abdeckungs-Bonus (+15% je zusätzlichem gleichzeitig genutzten Orbit-Typ LEO/MEO/GEO, wie ein
+  echtes Mega-Konstellations-Netz mit besserer globaler Abdeckung). state.ownNetwork.totalEarned
+  zählt die Lifetime-Einnahmen aus dem Projekt separat mit. Zerstörte Satelliten (Weltraumschrott,
+  siehe tick()) werden automatisch aus Langzeitaufträgen UND Eigenem Netzwerk ausgetragen, analog
+  zur bestehenden Schnellauftrags-Freigabe. Kein Migrationscode nötig — alle neuen state-Felder
+  defaulten über freshState()+Object.assign() für Altspielstände automatisch.
+
 v4-13 (deep_anchor_4_5_3.html, gleiche Datei weiter genutzt)
 - Galaxien-Content erweitert (Punkt 9 der IDEENLISTE): drei neue Galaxien ans Ende der
   Forschungskette angehängt (nach sombreroKartierung): Antennen-Galaxien (NGC 4038/4039,
@@ -1312,6 +1347,30 @@ canvas{ display:block; }
 .contract .bar{ height:4px; background:#101010; border-radius:2px; margin-top:6px; overflow:hidden; }
 .contract .bar > div{ height:100%; background:var(--cyan); }
 
+/* Langzeitaufträge + Eigenes Netzwerk (v4-14) */
+.long-contract{ border:1px solid var(--border); background:var(--panel2); border-radius:var(--radius); padding:10px 12px; margin-bottom:10px; }
+.long-contract .top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.long-contract .name{ font-weight:700; font-size:12.5px; }
+.long-contract .req{ font-size:10px; color:var(--muted); margin-top:4px; line-height:1.5; }
+.long-contract .rewards{ font-size:10px; color:var(--green); margin-top:4px; }
+.long-contract .progress-wrap{ margin-top:8px; }
+.long-contract .progress-label{ display:flex; justify-content:space-between; font-size:9.5px; color:var(--muted); margin-bottom:3px; }
+.long-contract .bar{ height:6px; background:#101010; border-radius:3px; overflow:hidden; }
+.long-contract .bar > div{ height:100%; background:var(--cyan); transition:width .3s; }
+.long-contract .bar.full > div{ background:var(--green); }
+.long-contract .sat-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.long-contract .sat-tag{ display:flex; align-items:center; gap:5px; font-size:9.5px; background:#101010; border:1px solid var(--border-lit); border-radius:8px; padding:3px 6px; }
+.long-contract .sat-tag button{ background:none; border:none; color:var(--red); cursor:pointer; font-size:10px; padding:0; line-height:1; }
+.long-contract .actions{ display:flex; gap:6px; margin-top:8px; }
+.long-contract select{ width:100%; margin-top:6px; background:#101010; color:var(--text); border:1px solid var(--border-lit); padding:5px; border-radius:var(--radius); font-family:inherit; font-size:10.5px; }
+.network-panel .status-line{ font-size:11px; color:var(--muted); margin-bottom:8px; }
+.network-choice{ display:flex; gap:10px; margin-top:8px; }
+.network-choice .nc-card{ flex:1; border:1px solid var(--border); background:var(--panel2); border-radius:var(--radius); padding:10px; cursor:pointer; text-align:center; }
+.network-choice .nc-card:hover{ border-color:var(--cyan-dim); }
+.network-choice .nc-card .icon{ font-size:22px; }
+.network-choice .nc-card .n{ font-weight:700; font-size:11.5px; margin-top:4px; }
+.network-choice .nc-card .d{ font-size:9.5px; color:var(--muted); margin-top:4px; line-height:1.4; }
+
 /* research */
 .research-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
 .rcard{ border:1px solid var(--border); background:var(--panel2); border-radius:var(--radius); padding:10px; display:flex; flex-direction:column; gap:6px;}
@@ -1705,6 +1764,7 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
   <div class="tab" data-view="werft">Orbitalwerft</div>
   <div class="tab" data-view="creator">Blaupausen-Kreator</div>
   <div class="tab" data-view="orbit">Orbit-Netzwerk</div>
+  <div class="tab" data-view="langzeit">Verträge &amp; Netzwerk</div>
   <div class="tab" data-view="research">Forschung</div>
   <div class="tab" data-view="deepspace">Sonnensystem</div>
   <div class="tab" data-view="galaxy">Galaxie</div>
@@ -1935,6 +1995,22 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
       <div class="panel" style="margin-top:14px;" id="satDetailPanel">
         <h3>Satelliten-Detail</h3>
         <div class="empty-hint">Kein Satellit ausgewählt.</div>
+      </div>
+    </div>
+
+    <!-- LANGZEIT VIEW (NEU v4-14): Langzeitaufträge (Firmen-Flottenquoten) + Eigenes Netzwerk
+         (Lizenzgebühren-Passiveinkommen) — bewusst eigener Tab, komplett getrennt vom
+         Schnellaufträge-Panel in der Seitenleiste. -->
+    <div class="view" id="view-langzeit">
+      <div class="panel">
+        <h3>Langzeitaufträge</h3>
+        <div class="small-muted" style="margin-bottom:10px;">Firmen bestellen hier eine feste Stückzahl Satelliten mit bestimmter Ausstattung und Mindestgröße, dauerhaft im Orbit — im Gegensatz zu Schnellaufträgen läuft das über viele Tage und zahlt pro erfülltem Satelliten-Slot täglich weiter, plus Bonus bei voller Stückzahl.</div>
+        <div id="longContractList"></div>
+        <div class="empty-hint" id="longContractEmpty">Derzeit keine Langzeitaufträge verfügbar.</div>
+      </div>
+      <div class="panel network-panel" style="margin-top:14px;">
+        <h3>Eigenes Netzwerk</h3>
+        <div id="networkPanelBody"></div>
       </div>
     </div>
 
@@ -2235,6 +2311,10 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
       <div class="settings-row" style="margin-top:10px; display:flex; gap:8px;">
         <button class="btn" id="btnSave" style="flex:1;">Export</button>
         <button class="btn" id="btnLoad" style="flex:1;">Import</button>
+      </div>
+
+      <div class="settings-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+        <button class="btn danger" id="btnBackToStart" style="width:100%; justify-content:center;">↩ Zurück zur Startseite</button>
       </div>
     </div>
   </div>
@@ -2594,6 +2674,10 @@ const RESEARCH = [
   { id:'tank2', name:'Treibstofftank II', desc:'Mehr Treibstoffreserve — Satelliten verschleißen langsamer im Orbit.', cost:7000 },
   { id:'tank3', name:'Treibstofftank III', desc:'Maximale Reichweite bis GEO mit Reserve.', cost:20000, reqAll:['tank2'] },
   { id:'payloadRes', name:'Forschungsinstrument', desc:'Schaltet hochwertige Forschungs-Nutzlast frei.', cost:18000 },
+  // NEU (v4-14): schaltet im Langzeit-Tab den Start eines eigenen Satelliten-Netzwerks frei
+  // (Navigations- oder Kommunikationsdienst nach Vorbild GPS/Starlink) — reine Wirtschafts-
+  // Freischaltung, keine reqAll, damit sie unabhängig vom übrigen Baum erreichbar ist.
+  { id:'eigenesNetzwerk', name:'Eigenes Satelliten-Netzwerk', desc:'Schaltet im Langzeit-Tab den Aufbau eines eigenen Lizenzdienstes frei: ein Navigations- oder ein Kommunikationsnetz aus eigenen Satelliten, das dauerhaft Lizenzgebühren einbringt — je größer das Netzwerk und je mehr verschiedene Orbits gleichzeitig genutzt werden, desto höher das Einkommen pro Satellit.', cost:80000 },
   { id:'rocketMedium', name:'Voyager-Trägerrakete', desc:'Schaltet die Voyager-Rakete frei: mehr Nutzlastkapazität, höhere Zuverlässigkeit.', cost:20000 },
   { id:'rocketHeavy', name:'Titan-Trägerrakete', desc:'Schaltet die Titan-Schwerlastrakete frei — maximale Kapazität und Zuverlässigkeit.', cost:45000, reqAll:['rocketMedium'] },
   { id:'orbitalWerft', name:'Orbitalwerft', desc:'Schaltet die Orbitalwerft frei: Schiffe, die zu schwer für jede verfügbare Rakete sind (z.B. große Kolonieschiffe oder Außenposten), werden in mehreren Lieferflügen zur Werft transportiert und dort im Orbit montiert. Jeder Lieferflug ist ein eigener Raketenstart mit eigenem Risiko — dafür sind danach auch Sonnensystem- und Deep-Space-Ziele erreichbar, sofern das montierte Schiff genug eigene Treibstoffreserve für die Weiterreise hat.', cost:60000, reqAll:['chassisGross','rocketHeavy'] },
@@ -2998,6 +3082,28 @@ function pickWeighted(weights){
   return entries[entries.length-1][0];
 }
 
+// NEU (v4-14): Langzeitaufträge verlangen eine MINDEST-Chassisgröße statt einer exakten — nur
+// die drei normalen Erdstart-Chassis kommen in Frage (Kolonie-/Frachter-/Licht-/Sprungschiff sind
+// reine Deep-Space-Klassen und für Orbit-Flotten irrelevant). meetsMinChassis() vergleicht über
+// diese Rangfolge, nicht über exakte Gleichheit — ein "Groß"-Chassis erfüllt z.B. auch eine
+// "Klein"-Anforderung.
+const LONG_CONTRACT_SIZE_ORDER = { klein:1, mittel:2, gross:3 };
+function chassisSizeRank(chassisId){ return LONG_CONTRACT_SIZE_ORDER[chassisId] || 0; }
+function meetsMinChassis(chassisId, minChassis){
+  if(!minChassis) return true;
+  return chassisSizeRank(chassisId) >= chassisSizeRank(minChassis);
+}
+
+// NEU (v4-14): Eigenes Netzwerk (Lizenzgebühren-Passiveinkommen, Vorbild GPS/Starlink) — zwei
+// Varianten, jeweils an eine bestehende Nutzlast-Kategorie gekoppelt (kein neues Modul nötig).
+// baseIncomePerSat ist der Grundwert PRO TAG PRO ZUGEWIESENEM SATELLITEN, bevor Schwierigkeitsgrad
+// und Orbit-Vielfalts-Bonus (siehe tick()/renderNetworkPanel()) angewendet werden.
+const NETWORK_TYPES = {
+  navigation:    { id:'navigation',    label:'Navigationsnetz',     icon:'🧭', payloadType:'navigation',    baseIncomePerSat:40, desc:'Eigener ziviler Positionsdienst nach Vorbild GPS — Kunden zahlen laufende Lizenzgebühren für den Zugriff auf das Netz.' },
+  kommunikation: { id:'kommunikation', label:'Kommunikationsnetz',  icon:'📡', payloadType:'kommunikation', baseIncomePerSat:35, desc:'Eigenes Konstellationsnetz nach Vorbild Starlink — Endkunden zahlen laufende Zugangsgebühren fürs Internet.' },
+};
+const OWN_NETWORK_START_COST = 25000;
+
 /* ============================== STATE ============================== */
 function freshState(difficultyId){
   const diff = DIFFICULTIES[difficultyId] || DIFFICULTIES[DEFAULT_DIFFICULTY];
@@ -3118,6 +3224,21 @@ function freshState(difficultyId){
     // nachgeholt. Kein Migrationscode nötig — Altspielstände ohne dieses Feld lösen dort
     // einfach KEINE Nachholung aus (erster Fall wird übersprungen, Feld danach normal gesetzt).
     lastRealTimestamp: Date.now(),
+    // NEU (v4-14): Langzeitaufträge — eigene, von state.contracts komplett getrennte Liste.
+    // Eintrag: {id, client, name, type (Nutzlast-Kategorie oder null=egal), orbit (Orbit-Key
+    // oder null=egal), minChassis (Chassis-Id, Mindestgröße, oder null=egal), targetCount,
+    // rewardSignup, rewardPerSatPerDay, bonusOnFull, duration (Tage oder null=unbefristet),
+    // daysLeft, status:'angebot'|'aktiv'|'abgeschlossen'|'abgelaufen', assignedSatIds:[],
+    // fullyMetOnce:false}. Kein Migrationscode nötig — defaultet über freshState()+
+    // Object.assign() für Altspielstände automatisch auf leeres Array.
+    longContracts: [],
+    nextLongContractId: 1,
+    // NEU (v4-14): Eigenes Netzwerk (Navigations- oder Kommunikationsdienst nach Vorbild
+    // GPS/Starlink) — unlocked über Forschung 'eigenesNetzwerk', active erst nach Zahlung der
+    // Startgebühr in startOwnNetworkProject(). type: 'navigation'|'kommunikation'. satIds:
+    // zugewiesene Satelliten-IDs (müssen den passenden Nutzlasttyp tragen). totalEarned: Lifetime-
+    // Lizenzeinnahmen separat vom allgemeinen stats.lifetimeIncome mitgezählt (fürs Netzwerk-Panel).
+    ownNetwork: { active:false, type:null, satIds:[], totalEarned:0 },
   };
 }
 
@@ -5428,12 +5549,181 @@ function assignContract(contractId, satId){
   const c = state.contracts.find(c=>c.id===contractId);
   const s = state.orbitSats.find(s=>s.id===Number(satId));
   if(!c || !s){ return; }
-  if(s.assignedContract){ toast('Satellit bereits einem Auftrag zugewiesen.', 'bad'); Sound.error(); return; }
+  if(!isSatFreeForAssignment(s)){ toast('Satellit bereits anderweitig zugewiesen.', 'bad'); Sound.error(); return; }
   c.status = 'aktiv'; c.satId = s.id; s.assignedContract = c.id;
   state.money += c.rewardUpfront;
   Sound.contractDone();
   toast(`Auftrag angenommen: ${fmtMoney(c.rewardUpfront)} Vorschuss erhalten.`, 'good');
   renderAll();
+}
+
+// NEU (v4-14): ein Satellit darf immer nur EINER Einkommensquelle gleichzeitig zugewiesen sein —
+// Schnellauftrag, Langzeitauftrag oder eigenes Netzwerk schließen sich gegenseitig aus. Zentrale
+// Prüfung statt drei separater Ad-hoc-Checks an jeder Zuweisungsstelle.
+function isSatFreeForAssignment(s){
+  if(s.assignedContract) return false;
+  if(s.assignedLongContract) return false;
+  if(state.ownNetwork.active && state.ownNetwork.satIds.includes(s.id)) return false;
+  return true;
+}
+
+/* ============================== LANGZEITAUFTRÄGE (v4-14) ============================== */
+// Firmen bestellen eine feste Stückzahl Satelliten mit bestimmter Nutzlast/Orbit/Mindestgröße,
+// dauerhaft im Orbit — komplett getrennt von state.contracts (eigene Liste, eigener Tab
+// "Langzeit"). Ablauf: generateLongContract() erzeugt ein Angebot (status:'angebot'), Annahme
+// (acceptLongContract()) zahlt sofort einen Signing-Bonus und schaltet auf 'aktiv', danach werden
+// nach und nach passende freie Satelliten zugewiesen (assignSatToLongContract()) — jeder besetzte
+// Slot bringt tägliches Einkommen (longContractDailyIncome(), ausgezahlt in tick()), beim
+// erstmaligen Erreichen der vollen Stückzahl gibt es einmalig bonusOnFull obendrauf. Nach Ablauf
+// der Laufzeit (daysLeft in tick()) endet der Auftrag automatisch, zugewiesene Satelliten werden
+// wieder frei.
+function generateLongContract(opts){
+  opts = opts || {};
+  const clientId = opts.clientId || CONTRACT_CLIENT_KEYS[Math.floor(Math.random()*CONTRACT_CLIENT_KEYS.length)];
+  const type = pickWeighted(TYPE_WEIGHTS);
+  const orbitKey = pickWeighted(ORBIT_WEIGHTS);
+  const orbit = ORBITS[orbitKey];
+  const sizeRoll = Math.random();
+  const minChassis = sizeRoll < 0.55 ? 'klein' : sizeRoll < 0.85 ? 'mittel' : 'gross';
+  const sizeMult = { klein:1, mittel:1.6, gross:2.4 }[minChassis];
+  const targetCount = 3 + Math.floor(Math.random()*6); // 3..8 Satelliten
+  const tier = clientTierFor(clientRepOf(clientId));
+  const baseDaily = (35 + Math.random()*30) * orbit.incomeMult * sizeMult;
+  const rewardPerSatPerDay = Math.round(baseDaily * getDifficulty().incomeMult * tier.mult);
+  const rewardSignup = Math.round(rewardPerSatPerDay * targetCount * (3 + Math.random()*2));
+  const bonusOnFull = Math.round(rewardPerSatPerDay * targetCount * (6 + Math.random()*4));
+  const duration = 25 + Math.floor(Math.random()*25);
+  const contract = {
+    id: state.nextLongContractId++, client: clientId, type, orbit: orbitKey, minChassis,
+    targetCount, rewardSignup, rewardPerSatPerDay, bonusOnFull,
+    duration, daysLeft: duration, status:'angebot', assignedSatIds:[], fullyMetOnce:false,
+  };
+  state.longContracts.push(contract);
+  return contract;
+}
+
+function acceptLongContract(contractId){
+  const c = state.longContracts.find(c=>c.id===contractId);
+  if(!c || c.status!=='angebot') return;
+  c.status = 'aktiv';
+  state.money += c.rewardSignup;
+  Sound.contractDone();
+  toast(`Langzeitauftrag angenommen: ${fmtMoney(c.rewardSignup)} Signing-Bonus erhalten — jetzt passende Satelliten zuweisen.`, 'good');
+  renderAll();
+}
+
+function declineLongContract(contractId){
+  const idx = state.longContracts.findIndex(c=>c.id===contractId);
+  if(idx<0 || state.longContracts[idx].status!=='angebot') return;
+  const declined = state.longContracts[idx];
+  if(declined.client){
+    state.clientRep[declined.client] = Math.max(0, clientRepOf(declined.client) - 3);
+  }
+  state.longContracts.splice(idx,1);
+  Sound.click();
+  toast('Langzeitauftrag abgelehnt.', '');
+  renderAll();
+}
+
+function assignSatToLongContract(contractId, satId){
+  const c = state.longContracts.find(c=>c.id===contractId);
+  const s = state.orbitSats.find(s=>s.id===Number(satId));
+  if(!c || !s || c.status!=='aktiv') return;
+  if(!isSatFreeForAssignment(s)){ toast('Satellit ist bereits anderweitig zugewiesen.', 'bad'); Sound.error(); return; }
+  if(c.assignedSatIds.length >= c.targetCount){ toast('Kontingent bereits voll besetzt.', 'bad'); Sound.error(); return; }
+  if(c.orbit && s.orbit !== c.orbit){ toast('Falscher Orbit für diesen Auftrag.', 'bad'); Sound.error(); return; }
+  const d = computeSatDerived(s.chassisId, s.mods);
+  if(c.type && !d.payloadTypes.includes(c.type)){ toast('Satellit trägt nicht die geforderte Nutzlast.', 'bad'); Sound.error(); return; }
+  if(c.minChassis && !meetsMinChassis(s.chassisId, c.minChassis)){ toast('Chassis zu klein für diesen Auftrag.', 'bad'); Sound.error(); return; }
+  c.assignedSatIds.push(s.id);
+  s.assignedLongContract = c.id;
+  Sound.click();
+  toast(`${s.name} dem Langzeitauftrag zugewiesen.`, 'good');
+  renderAll();
+}
+
+function unassignSatFromLongContract(contractId, satId){
+  const c = state.longContracts.find(c=>c.id===contractId);
+  const s = state.orbitSats.find(s=>s.id===satId);
+  if(!c) return;
+  c.assignedSatIds = c.assignedSatIds.filter(id=>id!==satId);
+  if(s) s.assignedLongContract = null;
+  Sound.click();
+  renderAll();
+}
+
+// Tägliches Einkommen eines aktiven Langzeitauftrags: nur GESUNDE zugewiesene Satelliten zählen
+// (zerstörte werden in tick() sowieso sofort aus assignedSatIds entfernt, dieser Health-Check ist
+// eine zusätzliche Absicherung für den Fall, dass die Reihenfolge der tick()-Schritte mal anders
+// läuft). Ab voller Quote gibt's +20% auf das laufende Tageseinkommen, nicht nur den Einmalbonus.
+function longContractDailyIncome(c){
+  const filled = c.assignedSatIds.filter(id=>{
+    const s = state.orbitSats.find(s=>s.id===id);
+    return s && s.health > 0;
+  }).length;
+  let income = filled * c.rewardPerSatPerDay;
+  if(c.targetCount > 0 && filled >= c.targetCount) income = Math.round(income * 1.2);
+  return income;
+}
+
+/* ============================== EIGENES NETZWERK (v4-14) ============================== */
+// Passives Lizenzeinkommen nach Vorbild GPS/Starlink — unlocked über Forschung 'eigenesNetzwerk',
+// scharf geschaltet erst nach Zahlung der Startgebühr (startOwnNetworkProject()). Danach werden
+// eigene Satelliten mit passender Nutzlast zugewiesen; Einkommen läuft dauerhaft in tick(), auch
+// nach declineLongContract-artigen Vorgängen unverändert weiter — es gibt keine Laufzeit.
+function startOwnNetworkProject(type){
+  if(!hasResearch('eigenesNetzwerk') || state.ownNetwork.active || !NETWORK_TYPES[type]) return;
+  if(state.money < OWN_NETWORK_START_COST){ toast('Nicht genug Guthaben für den Netzwerk-Start.', 'bad'); Sound.error(); return; }
+  state.money -= OWN_NETWORK_START_COST;
+  state.ownNetwork.active = true;
+  state.ownNetwork.type = type;
+  Sound.buildOk();
+  toast(`${NETWORK_TYPES[type].icon} ${NETWORK_TYPES[type].label} gestartet — weise jetzt eigene Satelliten zu.`, 'good');
+  renderAll();
+}
+
+function assignSatToNetwork(satId){
+  const s = state.orbitSats.find(s=>s.id===Number(satId));
+  if(!s || !state.ownNetwork.active) return;
+  if(!isSatFreeForAssignment(s)){ toast('Satellit ist bereits anderweitig zugewiesen.', 'bad'); Sound.error(); return; }
+  const nt = NETWORK_TYPES[state.ownNetwork.type];
+  const d = computeSatDerived(s.chassisId, s.mods);
+  if(!d.payloadTypes.includes(nt.payloadType)){ toast('Satellit trägt nicht die passende Nutzlast.', 'bad'); Sound.error(); return; }
+  state.ownNetwork.satIds.push(s.id);
+  Sound.click();
+  toast(`${s.name} dem eigenen Netzwerk zugewiesen.`, 'good');
+  renderAll();
+}
+
+function unassignSatFromNetwork(satId){
+  if(!state.ownNetwork.active) return;
+  state.ownNetwork.satIds = state.ownNetwork.satIds.filter(id=>id!==satId);
+  Sound.click();
+  renderAll();
+}
+
+// Tägliche Lizenzgebühren aus dem eigenen Netzwerk (v4-14): nur GESUNDE zugewiesene Satelliten
+// zählen (zerstörte werden in tick() ohnehin sofort aus satIds entfernt, siehe destroyed-Block).
+// Netzwerkeffekt: der Betrag PRO Satellit wächst mit der Netzwerkgröße (gedeckelt bei 40 Sats,
+// dort +75% ggü. einem einzelnen Satelliten) — ein größeres Konstellationsnetz ist für Kunden
+// wertvoller. Abdeckungs-Bonus: +15% je zusätzlichem gleichzeitig GENUTZTEN Orbit-Typ (LEO/MEO/
+// GEO) unter den zugewiesenen, gesunden Satelliten — echte Mega-Konstellationen streuen über
+// mehrere Orbit-Höhen für bessere globale Abdeckung.
+function networkDailyIncome(){
+  if(!state.ownNetwork.active) return 0;
+  const nt = NETWORK_TYPES[state.ownNetwork.type];
+  if(!nt) return 0;
+  const healthySats = state.ownNetwork.satIds
+    .map(id=>state.orbitSats.find(s=>s.id===id))
+    .filter(s=>s && s.health>0);
+  const n = healthySats.length;
+  if(n===0) return 0;
+  const cappedN = Math.min(n, 40);
+  const sizeMult = 1 + (cappedN/40) * 0.75;
+  const orbitsUsed = new Set(healthySats.map(s=>s.orbit)).size;
+  const coverageMult = 1 + Math.max(0, orbitsUsed - 1) * 0.15;
+  const income = n * nt.baseIncomePerSat * sizeMult * coverageMult * getDifficulty().incomeMult;
+  return Math.round(income);
 }
 
 function repairSat(satId){
@@ -5509,6 +5799,15 @@ function decommissionSat(satId){
       if(s.assignedContract){
         const c = state.contracts.find(c=>c.id===s.assignedContract);
         if(c){ c.status='offen'; c.satId=null; c.remaining=c.duration; }
+      }
+      // NEU (v4-14): analog auch aus Langzeitauftrag bzw. eigenem Netzwerk austragen, sonst
+      // bliebe eine tote Referenz (assignedSatIds/satIds) auf den nicht mehr existierenden Satelliten.
+      if(s.assignedLongContract){
+        const lc = state.longContracts.find(c=>c.id===s.assignedLongContract);
+        if(lc) lc.assignedSatIds = lc.assignedSatIds.filter(id=>id!==s.id);
+      }
+      if(state.ownNetwork.active){
+        state.ownNetwork.satIds = state.ownNetwork.satIds.filter(id=>id!==s.id);
       }
       state.orbitSats = state.orbitSats.filter(x=>x.id!==satId);
       state.money += refund;
@@ -5936,6 +6235,44 @@ function tick(silent){
   });
   state.contracts = state.contracts.filter(c => c.status === 'offen' || c.status === 'aktiv');
 
+  // NEU (v4-14): Langzeitaufträge — tägliches Einkommen je aktivem Auftrag, einmaliger Voll-
+  // Bonus beim erstmaligen Erreichen der Ziel-Stückzahl, automatischer Ablauf nach Laufzeitende
+  // (zugewiesene Satelliten werden dabei wieder frei, siehe assignedLongContract-Reset unten).
+  state.longContracts.forEach(c=>{
+    if(c.status!=='aktiv') return;
+    incomeTotal += longContractDailyIncome(c);
+    if(!c.fullyMetOnce && c.assignedSatIds.length >= c.targetCount){
+      c.fullyMetOnce = true;
+      state.money += c.bonusOnFull;
+      state.stats.lifetimeIncome += c.bonusOnFull;
+      toast(`Langzeitauftrag voll besetzt: +${fmtMoney(c.bonusOnFull)} Abschluss-Bonus, +20% Dauerbonus auf alle erfüllten Slots.`, 'good');
+      Sound.contractDone();
+    }
+    c.daysLeft -= 1;
+    if(c.daysLeft <= 0){
+      c.status = 'abgelaufen';
+      c.assignedSatIds.forEach(id=>{
+        const s = state.orbitSats.find(s=>s.id===id);
+        if(s) s.assignedLongContract = null;
+      });
+      c.assignedSatIds = [];
+      toast(`Langzeitauftrag ausgelaufen — zugewiesene Satelliten sind wieder frei.`, '');
+    }
+  });
+  state.longContracts = state.longContracts.filter(c => c.status==='angebot' || c.status==='aktiv');
+  // Neue Angebote tröpfeln nach statt wie Schnellaufträge sofort 1:1 nachzurücken — Langzeit-
+  // aufträge sind bewusst seltener/langfristiger (siehe generateLongContract()-Kommentar).
+  if(state.longContracts.filter(c=>c.status==='angebot').length < 2 && Math.random() < 0.18){
+    generateLongContract();
+  }
+
+  // NEU (v4-14): Eigenes Netzwerk — tägliche Lizenzgebühren, lifetime separat mitgezählt.
+  if(state.ownNetwork.active){
+    const netIncome = networkDailyIncome();
+    incomeTotal += netIncome;
+    state.ownNetwork.totalEarned += netIncome;
+  }
+
   // Wartungsdrohnen: reparieren kritisch beschädigte Satelliten automatisch, bevor sie ausfallen
   runAutoRepairDrones();
 
@@ -5951,6 +6288,15 @@ function tick(silent){
       if(s.assignedContract){
         const c = state.contracts.find(c=>c.id===s.assignedContract);
         if(c) c.status = 'offen', c.satId=null, c.remaining = c.duration;
+      }
+      // NEU (v4-14): dieselbe Freigabe auch für Langzeitaufträge und das eigene Netzwerk —
+      // zerstörte Satelliten werden automatisch aus beiden Systemen ausgetragen.
+      if(s.assignedLongContract){
+        const lc = state.longContracts.find(c=>c.id===s.assignedLongContract);
+        if(lc) lc.assignedSatIds = lc.assignedSatIds.filter(id=>id!==s.id);
+      }
+      if(state.ownNetwork.satIds.includes(s.id)){
+        state.ownNetwork.satIds = state.ownNetwork.satIds.filter(id=>id!==s.id);
       }
       toast(`⚠ ${s.name} durch Weltraumschrott zerstört.`, 'bad');
       Sound.warn();
@@ -7153,7 +7499,7 @@ function renderContracts(){
     const info = PAYLOAD_TYPES[c.type];
     if(c.status === 'offen'){
       const candidates = state.orbitSats.filter(s=>{
-        if(s.assignedContract) return false;
+        if(!isSatFreeForAssignment(s)) return false;
         if(s.orbit !== c.orbit) return false;
         const d = computeSatDerived(s.chassisId, s.mods);
         return d.payloadTypes.includes(c.type);
@@ -7204,6 +7550,160 @@ function renderContracts(){
   list.querySelectorAll('[data-decline]').forEach(btn=>{
     btn.addEventListener('click', ()=>declineContract(Number(btn.dataset.decline)));
   });
+}
+
+/* ============================== RENDER: LANGZEITAUFTRÄGE + EIGENES NETZWERK (v4-14) ============================== */
+function renderLongContracts(){
+  const list = document.getElementById('longContractList');
+  const empty = document.getElementById('longContractEmpty');
+  const items = state.longContracts;
+  if(items.length===0){
+    list.innerHTML=''; empty.style.display='block';
+  } else {
+    empty.style.display='none';
+    list.innerHTML = items.map(c=>{
+      const client = CONTRACT_CLIENTS[c.client];
+      const tier = clientTierFor(clientRepOf(c.client));
+      const info = c.type ? PAYLOAD_TYPES[c.type] : null;
+      const reqParts = [];
+      if(c.orbit) reqParts.push(`Orbit ${c.orbit}`);
+      if(info) reqParts.push(`${info.label}-Nutzlast`);
+      if(c.minChassis) reqParts.push(`mind. Chassisgröße „${c.minChassis}”`);
+      const reqLine = reqParts.length ? reqParts.join(' · ') : 'Keine besonderen Anforderungen';
+      const clientLine = client
+        ? `<div class="status" style="color:var(--cyan);">${client.icon} ${client.name} · ${tier.label}</div>` : '';
+
+      if(c.status === 'angebot'){
+        return `<div class="long-contract">
+          <div class="top"><span class="name">${c.targetCount}× Satellit${c.targetCount>1?'en':''} dauerhaft</span><span class="orbit-tag">${c.duration} Tage Laufzeit</span></div>
+          ${clientLine}
+          <div class="req">${reqLine}</div>
+          <div class="rewards">Signing-Bonus ${fmtMoney(c.rewardSignup)} · ${fmtMoney(c.rewardPerSatPerDay)}/Tag je besetztem Slot · +${fmtMoney(c.bonusOnFull)} bei voller Stückzahl</div>
+          <div class="actions">
+            <button class="btn small primary" data-accept-long="${c.id}" style="flex:1; justify-content:center;">✓ Annehmen</button>
+            <button class="btn small ghost" data-decline-long="${c.id}">✕</button>
+          </div>
+        </div>`;
+      }
+
+      const filled = c.assignedSatIds.length;
+      const pct = c.targetCount>0 ? Math.round((filled/c.targetCount)*100) : 0;
+      const isFull = filled >= c.targetCount;
+      const candidates = state.orbitSats.filter(s=>{
+        if(!isSatFreeForAssignment(s)) return false;
+        if(c.orbit && s.orbit !== c.orbit) return false;
+        if(c.minChassis && !meetsMinChassis(s.chassisId, c.minChassis)) return false;
+        if(c.type){
+          const d = computeSatDerived(s.chassisId, s.mods);
+          if(!d.payloadTypes.includes(c.type)) return false;
+        }
+        return true;
+      });
+      const tags = c.assignedSatIds.map(id=>{
+        const s = state.orbitSats.find(s=>s.id===id);
+        return `<div class="sat-tag">${s ? s.name : '—'}<button data-unassign-long="${c.id}:${id}" title="Freigeben">✕</button></div>`;
+      }).join('');
+      return `<div class="long-contract">
+        <div class="top"><span class="name">${filled}/${c.targetCount} Satelliten${isFull?' — voll besetzt':''}</span><span class="orbit-tag">${c.daysLeft} Tage übrig</span></div>
+        ${clientLine}
+        <div class="req">${reqLine}</div>
+        <div class="rewards">${fmtMoney(longContractDailyIncome(c))}/Tag aktuell${isFull?' (inkl. +20% Voll-Bonus)':''}${c.fullyMetOnce?' · Abschluss-Bonus bereits erhalten':''}</div>
+        <div class="progress-wrap">
+          <div class="progress-label"><span>Besetzung</span><span>${pct}%</span></div>
+          <div class="bar${isFull?' full':''}"><div style="width:${pct}%"></div></div>
+        </div>
+        ${tags ? `<div class="sat-tags">${tags}</div>` : ''}
+        ${!isFull ? (candidates.length>0 ? `
+          <select data-longcontract="${c.id}">
+            ${candidates.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+          </select>
+          <div class="actions">
+            <button class="btn small primary" data-assign-long="${c.id}" style="flex:1; justify-content:center;">+ Satellit zuweisen</button>
+          </div>
+        ` : `<div class="status">Kein passender freier Satellit verfügbar.</div>`) : ''}
+      </div>`;
+    }).join('');
+
+    list.querySelectorAll('[data-accept-long]').forEach(btn=>{
+      btn.addEventListener('click', ()=>acceptLongContract(Number(btn.dataset.acceptLong)));
+    });
+    list.querySelectorAll('[data-decline-long]').forEach(btn=>{
+      btn.addEventListener('click', ()=>declineLongContract(Number(btn.dataset.declineLong)));
+    });
+    list.querySelectorAll('[data-assign-long]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const cid = Number(btn.dataset.assignLong);
+        const sel = list.querySelector(`select[data-longcontract="${cid}"]`);
+        if(sel) assignSatToLongContract(cid, sel.value);
+      });
+    });
+    list.querySelectorAll('[data-unassign-long]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const [cid, sid] = btn.dataset.unassignLong.split(':').map(Number);
+        unassignSatFromLongContract(cid, sid);
+      });
+    });
+  }
+  renderNetworkPanel();
+}
+
+function renderNetworkPanel(){
+  const body = document.getElementById('networkPanelBody');
+  if(!hasResearch('eigenesNetzwerk')){
+    body.innerHTML = `<div class="empty-hint">Erfordert die Forschung „Eigenes Netzwerk” — schaltet den Projektstart frei.</div>`;
+    return;
+  }
+  if(!state.ownNetwork.active){
+    body.innerHTML = `
+      <div class="status-line">Baue ein eigenes Lizenz-Netzwerk für dauerhaftes passives Einkommen — Startgebühr ${fmtMoney(OWN_NETWORK_START_COST)}, danach frei wählbare Satelliten-Zuweisung.</div>
+      <div class="network-choice">
+        ${Object.values(NETWORK_TYPES).map(nt=>`
+          <div class="nc-card" data-start-network="${nt.id}">
+            <div class="icon">${nt.icon}</div>
+            <div class="n">${nt.label}</div>
+            <div class="d">${nt.desc}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    body.querySelectorAll('[data-start-network]').forEach(el=>{
+      el.addEventListener('click', ()=>startOwnNetworkProject(el.dataset.startNetwork));
+    });
+    return;
+  }
+  const nt = NETWORK_TYPES[state.ownNetwork.type];
+  const assignedSats = state.ownNetwork.satIds.map(id=>state.orbitSats.find(s=>s.id===id)).filter(Boolean);
+  const orbitsUsed = new Set(assignedSats.filter(s=>s.health>0).map(s=>s.orbit)).size;
+  const income = networkDailyIncome();
+  const candidates = state.orbitSats.filter(s=>{
+    if(!isSatFreeForAssignment(s)) return false;
+    const d = computeSatDerived(s.chassisId, s.mods);
+    return d.payloadTypes.includes(nt.payloadType);
+  });
+  const tags = assignedSats.map(s=>`<div class="sat-tag">${s.name}${s.health<=0?' (zerstört)':''}<button data-unassign-net="${s.id}" title="Freigeben">✕</button></div>`).join('');
+  body.innerHTML = `
+    <div class="status-line">${nt.icon} ${nt.label} aktiv · ${assignedSats.length} Satellit(en) zugewiesen · Abdeckung: ${orbitsUsed} Orbit-Typ(en) gleichzeitig genutzt</div>
+    <div class="rewards" style="font-size:11px; color:var(--green); margin-bottom:8px;">${fmtMoney(income)}/Tag aktuell · ${fmtMoney(state.ownNetwork.totalEarned)} Lifetime-Einnahmen</div>
+    ${tags ? `<div class="sat-tags">${tags}</div>` : `<div class="empty-hint">Noch keine Satelliten zugewiesen.</div>`}
+    ${candidates.length>0 ? `
+      <select id="networkSatSelect">
+        ${candidates.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+      </select>
+      <div class="actions">
+        <button class="btn small primary" id="btnAssignNetworkSat" style="flex:1; justify-content:center;">+ Satellit zuweisen</button>
+      </div>
+    ` : `<div class="status">Kein passender freier Satellit mit ${PAYLOAD_TYPES[nt.payloadType] ? PAYLOAD_TYPES[nt.payloadType].label : nt.payloadType}-Nutzlast verfügbar.</div>`}
+  `;
+  body.querySelectorAll('[data-unassign-net]').forEach(btn=>{
+    btn.addEventListener('click', ()=>unassignSatFromNetwork(Number(btn.dataset.unassignNet)));
+  });
+  const assignBtn = document.getElementById('btnAssignNetworkSat');
+  if(assignBtn){
+    assignBtn.addEventListener('click', ()=>{
+      const sel = document.getElementById('networkSatSelect');
+      if(sel) assignSatToNetwork(sel.value);
+    });
+  }
 }
 
 /* ============================== RENDER: RESEARCH (Tech-Baum) ============================== */
@@ -9080,6 +9580,7 @@ function renderAll(){
   renderAssemblyQueue();
   renderCreator();
   renderContracts();
+  renderLongContracts();
   renderResearch();
   renderDeepSpace();
   renderSatDetail();
@@ -9164,6 +9665,32 @@ document.getElementById('btnSettings').addEventListener('click', ()=>{
 document.getElementById('closeSettingsModal').addEventListener('click', ()=>{
   document.getElementById('settingsModal').classList.remove('active');
   Sound.click();
+});
+// NEU (TODO-ZURUECK-ZUR-STARTSEITE): eigener Menüpunkt in den Einstellungen, um jederzeit ohne
+// Browser-Reload zurück zum Startbildschirm (Neues Spiel/Fortsetzen) zu gelangen — speichert vorher
+// per autosave(true) denselben synchronen Pfad, der auch bei visibilitychange/pagehide läuft, und
+// stoppt den laufenden tick()-Intervall (tickIntervalId, siehe applyGameSpeed()), damit im
+// Hintergrund nichts weiterläuft, während der Startbildschirm sichtbar ist. Der "Fortsetzen"-Button
+// wird danach genauso aktualisiert wie beim allerersten Aufruf von goToStartScreen() in init().
+document.getElementById('btnBackToStart').addEventListener('click', ()=>{
+  Sound.click();
+  showConfirmModal(
+    'Zurück zur Startseite',
+    'Zurück zum Startbildschirm? Der aktuelle Spielstand wird vorher automatisch gespeichert.',
+    'Zurück zur Startseite',
+    async ()=>{
+      autosave(true);
+      if(tickIntervalId) clearInterval(tickIntervalId);
+      document.getElementById('settingsModal').classList.remove('active');
+      document.getElementById('gameRoot').style.display = 'none';
+      document.getElementById('startScreen').style.display = 'flex';
+      const continueBtn = document.getElementById('btnContinueGame');
+      continueBtn.disabled = true;
+      const available = await hasAutosave();
+      continueBtn.disabled = !available;
+      continueBtn.textContent = available ? 'Fortsetzen' : 'Fortsetzen (kein Spielstand)';
+    }
+  );
 });
 document.getElementById('btnMute').addEventListener('click', (e)=>{
   const m = Sound.toggleMute();
@@ -9347,7 +9874,7 @@ document.getElementById('fileInput').addEventListener('change', (e)=>{
 /* ============================== VERSION / PATCH NOTES ============================== */
 // NEU (TODO-PATCH-NOTES): GAME_VERSION wird auf dem Startbildschirm im Patch-Notes-Button
 // angezeigt (siehe init()). Bei jeder neuen Version hier hochzaehlen.
-const GAME_VERSION = 'v4-13';
+const GAME_VERSION = 'v4-14';
 // NAMENSKONVENTION (ab v4-5): kein "-fix"-Suffix mehr, da nicht jede Version ein Bugfix ist —
 // fortlaufend v4-1, v4-2, v4-3, … Aeltere Versionsnummern (v4-fix1 bis v4-fix4, v3.9-fix-Reihe)
 // behalten im CHANGELOG-Kommentarblock oben ihre historische Bezeichnung, nur ab hier gilt das
@@ -9921,6 +10448,7 @@ async function startNewGame(difficultyId){
   state = freshState(difficultyId);
   state.foundingDate = todayISODate();
   generateContract(); generateContract();
+  generateLongContract(); // NEU (v4-14): direkt zu Beginn ein erstes Langzeitauftrags-Angebot
   showGameRoot();
   beginCommonGameLoop();
 }
@@ -9936,6 +10464,7 @@ async function startContinueGame(){
     state = freshState(DEFAULT_DIFFICULTY);
     state.foundingDate = todayISODate();
     generateContract(); generateContract();
+    generateLongContract(); // NEU (v4-14): direkt zu Beginn ein erstes Langzeitauftrags-Angebot
   } else {
     // NEU (TODO-OFFLINE-PROGRESS): nur bei tatsächlich geladenem Autosave sinnvoll (frisches
     // Spiel hat keine "vergangene" Zeit nachzuholen).
