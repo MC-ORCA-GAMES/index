@@ -1,6 +1,108 @@
 <!--
 CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
 
+v4-37 (deep_anchor_4_5_8_6.html)
+- NEU (TODO-BOOT-ANIMATION, auf Nutzerwunsch: "eine Animation bei Start des Spiels [...] wie ein
+  alter Computer der Monitor angeht, mit Filter und so"): einmalige Röhrenmonitor-Einschalt-
+  Sequenz über dem Splash-Screen (#crtBootOverlay), rein CSS-getrieben über gestaffelte
+  Animation-Delays, kein zusätzliches JS-Timing nötig. Ablauf: kurz schwarz ("Röhre kalt") → ein
+  kurzer Rauschstoß (dieselbe SVG-Fraktalrauschen-Textur wie die bestehende .crt-layer-noise aus
+  den Darstellungs-Einstellungen) → ein heller horizontaler Strich schnappt in die Bildschirm-
+  mitte → der Strich klappt mit leichtem Überschwingen zur vollen Höhe auf → Logo/Menü blenden
+  währenddessen mit kurzer Überbelichtung ein → das komplette Overlay blendet aus. Läuft bewusst
+  NUR auf #splashScreen (nicht auf #startScreen dahinter), da der Splash-Screen laut init() ohnehin
+  nur ein einziges Mal beim allerersten Laden gezeigt wird — kein Wiederholungs-/Skip-Handling
+  nötig. Komplett unabhängig vom bestehenden "Darstellung (experimentell)"-Filtersystem
+  (#crtOverlay/COLOR_FILTERS), läuft also identisch egal welches Farbschema/Muster eingestellt ist.
+
+v4-36 (deep_anchor_4_5_8_4.html)
+- NEU (TODO-UNTERHALTSKOSTEN, auf Nutzerwunsch: "jetzt müssen wir auch langsam Geld verschwender
+  bauen, da wir in letzter Zeit nur Geld-plus Sachen machen" → Richtung "Upkeep-Ausbau"): Kolonien,
+  Raumstation und Unterfirmen waren bislang reine Einnahmequellen ohne laufende Gegenkosten — im
+  Gegensatz zu Satelliten, die pro Stück 15/Tag Wartung kosten. Jetzt haben alle drei einen echten
+  Unterhalt, der in upkeepTotal (tick()) einfließt und dadurch automatisch auch in den Statistiken
+  ("davon Wartungskosten") auftaucht:
+  - Kolonien (colonyUpkeep()): 20/Tag Grundverwaltung + 10/Tag pro gebauter Gebäudestufe (Habitat/
+    Fabrik/Antenne zusammen) — unabhängig vom Bevölkerungsstand, mehr Ausbau bedeutet also auch
+    mehr laufenden Betrieb, nicht nur mehr Einkommen. Anzeige als neue Zeile im Kolonien-Panel.
+  - Raumstation (stationUpkeep()): 30/Tag Grundgebühr (bemannt, muss versorgt werden) + 12/Tag pro
+    Modulstufe (Wohn-/Wartungs-/Andockmodul zusammen). Anzeige im neuen Stationspanel.
+  - Unterfirmen (subsidiaryUpkeep()): 60/Tag Lizenz-/Verwaltungsgebühr pro aktiver Unterfirma +
+    2/Tag pro zugewiesenem, funktionsfähigem Satelliten — kommt zusätzlich zum normalen
+    15/Tag-Satelliten-Unterhalt, der ja unabhängig von der Zuweisung für jeden Orbit-Satelliten
+    anfällt. Anzeige als rote Zeile auf jeder Unterfirmen-Karte.
+  - Alle drei skalieren mit getDifficulty().costMult wie andere laufende Kosten im Spiel.
+- BUGFIX (dabei entdeckt): im Header wurde networkDailyIncome() bisher ganz ohne Argument
+  aufgerufen (sub===undefined → die Funktion bricht sofort mit 0 ab) — das Unterfirmen-Einkommen
+  tauchte im "Einnahmen/Tag"-Wert dadurch nie auf, obwohl es über tick() täglich tatsächlich
+  einfließt. Jetzt korrekt über alle aktiven Unterfirmen aufsummiert.
+
+v4-35 (deep_anchor_4_5_8_4.html)
+- ERWEITERT (TODO-RAUMSTATION, Fortsetzung): das in v4-34 angelegte Raumstation-Backend
+  (Chassis, Forschung „Raumstations-Programm", STATION_BUILDINGS, tickStation() und alle
+  Bonus-Funktionen) war bis hierhin komplett unverdrahtet — keine der Funktionen wurde
+  irgendwo aufgerufen, es gab kein UI-Panel. Jetzt vollständig angeschlossen:
+  - Neues Panel „Raumstation" im Kolonien-Tab (renderStation(), oberhalb der Kolonienliste,
+    analog zu renderKolonien() aber ohne Array, da es höchstens eine Station gibt): zeigt
+    Besatzung/Kapazität, effektives Wohnmodul-Einkommen sowie alle drei Module (Wohnmodul,
+    Wartungsmodul, Andockmodul) mit Stufe, Effekt-Text und Bau-Button, plus die Bau-
+    Warteschlange (max. 3 gleichzeitig, wie bei Kolonien). Ohne Station nur ein Hinweistext.
+  - tickStation() (Bevölkerungswachstum + Baufortschritt) und das Wohnmodul-Einkommen
+    (stationEffectiveIncome()) laufen jetzt täglich im tick() mit, genau wie bei Kolonien —
+    tauchen entsprechend auch im Header-„Einnahmen/Tag" (renderHud()) und im Statistiken-Tab
+    (neue Zeile „Raumstation-Einkommen/Tag", nur sichtbar mit gebauter Station) auf.
+  - Wartungsmodul wirkt jetzt tatsächlich auf Wartungsdrohnen im Erdorbit (buyRepairDrone()):
+    jede Stufe senkt den Drohnenpreis um 8% (min. 40% des Originalpreises) und gibt +2
+    zusätzliche Reparaturen Lebensdauer pro Drohne — die Kauf-Buttons im Wartungs-Panel zeigen
+    den rabattierten Preis direkt an.
+  - Andockmodul wirkt jetzt auf werftFlightsNeeded() (neuer missionType-Parameter): jede Stufe
+    spart einen Lieferflug für Sonnensystem-Ziele über die Orbitalwerft (Minimum bleibt immer 1
+    Lieferflug) — reine Erdorbit-Montagen bleiben davon unberührt, da die Station selbst im
+    Erdorbit sitzt und dort kein Sprungbrett braucht.
+  - ensureStationDefaults() zusätzlich defensiv in mergeLoadedGameState() eingehängt, falls ein
+    Spielstand mit Station aber unvollständigen Unterfeldern geladen wird.
+
+v4-34 (deep_anchor_4_5_8_3.html)
+- ANGEPASST (TODO-PATCH-NOTES, auf Nutzerwunsch: "sollte der neue Eintrag nicht am besten getrennt
+  von dem alten Eintrag sein"): PATCH_NOTES_SUMMARY (eine flache Liste von Themenblöcken) durch
+  PATCH_NOTES_BATCHES ersetzt — mehrere in sich abgeschlossene Zusammenfassungs-"Batches", jeweils
+  mit eigenem Label + Versionsbereich (z.B. "Neu seit dem letzten Update · v4-15 – v4-33"), neuester
+  zuerst, visuell per Trennlinie im Patch-Notes-Screen abgesetzt (renderPatchNotes() entsprechend
+  umgebaut). Die beiden zuvor nachträglich in bestehende Blöcke ("Mars & Erkundung", "Erfolge")
+  eingemischten Ergänzungen wurden dafür wieder herausgelöst: der alte Batch ("Bisheriger Stand ·
+  v3.9-fix12 – v4-14") zeigt jetzt wieder exakt den ursprünglichen Text, die Ergänzungen stehen als
+  eigene Blöcke ("Mond-Kolonisierung", "Weitere Erfolge") im neuen Batch. Künftige
+  "Zusammenfassung"-Aufträge fügen einen weiteren neuen Batch ganz vorne ein, statt bestehende zu
+  verändern.
+
+v4-33 (deep_anchor_4_5_8_3.html)
+- ERWEITERT (TODO-NETZWERK-UNTERFIRMEN, auf Nutzerwunsch: "was ist mit Wetter? also eine weitere
+  Forschung"): fünfte Netzwerk-Kategorie "Wetterdatennetz" ergänzt, gekoppelt an die bereits
+  bestehende Wettersensor-Nutzlast (analog zu den vier bisherigen Kategorien), eigener Namenspool
+  fürs automatische Benennen (z.B. "StormWatch Analytics", "ClimaCore Systems"). Dazu eine weitere
+  Ausbau-Forschung "Netzwerk-Expansion IV" (reqAll: netzwerkAusbau3, 280.000 €) für den passenden
+  5. Unterfirma-Slot, sodass getMaxNetworkSlots() jetzt auf 5 statt 4 gedeckelt ist — genau die
+  Anzahl der NETWORK_TYPES-Kategorien. Startgebühren-Skalierung (ownNetworkStartCost()) greift
+  automatisch weiter (25k/50k/75k/100k/125k), keine Codeänderung dafür nötig.
+
+v4-32 (deep_anchor_4_5_8_3.html)
+- ERWEITERT (TODO-NETZWERK-UNTERFIRMEN, auf Nutzerwunsch: "fehlen noch Forschung oder
+  Erdbeobachtung und weitere Firmen, und ein Button falls man sich verdrückt hat"):
+  - Zwei neue Netzwerk-Kategorien in NETWORK_TYPES ergänzt, an bereits bestehende
+    Nutzlast-Kategorien gekoppelt (kein neues Modul nötig, analog Navigation/Kommunikation):
+    "Erdbeobachtungsnetz" (Kopplung an die bereits vorhandene Erdbeobachtungskamera-Nutzlast) und
+    "Forschungsdatennetz" (Kopplung an das bereits vorhandene Forschungsinstrument). Jeweils
+    eigener Namenspool fürs automatische Benennen (z.B. "TerraView Analytics" bzw. "Nexus Research
+    Grid"). Damit gibt es jetzt genau 4 Kategorien für die bis zu 4 möglichen Unterfirma-Slots.
+  - Neuer Button "✕ Unterfirma schließen" auf jeder Unterfirmen-Karte (closeSubsidiary()): löst
+    die Unterfirma über einen Bestätigungsdialog (showConfirmModal) vollständig auf, zugewiesene
+    Satelliten werden automatisch wieder frei. Volle Rückerstattung der Startgebühr NUR wenn noch
+    keine Satelliten zugewiesen und keine Einnahmen erzielt wurden (also der Fall eines direkten
+    Fehlklicks nach der Gründung) — dafür merkt sich jede Unterfirma jetzt zusätzlich startCost
+    (die beim Gründen tatsächlich gezahlte, ggf. bereits hochskalierte Startgebühr). Wurde bereits
+    etwas investiert/verdient, keine Rückerstattung, um Missbrauch als kostenlosen Testlauf zu
+    verhindern.
+
 v4-31 (deep_anchor_4_5_8_3.html)
 - ERWEITERT (TODO-NETZWERK-UNTERFIRMEN, auf Nutzerwunsch: "zweites Netzwerk-System, genauer gesagt
   Unterfirmen, automatisch benannt nach Kategorie, insgesamt 4 Unterfirmen"): das bisherige "Eigene
@@ -1912,6 +2014,130 @@ canvas{ display:block; }
   animation: splashPulse 1.8s ease-in-out infinite;
 }
 @keyframes splashPulse{ 0%,100%{opacity:.4;} 50%{opacity:1;} }
+
+/* ============================== BOOT-ANIMATION (TODO-BOOT-ANIMATION) ==============================
+   Alter-Röhrenmonitor-Einschalt-Effekt, läuft einmalig über dem Splash-Screen. Zeitachse (siehe
+   Delays unten, alles relativ zum Seitenladen):
+     0.00–0.20s  Bildschirm komplett schwarz ("Röhre kalt")
+     0.20–0.35s  heller horizontaler Strich schnappt in die Bildschirmmitte
+     0.35–0.62s  Strich klappt zur vollen Höhe auf, mit leichtem Überschwingen (typisch für
+                 Röhrenmonitore, die kurz übers Ziel hinausschießen bevor sie sich fangen)
+     0.42–0.77s  Logo/Menü blenden währenddessen mit einem kurzen Überbelichtungs-Flash ein
+     0.60–0.85s  komplettes Overlay blendet aus, gibt den normalen Splash-Screen frei
+   .start-inner (der Startbildschirm dahinter) bleibt davon unberührt — die Sequenz läuft
+   ausschließlich auf #splashScreen, das im Spielverlauf ohnehin nie wieder gezeigt wird. */
+#crtBootOverlay{
+  position:absolute; inset:0; z-index:5; background:#000; pointer-events:none; overflow:hidden;
+  animation: crtBootOverlayFade 0.25s linear 0.6s forwards;
+}
+.crt-boot-line{
+  position:absolute; left:50%; top:50%; width:100%; height:3px;
+  background:linear-gradient(90deg, transparent, #dff6ff 15%, #ffffff 50%, #dff6ff 85%, transparent);
+  box-shadow:0 0 20px 4px rgba(180,230,255,.9), 0 0 60px 14px rgba(120,200,255,.5);
+  transform:translate(-50%,-50%) scaleY(0.002);
+  opacity:0;
+  animation: crtBootLine 0.42s cubic-bezier(.2,.85,.3,1) 0.2s forwards;
+}
+@keyframes crtBootLine{
+  0%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:0; }
+  15%{ opacity:1; }
+  40%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:1; }
+  78%{ transform:translate(-50%,-50%) scaleY(1.08); opacity:1; }
+  92%{ transform:translate(-50%,-50%) scaleY(0.97); }
+  100%{ transform:translate(-50%,-50%) scaleY(1); opacity:0; }
+}
+@keyframes crtBootOverlayFade{ from{ opacity:1; } to{ opacity:0; visibility:hidden; } }
+#splashScreen.crt-boot .splash-inner{
+  opacity:0;
+  animation: crtBootContentIn 0.35s ease-out 0.42s forwards;
+}
+@keyframes crtBootContentIn{
+  0%{ opacity:0; filter:brightness(2.4) contrast(1.5); }
+  100%{ opacity:1; filter:brightness(1) contrast(1); }
+}
+/* ============================== DOS-BOOTSTREAM (TODO-DOS-BOOTSTREAM) ==============================
+   Auf Nutzerwunsch: "eine Animation ... einen Boot Stream wie früher die PCs hochgefahren sind mit
+   den Schriftzügen ... 30 sec lang aber das erst nach dem man auf Fortsetzen oder Neues Spiel ...
+   sobald man direkt ins Spiel kommt". Läuft NICHT auf dem Splash-Screen (das ist die separate,
+   kurze Röhren-Einschalt-Animation weiter oben), sondern erst beim tatsächlichen Spieleintritt.
+   Aufruf zentral in showGameRoot() (siehe JS weiter unten), da dort alle drei Wege ins Spiel
+   (Neues Spiel / Fortsetzen / Spielstand-Import) ohnehin zusammenlaufen — hier also nur EINmal
+   verdrahtet statt an drei Stellen einzeln. Reiner Textaufbau per JS-Typewriter (siehe
+   playDosBootSequence()), da ein rein CSS-getriebenes Timing für variablen Zeilentext zu unflexibel
+   wäre. Klick/Taste überspringt die Sequenz sofort. */
+#dosBootOverlay{
+  position:fixed; inset:0; z-index:600; background:#000;
+  display:none; align-items:flex-start; justify-content:flex-start;
+  padding:40px; box-sizing:border-box; cursor:pointer;
+  overflow:hidden; /* GEÄNDERT: kein manuelles Scrollen mehr möglich (Wheel/Touch werden ignoriert) —
+    das automatische Mitscrollen ans Zeilenende passiert weiterhin per JS via overlay.scrollTop
+    (funktioniert auch mit overflow:hidden, nur eben nicht durch den Nutzer selbst auslösbar) */
+  opacity:1; transition:opacity .4s ease;
+}
+#dosBootOverlay.visible{ display:flex; }
+#dosBootOverlay.fading{ opacity:0; }
+/* NEU (Retro-Boot-Effekte, auf Nutzerwunsch): klassisches CRT-Einschalt-Flackern beim Start der
+   Boot-Sequenz — Röhre "wärmt auf", kurzer heller Blitz, dann normale Helligkeit. */
+#dosBootOverlay.crt-poweron{ animation: crtPowerOn .55s ease-out both; transform-origin:center center; }
+@keyframes crtPowerOn{
+  0%{ transform:scaleY(.008); filter:brightness(28); opacity:1; }
+  10%{ transform:scaleY(.02); filter:brightness(20); }
+  20%{ transform:scaleY(.55); filter:brightness(7); }
+  32%{ transform:scaleY(1); filter:brightness(2.6); }
+  45%{ transform:scaleY(1); filter:brightness(1.15); }
+  100%{ transform:scaleY(1); filter:brightness(1); }
+}
+/* NEU: Gegenstück beim Übergang ins Spiel — Bildschirm kollabiert erst zu einer waagrechten
+   Linie, dann zu einem hellen Punkt, klassischer Röhrenmonitor-Ausschalteffekt. Ersetzt das
+   vorherige reine Opacity-Fade (siehe .fading oben, bleibt als Fallback-Klasse stehen). */
+#dosBootOverlay.crt-poweroff{ animation: crtPowerOff .55s ease-in forwards; transform-origin:center center; }
+@keyframes crtPowerOff{
+  0%{ transform:scaleY(1) scaleX(1); filter:brightness(1); opacity:1; }
+  55%{ transform:scaleY(.012) scaleX(1); filter:brightness(5); opacity:1; }
+  78%{ transform:scaleY(.012) scaleX(.02); filter:brightness(9); opacity:1; }
+  100%{ transform:scaleY(.012) scaleX(.002); filter:brightness(0); opacity:0; }
+}
+/* NEU (v4-39, TODO-DOS-BOOTSTREAM-EPIC): eigene, immer-neutrale Scanline-Textur nur für diesen
+   Overlay — bewusst NICHT der globale #crtOverlay (der bleibt während des kompletten Starts laut
+   TODO-STANDARD-START abgeschaltet), sondern eine kleine self-contained Ebene, rein atmosphärisch. */
+#dosBootOverlay::after{
+  content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
+  background:repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 2px, transparent 3px);
+  mix-blend-mode:multiply; opacity:.5;
+}
+.dos-boot-inner{ width:100%; max-width:900px; position:relative; z-index:1; }
+.dos-boot-banner{
+  margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
+  font-size:9.5px; line-height:1.15; color:var(--accent);
+  text-shadow:0 0 10px rgba(255,106,43,.75), 0 0 2px rgba(255,106,43,1);
+  opacity:0; animation: dosBannerFlash .5s ease-out forwards;
+}
+@media (min-width:700px){ .dos-boot-banner{ font-size:13px; } }
+@keyframes dosBannerFlash{
+  0%{ opacity:0; filter:brightness(3); }
+  60%{ opacity:1; filter:brightness(2.2); }
+  100%{ opacity:1; filter:brightness(1); }
+}
+.dos-boot-text{
+  margin:0; white-space:pre-wrap; word-break:break-word;
+  font-family:'Courier New', ui-monospace, monospace;
+  font-size:14px; line-height:1.55;
+  color:var(--accent); text-shadow:0 0 6px rgba(255,106,43,.55), 0 0 1px rgba(255,106,43,.9);
+}
+.dos-boot-flash{ animation: dosLineFlash .35s ease-out; }
+@keyframes dosLineFlash{ 0%{ filter:brightness(2.4); } 100%{ filter:brightness(1); } }
+.dos-boot-cursor{
+  display:inline-block; width:8px; height:14px; background:var(--accent);
+  box-shadow:0 0 6px rgba(255,106,43,.7);
+  animation:dosCursorBlink 1s steps(1) infinite;
+  vertical-align:-2px; margin-left:1px;
+}
+@keyframes dosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+.dos-boot-skip{
+  position:fixed; bottom:22px; right:28px; font-size:11px; letter-spacing:1.5px;
+  color:var(--accent-dim); text-transform:uppercase; animation: splashPulse 1.8s ease-in-out infinite;
+  z-index:3;
+}
 .start-menu{
   display:flex; flex-direction:column; gap:10px; width:100%; margin-top:18px;
 }
@@ -2017,7 +2243,18 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
   </defs>
 </svg>
 
-<div id="splashScreen" class="fullscreen-overlay splash">
+<div id="splashScreen" class="fullscreen-overlay splash crt-boot">
+  <!-- NEU (TODO-BOOT-ANIMATION, auf Nutzerwunsch: "eine Animation bei Start des Spiels [...] wie
+       ein alter Computer der Monitor angeht, mit Filter und so"): rein CSS-getriebene, einmalige
+       Röhrenmonitor-Einschalt-Sequenz, die NUR beim allerersten Laden über dem Splash-Screen
+       läuft (der wird nie erneut gezeigt, siehe init()) — kein Skript-Timing nötig, alles über
+       CSS-Animation-Delays sequenziert: kurz schwarz (Röhre "kalt") → statisches Rauschen
+       (wiederverwendete SVG-Fraktalrauschen-Textur aus .crt-layer-noise) → heller horizontaler
+       Strich schnappt in die Mitte → Strich klappt mit leichtem Überschwingen zur vollen Höhe auf
+       → kurzes Aufblitzen/Flackern, während Logo+Menü darunter einblenden. -->
+  <div id="crtBootOverlay" aria-hidden="true">
+    <div class="crt-boot-line"></div>
+  </div>
   <canvas class="warp-canvas" id="warpSplash"></canvas>
   <div class="splash-inner">
     <img src="art/bilder/logo.png" alt="Deep Anchor" class="splash-logo"
@@ -2211,6 +2448,15 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
       </div>
     </div>
   </div>
+</div>
+
+<!-- NEU (TODO-DOS-BOOTSTREAM): siehe CSS-Kommentar weiter oben. Wird von showGameRoot() ein-/ausgeblendet. -->
+<div id="dosBootOverlay" aria-hidden="true">
+  <div class="dos-boot-inner">
+    <pre class="dos-boot-banner" id="dosBootBanner"></pre>
+    <pre class="dos-boot-text" id="dosBootText"></pre>
+  </div>
+  <div class="dos-boot-skip">Klicken zum Überspringen</div>
 </div>
 
 <div id="gameRoot" style="display:none;">
@@ -2518,7 +2764,7 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
       </div>
       <div class="panel network-panel" style="margin-top:14px;">
         <h3>Eigene Unterfirmen</h3>
-        <div class="small-muted" style="margin-bottom:10px;">Bis zu 4 unabhängige Unterfirmen — jede betreibt ein eigenes Lizenznetzwerk (Navigation oder Kommunikation) mit eigener Satelliten-Zuweisung, eigenem Einkommen und automatisch vergebenem Namen passend zur Kategorie.</div>
+        <div class="small-muted" style="margin-bottom:10px;">Bis zu 5 unabhängige Unterfirmen — jede betreibt ein eigenes Lizenznetzwerk (Navigation, Kommunikation, Erdbeobachtung, Forschungsdaten oder Wetterdaten) mit eigener Satelliten-Zuweisung, eigenem Einkommen und automatisch vergebenem Namen passend zur Kategorie.</div>
         <div id="networkPanelBody"></div>
       </div>
     </div>
@@ -2680,6 +2926,13 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
          ausgezahlt wird colonyEffectiveIncome(c) — siehe dort. Immer sichtbar (keine eigene
          Forschungssperre), zeigt bei 0 Kolonien nur einen Hinweistext. -->
     <div class="view" id="view-kolonien">
+      <!-- NEU (TODO-RAUMSTATION): eigenes Panel oberhalb der Kolonienliste, nur sichtbar wenn
+           state.station existiert (siehe renderStation()) — analog zum Kolonien-Empty-Hinweis
+           darunter, da die Station technisch kein Array-Eintrag ist (höchstens eine Station). -->
+      <div class="panel" id="stationEmptyPanel" style="display:none;">
+        <div class="empty-hint">Noch keine Raumstation — schaltet mit der Forschung „Raumstations-Programm“ das Raumstationskern-Chassis frei, das nur über die Orbitalwerft montiert werden kann. Einmal im Erdorbit angekommen, wird daraus eine dauerhafte, ausbaubare Raumstation.</div>
+      </div>
+      <div id="stationPanel"></div>
       <div class="panel" id="kolonienEmptyPanel">
         <div class="empty-hint">Noch keine Kolonie gegründet — sobald du eine Kolonie hast (Mond, Mars, spätere Exoplaneten), taucht sie hier mit Bevölkerung und Gebäude-Ausbau auf.</div>
       </div>
@@ -2739,6 +2992,7 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
         <div class="stat-line"><span class="k">Erstkontakte</span><span class="v" id="statsFirstContacts">0</span></div>
         <div class="stat-line"><span class="k">Kolonien</span><span class="v" id="statsColonies">0</span></div>
         <div class="stat-line"><span class="k">Kolonie-Einkommen/Tag</span><span class="v good" id="statsColonyIncome">€0</span></div>
+        <div class="stat-line" id="statsStationRow" style="display:none;"><span class="k">Raumstation-Einkommen/Tag</span><span class="v good" id="statsStationIncome">€0</span></div>
       </div>
       <div class="panel">
         <h3>Aufträge &amp; Forschung</h3>
@@ -3011,6 +3265,23 @@ const Sound = (() => {
       [660,880,660,990].forEach((f,i)=>tone(f,0.18,'sine',0.2,i*0.1));
     },
     warn(){ tone(300,0.15,'square',0.15); tone(240,0.15,'square',0.15,0.12); },
+    // NEU (Retro-Boot-Effekte, auf Nutzerwunsch): klassischer einzelner BIOS-POST-Beep, ganz am
+    // Anfang der Boot-Sequenz.
+    postBeep(){ tone(1000, 0.12, 'square', 0.22); },
+    // NEU: kurzes Disketten-/Festplatten-Zugriffsgeräusch (gefiltertes Rauschen + leichtes Knacken)
+    // für Lade-/Mount-Zeilen und Fortschrittsbalken im Boot-Stream.
+    diskAccess(){
+      noiseBurst(0.09, 0, 0.18, 2400);
+      tone(2200 + Math.random()*400, 0.02, 'square', 0.05, 0.03);
+      tone(1800 + Math.random()*300, 0.02, 'square', 0.04, 0.07);
+    },
+    // NEU: kurzer, stilisierter Modem-Handshake-Sound (abwechselnde Pfeiftöne + Rauschen) für den
+    // "Deep-Space-Uplink"-Teil des Boot-Streams — bewusst stark verkürzt (~1s) statt eines echten
+    // 10+ Sekunden langen 56k-Handshakes, damit es zum restlichen Boot-Tempo passt.
+    modemHandshake(){
+      [1200,2100,1400,2400,1100].forEach((f,i)=>tone(f, 0.09, 'square', 0.07, i*0.11));
+      noiseBurst(0.5, 0.05, 0.05, 3200);
+    },
     toggleMute: toggleMute,
     isMuted(){ return muted; }
   };
@@ -3127,6 +3398,12 @@ const CHASSIS = {
   // Reisen zusätzliche Tanks + Lebenserhaltung + Instrumente nötig sind.
   lichtschiff:  { id:'lichtschiff',  name:'Lichtschiff',  cost:310000, mass:600, slots:14, reliability:0.85, locked:true, reqResearch:'ueberlichtAntrieb', werftOnly:true },
   sprungschiff: { id:'sprungschiff', name:'Sprungschiff', cost:680000, mass:750, slots:16, reliability:0.80, locked:true, reqResearch:'intergalaktischerSprungantrieb', werftOnly:true },
+  // NEU (TODO-RAUMSTATION, auf Nutzerwunsch): weiteres werft-exklusives Chassis — bei Ankunft im
+  // ERDORBIT (missionType 'orbit') wird daraus NICHT einfach ein normaler Satellit, sondern die
+  // dauerhafte, ausbaubare Raumstation in Betrieb genommen (siehe tick()-Ankunftslogik für
+  // state.transitQueue und state.station). Braucht anders als Kolonieschiff kein spezielles Modul
+  // an Bord — das Chassis selbst trägt die Bedeutung, analog zu Licht-/Sprungschiff.
+  raumstation: { id:'raumstation', name:'Raumstationskern', cost:120000, mass:500, slots:6, reliability:0.93, locked:true, reqResearch:'raumstationForschung', werftOnly:true },
 };
 
 const MODULES = {
@@ -3248,6 +3525,20 @@ const COLONY_BUILDINGS = {
 };
 const COLONY_BASE_POP_CAP = 200;
 const COLONY_BUILD_COST_GROWTH = 1.35; // jede weitere Stufe desselben Gebäudetyps wird teurer
+// NEU (TODO-UNTERHALTSKOSTEN, auf Nutzerwunsch: "jetzt müssen wir auch klangsam Geld verschwender
+// bauen, da wir in letzter Zeit nur Geld-plus Sachen machen"): bislang waren Kolonien, Station und
+// Unterfirmen reine Einnahmequellen ohne laufende Gegenkosten — im Gegensatz zu Satelliten, die
+// pro Stück 15/Tag Wartung kosten (siehe upkeepTotal in tick()). Jede Kolonie kostet jetzt eine
+// Grundverwaltungsgebühr plus einen Aufschlag pro Gebäudestufe (mehr Infrastruktur = mehr
+// laufender Betrieb), unabhängig vom Bevölkerungsstand — bewusst NICHT von colonyEffectiveIncome()
+// abgezogen, sondern wie beim Satelliten-Unterhalt ein eigener Posten in upkeepTotal, damit er in
+// den Statistiken ("davon Wartungskosten") korrekt mit auftaucht.
+const COLONY_UPKEEP_BASE = 20;
+const COLONY_UPKEEP_PER_BUILDING = 10;
+function colonyUpkeep(c){
+  const buildingLevels = (c.buildings.habitat||0) + (c.buildings.fabrik||0) + (c.buildings.antenne||0);
+  return Math.round((COLONY_UPKEEP_BASE + buildingLevels*COLONY_UPKEEP_PER_BUILDING) * getDifficulty().costMult);
+}
 
 // Migration für Altspielstände: bestehende Kolonien (ohne population/buildings/buildQueue) bekommen
 // einen sinnvollen Startwert, sobald sie zum ersten Mal geladen werden. Wird wie ensureSatLocations()
@@ -3335,6 +3626,104 @@ function tickColonies(){
   });
 }
 
+/* ============================== RAUMSTATION (NEU, TODO-RAUMSTATION, auf Nutzerwunsch) ==========
+   Eine einzelne, dauerhafte Struktur im Erdorbit (state.station, im Gegensatz zu state.colonies
+   KEIN Array — es gibt immer höchstens eine). Entsteht, wenn ein im Orbitalwerft montiertes
+   Raumstationskern-Chassis (CHASSIS.raumstation) den Erdorbit erreicht (siehe tick()-Ankunft).
+   Bewusst nach demselben Muster wie der Kolonie-Ausbau gebaut (Bevölkerung + drei Gebäudetypen +
+   Bau-Warteschlange), aber mit DREI unterschiedlichen Effekten statt reiner Einkommens-Boosts:
+   - wohnmodul: wie Kolonie-Habitat, erhöht Bevölkerungs-Obergrenze und damit das Einkommen
+   - wartung:   wirkt NICHT aufs Stations-Einkommen, sondern auf die Wartungsdrohnen im Erdorbit
+                (siehe stationRepairCostMult()/stationRepairCapacityBonus(), angewendet in
+                buyRepairDrone())
+   - andock:    wirkt auf die Orbitalwerft, reduziert die nötigen Lieferflüge für Sonnensystem-
+                Ziele (siehe stationDeliveryFlightReduction(), angewendet in werftFlightsNeeded()) */
+const STATION_BUILDINGS = {
+  wohnmodul: { id:'wohnmodul', name:'Wohnmodul', desc:'Mehr Besatzung an Bord — erhöht die Bevölkerungs-Obergrenze der Station um 100 und damit ihr passives Einkommen.', baseCost:22000, buildDays:6, popCapBonus:100 },
+  wartung:   { id:'wartung',   name:'Wartungsmodul', desc:'Jede Stufe senkt die Kosten neuer Wartungsdrohnen im Erdorbit um 8% (mind. 40% des Originalpreises) und gibt ihnen +2 zusätzliche Reparaturen Lebensdauer.', baseCost:26000, buildDays:7 },
+  andock:    { id:'andock',    name:'Andockmodul', desc:'Dient als Zwischenstopp für Sonnensystem-Flüge — jede Stufe senkt die nötigen Orbitalwerft-Lieferflüge für Sonnensystem-Ziele um 1 (Minimum 1 Lieferflug bleibt immer nötig).', baseCost:32000, buildDays:8 },
+};
+const STATION_BASE_POP_CAP = 150;
+const STATION_BASE_INCOME = 90;
+function ensureStationDefaults(){
+  if(!state.station) return;
+  if(!state.station.buildings) state.station.buildings = { wohnmodul:0, wartung:0, andock:0 };
+  if(state.station.population==null) state.station.population = STATION_BASE_POP_CAP;
+  if(!state.station.buildQueue) state.station.buildQueue = [];
+}
+function stationPopCap(){
+  return STATION_BASE_POP_CAP + (state.station.buildings.wohnmodul||0) * STATION_BUILDINGS.wohnmodul.popCapBonus;
+}
+function stationBuildingCost(type){
+  const b = STATION_BUILDINGS[type];
+  const built = state.station.buildings[type]||0;
+  return Math.round(b.baseCost * Math.pow(COLONY_BUILD_COST_GROWTH, built) * getDifficulty().costMult);
+}
+// Effektives Tageseinkommen der Station: dieselbe Bevölkerungs-Skalierung (50%..100%) wie bei
+// Kolonien, aber OHNE fabrik-/antennen-artigen Bonusmultiplikator — nur wohnmodul beeinflusst
+// hier das Einkommen, wartung/andock wirken an anderer Stelle (s.o.).
+function stationEffectiveIncome(){
+  if(!state.station) return 0;
+  const cap = stationPopCap();
+  const popRatio = Math.min(1, state.station.population / cap);
+  const popMult = 0.5 + 0.5*popRatio;
+  return Math.round(STATION_BASE_INCOME * popMult * getDifficulty().incomeMult);
+}
+// Bonus für Wartungsdrohnen im Erdorbit (siehe buyRepairDrone()) — nur die Kostenreduktion ist
+// gedeckelt (max. 60% Rabatt), die Kapazitätsbonus wächst unbegrenzt mit dem Ausbau.
+function stationRepairCostMult(){
+  if(!state.station) return 1;
+  const lvl = state.station.buildings.wartung||0;
+  return Math.max(0.4, 1 - lvl*0.08);
+}
+function stationRepairCapacityBonus(){
+  return state.station ? (state.station.buildings.wartung||0) * 2 : 0;
+}
+// Reduziert die für Sonnensystem-Ziele nötigen Orbitalwerft-Lieferflüge (siehe
+// werftFlightsNeeded()) — wirkt NICHT auf reine Erdorbit-Montagen, nur auf missionType
+// 'deepspace', da die Station explizit als Sprungbrett Richtung Sonnensystem gedacht ist.
+function stationDeliveryFlightReduction(){
+  return state.station ? (state.station.buildings.andock||0) : 0;
+}
+// NEU (TODO-UNTERHALTSKOSTEN): analog zu colonyUpkeep() — Grundgebühr (bemannte Station, muss
+// versorgt werden) plus Aufschlag pro Modulstufe, unabhängig vom Wohnmodul-Einkommen.
+const STATION_UPKEEP_BASE = 30;
+const STATION_UPKEEP_PER_BUILDING = 12;
+function stationUpkeep(){
+  if(!state.station) return 0;
+  const buildingLevels = (state.station.buildings.wohnmodul||0) + (state.station.buildings.wartung||0) + (state.station.buildings.andock||0);
+  return Math.round((STATION_UPKEEP_BASE + buildingLevels*STATION_UPKEEP_PER_BUILDING) * getDifficulty().costMult);
+}
+function queueStationBuilding(type){
+  if(!state.station) return;
+  if(state.station.buildQueue.length>=3){ toast('Maximal 3 Bauprojekte gleichzeitig auf der Raumstation.', 'bad'); Sound.error(); return; }
+  const cost = stationBuildingCost(type);
+  if(state.money < cost){ toast('Nicht genug Guthaben für dieses Bauprojekt.', 'bad'); Sound.error(); return; }
+  state.money -= cost;
+  const days = Math.max(1, Math.round(STATION_BUILDINGS[type].buildDays * getDifficulty().timeMult));
+  state.station.buildQueue.push({ type, daysLeft: days, daysTotal: days });
+  Sound.buildOk();
+  toast(`${STATION_BUILDINGS[type].name} auf der Raumstation in Bau genommen (${days} Tag(e)).`, 'good');
+  renderAll();
+}
+// Täglicher Tick für die Raumstation: Bevölkerungswachstum + Baufortschritt, analog zu
+// tickColonies() — wird aus tick() heraus aufgerufen, aber nur wenn state.station existiert.
+function tickStation(){
+  if(!state.station) return;
+  const cap = stationPopCap();
+  if(state.station.population < cap){
+    const growth = Math.max(1, Math.round((cap - state.station.population) * 0.015));
+    state.station.population = Math.min(cap, state.station.population + growth);
+  }
+  state.station.buildQueue.forEach(q=>{ q.daysLeft -= 1; });
+  const done = state.station.buildQueue.filter(q=>q.daysLeft<=0);
+  done.forEach(q=>{
+    state.station.buildings[q.type] = (state.station.buildings[q.type]||0) + 1;
+    toast(`${STATION_BUILDINGS[q.type].name} auf der Raumstation fertiggestellt (Stufe ${state.station.buildings[q.type]}).`, 'good');
+  });
+  state.station.buildQueue = state.station.buildQueue.filter(q=>q.daysLeft>0);
+}
+
 // Bau- und Flugzeiten (in Spieltagen)
 const CHASSIS_BUILD_DAYS = { klein:2, mittel:4, gross:7 };
 function buildTimeFor(chassisId, modCount){
@@ -3391,17 +3780,28 @@ const RESEARCH = [
   // NEU (v4-14): schaltet im Langzeit-Tab den Start eines eigenen Satelliten-Netzwerks frei
   // (Navigations- oder Kommunikationsdienst nach Vorbild GPS/Starlink) — reine Wirtschafts-
   // Freischaltung, keine reqAll, damit sie unabhängig vom übrigen Baum erreichbar ist.
-  { id:'eigenesNetzwerk', name:'Eigenes Satelliten-Netzwerk', desc:'Schaltet im Langzeit-Tab die Gründung der ersten Unterfirma frei: ein Navigations- oder ein Kommunikationsnetz aus eigenen Satelliten (automatisch passend zur Kategorie benannt), das dauerhaft Lizenzgebühren einbringt — je größer das Netzwerk und je mehr verschiedene Orbits gleichzeitig genutzt werden, desto höher das Einkommen pro Satellit. Weitere Forschungen schalten bis zu drei zusätzliche, parallel laufende Unterfirmen frei.', cost:80000 },
+  { id:'eigenesNetzwerk', name:'Eigenes Satelliten-Netzwerk', desc:'Schaltet im Langzeit-Tab die Gründung der ersten Unterfirma frei: ein eigenes Lizenznetzwerk aus einer von fünf Kategorien (Navigation, Kommunikation, Erdbeobachtung, Forschung oder Wetter) aus eigenen Satelliten (automatisch passend zur Kategorie benannt), das dauerhaft Lizenzgebühren einbringt — je größer das Netzwerk und je mehr verschiedene Orbits gleichzeitig genutzt werden, desto höher das Einkommen pro Satellit. Weitere Forschungen schalten bis zu vier zusätzliche, parallel laufende Unterfirmen frei.', cost:80000 },
   // NEU (v4-31, TODO-NETZWERK-UNTERFIRMEN, auf Nutzerwunsch): Ausbaukette für insgesamt bis zu 4
   // gleichzeitig aktive Unterfirmen statt nur einer — jede Stufe schaltet einen weiteren Slot frei
   // (siehe getMaxNetworkSlots()), jede weitere Unterfirma kostet zudem beim Start mehr Startgebühr
   // (siehe ownNetworkStartCost()).
   { id:'netzwerkAusbau1', name:'Netzwerk-Expansion I', desc:'Schaltet eine zweite, unabhängige Unterfirma frei — ein zusätzliches eigenes Lizenznetzwerk (Navigation oder Kommunikation) mit eigenem Namen, eigener Satelliten-Zuweisung und eigenem Einkommen, parallel zur ersten Unterfirma.', cost:100000, reqAll:['eigenesNetzwerk'] },
   { id:'netzwerkAusbau2', name:'Netzwerk-Expansion II', desc:'Schaltet eine dritte, unabhängige Unterfirma frei.', cost:160000, reqAll:['netzwerkAusbau1'] },
-  { id:'netzwerkAusbau3', name:'Netzwerk-Expansion III', desc:'Schaltet eine vierte und letzte unabhängige Unterfirma frei — Maximum von 4 gleichzeitig aktiven eigenen Netzwerken.', cost:220000, reqAll:['netzwerkAusbau2'] },
+  { id:'netzwerkAusbau3', name:'Netzwerk-Expansion III', desc:'Schaltet eine vierte, unabhängige Unterfirma frei.', cost:220000, reqAll:['netzwerkAusbau2'] },
+  // NEU (v4-33, TODO-NETZWERK-UNTERFIRMEN, auf Nutzerwunsch): fünfte und letzte Ausbaustufe,
+  // passend zur fünften Kategorie "Wetterdatennetz" — jetzt entspricht die Slot-Obergrenze genau
+  // der Anzahl der NETWORK_TYPES-Kategorien, sodass theoretisch jede Kategorie gleichzeitig eine
+  // eigene Unterfirma haben kann.
+  { id:'netzwerkAusbau4', name:'Netzwerk-Expansion IV', desc:'Schaltet eine fünfte und letzte unabhängige Unterfirma frei — Maximum von 5 gleichzeitig aktiven eigenen Netzwerken.', cost:280000, reqAll:['netzwerkAusbau3'] },
   { id:'rocketMedium', name:'Voyager-Trägerrakete', desc:'Schaltet die Voyager-Rakete frei: mehr Nutzlastkapazität, höhere Zuverlässigkeit.', cost:20000 },
   { id:'rocketHeavy', name:'Titan-Trägerrakete', desc:'Schaltet die Titan-Schwerlastrakete frei — maximale Kapazität und Zuverlässigkeit.', cost:45000, reqAll:['rocketMedium'] },
   { id:'orbitalWerft', name:'Orbitalwerft', desc:'Schaltet die Orbitalwerft frei: Schiffe, die zu schwer für jede verfügbare Rakete sind (z.B. große Kolonieschiffe oder Außenposten), werden in mehreren Lieferflügen zur Werft transportiert und dort im Orbit montiert. Jeder Lieferflug ist ein eigener Raketenstart mit eigenem Risiko — dafür sind danach auch Sonnensystem- und Deep-Space-Ziele erreichbar, sofern das montierte Schiff genug eigene Treibstoffreserve für die Weiterreise hat.', cost:60000, reqAll:['chassisGross','rocketHeavy'] },
+  // NEU (TODO-RAUMSTATION, auf Nutzerwunsch): schaltet ein weiteres werft-exklusives Chassis frei
+  // (CHASSIS.raumstation) — einmal im Erdorbit montiert, wird daraus eine dauerhafte, ausbaubare
+  // Raumstation (siehe STATION_BUILDINGS): passives Einkommen wie eine Kolonie, günstigere/
+  // effektivere Wartungsdrohnen im Erdorbit, und ein Andockmodul, das die nötigen Lieferflüge für
+  // Sonnensystem-Ziele reduziert.
+  { id:'raumstationForschung', name:'Raumstations-Programm', desc:'Schaltet das Raumstationskern-Chassis frei (nur über die Orbitalwerft baubar). Einmal im Erdorbit montiert, wird daraus eine dauerhafte, ausbaubare Raumstation mit eigenen Ausbaustufen: Wohnmodul (passives Einkommen wie eine Kolonie), Wartungsmodul (günstigere und wirkungsvollere Wartungsdrohnen im Erdorbit) und Andockmodul (reduziert die nötigen Lieferflüge für Sonnensystem-Ziele).', cost:200000, reqAll:['orbitalWerft'] },
   { id:'chassisKolonie', name:'Kolonieschiff-Chassis', desc:'Schaltet das Kolonieschiff-Chassis frei: deutlich mehr Slots als Groß, ausschließlich über die Werft-Montage aus Orbit-Modulen baubar.', cost:70000, reqAll:['orbitalWerft'] },
   { id:'chassisFrachter', name:'Frachter-Chassis', desc:'Schaltet das Frachter-Chassis frei: die meisten Slots aller Chassis-Klassen, ausschließlich über die Werft-Montage aus Orbit-Modulen baubar.', cost:60000, reqAll:['orbitalWerft'] },
   { id:'reliability', name:'Qualitätssicherung', desc:'+5% Startzuverlässigkeit für alle Chassis.', cost:16000 },
@@ -3843,22 +4243,35 @@ const NETWORK_TYPES = {
     namePool:['NavCore Systems','Polaris Guidance','TrueTrack Navigation','Meridian Positioning','VectorPoint Nav','GeoLock Systems','Compass Grid Networks','Azimuth Navtech'] },
   kommunikation: { id:'kommunikation', label:'Kommunikationsnetz',  icon:'📡', payloadType:'kommunikation', baseIncomePerSat:35, desc:'Eigenes Konstellationsnetz nach Vorbild Starlink — Endkunden zahlen laufende Zugangsgebühren fürs Internet.',
     namePool:['NetCom Orbital','SignalBridge Networks','WaveRelay Systems','SkyLink Comms','PulseNet Dynamics','RelayPoint Networks','Uplink Horizon','Aether Broadband'] },
+  // NEU (v4-32, TODO-NETZWERK-UNTERFIRMEN, auf Nutzerwunsch): zwei weitere Kategorien, jeweils an
+  // eine bereits bestehende Nutzlast-Kategorie gekoppelt (kein neues Modul nötig, analog zu
+  // Navigation/Kommunikation) — damit gibt es jetzt genau 4 Kategorien für bis zu 4 Unterfirmen.
+  erdbeobachtung: { id:'erdbeobachtung', label:'Erdbeobachtungsnetz', icon:'🛰️', payloadType:'erdbeobachtung', baseIncomePerSat:38, desc:'Kommerzieller Erdbeobachtungsdienst — Landwirtschaft, Versicherungen und Katastrophenschutz zahlen laufende Abo-Gebühren für aktuelle Satellitenbilddaten.',
+    namePool:['TerraView Analytics','EarthPulse Imaging','ClearSky Observation','GroundTruth Systems','Meridian EO Networks','SpectraTerra Systems','ObservEarth Dynamics','Cascadia Earth Data'] },
+  forschung: { id:'forschung', label:'Forschungsdatennetz', icon:'🔬', payloadType:'forschung', baseIncomePerSat:45, desc:'Wissenschaftliche Institute und Unternehmen zahlen laufende Zugangsgebühren für Rohdaten aus deinem Forschungssatelliten-Netz.',
+    namePool:['Nexus Research Grid','Helios Data Systems','Quantum Relay Labs','Apex Science Network','Prism Telemetry Co','Vantage Research Systems','Zenith Datalink','Continuum Analytics'] },
+  // NEU (v4-33, TODO-NETZWERK-UNTERFIRMEN, auf Nutzerwunsch): fünfte Kategorie, gekoppelt an die
+  // bereits bestehende Wettersensor-Nutzlast (analog zu den vier bisherigen Kategorien) — damit
+  // gibt es jetzt 5 Kategorien, siehe getMaxNetworkSlots() für den zugehörigen 5. Slot.
+  wetter: { id:'wetter', label:'Wetterdatennetz', icon:'⛈️', payloadType:'wetter', baseIncomePerSat:36, desc:'Landwirtschaft, Fluglinien und Versicherungen zahlen laufende Abo-Gebühren für aktuelle Wetter- und Klimadaten aus deinem eigenen Sensor-Netz.',
+    namePool:['StormWatch Analytics','ClimaCore Systems','SkyPulse Weather','Meridian Weather Grid','AtmosLink Data','FrontLine Forecasting','NimbusNet Systems','Windward Telemetry'] },
 };
 const OWN_NETWORK_START_COST = 25000;
 // NEU (v4-31, TODO-NETZWERK-UNTERFIRMEN): jede weitere Unterfirma kostet mehr Startgebühr als die
-// vorherige (25k/50k/75k/100k) statt eines Fixbetrags — narrative Begründung: Aufbau eines
+// vorherige (25k/50k/75k/100k/125k) statt eines Fixbetrags — narrative Begründung: Aufbau eines
 // zusätzlichen, parallelen Lizenzgeschäfts wird mit mehr bestehenden Unterfirmen aufwändiger.
 function ownNetworkStartCost(){
   return OWN_NETWORK_START_COST * (state.ownNetworks.length + 1);
 }
-// Höchstzahl gleichzeitig aktiver Unterfirmen — 1 durch 'eigenesNetzwerk', je +1 durch die drei
-// Ausbau-Forschungen darunter, gedeckelt bei insgesamt 4.
+// Höchstzahl gleichzeitig aktiver Unterfirmen — 1 durch 'eigenesNetzwerk', je +1 durch die vier
+// Ausbau-Forschungen darunter, gedeckelt bei insgesamt 5 (= Anzahl der NETWORK_TYPES-Kategorien).
 function getMaxNetworkSlots(){
   if(!hasResearch('eigenesNetzwerk')) return 0;
   let n = 1;
   if(hasResearch('netzwerkAusbau1')) n++;
   if(hasResearch('netzwerkAusbau2')) n++;
   if(hasResearch('netzwerkAusbau3')) n++;
+  if(hasResearch('netzwerkAusbau4')) n++;
   return n;
 }
 // Vergibt einen zufälligen, zur Kategorie passenden Namen — bevorzugt noch nicht verwendete Namen
@@ -3904,6 +4317,10 @@ function freshState(difficultyId){
     crewedLandings: [],    // destKeys, auf denen bereits eine bemannte Landung stattfand
     terraforming: { mars: { points: 0 } }, // Langzeitprojekt-Fortschritt pro Ziel
     colonies: [],           // {destKey, name, day, income}
+    // NEU (TODO-RAUMSTATION): null solange nicht gebaut. Einmal in Betrieb: {day, population,
+    // buildings:{wohnmodul,wartung,andock}, buildQueue:[]} — siehe ensureStationDefaults()/
+    // STATION_BUILDINGS. Kein Array wie colonies, da es immer höchstens eine Station gibt.
+    station: null,
     firstContacts: [],      // destKeys, an denen bereits Erstkontakt mit außerirdischem Leben stattfand
     missionLog: [],        // {destKey, name, day, success}
     orbitSats: [],     // launched: {id, name, chassisId, mods:[...], orbit, angle, health, assignedContract, stats:{...}}
@@ -5654,14 +6071,21 @@ function confirmLaunchArea(sat, derived, orbitKey, rocketKey, location){
    Lieferflüge im Orbit angekommen, wird montiert und (bei Deep-Space-Zielen) tritt das fertige
    Schiff aus eigener Treibstoffreserve die Weiterreise an — dafür zählt hier NICHT die
    Reichweite der Lieferrakete, sondern derived.deltaV des Schiffs selbst. ---- */
-function werftFlightsNeeded(mass, rocket){ return Math.max(1, Math.ceil(mass / rocket.capacity)); }
+// missionType wird nur für 'deepspace' zur Reduktion herangezogen (siehe
+// stationDeliveryFlightReduction()) — reine Erdorbit-Montagen bleiben unverändert, da die Station
+// dort selbst das Ziel ist und kein Sprungbrett braucht.
+function werftFlightsNeeded(mass, rocket, missionType){
+  const base = Math.ceil(mass / rocket.capacity);
+  const reduction = missionType==='deepspace' ? stationDeliveryFlightReduction() : 0;
+  return Math.max(1, base - reduction);
+}
 
 function renderWerftMultiChoice(sat, derived, missionType){
   const stepArea = document.getElementById('launchStepArea');
   document.getElementById('launchConfirmArea').innerHTML = '';
   const rocketOptions = Object.values(ROCKETS).map(r=>{
     const unlocked = isRocketUnlocked(r);
-    const flights = werftFlightsNeeded(derived.mass, r);
+    const flights = werftFlightsNeeded(derived.mass, r, missionType);
     return `<div class="chip ${unlocked?'':'locked'}" data-werftrocket="${r.id}" style="cursor:${unlocked?'pointer':'not-allowed'}">
       <div class="t"><span>${r.name}</span><span>${fmtMoney(r.cost)}/Flug</span></div>
       <div class="s">Kapazität: ${r.capacity}kg · ${flights} Lieferflug/-flüge nötig · Zuverl.: ${Math.round(r.reliability*100)}%${unlocked?'':' — noch nicht erforscht'}</div>
@@ -5686,7 +6110,7 @@ function renderWerftMultiChoice(sat, derived, missionType){
 
 function renderWerftOrbitTarget(sat, derived, rocketId){
   const rocket = ROCKETS[rocketId];
-  const flights = werftFlightsNeeded(derived.mass, rocket);
+  const flights = werftFlightsNeeded(derived.mass, rocket, 'orbit');
   const area = document.getElementById('werftDestArea');
   const orbitOptions = ORBIT_KEYS.map(k=>{
     const o = ORBITS[k];
@@ -5776,7 +6200,7 @@ function renderWerftDeepSpaceTarget(sat, derived, rocketId){
 function confirmWerftDeepSpace(sat, derived, rocketId, destKey){
   const rocket = ROCKETS[rocketId];
   const d = DEEP_SPACE[destKey];
-  const flights = werftFlightsNeeded(derived.mass, rocket);
+  const flights = werftFlightsNeeded(derived.mass, rocket, 'deepspace');
   const hasLanderKit = sat.mods.map(findMod).filter(Boolean).some(m=>m.isLander);
   const landingPossible = d.landingBaseChance > 0;
   const crewCfg = crewedConfigFor(destKey);
@@ -5833,7 +6257,7 @@ function confirmWerftMulti(sat, derived, rocketId, missionType, opts){
   if(missionType==='deepspace'){ confirmWerftDeepSpace(sat, derived, rocketId, opts.destKey); return; }
   const rocket = ROCKETS[rocketId];
   const o = ORBITS[opts.orbitKey];
-  const flights = werftFlightsNeeded(derived.mass, rocket);
+  const flights = werftFlightsNeeded(derived.mass, rocket, 'orbit');
   const costPerFlight = Math.round(rocket.cost * o.costMult);
   document.getElementById('launchConfirmArea').innerHTML = `
     <div class="stat-line"><span class="k">Verfahren</span><span class="v">Orbitalwerft-Mehrfachtransport → ${o.name}</span></div>
@@ -5849,7 +6273,7 @@ function confirmWerftMulti(sat, derived, rocketId, missionType, opts){
 
 function startWerftProject(sat, derived, rocketId, missionType, opts){
   const rocket = ROCKETS[rocketId];
-  const flightsTotal = werftFlightsNeeded(derived.mass, rocket);
+  const flightsTotal = werftFlightsNeeded(derived.mass, rocket, missionType);
   const costPerFlight = missionType==='orbit'
     ? Math.round(rocket.cost * ORBITS[opts.orbitKey].costMult)
     : Math.round(rocket.cost * destCostMult(DEEP_SPACE[opts.destKey]));
@@ -6752,7 +7176,7 @@ function startOwnNetworkProject(type){
   const cost = ownNetworkStartCost();
   if(state.money < cost){ toast('Nicht genug Guthaben für den Netzwerk-Start.', 'bad'); Sound.error(); return; }
   state.money -= cost;
-  const sub = { id: state.nextNetworkSubId++, name: generateSubsidiaryName(type), type, satIds:[], totalEarned:0 };
+  const sub = { id: state.nextNetworkSubId++, name: generateSubsidiaryName(type), type, satIds:[], totalEarned:0, startCost: cost };
   state.ownNetworks.push(sub);
   Sound.buildOk();
   toast(`${NETWORK_TYPES[type].icon} ${sub.name} gegründet (${NETWORK_TYPES[type].label}) — weise jetzt eigene Satelliten zu.`, 'good');
@@ -6803,6 +7227,36 @@ function assignAllToNetwork(subId){
   renderAll();
 }
 
+// NEU (v4-32, TODO-NETZWERK-UNTERFIRMEN, auf Nutzerwunsch: "Button falls man sich verdrückt hat"):
+// löst eine Unterfirma vollständig auf. Zugewiesene Satelliten werden automatisch wieder frei
+// (sie hängen nur über state.ownNetworks[].satIds an der Unterfirma, nach dem Entfernen des
+// Eintrags greift isSatFreeForAssignment() also sofort wieder). Volle Rückerstattung der
+// Startgebühr NUR wenn noch nichts investiert/verdient wurde (keine Satelliten zugewiesen, keine
+// Lifetime-Einnahmen) — genau der Fall eines Fehlklicks direkt nach der Gründung. Wurde bereits
+// mindestens ein Satellit zugewiesen oder schon Einkommen erzielt, gibt es keine Rückerstattung
+// mehr (sonst ließe sich das System als kostenloser Testlauf missbrauchen).
+function closeSubsidiary(subId){
+  const sub = state.ownNetworks.find(n=>n.id===Number(subId));
+  if(!sub) return;
+  const canFullyRefund = sub.satIds.length===0 && sub.totalEarned===0;
+  showConfirmModal(
+    'Unterfirma schließen',
+    canFullyRefund
+      ? `${sub.name} wirklich schließen? Da noch keine Satelliten zugewiesen und keine Einnahmen erzielt wurden, wird die Startgebühr (${fmtMoney(sub.startCost||0)}) vollständig zurückerstattet.`
+      : `${sub.name} wirklich schließen? Zugewiesene Satelliten werden wieder frei und können anderweitig genutzt werden — die ursprüngliche Startgebühr wird NICHT erstattet, da bereits Satelliten zugewiesen bzw. Einnahmen erzielt wurden.`,
+    'Unterfirma schließen',
+    ()=>{
+      if(canFullyRefund) state.money += (sub.startCost||0);
+      state.ownNetworks = state.ownNetworks.filter(n=>n.id!==sub.id);
+      networkTagsExpanded.delete(sub.id);
+      Sound.warn();
+      toast(`${sub.name} geschlossen.${canFullyRefund ? ` +${fmtMoney(sub.startCost||0)} zurückerstattet.` : ''}`, '');
+      renderAll();
+    }
+  );
+}
+
+
 // Tägliche Lizenzgebühren EINER Unterfirma (v4-14, seit v4-31 pro Unterfirma statt global): nur
 // GESUNDE zugewiesene Satelliten zählen (zerstörte werden in tick() ohnehin sofort aus satIds
 // entfernt, siehe destroyed-Block). Netzwerkeffekt: der Betrag PRO Satellit wächst mit der
@@ -6824,6 +7278,18 @@ function networkDailyIncome(sub){
   const coverageMult = 1 + Math.max(0, orbitsUsed - 1) * 0.15;
   const income = n * nt.baseIncomePerSat * sizeMult * coverageMult * getDifficulty().incomeMult;
   return Math.round(income);
+}
+// NEU (TODO-UNTERHALTSKOSTEN): Lizenz-/Verwaltungsgebühr pro aktiver Unterfirma — Grundgebühr
+// (eigenständiger Geschäftsbetrieb mit eigener Buchhaltung/Compliance) plus ein kleiner Aufschlag
+// pro zugewiesenem, funktionsfähigem Satelliten (mehr Netzabdeckung = mehr Verwaltungsaufwand).
+// Kommt zusätzlich zum normalen 15/Tag-Satelliten-Unterhalt, der ja unabhängig von der Zuweisung
+// für JEDEN Orbit-Satelliten anfällt (siehe upkeepTotal-Schleife in tick()).
+const SUBSIDIARY_UPKEEP_BASE = 60;
+const SUBSIDIARY_UPKEEP_PER_SAT = 2;
+function subsidiaryUpkeep(sub){
+  if(!sub) return 0;
+  const healthySats = sub.satIds.map(id=>state.orbitSats.find(s=>s.id===id)).filter(s=>s && s.health>0).length;
+  return Math.round((SUBSIDIARY_UPKEEP_BASE + healthySats*SUBSIDIARY_UPKEEP_PER_SAT) * getDifficulty().costMult);
 }
 
 function repairSat(satId){
@@ -6964,14 +7430,20 @@ function ensureDroneDefaults(){
   }
 }
 
+// NEU (TODO-RAUMSTATION): das Wartungsmodul der Raumstation (siehe STATION_BUILDINGS) wirkt nur
+// auf Wartungsdrohnen im Erdorbit (orbitViewLocation==='earth') — die Station ist dort stationiert
+// und hat keinen Einfluss auf Kolonie-Drohnenflotten anderswo.
 function buyRepairDrone(qty){
   const n = Math.max(1, qty||1);
-  const cost = REPAIR_DRONE_COST * n;
+  const atStation = orbitViewLocation==='earth' && !!state.station;
+  const costMult = atStation ? stationRepairCostMult() : 1;
+  const capacityBonus = atStation ? stationRepairCapacityBonus() : 0;
+  const cost = Math.round(REPAIR_DRONE_COST * costMult) * n;
   if(state.money < cost){ toast('Nicht genug Guthaben für Wartungsdrohne(n).', 'bad'); Sound.error(); return; }
   state.money -= cost;
   const ds = droneState(orbitViewLocation);
   ds.drones += n;
-  ds.charges += n * REPAIR_DRONE_CAPACITY;
+  ds.charges += n * (REPAIR_DRONE_CAPACITY + capacityBonus);
   Sound.buildOk();
   toast(`${n} Wartungsdrohne(n) ${droneLocLabel(orbitViewLocation)} stationiert — noch ${ds.charges} Reparaturen verfügbar, bevor sie ausfallen.`, 'good');
   renderAll();
@@ -7384,6 +7856,16 @@ function tick(silent){
   const arrived = state.transitQueue.filter(q=>q.daysLeft<=0);
   if(arrived.length){
     arrived.forEach(q=>{
+      // NEU (TODO-RAUMSTATION, auf Nutzerwunsch): ein ankommendes Raumstationskern-Chassis wird
+      // NICHT wie sonst zu einem normalen Orbit-Satelliten, sondern nimmt (einmalig) die
+      // dauerhafte Raumstation in Betrieb — analog dazu, wie ein Kolonie-Modul bei Deep-Space-
+      // Landungen KEIN normaler Sonden-Eintrag bleibt, sondern eine Kolonie auslöst.
+      if(q.chassisId==='raumstation' && !state.station){
+        state.station = { day: state.day, population: STATION_BASE_POP_CAP, buildings:{wohnmodul:0,wartung:0,andock:0}, buildQueue:[] };
+        toast(`${q.name} hat den Erdorbit erreicht — die Raumstation ist ab sofort in Betrieb!`, 'good');
+        Sound.contractDone();
+        return;
+      }
       state.orbitSats.push({
         id:q.id, name:q.name, chassisId:q.chassisId, mods:q.mods,
         orbit:q.orbit, location:q.location||'earth', angle:Math.random()*Math.PI*2, health:100, assignedContract:null,
@@ -7635,6 +8117,21 @@ function tick(silent){
   tickColonies();
   const colonyIncome = state.colonies.reduce((sum,c)=>sum+colonyEffectiveIncome(c),0);
   incomeTotal += colonyIncome;
+  // NEU (TODO-UNTERHALTSKOSTEN): laufende Verwaltungskosten pro Kolonie, siehe colonyUpkeep().
+  upkeepTotal += state.colonies.reduce((sum,c)=>sum+colonyUpkeep(c),0);
+
+  // NEU (TODO-RAUMSTATION): analog zu tickColonies() — Bevölkerungswachstum + Bau-Warteschlange
+  // der Raumstation, plus ihr passives Wohnmodul-Einkommen (stationEffectiveIncome()).
+  tickStation();
+  const stationIncome = stationEffectiveIncome();
+  incomeTotal += stationIncome;
+  // NEU (TODO-UNTERHALTSKOSTEN): laufende Betriebskosten der Station, siehe stationUpkeep().
+  upkeepTotal += stationUpkeep();
+
+  // NEU (TODO-UNTERHALTSKOSTEN): Lizenz-/Verwaltungsgebühr pro aktiver Unterfirma, siehe
+  // subsidiaryUpkeep() — kommt zusätzlich zu networkDailyIncome() weiter unten in dieser
+  // Funktion (state.ownNetworks.forEach), das den Ertrag jeder Unterfirma dem Einkommen zuschlägt.
+  upkeepTotal += state.ownNetworks.reduce((sum,sub)=>sum+subsidiaryUpkeep(sub),0);
 
   state.money += incomeTotal - upkeepTotal;
   state.stats.lifetimeIncome += incomeTotal;
@@ -9034,6 +9531,62 @@ function initColonyOrbitCanvasClicks(){
 // NEU (TODO-KOLONIE-AUSBAU): eigener Tab "Kolonien" — ein Panel pro Kolonie mit Bevölkerungs-
 // Fortschrittsbalken, den drei Gebäudetypen (aktuelle Stufe + "Bauen"-Button mit Preis) und der
 // laufenden Bau-Warteschlange dieser Kolonie.
+// NEU (TODO-RAUMSTATION): eigenes Panel für die (höchstens eine) Raumstation, analog zu
+// renderKolonien() aber ohne Liste/Array — zeigt Bevölkerung, effektives Wohnmodul-Einkommen und
+// die drei Ausbaustufen mit ihren jeweils unterschiedlichen Effekten (siehe STATION_BUILDINGS).
+function renderStation(){
+  const emptyPanel = document.getElementById('stationEmptyPanel');
+  const panel = document.getElementById('stationPanel');
+  if(!state.station){ emptyPanel.style.display='block'; panel.innerHTML=''; return; }
+  emptyPanel.style.display='none';
+  ensureStationDefaults();
+  const cap = stationPopCap();
+  const popPct = Math.round(Math.min(100, state.station.population/cap*100));
+  const bonusTxt = {
+    wohnmodul: `+${STATION_BUILDINGS.wohnmodul.popCapBonus} Kapazität`,
+    wartung: `-8% Drohnenkosten, +2 Ladungen/Drohne`,
+    andock: `-1 Lieferflug (Sonnensystem-Ziele)`,
+  };
+  const buildingsHtml = Object.values(STATION_BUILDINGS).map(b=>{
+    const level = state.station.buildings[b.id]||0;
+    const cost = stationBuildingCost(b.id);
+    const queueFull = state.station.buildQueue.length>=3;
+    const affordable = state.money >= cost;
+    return `<div class="stat-line">
+      <span class="k">${b.name} <span class="small-muted">(Stufe ${level})</span></span>
+      <span class="v" style="display:flex; align-items:center; gap:8px;">
+        <span class="small-muted">${bonusTxt[b.id]}</span>
+        <button class="btn small" data-stationbuild="${b.id}" ${queueFull||!affordable?'disabled':''}>Bauen (${fmtMoney(cost)})</button>
+      </span>
+    </div>`;
+  }).join('');
+  const queueHtml = state.station.buildQueue.length===0 ? `<div class="small-muted">Keine laufenden Bauprojekte.</div>` : state.station.buildQueue.map(q=>{
+    const pct = Math.round((1-q.daysLeft/q.daysTotal)*100);
+    return `<div class="queue-item">
+      <div class="top"><span class="qname">${STATION_BUILDINGS[q.type].name}</span><span class="qmeta">${q.daysLeft} Tag(e) übrig</span></div>
+      <div class="progress-bar"><div style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+  panel.innerHTML = `<div class="panel" style="margin-top:14px;">
+    <h3>Raumstation</h3>
+    <div class="stat-line"><span class="k">Besatzung</span><span class="v">${state.station.population} / ${cap}</span></div>
+    <div class="healthbar" style="margin-bottom:10px;"><div style="width:${popPct}%; background:var(--green)"></div></div>
+    <div class="stat-line"><span class="k">Effektives Einkommen/Tag</span><span class="v good">${fmtMoney(stationEffectiveIncome())}</span></div>
+    <div class="stat-line"><span class="k">Unterhalt/Tag</span><span class="v bad">-${fmtMoney(stationUpkeep())}</span></div>
+    <div style="border-top:1px solid var(--border); margin:12px 0 10px;"></div>
+    <div class="small-muted" style="margin-bottom:6px;">Module</div>
+    ${buildingsHtml}
+    <div style="border-top:1px solid var(--border); margin:12px 0 10px;"></div>
+    <div class="small-muted" style="margin-bottom:6px;">Bau-Warteschlange (max. 3)</div>
+    ${queueHtml}
+  </div>`;
+  panel.querySelectorAll('[data-stationbuild]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      queueStationBuilding(btn.dataset.stationbuild);
+    });
+  });
+}
+
 function renderKolonien(){
   const emptyPanel = document.getElementById('kolonienEmptyPanel');
   const list = document.getElementById('kolonienList');
@@ -9069,6 +9622,7 @@ function renderKolonien(){
       <div class="stat-line"><span class="k">Bevölkerung</span><span class="v">${c.population} / ${cap}</span></div>
       <div class="healthbar" style="margin-bottom:10px;"><div style="width:${popPct}%; background:var(--green)"></div></div>
       <div class="stat-line"><span class="k">Effektives Einkommen/Tag</span><span class="v good">${fmtMoney(colonyEffectiveIncome(c))}</span></div>
+      <div class="stat-line"><span class="k">Unterhalt/Tag</span><span class="v bad">-${fmtMoney(colonyUpkeep(c))}</span></div>
       <div style="border-top:1px solid var(--border); margin:12px 0 10px;"></div>
       <div class="small-muted" style="margin-bottom:6px;">Gebäude</div>
       ${buildingsHtml}
@@ -9377,6 +9931,7 @@ function renderNetworkPanel(){
       <div class="network-sub-card" style="border-top:1px solid var(--border); padding-top:10px; margin-top:10px;">
         <div class="status-line"><strong>${nt.icon} ${sub.name}</strong> — ${nt.label} · ${assignedSats.length} Satellit(en) zugewiesen · Abdeckung: ${orbitsUsed} Orbit-Typ(en) gleichzeitig genutzt</div>
         <div class="rewards" style="font-size:11px; color:var(--green); margin-bottom:8px;">${fmtMoney(income)}/Tag aktuell · ${fmtMoney(sub.totalEarned)} Lifetime-Einnahmen</div>
+        <div class="rewards" style="font-size:11px; color:var(--red); margin-bottom:8px;">-${fmtMoney(subsidiaryUpkeep(sub))}/Tag Verwaltungskosten</div>
         ${assignedSats.length>0 ? `
           <div class="status-line" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <span>${assignedSats.length} zugewiesen${destroyedCount>0?` (${destroyedCount} zerstört)`:''}</span>
@@ -9393,6 +9948,9 @@ function renderNetworkPanel(){
             ${candidates.length>1 ? `<button class="btn small" data-assign-all-net="${sub.id}">+ Alle zuweisen (${candidates.length})</button>` : ''}
           </div>
         ` : `<div class="status">Kein passender freier Satellit mit ${PAYLOAD_TYPES[nt.payloadType] ? PAYLOAD_TYPES[nt.payloadType].label : nt.payloadType}-Nutzlast verfügbar.</div>`}
+        <div class="actions" style="margin-top:8px;">
+          <button class="btn small ghost" data-close-network="${sub.id}" title="Unterfirma auflösen — z.B. bei Fehlklick direkt nach der Gründung">✕ Unterfirma schließen</button>
+        </div>
       </div>
     `;
   });
@@ -9436,6 +9994,9 @@ function renderNetworkPanel(){
   });
   body.querySelectorAll('[data-assign-all-net]').forEach(btn=>{
     btn.addEventListener('click', ()=>assignAllToNetwork(btn.dataset.assignAllNet));
+  });
+  body.querySelectorAll('[data-close-network]').forEach(btn=>{
+    btn.addEventListener('click', ()=>closeSubsidiary(btn.dataset.closeNetwork));
   });
 }
 
@@ -11180,6 +11741,9 @@ function renderHud(){
     return sum + contractDailyIncome(c, computeSatDerived(s.chassisId, s.mods));
   }, 0);
   const colonyIncome = state.colonies.reduce((sum,c)=>sum+colonyEffectiveIncome(c),0);
+  // NEU (TODO-RAUMSTATION): Wohnmodul-Einkommen der Raumstation gehört genau wie Kolonie-Einkommen
+  // ins tägliche Header-Einkommen, siehe stationEffectiveIncome() und tick().
+  const stationIncome = state.station ? stationEffectiveIncome() : 0;
   // BUGFIX (TODO-HUD-EINKOMMEN): Langzeitaufträge (state.longContracts) und das eigene Netzwerk
   // (state.ownNetwork, siehe networkDailyIncome()) laufen beide über tick() genau wie reguläre
   // Verträge und Kolonien ins tägliche Einkommen ein (siehe dort), fehlten hier in der
@@ -11188,9 +11752,21 @@ function renderHud(){
   const longContractIncome = state.longContracts
     .filter(c=>c.status==='aktiv')
     .reduce((sum,c)=>sum+longContractDailyIncome(c), 0);
-  const netIncome = networkDailyIncome();
-  const upkeep = state.orbitSats.length * 15 * (hasResearch('maintenance')?0.75:1);
-  document.getElementById('hudIncome').textContent = fmtMoney(income + colonyIncome + longContractIncome + netIncome - upkeep);
+  // BUGFIX (TODO-UNTERHALTSKOSTEN, dabei entdeckt): networkDailyIncome() wurde hier bisher ganz
+  // ohne Argument aufgerufen (sub===undefined → Funktion bricht sofort mit 0 ab, siehe
+  // networkDailyIncome()) — Unterfirmen-Einkommen tauchte im Header-"Einnahmen/Tag" dadurch nie
+  // auf, obwohl es (wie Kolonien/Station/Langzeitverträge) täglich über tick() einfließt. Jetzt
+  // korrekt über alle aktiven Unterfirmen aufsummiert.
+  const netIncome = state.ownNetworks.reduce((sum,sub)=>sum+networkDailyIncome(sub),0);
+  // NEU (TODO-UNTERHALTSKOSTEN): laufende Unterhaltskosten für Kolonien, Station und Unterfirmen
+  // gehören jetzt genau wie der Satelliten-Unterhalt in die Header-Anzeige, siehe colonyUpkeep(),
+  // stationUpkeep(), subsidiaryUpkeep() und die entsprechenden upkeepTotal-Zeilen in tick().
+  const colonyUpkeepTotal = state.colonies.reduce((sum,c)=>sum+colonyUpkeep(c),0);
+  const stationUpkeepTotal = state.station ? stationUpkeep() : 0;
+  const subsidiaryUpkeepTotal = state.ownNetworks.reduce((sum,sub)=>sum+subsidiaryUpkeep(sub),0);
+  const upkeep = state.orbitSats.length * 15 * (hasResearch('maintenance')?0.75:1)
+    + colonyUpkeepTotal + stationUpkeepTotal + subsidiaryUpkeepTotal;
+  document.getElementById('hudIncome').textContent = fmtMoney(income + colonyIncome + stationIncome + longContractIncome + netIncome - upkeep);
 
   // NEU (TODO-ZUFALLSEREIGNISSE): Markt-Effekt-Anzeige im Header, nur sichtbar wenn aktiv.
   const meWrap = document.getElementById('hudMarketEventWrap');
@@ -11281,12 +11857,17 @@ function renderMaintenance(){
   document.getElementById('droneLocLabel').textContent = droneLocSuffix ? `Standort:${droneLocSuffix}` : '';
   document.getElementById('droneCount').textContent = ds.drones;
   document.getElementById('droneCapacity').textContent = `${ds.charges} Reparaturen übrig`;
+  // NEU (TODO-RAUMSTATION): Wartungsmodul-Rabatt/Kapazitätsbonus nur im Erdorbit, siehe
+  // buyRepairDrone().
+  const atStation = orbitViewLocation==='earth' && !!state.station;
+  const droneCost = atStation ? Math.round(REPAIR_DRONE_COST * stationRepairCostMult()) : REPAIR_DRONE_COST;
+  const capNote = atStation && stationRepairCapacityBonus()>0 ? ` · ${REPAIR_DRONE_CAPACITY + stationRepairCapacityBonus()} Reparaturen/Drohne` : '';
   const b1 = document.getElementById('btnBuyDrone1');
   const b10 = document.getElementById('btnBuyDrone10');
-  b1.textContent = `+1 Drohne (${fmtMoney(REPAIR_DRONE_COST)})`;
-  b1.disabled = state.money < REPAIR_DRONE_COST;
-  b10.textContent = `+10 Drohnen (${fmtMoney(REPAIR_DRONE_COST*10)})`;
-  b10.disabled = state.money < REPAIR_DRONE_COST*10;
+  b1.textContent = `+1 Drohne (${fmtMoney(droneCost)})${capNote}`;
+  b1.disabled = state.money < droneCost;
+  b10.textContent = `+10 Drohnen (${fmtMoney(droneCost*10)})${capNote}`;
+  b10.disabled = state.money < droneCost*10;
 }
 
 /* ============================== STATISTIKEN (NEU, TODO-STATISTIKEN) ============================== */
@@ -11497,6 +12078,8 @@ function renderStats(){
   document.getElementById('statsFirstContacts').textContent = state.firstContacts.length;
   document.getElementById('statsColonies').textContent = state.colonies.length;
   document.getElementById('statsColonyIncome').textContent = fmtMoney(state.colonies.reduce((sum,c)=>sum+colonyEffectiveIncome(c),0));
+  document.getElementById('statsStationRow').style.display = state.station ? '' : 'none';
+  if(state.station) document.getElementById('statsStationIncome').textContent = fmtMoney(stationEffectiveIncome());
 
   document.getElementById('statsContractsDone').textContent = s.contractsCompleted;
   document.getElementById('statsContractsOpen').textContent = `${state.contracts.filter(c=>c.status==='aktiv').length} / ${state.contracts.filter(c=>c.status==='offen').length}`;
@@ -11662,6 +12245,7 @@ function renderAll(){
   renderSatDetail();
   renderSatList();
   renderMaintenance();
+  renderStation();
   renderKolonien();
   renderStats();
   checkAchievements();
@@ -11808,6 +12392,15 @@ document.getElementById('videoVolumeSlider').addEventListener('input', (e)=>{
 // gegenseitig zu überschreiben) und Muster (#crtOverlay[data-pattern], siehe CSS weiter oben).
 // #crtOverlay hängt bewusst an document.documentElement statt an body, damit der body-Filter die
 // Overlay-Ebene selbst nicht mitfärbt.
+// GEÄNDERT (auf Nutzerwunsch: "alten Monitor Muster und die CGA/EGA (reduzierte Farbpalette) für
+// vorstart, start und boot, dann wieder normal einstellen so wie es eingestellt war — das soll als
+// GESAMT-EFFEKT sein"): Splash-Screen, Startseite und beide Boot-Animationen laufen jetzt IMMER mit
+// dem festen Retro-Look CGA/EGA (reduzierte Farbpalette) + Interlace-Kamm — Stark
+// (BOOT_FORCED_COLOR/BOOT_FORCED_PATTERN weiter unten), UNABHÄNGIG vom unter "Darstellung"
+// gespeicherten Farbschema/Muster. Das eigentlich gespeicherte/eingestellte Theme bleibt im
+// Hintergrund erhalten (currentUIColor/currentUIPattern, siehe initUITheme()) und wird erst wieder
+// sichtbar angewendet, sobald der DOS-Bootstream fertig ist (unlockTheme(), aufgerufen am Ende von
+// playDosBootSequence()) — ab dann läuft das Spiel wieder ganz normal im konfigurierten Theme.
 const UI_COLOR_KEY = 'deepAnchorUIColor';
 const UI_PATTERN_KEY = 'deepAnchorUIPattern';
 const COLOR_FILTERS = {
@@ -11852,6 +12445,24 @@ function ensureCrtOverlay(){
 }
 // ENTFERNT (v4-28): Mauszeiger-Phosphor-Nachleuchten (spawnPhosphorGhost/onPhosphorMouseMove/
 // setPhosphorTrailActive) wieder gestrichen — Feedback: unnötiges Gimmick, keiner braucht das.
+// NEU: fester Retro-Look für Vorstart/Startseite/Boot, siehe Kommentarblock weiter oben.
+const BOOT_FORCED_COLOR = 'cga';
+const BOOT_FORCED_PATTERN = 'interlace';
+let themeLocked = true;
+function applyForcedBootTheme(){
+  const overlay = ensureCrtOverlay();
+  overlay.setAttribute('data-pattern', BOOT_FORCED_PATTERN);
+  overlay.classList.add('active');
+  const parts = [];
+  if(COLOR_FILTERS[BOOT_FORCED_COLOR]) parts.push(COLOR_FILTERS[BOOT_FORCED_COLOR]);
+  document.body.style.filter = parts.join(' ');
+}
+function unlockTheme(){
+  if(!themeLocked) return;
+  themeLocked = false;
+  applyUIColorScheme(currentUIColor); // wendet das tatsächlich gespeicherte/eingestellte Theme an
+  applyUIPattern(currentUIPattern);   // (ruft intern auch updateBodyFilter() auf)
+}
 function applyUIColorScheme(colorId){
   const id = COLOR_FILTERS.hasOwnProperty(colorId) ? colorId : 'standard';
   updateBodyFilter(id, currentUIPattern);
@@ -11863,7 +12474,7 @@ function applyUIColorScheme(colorId){
 function applyUIPattern(patternId){
   const id = PATTERN_IDS.includes(patternId) ? patternId : 'none';
   const overlay = ensureCrtOverlay();
-  if(OVERLAY_PATTERN_IDS.includes(id)){
+  if(!themeLocked && OVERLAY_PATTERN_IDS.includes(id)){
     overlay.setAttribute('data-pattern', id);
     overlay.classList.add('active');
   } else {
@@ -11881,6 +12492,7 @@ function applyUIPattern(patternId){
 // CSS-Klasse gesetzt werden: zwei separate CSS-Klassen mit je eigener filter-Property würden sich
 // gegenseitig überschreiben statt zu kombinieren, ein zusammengesetzter String funktioniert dagegen.
 function updateBodyFilter(colorId, patternId){
+  if(themeLocked) return; // Boot-Look bleibt sichtbar, Auswahl wird trotzdem oben in Storage/currentUI* gemerkt
   const parts = [];
   if(COLOR_FILTERS[colorId]) parts.push(COLOR_FILTERS[colorId]);
   if(patternId === 'barrel') parts.push('url(#crtBarrelFilter)');
@@ -11902,8 +12514,13 @@ document.getElementById('uiPatternSelect').addEventListener('change', (e)=>{
   try{ savedPattern = localStorage.getItem(UI_PATTERN_KEY) || 'none'; }catch(err){ /* ignore */ }
   currentUIColor = COLOR_FILTERS.hasOwnProperty(savedColor) ? savedColor : 'standard';
   currentUIPattern = PATTERN_IDS.includes(savedPattern) ? savedPattern : 'none';
-  applyUIColorScheme(currentUIColor);
-  applyUIPattern(currentUIPattern);
+  // NEU: Auswahlfelder zeigen schon jetzt das echte, gespeicherte Theme an (falls die Einstellungen
+  // vor Spielstart geöffnet werden) — visuell greift es aber erst nach unlockTheme(), siehe oben.
+  const colorSel = document.getElementById('uiColorSelect');
+  if(colorSel) colorSel.value = currentUIColor;
+  const patternSel = document.getElementById('uiPatternSelect');
+  if(patternSel) patternSel.value = currentUIPattern;
+  applyForcedBootTheme();
 })();
 
 Music.armAutoplayUnlock();
@@ -12064,7 +12681,7 @@ document.getElementById('fileInput').addEventListener('change', (e)=>{
 /* ============================== VERSION / PATCH NOTES ============================== */
 // NEU (TODO-PATCH-NOTES): GAME_VERSION wird auf dem Startbildschirm im Patch-Notes-Button
 // angezeigt (siehe init()). Bei jeder neuen Version hier hochzaehlen.
-const GAME_VERSION = 'v4-14';
+const GAME_VERSION = 'v4-39';
 // NAMENSKONVENTION (ab v4-5): kein "-fix"-Suffix mehr, da nicht jede Version ein Bugfix ist —
 // fortlaufend v4-1, v4-2, v4-3, … Aeltere Versionsnummern (v4-fix1 bis v4-fix4, v3.9-fix-Reihe)
 // behalten im CHANGELOG-Kommentarblock oben ihre historische Bezeichnung, nur ab hier gilt das
@@ -12072,30 +12689,60 @@ const GAME_VERSION = 'v4-14';
 //
 // Der Patch-Notes-Screen im Spiel zeigt bewusst KEINE Liste einzelner Versionsnummern (das steht
 // ausfuehrlich im CHANGELOG-Kommentarblock am Dateianfang, gedacht fuer die Entwicklung/GitHub-
-// Historie) — stattdessen EINEN zusammenhaengenden, nach Themen gegliederten Ueberblickstext fuer
-// den Spieler, was sich seit v3.9-fix12 inhaltlich veraendert hat. PATCH_NOTES_SUMMARY ist dafuer
-// eine Liste von Themenbloecken (Ueberschrift + Fliesstext), keine Version-fuer-Version-Aufzaehlung.
+// Historie) — stattdessen nach Themen gegliederte Ueberblickstexte fuer den Spieler.
+// GEÄNDERT (auf Nutzerwunsch: "sollte der neue Eintrag nicht am besten getrennt von dem alten
+// Eintrag sein"): war eine einzige flache Liste von Themenblöcken, in der alte und neu
+// hinzugefügte Blöcke nicht mehr auseinanderzuhalten waren. Jetzt eine Liste von BATCHES — jeder
+// Batch ist eine in sich abgeschlossene Zusammenfassung (mit eigenem Label + Versionsbereich) aus
+// genau EINEM "Zusammenfassung"-Auftrag, neueste zuerst. Damit bleibt für den Spieler klar
+// erkennbar, was seit dem letzten Update dazugekommen ist, statt alles in einen Topf zu werfen.
 // Wird NICHT bei jeder neuen Version automatisch erweitert, sondern nur, wenn Jens explizit
-// "Zusammenfassung" sagt — dann jeweils den betroffenen Themenblock aktualisieren bzw. einen neuen
-// ergaenzen.
-const PATCH_NOTES_SUMMARY = [
-  { heading:'Schwierigkeitsgrade & Balancing', text:'Es gibt jetzt sieben wählbare Schwierigkeitsgrade von Sandbox bis Höllisch schwer, die bei der Firmengründung festgelegt werden. Sie wirken sich nicht mehr nur auf Startkapital, Vertragserträge und Erfolgschancen aus, sondern inzwischen auch auf Bau-, Forschungs- und Flugkosten sowie -zeiten — auf der höchsten Stufe dauert und kostet praktisch alles deutlich mehr. Das ursprüngliche Balancing von „Höllisch schwer" wurde außerdem nachgebessert, damit zumindest ein erster minimaler Start überhaupt möglich ist.' },
-  { heading:'Firmen & Speicherstände', text:'Statt nur einer Firma pro Browser gibt es jetzt ein echtes Mehrfirmen-System mit eigener Verwaltung (anlegen, wechseln, löschen), inklusive Sammel-Export/-Import für alle Firmen auf einmal. Ein Standardprofil beim allerersten Start gibt es nicht mehr — neue Spieler müssen jetzt bewusst zuerst eine Firma gründen.' },
-  { heading:'Werft & Schiffbau', text:'Die Orbitalwerft wurde grundlegend ausgebaut: schwere Schiffe werden jetzt in mehreren Lieferflügen hochgebracht statt an der Raketenkapazität zu scheitern, und können dadurch auch zu Sonnensystem-/Deep-Space-Zielen fliegen. Dazu kamen neue, werft-exklusive Chassis — Kolonieschiff und Frachter mit deutlich mehr Laderaum sowie Lichtschiff und Sprungschiff, die jetzt eigene Chassis statt normale Trägerraketen sind. Werft-Baupläne lassen sich inzwischen genauso speichern und laden wie normale Baupläne.' },
-  { heading:'Fabrik & Produktion', text:'Satelliten und Module lassen sich jetzt in Stückzahlen statt einzeln bauen, die Bauwarteschlange hat eine per Forschung erweiterbare Kapazitätsgrenze, und fertige Konfigurationen lassen sich als Bauplan speichern und wiederverwenden. Der neue Blaupausen-Kreator erlaubt außerdem, Schiffe komplett am Reißbrett zu entwerfen, ganz ohne vorhandene Bauteile. Modul-Hangar und Orbit-Lager wurden aufgeräumt (gruppierte Zeilen pro Modultyp statt einer Zeile pro Einzelteil), und Module lassen sich jetzt gestapelt gemeinsam auf einer Rakete starten.' },
-  { heading:'Forschung', text:'Der Forschungsbaum wurde komplett neu aufgebaut — ein echter, handytauglicher Tech-Baum mit Zoom und Pan statt eines unübersichtlichen Grids. Forschung dauert jetzt außerdem echte Spielzeit statt sofort abgeschlossen zu sein, und läuft immer nur ein Projekt gleichzeitig.' },
-  { heading:'Mars & Erkundung', text:'Nach abgeschlossenem Terraforming lässt sich der Mars jetzt tatsächlich kolonisieren — die nächste Landung mit einem Kolonie-Modul an Bord gründet automatisch eine echte Kolonie mit passivem Einkommen.' },
-  { heading:'Erfolge', text:'Neuer Erfolge-Tab mit 20 Meilensteinen in 6 Kategorien (Flotte & Starts, Fertigung, Wirtschaft, Forschung, Erkundung, Sonstiges) — rein zur Anerkennung, ohne Spiel-Effekt.' },
-  { heading:'Sonstiges', text:'Der Header zeigt jetzt zusätzlich zur Firmenzeit ein echtes Kalenderdatum, die Sternenkarte zeigt die Restflugzeit unterwegs jetzt live an, und ganz frisch gibt es diesen Patch-Notes-Screen selbst, der genau diese Übersicht direkt auf dem Startbildschirm zeigt.' },
+// "Zusammenfassung" sagt — dann einen NEUEN Batch ganz vorne einfügen (bestehende Batches bleiben
+// unverändert stehen, auch wenn ein Thema wie "Mars & Erkundung" erneut vorkommt — Ergänzungen
+// dazu kommen als eigener, ggf. anders betitelter Block in den neuen Batch, z.B.
+// "Mond-Kolonisierung" statt den alten "Mars & Erkundung"-Text zu verändern).
+// STAND: neuester Batch deckt v4-15 bis v4-33 ab (siehe CHANGELOG-Block oben). Naechste
+// Zusammenfassung wird als weiterer neuer Batch ganz vorne ergänzt.
+const PATCH_NOTES_BATCHES = [
+  {
+    label:'Neu seit dem letzten Update', range:'v4-15 – v4-33',
+    items:[
+      { heading:'Mond-Kolonisierung', text:'Der Mond ist jetzt ebenfalls kolonisierbar — über eine eigene, deutlich frühere und günstigere Forschung samt eigenem Mond-Kolonie-Modul. Er ist außerdem Voraussetzung für den Mars: eine Mars-Kolonie lässt sich erst gründen, wenn zuvor eine Mondkolonie besteht, damit die reale Reihenfolge Mond vor Mars eingehalten wird.' },
+      { heading:'Weitere Erfolge', text:'Zwei zusätzliche Erkundungs-Erfolge für eine einzelne, besonders ausgebaute Kolonie: „Boomtown" (mindestens 500 Einwohner) und „Industriekolonie" (drei Fabrik-Ausbaustufen).' },
+      { heading:'Kolonien & Wartung', text:'Kolonie-Orbits zeigen jetzt eine echte animierte Planeten-Kugel mit Beleuchtung, Atmosphären-Glow und ein paar Kratern statt der bisherigen reinen Ring-Liste — die kompakte Übersicht pro Orbit-Typ bleibt daneben erhalten. Wartungsdrohnen sind außerdem nicht mehr eine einzige globale Flotte, sondern pro Standort getrennt: eine Drohnenflotte im Erdorbit repariert nicht länger automatisch auch Kolonie-Satelliten und umgekehrt.' },
+      { heading:'Sternenkarten & Galaxien', text:'Sternsysteme in der Milchstraßen-Nachbarschaft haben jetzt eigene Detailkarten mit fiktiven Begleitplaneten rund um das echte Sprungziel, im selben Stil wie die Sonnensystem-Karte — auswählbar per Klick auf die Sternenkarte oder direkt auf eine Zielkarte. Dieselbe Detailkarten-Ansicht gibt es inzwischen auch für die Sprungziele in fremden Galaxien, darunter Andromeda, Sculptor, Centaurus A, Whirlpool, Sombrero und weitere.' },
+      { heading:'Darstellung (experimentell)', text:'Unter „Darstellung (experimentell)" in den Einstellungen lässt sich das komplette UI inzwischen optisch verfremden — komplett getrennt vom eigentlichen Spielstand, rein zum Ausprobieren. Farbschema und Monitor-Muster sind zwei unabhängige, frei kombinierbare Auswahlen: als Farbschema stehen neben Standard inzwischen Grün-/Amber-Phosphor, Schwarz-Weiß sowie drei Varianten von CGA/EGA (Standard, Hart mit nur 3 Farbstufen je Kanal, Weich mit 7 Farbstufen) und drei NASA-Kontrollraum-Looks (Mission-Control-Blau, Deep-Space-Network-Cyan, Shuttle-Alarm-Rot) zur Verfügung. Als Monitor-Muster gibt es u.a. zwei Röhrenmonitor-Stufen, eine Streifenmasken-Optik, VHS/Composite-Störungen, Rauschen/Flimmern, eine Röhren-Wölbung sowie Interlace-Kamm jetzt in zwei Intensitäten (Stark und neu: Subtil).' },
+      { heading:'Eigene Unterfirmen', text:'Ganz neu: eigene Unterfirmen für dauerhaftes passives Einkommen, freigeschaltet über die Forschung „Eigenes Satelliten-Netzwerk" und vier weitere Ausbaustufen. Jede Unterfirma betreibt ein eigenes Lizenznetzwerk aus einer von fünf Kategorien — Navigation, Kommunikation, Erdbeobachtung, Forschungsdaten oder Wetterdaten — mit eigener Satelliten-Zuweisung, eigenem Einkommen und einem automatisch zur Kategorie passenden Namen. Bis zu fünf Unterfirmen können gleichzeitig laufen; wer sich beim Gründen verklickt hat, kann eine frisch gegründete, noch unbenutzte Unterfirma über den neuen „Unterfirma schließen"-Button wieder auflösen und bekommt die Startgebühr in dem Fall vollständig zurück.' },
+      { heading:'Fehlerbehebungen', text:'Ein hartnäckiger Absturz beim Fortsetzen oder Importieren älterer Spielstände (u.a. rund um die monatliche Geldverlauf-Statistik) wurde endgültig behoben — betroffene Spielstände laden jetzt zuverlässig. Außerdem wurde ein Darstellungsfehler behoben, durch den Dialogfenster bei aktiviertem Retro-Filter oben auf der Seite statt an der aktuellen Bildschirmposition erschienen.' },
+    ]
+  },
+  {
+    label:'Bisheriger Stand', range:'v3.9-fix12 – v4-14',
+    items:[
+      { heading:'Schwierigkeitsgrade & Balancing', text:'Es gibt jetzt sieben wählbare Schwierigkeitsgrade von Sandbox bis Höllisch schwer, die bei der Firmengründung festgelegt werden. Sie wirken sich nicht mehr nur auf Startkapital, Vertragserträge und Erfolgschancen aus, sondern inzwischen auch auf Bau-, Forschungs- und Flugkosten sowie -zeiten — auf der höchsten Stufe dauert und kostet praktisch alles deutlich mehr. Das ursprüngliche Balancing von „Höllisch schwer" wurde außerdem nachgebessert, damit zumindest ein erster minimaler Start überhaupt möglich ist.' },
+      { heading:'Firmen & Speicherstände', text:'Statt nur einer Firma pro Browser gibt es jetzt ein echtes Mehrfirmen-System mit eigener Verwaltung (anlegen, wechseln, löschen), inklusive Sammel-Export/-Import für alle Firmen auf einmal. Ein Standardprofil beim allerersten Start gibt es nicht mehr — neue Spieler müssen jetzt bewusst zuerst eine Firma gründen.' },
+      { heading:'Werft & Schiffbau', text:'Die Orbitalwerft wurde grundlegend ausgebaut: schwere Schiffe werden jetzt in mehreren Lieferflügen hochgebracht statt an der Raketenkapazität zu scheitern, und können dadurch auch zu Sonnensystem-/Deep-Space-Zielen fliegen. Dazu kamen neue, werft-exklusive Chassis — Kolonieschiff und Frachter mit deutlich mehr Laderaum sowie Lichtschiff und Sprungschiff, die jetzt eigene Chassis statt normale Trägerraketen sind. Werft-Baupläne lassen sich inzwischen genauso speichern und laden wie normale Baupläne.' },
+      { heading:'Fabrik & Produktion', text:'Satelliten und Module lassen sich jetzt in Stückzahlen statt einzeln bauen, die Bauwarteschlange hat eine per Forschung erweiterbare Kapazitätsgrenze, und fertige Konfigurationen lassen sich als Bauplan speichern und wiederverwenden. Der neue Blaupausen-Kreator erlaubt außerdem, Schiffe komplett am Reißbrett zu entwerfen, ganz ohne vorhandene Bauteile. Modul-Hangar und Orbit-Lager wurden aufgeräumt (gruppierte Zeilen pro Modultyp statt einer Zeile pro Einzelteil), und Module lassen sich jetzt gestapelt gemeinsam auf einer Rakete starten.' },
+      { heading:'Forschung', text:'Der Forschungsbaum wurde komplett neu aufgebaut — ein echter, handytauglicher Tech-Baum mit Zoom und Pan statt eines unübersichtlichen Grids. Forschung dauert jetzt außerdem echte Spielzeit statt sofort abgeschlossen zu sein, und läuft immer nur ein Projekt gleichzeitig.' },
+      { heading:'Mars & Erkundung', text:'Nach abgeschlossenem Terraforming lässt sich der Mars jetzt tatsächlich kolonisieren — die nächste Landung mit einem Kolonie-Modul an Bord gründet automatisch eine echte Kolonie mit passivem Einkommen.' },
+      { heading:'Erfolge', text:'Neuer Erfolge-Tab mit 20 Meilensteinen in 6 Kategorien (Flotte & Starts, Fertigung, Wirtschaft, Forschung, Erkundung, Sonstiges) — rein zur Anerkennung, ohne Spiel-Effekt.' },
+      { heading:'Sonstiges', text:'Der Header zeigt jetzt zusätzlich zur Firmenzeit ein echtes Kalenderdatum, die Sternenkarte zeigt die Restflugzeit unterwegs jetzt live an, und ganz frisch gibt es diesen Patch-Notes-Screen selbst, der genau diese Übersicht direkt auf dem Startbildschirm zeigt.' },
+    ]
+  },
 ];
 function renderPatchNotes(){
   const wrap = document.getElementById('patchNotesList');
   if(!wrap) return;
-  const intro = `<div style="font-size:10.5px; color:var(--muted); margin-bottom:2px;">Überblick über alle Änderungen seit v3.9-fix12:</div>`;
-  wrap.innerHTML = intro + PATCH_NOTES_SUMMARY.map(p=>`
-    <div>
-      <div style="font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:1px; color:var(--accent); margin-bottom:4px;">${p.heading}</div>
-      <div style="font-size:11.5px; line-height:1.55; color:var(--text);">${p.text}</div>
+  wrap.innerHTML = PATCH_NOTES_BATCHES.map((batch, bi)=>`
+    <div style="${bi>0 ? 'margin-top:16px; padding-top:12px; border-top:1px solid var(--border);' : ''}">
+      <div style="font-family:'Orbitron',sans-serif; font-size:12.5px; letter-spacing:1px; color:var(--gold, var(--accent)); margin-bottom:2px;">${batch.label}</div>
+      <div style="font-size:10px; color:var(--muted); margin-bottom:10px;">${batch.range}</div>
+      ${batch.items.map(p=>`
+        <div style="margin-bottom:10px;">
+          <div style="font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:1px; color:var(--accent); margin-bottom:4px;">${p.heading}</div>
+          <div style="font-size:11.5px; line-height:1.55; color:var(--text);">${p.text}</div>
+        </div>
+      `).join('')}
     </div>
   `).join('');
 }
@@ -12612,6 +13259,10 @@ function mergeLoadedGameState(loaded){
     }];
   }
   delete merged.ownNetwork; // altes Feld wird nicht mehr genutzt, siehe ownNetworks oben
+  // NEU (TODO-RAUMSTATION): defensive Migration falls ein alter Spielstand bereits eine Station
+  // besitzt, aber (noch) nicht alle Unterfelder (z.B. buildQueue) — siehe ensureStationDefaults().
+  state = merged;
+  ensureStationDefaults();
   return merged;
 }
 
@@ -12682,6 +13333,249 @@ function showGameRoot(){
   document.getElementById('startScreen').style.display = 'none';
   document.getElementById('gameRoot').style.display = '';
   if (window.stopWarpTunnel) window.stopWarpTunnel();
+  playDosBootSequence(); // NEU (TODO-DOS-BOOTSTREAM): läuft über allen drei Wegen ins Spiel
+}
+
+// NEU (v4-39, TODO-DOS-BOOTSTREAM-EPIC, auf Nutzerwunsch: "beim Boot noch mehr Boot-Sachen ...
+// noch epischer"): Retro-Boot-Textstream, läuft einmalig bei jedem Spieleintritt (Neues Spiel /
+// Fortsetzen / Import) über dem bereits sichtbaren gameRoot. Gegenüber v4-38 erweitert um:
+//   - ASCII-Art-Logo (per pyfiglet generiert, Font "ansi_shadow"), blitzt beim Start hell auf
+//   - zwei animierte Fortschrittsbalken (echte Objekte statt reiner Zeilen-Strings, siehe
+//     DOS_BOOT_LINES: {progress:'...', ms:...}), simuliert per JS-Intervall statt CSS
+//   - dezente Tastatur-Blips (Sound.tone(), jeder 3. Buchstabe) sowie ein Bestätigungs-Blip nach
+//     jeder [ OK ]-Zeile und ein Abschluss-Akkord bei "ANCHOR-OS BEREIT." (Sound.buildOk())
+//   - Gesamtdauer jetzt ~35-40s statt der ursprünglichen ~30s
+// Reines JS-Timing statt CSS-Keyframes, da Zeilenanzahl/-länge/-typ (Text vs. Fortschrittsbalken)
+// variabel ist. Klick/Taste überspringt jederzeit sofort. Das unter "Darstellung" gewählte
+// Farbschema/Muster ist bereits ab Splash-Screen aktiv (siehe initUITheme()), gilt also auch
+// während des kompletten Bootstreams unverändert weiter.
+const DOS_BOOT_BANNER = `    _    _   _  ____ _   _  ___  ____     ___  ____  
+   / \\  | \\ | |/ ___| | | |/ _ \\|  _ \\   / _ \\/ ___| 
+  / _ \\ |  \\| | |   | |_| | | | | |_) | | | | \\___ \\ 
+ / ___ \\| |\\  | |___|  _  | |_| |  _ <  | |_| |___) |
+/_/   \\_\\_| \\_|\\____|_| |_|\\___/|_| \\_\\  \\___/|____/ `;
+const DOS_BOOT_LINES = [
+  "ANCHOR SYSTEMS BIOS v4.39",
+  "(C) 2087 Anchor Systems Ltd. Alle Rechte vorbehalten.",
+  "",
+  "CPU ................... Quantum Core i9-X @ 4.7 THz",
+  "Speichertest ........... 65536K OK",
+  "Sicherheitsmodul ....... TPM 3.2 verifiziert",
+  "",
+  "Suche Laufwerke...",
+  "  Primary Master ... DEEP-ANCHOR-SSD-01 [OK]",
+  "  Primary Slave  ... NONE",
+  "  Backup-Array    ... 3x REDUNDANT [OK]",
+  "",
+  { progress: "Pruefe Dateisystem-Integritaet", ms: 1600 },
+  "",
+  "Lade ANCHOR-OS Kernel v9.2...",
+  "Initialisiere Treiber:",
+  "  [ OK ] Lebenserhaltungs-Interface",
+  "  [ OK ] Navigationsarray",
+  "  [ OK ] Auftrags-Engine",
+  "  [ OK ] Handelsroutenverwaltung",
+  "  [ OK ] Kolonie-Netzwerk-Uplink",
+  "  [ OK ] Orbitaltelemetrie",
+  "  [ OK ] Galaxiekarten-Renderer",
+  "  [ OK ] Flottenleitsystem",
+  "",
+  "Binde Dateisysteme ein...",
+  "  /firmen             ... eingebunden",
+  "  /auftraege           ... eingebunden",
+  "  /kolonien            ... eingebunden",
+  "  /spielstaende        ... eingebunden",
+  "",
+  { progress: "Kompiliere Sternkarten-Cache", ms: 2000 },
+  "",
+  "Baue Deep-Space-Uplink auf...",
+  "  Signal ................ erfasst",
+  "  Latenz ................ 12ms",
+  "  Handshake ............. abgeschlossen",
+  "  Verschluesselung ...... AES-4096",
+  "",
+  "WARNUNG: Unbekanntes Objekt in Sensorreichweite",
+  "  ... Signatur bekannt. Ignoriert. (Kaffeetasse der Crew)",
+  "",
+  "Starte Hintergrunddienste...",
+  "  [ OK ] Autosave-Daemon",
+  "  [ OK ] Markt-Ticker",
+  "  [ OK ] Ereignisplaner",
+  "  [ OK ] Kollisionswarnsystem",
+  "",
+  "Pruefe Firmenregister... OK",
+  "Lade Spieldaten... OK",
+  "",
+  "ANCHOR-OS BEREIT.",
+  "",
+  "Willkommen an Bord."
+];
+function renderProgressLine(label, pct, width=24){
+  const filled = Math.max(0, Math.min(width, Math.round(width * pct/100)));
+  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
+  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
+}
+let dosBootToken = 0;
+// NEU (Retro-Boot-Effekte): welche Zeilen ein Disketten-/Festplatten-Zugriffsgeräusch bzw. den
+// Modem-Sound auslösen, exakt an den entsprechenden DOS_BOOT_LINES-Text gekoppelt.
+const DISK_ACCESS_LINES = new Set([
+  "  Primary Master ... DEEP-ANCHOR-SSD-01 [OK]",
+  "  Primary Slave  ... NONE",
+  "  Backup-Array    ... 3x REDUNDANT [OK]",
+  "  /firmen             ... eingebunden",
+  "  /auftraege           ... eingebunden",
+  "  /kolonien            ... eingebunden",
+  "  /spielstaende        ... eingebunden",
+]);
+const MODEM_LINE = "Baue Deep-Space-Uplink auf...";
+function playDosBootSequence(){
+  const overlay = document.getElementById('dosBootOverlay');
+  const textEl = document.getElementById('dosBootText');
+  const bannerEl = document.getElementById('dosBootBanner');
+  if(!overlay || !textEl) return;
+  const myToken = ++dosBootToken; // verhindert Überlappung, falls Funktion mehrfach kurz hintereinander aufgerufen wird
+  const totalCharBudgetMs = 24000; // Zeit fürs Tippen aller reinen Textzeilen (Fortschrittsbalken laufen separat, siehe unten)
+  const totalChars = DOS_BOOT_LINES.reduce((n,l)=> n + (typeof l === 'string' ? Math.max(l.length,1) : 0), 0);
+  const perCharMs = Math.min(28, Math.max(9, totalCharBudgetMs / Math.max(totalChars,1)));
+  const interLineMs = 130; // Pause zwischen Zeilen
+  const finalHoldMs = 2600; // Pause auf der letzten Zeile mit blinkendem Cursor, vor dem Ausblenden
+  const bannerRevealMs = 900; // Pause nach dem ASCII-Logo-Aufblitzen, bevor der Textstream beginnt
+
+  textEl.textContent = '';
+  if(bannerEl){
+    bannerEl.textContent = DOS_BOOT_BANNER;
+    // Animation neu anstoßen (falls die Sequenz schon einmal in dieser Sitzung lief, siehe
+    // TODO-ZURUECK-ZUR-STARTSEITE-Flow): ohne Reflow-Trick würde die CSS-Animation beim zweiten
+    // Aufruf nicht erneut abspielen.
+    bannerEl.style.animation = 'none';
+    void bannerEl.offsetWidth;
+    bannerEl.style.animation = '';
+  }
+  overlay.classList.remove('fading', 'crt-poweroff');
+  overlay.classList.add('visible');
+  // NEU (Retro-Boot-Effekte): CRT-Einschalt-Flicker + POST-Beep — Reflow-Trick wie beim Banner,
+  // damit die Animation auch bei einem zweiten Boot in derselben Sitzung erneut abspielt.
+  overlay.classList.remove('crt-poweron');
+  void overlay.offsetWidth;
+  overlay.classList.add('crt-poweron');
+  try{ Sound.postBeep(); }catch(err){}
+  const prevBodyOverflow = document.body.style.overflow; // NEU: Body-Scroll sperren, solange der
+  document.body.style.overflow = 'hidden'; // Boot-Overlay sichtbar ist — verhindert, dass ein
+    // Wheel/Touch-Scroll-Event, das das (jetzt overflow:hidden) Overlay selbst nicht mehr
+    // verarbeitet, stattdessen zum dahinterliegenden gameRoot durchgereicht wird (Scroll-Chaining).
+
+  let finished = false;
+  let timeoutIds = [];
+  const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds = []; };
+  let renderedLines = [];
+  const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); overlay.scrollTop = overlay.scrollHeight; };
+
+  const finishNow = ()=>{
+    if(finished || myToken !== dosBootToken) return;
+    finished = true;
+    clearAllTimers();
+    textEl.textContent = DOS_BOOT_LINES.map(l => typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
+    overlay.scrollTop = overlay.scrollHeight;
+    overlay.classList.remove('crt-poweron');
+    overlay.classList.add('crt-poweroff'); // NEU: Röhren-Ausschaltkollaps statt reinem Opacity-Fade
+    document.body.style.overflow = prevBodyOverflow; // NEU: Body-Scroll wieder freigeben
+    unlockTheme(); // NEU: eigenes/eingestelltes Farbschema+Muster greift erst ab hier wieder
+    setTimeout(()=>{
+      if(myToken !== dosBootToken) return;
+      overlay.classList.remove('visible','fading','crt-poweroff');
+      overlay.removeEventListener('click', skipHandler);
+      document.removeEventListener('keydown', skipHandler);
+    }, 550);
+  };
+  const skipHandler = ()=> finishNow();
+  overlay.addEventListener('click', skipHandler);
+  document.addEventListener('keydown', skipHandler);
+
+  let lineIndex = 0;
+  let blipCounter = 0;
+  const keyBlip = ()=>{
+    blipCounter++;
+    if(blipCounter % 3 === 0){ try{ Sound.tone(760 + Math.random()*260, 0.02, 'square', 0.045); }catch(err){} }
+  };
+  const okBlip = ()=>{ try{ Sound.tone(1180, 0.05, 'square', 0.05); }catch(err){} };
+  const readyChord = ()=>{ try{ Sound.buildOk(); }catch(err){} };
+
+  const processLine = ()=>{
+    if(myToken !== dosBootToken) return;
+    if(lineIndex >= DOS_BOOT_LINES.length){
+      const t = setTimeout(finishNow, finalHoldMs);
+      timeoutIds.push(t);
+      return;
+    }
+    const entry = DOS_BOOT_LINES[lineIndex];
+    if(typeof entry === 'string'){
+      typeStringLine(entry);
+    } else if(entry && entry.progress){
+      runProgressLine(entry);
+    }
+  };
+
+  const typeStringLine = (line)=>{
+    if(line === MODEM_LINE){ try{ Sound.modemHandshake(); }catch(err){} }
+    else if(DISK_ACCESS_LINES.has(line)){ try{ Sound.diskAccess(); }catch(err){} }
+    if(line.length === 0){
+      renderedLines[lineIndex] = '';
+      redraw();
+      lineIndex++;
+      const t = setTimeout(processLine, interLineMs/2);
+      timeoutIds.push(t);
+      return;
+    }
+    let charIndex = 0;
+    const step = ()=>{
+      if(myToken !== dosBootToken) return;
+      charIndex++;
+      renderedLines[lineIndex] = line.slice(0, charIndex);
+      redraw();
+      if(charIndex < line.length){
+        keyBlip();
+        const t = setTimeout(step, perCharMs);
+        timeoutIds.push(t);
+      } else {
+        const trimmed = line.trim();
+        if(trimmed.startsWith('[ OK ]')) okBlip();
+        else if(trimmed === 'ANCHOR-OS BEREIT.') readyChord();
+        lineIndex++;
+        const t = setTimeout(processLine, interLineMs);
+        timeoutIds.push(t);
+      }
+    };
+    step();
+  };
+
+  const runProgressLine = (entry)=>{
+    try{ Sound.diskAccess(); }catch(err){}
+    const steps = 22;
+    const stepMs = Math.max(30, entry.ms/steps);
+    let step = 0;
+    renderedLines[lineIndex] = renderProgressLine(entry.progress, 0);
+    redraw();
+    const tick = ()=>{
+      if(myToken !== dosBootToken) return;
+      step++;
+      const pct = Math.min(100, Math.round(step/steps*100));
+      renderedLines[lineIndex] = renderProgressLine(entry.progress, pct);
+      redraw();
+      if(step % 4 === 0){ try{ Sound.tone(500 + pct*4, 0.02, 'square', 0.03); }catch(err){} }
+      if(step < steps){
+        const t = setTimeout(tick, stepMs);
+        timeoutIds.push(t);
+      } else {
+        lineIndex++;
+        const t = setTimeout(processLine, interLineMs);
+        timeoutIds.push(t);
+      }
+    };
+    tick();
+  };
+
+  const startTimer = setTimeout(processLine, bannerRevealMs);
+  timeoutIds.push(startTimer);
 }
 
 async function startNewGame(difficultyId){
