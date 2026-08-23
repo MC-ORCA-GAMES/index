@@ -1,6 +1,69 @@
 <!--
 CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
 
+v4-76 (deep_anchor_4_6_35.html)
+- NEU (TODO-LOGBUCH-ERWEITERT, Nutzer-Feedback: "das wäre eher Meilensteine, ein echtes Logbuch
+  registriert doch eigentlich alles -- Forschung, jeden Start und und und" + "ne Jahreszusammen-
+  fassung wäre gut, weil's keine KI gibt, die sowas schreiben kann"): das v4-75-Logbuch (reine
+  Meilensteine) bekommt drei laufende, automatisch mitschreibende Eintragsarten dazu, plus einen
+  Jahresbericht als Kompromiss für Routine-Ereignisse (siehe Punkt 4) -- bewusst NICHT jeden
+  einzelnen Start protokolliert (bei den auf 100.000+ Starts ausgelegten Erfolgen wäre das Logbuch
+  sonst geflutet), das übernimmt stattdessen der Jahresbericht:
+  1) Jede abgeschlossene Forschung bekommt eine eigene Logbuchzeile (nutzt den vorhandenen
+     desc-Flavor-Text der Forschung, kein neuer Textbaustein nötig), Trigger direkt in tick() beim
+     Forschungsabschluss.
+  2) Jedes erstmals erreichte Ziel im All bekommt eine eigene Zeile (nutzt DEEP_SPACE[key].desc),
+     Trigger direkt beim ersten firstTimeReach in der Deep-Space-Sondenwarteschlange.
+  3) Jede neu gegründete Kolonie bekommt eine eigene Zeile (beide Kolonie-Gründungsstellen:
+     Mars-Spezialfall und generischer Fall für alle anderen kolonisierbaren Ziele).
+  4) Neuer automatischer Jahresbericht (generateYearlyLogbookReport()): an jeder Firmenjahr-Grenze
+     (Tag 366, 731, ... -- ein Firmenjahr = 365 Tage) wird GENAU EINMAL (tick() läuft genau einmal
+     pro Spieltag, auch während Offline-Catchup) ein Bericht erzeugt, der die Differenz zum letzten
+     Schnappschuss (state.logbookYearSnapshot) rein aus vorhandenen Lifetime-Stats zusammenfasst:
+     Starts, gefertigte Satelliten/Module, abgeschlossene Aufträge/Forschungen, neue Ziele/Kolonien,
+     verlorene Satelliten, Gesamteinnahmen -- KOMPLETT ohne KI-generierten Text, rein deterministisch
+     aus echten Zahlen (dafür gibt's zur Laufzeit keine echte KI im Spiel). Leere Kategorien werden
+     ausgelassen, ein ruhiges Jahr erscheint entsprechend kurz.
+  5) state.logbook enthält jetzt gemischt Meilenstein-Einträge (wie v4-75, {kind:'milestone'
+     implizit über fehlendes kind-Feld, id, day}) UND die drei neuen laufenden Eintragsarten
+     ({kind:'research'/'target'/'colony'/'yearly', icon, title, text, day} direkt im Eintrag selbst,
+     kein Nachschlagen in einer Konstante nötig, da hier -- anders als bei Meilensteinen -- jeder
+     einzelne Vorfall individuellen Text braucht). renderLogbook() sortiert alle Einträge gemischt
+     chronologisch (neueste zuerst), gecappt auf die letzten 300 in der Anzeige (Performance bei
+     sehr langen Spielständen) -- der Spielstand selbst behält alles.
+  6) Bewusst KEIN zusätzlicher Toast bei den drei neuen laufenden Eintragsarten -- die jeweilige
+     Trigger-Stelle toastet an der jeweiligen Stelle ohnehin schon (z.B. "Erforscht: ..."), ein
+     zweiter Toast wäre nur Redundanz. Nur der Jahresbericht könnte künftig noch einen eigenen Toast
+     bekommen, aktuell bewusst still (kein Ereignis, das mitten im Spielfluss unterbrechen sollte).
+
+v4-75 (deep_anchor_4_6_35.html)
+- NEU (TODO-LOGBUCH, Nutzer-Wunsch: "Lore/Story reinbauen... Firmenlogbuch als eigener Reiter, aber
+  da darf kein Tag 9364 rein, das müsste ein Datum sein, sonst muss man selbst rechnen"): neuer Tab
+  "Logbuch" neben Erfolge/Statistiken, rein narrativ (kein Spiel-Effekt), analog zum
+  ACHIEVEMENTS-System aufgebaut:
+  1) Neue LOGBOOK_ENTRIES-Konstante (15 Einträge, id/icon/title/hint/text/check) -- deckt in grober
+     chronologischer Reihenfolge Gründung, ersten Start, ersten Mondkontakt, Mondkolonie,
+     Erstkontakt, Raumstation, beide Terraforming-Meilensteine, Marskolonie, Ceres/Titan-Vorposten,
+     erste eigene Unterfirma, ersten interstellaren Kontakt, erste Exoplaneten-Kolonie, ersten
+     intergalaktischen Kontakt sowie NGC-1365-Kartierung ab. Nutzt bewusst dieselben
+     check()-Bedingungen wie die passenden ACHIEVEMENTS-Einträge (bereits robust erprobt), aber
+     eine komplett eigene Liste -- unterschiedlicher Zweck (Erzählung vs. Vollständigkeitssammlung)
+     und unterschiedliche Struktur, keine Kopplung.
+  2) Neues state.logbook ([{id,day}], analog state.achievementsUnlocked) + checkLogbookEntries(silent),
+     an denselben drei Stellen aufgerufen wie checkAchievements() (renderAll(), Offline-Catchup in
+     tick(), einmaliger stiller Nachtrag beim Laden) -- silent unterdrückt nur den Toast, es gibt
+     keine Belohnung abzuholen.
+  3) Kernpunkt des Nutzer-Wunsches: renderLogbook() zeigt bei jedem freigeschalteten Eintrag KEIN
+     rohes state.day, sondern rechnet über die bereits bestehende companyCalendarDate()-Infrastruktur
+     (state.foundingDate + addDaysISO() + formatCalendarDateDE(), siehe HUD-Datum) ein echtes
+     Kalenderdatum aus (z.B. "3. Nov 2089") -- der gespeicherte Tag dient nur als interner
+     Rechenwert, genau wie beim HUD, damit spätere ensureFoundingDate()-Korrekturen für
+     Altspielstände nicht auseinanderlaufen können. Niemand muss selbst von Spieltagen auf ein Jahr
+     umrechnen.
+  4) Noch nicht erreichte Einträge erscheinen gesperrt (🔒, Titel + kurzer Hinweis auf die
+     Freischaltbedingung), aber ohne den eigentlichen Story-Text -- kein Spoiler, analog zum
+     Schloss-Symbol im Erfolge-Tab.
+
 v4-74 (deep_anchor_4_6_34.html)
 - BALANCE (TODO-ERFOLGE-2-REBALANCE, Nutzer-Feedback: "10k forschungs punkte ist doch kein
   erfolg, man kan das schon mit einer mission bekommen"): korrekt -- eine einzelne Mars-
@@ -3440,6 +3503,7 @@ html.ui-theme-dos input[type="number"]{
   <div class="tab" data-view="kolonien">Kolonien</div>
   <div class="tab" data-view="stats">Statistiken</div>
   <div class="tab" data-view="achievements">Erfolge</div>
+  <div class="tab" data-view="logbuch">Logbuch</div>
 </div>
 </div>
 
@@ -3694,6 +3758,12 @@ html.ui-theme-dos input[type="number"]{
         <div style="display:flex; gap:8px;">
           <button class="btn small" id="btnBuyDrone1" style="flex:1; justify-content:center;">+1 Drohne</button>
           <button class="btn small" id="btnBuyDrone10" style="flex:1; justify-content:center;">+10 Drohnen</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+          <div class="qty-stepper" style="flex:1;">
+            <input type="number" id="droneQtyInput" value="1000" min="1" step="1" inputmode="numeric" style="width:100%; text-align:center;">
+          </div>
+          <button class="btn small" id="btnBuyDroneQty" style="flex:1; justify-content:center;">Kaufen</button>
         </div>
       </div>
       <div class="panel" style="margin-top:14px;" id="satDetailPanel">
@@ -3986,6 +4056,16 @@ html.ui-theme-dos input[type="number"]{
       <div class="panel">
         <h3>Erfolge <span class="small-muted" id="achievementsCount" style="font-weight:normal;">0 / 0</span></h3>
         <div id="achievementsList"></div>
+      </div>
+    </div>
+
+    <!-- LOGBUCH VIEW (NEU, TODO-LOGBUCH): reiner Auswertungs-Tab wie Erfolge/Statistiken, immer
+         sichtbar, kein Spiel-Effekt -- rein narrative Firmenchronik, gefüllt über
+         checkLogbookEntries()/LOGBOOK_ENTRIES, siehe dort. -->
+    <div class="view" id="view-logbuch">
+      <div class="panel">
+        <h3>Firmenlogbuch <span class="small-muted" id="logbookCount" style="font-weight:normal;">0 / 0</span></h3>
+        <div id="logbookList" style="display:flex; flex-direction:column; gap:8px;"></div>
       </div>
     </div>
 
@@ -5596,6 +5676,40 @@ function freshState(difficultyId){
     // (siehe beginCommonGameLoop()) einmalig OHNE Toast/Sound nachgetragen, statt beim ersten
     // Render eine Toast-Flut auszulösen.
     achievementsUnlocked: [],
+    // NEU (TODO-LOGBUCH, Nutzer-Wunsch: "Lore/Story reinbauen... Firmenlogbuch als eigener Reiter,
+    // aber mit echtem Kalenderdatum statt Spieltag-Zahl"): Liste freigeschalteter Logbuch-Einträge,
+    // {id, day} — id referenziert einen Eintrag in LOGBOOK_ENTRIES, day hält den Firmentag der
+    // Freischaltung fest (genau wie bei achievementsUnlocked). Die Anzeige rechnet day über die
+    // bereits bestehende companyCalendarDate()-Logik (state.foundingDate + addDaysISO) in ein
+    // echtes Kalenderdatum um -- kein separates Datumsfeld hier nötig, das würde bei künftigen
+    // Foundig-Date-Korrekturen (ensureFoundingDate() für Altspielstände) sonst auseinanderlaufen.
+    // Kein Migrationscode nötig, defaultet über freshState()+Object.assign() automatisch auf
+    // leeres Array; bereits erreichte Meilensteine werden beim nächsten Laden über
+    // checkLogbookEntries(true) einmalig ohne Toast nachgetragen, analog checkAchievements(true).
+    // NEU (TODO-LOGBUCH-ERWEITERT, Nutzer-Feedback: "das wäre eher Meilensteine, ein echtes
+    // Logbuch registriert doch eigentlich alles"): logbook enthält jetzt NICHT mehr nur
+    // {id,day}-Meilensteine, sondern gemischt auch Einträge mit eigenem kind ('research'/'target'/
+    // 'colony'/'yearly'), die direkt icon/title/text mitbringen (siehe addLogbookEntry() und
+    // generateYearlyLogbookReport()) -- Einträge ohne kind gelten weiterhin als Meilenstein
+    // (Abwärtskompatibilität zu v4-75-Spielständen von vor dieser Erweiterung).
+    logbook: [],
+    // NEU (TODO-LOGBUCH-TAB-BLINKEN): merkt sich state.logbook.length zum Zeitpunkt des letzten
+    // Besuchs im Logbuch-Tab. updateLogbookTabIndicator() (aufgerufen am Ende von renderLogbook())
+    // vergleicht aktuelle Länge dagegen -- Differenz > 0 lässt den Tab blinken (Klasse has-reward,
+    // wiederverwendet aus TODO-ACHIEVEMENT-REWARDS) und zeigt die Anzahl als Badge. Der Tab-Klick-
+    // Handler setzt den Wert beim Öffnen des Logbuchs auf den aktuellen Stand zurück.
+    logbookLastSeen: 0,
+    // NEU (TODO-LOGBUCH-ERWEITERT): Schnappschuss der Lifetime-Stats zum letzten Jahresbericht --
+    // generateYearlyLogbookReport() bildet die Differenz zu den aktuellen Werten und baut daraus
+    // einen rein aus echten Zahlen bestehenden Bericht, ganz ohne dass irgendwo ein KI-generierter
+    // Text nötig wäre. Startet bei einem NEUEN Spiel bewusst bei Null (nicht erst lazy beim ersten
+    // Bericht gesetzt) -- sonst würde generateYearlyLogbookReport() Schnappschuss UND aktuellen
+    // Stand im selben Moment (Tag 366) erzeugen und der allererste Jahresbericht wäre fälschlich
+    // leer. Wird nach jedem Bericht aktualisiert.
+    logbookYearSnapshot: {
+      launchesTotal:0, satellitesBuilt:0, modulesBuilt:0, contractsCompleted:0, researchCompleted:0,
+      satellitesLost:0, lifetimeIncome:0, coloniesCount:0, exploredCount:0,
+    },
     // NEU (TODO-ZUFALLSEREIGNISSE, Punkt 4 der IDEENLISTE): Verlaufsprotokoll ausgelöster
     // Zufallsereignisse, {day, name, icon, message, kind:'good'|'bad'}, gecappt auf die letzten
     // 20 Einträge, analog missionLog. marketEvent hält einen AKTUELL laufenden Markt-Effekt
@@ -8869,6 +8983,14 @@ function buyRepairDrone(qty){
 // ist kostenlos — die Drohne wurde beim Kauf bereits vollständig ausgestattet und bezahlt. Jede
 // Reparatur verbraucht eine Ladung aus dem Kontingent der jeweiligen Standort-Flotte (10 pro
 // Drohne) — ist eine Drohne "verbraucht", fällt sie aus dem Bestand ihres Standorts.
+// NEU (TODO-DROHNEN-TOAST-PERF, Nutzer-Feedback: "bei jeder kleinen Benachrichtigung stockt die
+// Satelliten-Animation"): runAutoRepairDrones() läuft pro simuliertem Spieltag -- bei hoher
+// Spielgeschwindigkeit bzw. vielen Standorten gleichzeitig konnten dadurch in kurzer Zeit sehr
+// viele toast()-Aufrufe (DOM-Insert + Reflow + eigene CSS-Transition) auf dem Hauptthread anfallen,
+// genau der Art, die requestAnimationFrame-Animationen (Orbit-Karte) ins Stocken bringt. Die beiden
+// Wartungsdrohnen-Toasts sind daher bewusst entfernt -- Status (Drohnenanzahl, verbleibende
+// Reparaturen) bleibt weiterhin live im Wartungs-Panel sichtbar (renderMaintenance()), nur die
+// Popup-Benachrichtigung fällt weg.
 function runAutoRepairDrones(){
   if(!state.repairDronesByLoc) return;
   Object.keys(state.repairDronesByLoc).forEach(loc=>{
@@ -8878,21 +9000,14 @@ function runAutoRepairDrones(){
       .filter(s=>(s.location||'earth')===loc && s.health<=REPAIR_DRONE_TRIGGER_HEALTH)
       .sort((a,b)=>a.health-b.health)
       .slice(0, ds.charges);
-    let repaired = 0;
     candidates.forEach(s=>{
       if(ds.charges<=0) return;
       s.health = 100;
       ds.charges--;
-      repaired++;
     });
     const dronesRemaining = Math.ceil(ds.charges / REPAIR_DRONE_CAPACITY);
     if(dronesRemaining < ds.drones){
-      const broken = ds.drones - dronesRemaining;
       ds.drones = dronesRemaining;
-      toast(`⚠️ ${broken} Wartungsdrohne(n) ${droneLocLabel(loc)} ${broken===1?'ist':'sind'} nach Erreichen ihrer Lebensdauer ausgefallen.`, 'bad');
-    }
-    if(repaired>0){
-      toast(`Wartungsdrohnen ${droneLocLabel(loc)}: ${repaired} Satellit(en) automatisch repariert.`, 'good');
     }
   });
 }
@@ -9178,6 +9293,10 @@ function tick(silent){
   // Catch-up-Berechnung in computeAndApplyOfflineProgress() beim nächsten "Fortsetzen".
   state.lastRealTimestamp = Date.now();
   state.day += 1;
+  // NEU (TODO-LOGBUCH-ERWEITERT): Firmenjahr-Grenze (Tag 366, 731, ... -- ein Firmenjahr = 365
+  // Tage, siehe formatCompanyDate()) löst automatisch den Jahresbericht aus, GENAU EINMAL pro
+  // Jahresgrenze, weil tick() genau einmal pro Spieltag läuft (auch während Offline-Catchup).
+  if(state.day>1 && state.day%365===1) generateYearlyLogbookReport();
   let incomeTotal = 0, upkeepTotal = 0, sciencePointsTotal = 0;
   const maintFactor = hasResearch('maintenance') ? 0.75 : 1;
 
@@ -9192,6 +9311,10 @@ function tick(silent){
       state.stats.researchCompleted += 1;
       toast(`Erforscht: ${rr ? rr.name : rid}`, 'good');
       Sound.contractDone();
+      // NEU (TODO-LOGBUCH-ERWEITERT): jede abgeschlossene Forschung bekommt eine eigene
+      // Logbuchzeile -- nutzt den bereits vorhandenen desc-Flavor-Text der Forschung, kein
+      // separater Textbaustein nötig.
+      if(rr) addLogbookEntry('research', '🔬', rr.name, rr.desc);
     }
   }
 
@@ -9301,7 +9424,12 @@ function tick(silent){
     dsArrived.forEach(q=>{
       const d = DEEP_SPACE[q.destKey];
       const firstTimeReach = !state.exploredTargets.includes(q.destKey);
-      if(firstTimeReach) state.exploredTargets.push(q.destKey);
+      if(firstTimeReach){
+        state.exploredTargets.push(q.destKey);
+        // NEU (TODO-LOGBUCH-ERWEITERT): jedes erstmals erreichte Ziel bekommt eine eigene
+        // Logbuchzeile -- nutzt den bereits vorhandenen desc-Flavor-Text aus DEEP_SPACE.
+        addLogbookEntry('target', '📡', `Ziel erreicht: ${d.name}`, d.desc);
+      }
       if(q.attemptLanding){
         const landingChance = effectiveLandingChance(d.landingBaseChance);
         const landed = Math.random() < landingChance;
@@ -9356,6 +9484,7 @@ function tick(silent){
                 state.colonies.push({ destKey:'mars', name:d.name, day:state.day, incomePerPop: marsIncomePerPop, population: marsPop, buildings:{habitat:0,fabrik:0,antenne:0}, buildQueue:[] });
                 state.reputation = Math.min(100, state.reputation + 20);
                 toast(`Mars ist bewohnbar — mit dieser Landung wird die erste dauerhafte Mars-Kolonie gegründet! Liefert ab sofort +${fmtMoney(Math.round(marsPop*marsIncomePerPop))} passives Einkommen pro Tag.`, 'good');
+                addLogbookEntry('colony', '🏠', `Kolonie gegründet: ${d.name}`, `Die erste dauerhafte Kolonie auf ${d.name}, mit ${marsPop.toLocaleString('de-DE')} Gründungssiedlern.`);
               } else if(hasColonyModule && !moonColonized){
                 toast(`Mars ist terraformt und bereit — aber die Kolonisierungs-Doktrin verlangt erst eine dauerhafte Mondbasis, bevor Mars offiziell besiedelt werden darf. Erst den Mond kolonisieren (Mondbasis-Programm + Mond-Kolonie-Modul), dann klappt's auch mit Mars.`, 'bad');
               }
@@ -9383,6 +9512,7 @@ function tick(silent){
               state.colonies.push({ destKey:q.destKey, name:d.name, day:state.day, incomePerPop, population: foundPop, buildings:{habitat:0,fabrik:0,antenne:0}, buildQueue:[] });
               state.reputation = Math.min(100, state.reputation + 20);
               toast(`Kolonie auf ${d.name} gegründet! Liefert ab sofort +${fmtMoney(Math.round(foundPop*incomePerPop))} passives Einkommen pro Tag.`, 'good');
+              addLogbookEntry('colony', '🏠', `Kolonie gegründet: ${d.name}`, `Neue Kolonie auf ${d.name}, mit ${foundPop.toLocaleString('de-DE')} Gründungssiedlern.`);
             }
           }
           const alienContact = alienContactFor(q.destKey);
@@ -9661,6 +9791,7 @@ function computeAndApplyOfflineProgress(){
 
   state.lastRealTimestamp = Date.now();
   checkAchievements(true); // still nachtragen, falls während des Catch-ups Meilensteine erreicht wurden
+  checkLogbookEntries(true); // dito für das Firmenlogbuch, ebenfalls ohne Toast-Flut
 
   const satsLost = state.stats.satellitesLost - before.satellitesLost;
   // Ankünfte = Netto-Bestandsänderung + zwischenzeitliche Verluste (da beides gegenläufig
@@ -10262,6 +10393,25 @@ function inclineFor(s){
 
 function drawOrbitScene(ts){
   const canvas = document.getElementById('orbitCanvas');
+  // NEU (TODO-ORBIT-PERF, Nutzer-Feedback: "auch wenn weniger Punkte gezeichnet werden, ist die
+  // Karte total laggy"): der eigentliche Bremsklotz war nie die Anzahl der gezeichneten Punkte,
+  // sondern dass diese Animation über requestAnimationFrame PERMANENT weiterlief -- 60x/Sekunde
+  // alle Satelliten gefiltert, samplet und (versucht zu) zeichnen, komplett unabhängig davon, ob
+  // der Orbit-Tab überhaupt geöffnet war. Das kostete durchgehend CPU-Zeit in JEDEM anderen Tab.
+  // Jetzt: Tab nicht aktiv -> Animation komplett anhalten (kein weiteres requestAnimationFrame).
+  // Neustart über den Tab-Klick-Handler weiter unten, sobald der Orbit-Tab wieder geöffnet wird.
+  const viewOrbit = document.getElementById('view-orbit');
+  if(!viewOrbit || !viewOrbit.classList.contains('active')){ orbitAnimHandle = null; return; }
+  // Winkel-Update läuft weiter mit, solange der Orbit-Tab aktiv ist -- auch während gerade die
+  // Kolonie-Unteransicht gezeigt wird (updateOrbitMapVisibility()), damit Satelliten nicht
+  // einfrieren, sobald man zurück zur Erd-Ansicht wechselt. Rein kosmetisch (Bahnposition), keine
+  // Spielmechanik hängt an s.angle.
+  const dt0 = 0.006;
+  state.orbitSats.forEach(s=>{ s.angle += ORBITS[s.orbit].speed*dt0; });
+  // Erd-Canvas gerade nicht sichtbar (Kolonie-Unteransicht gewählt) -- Rest der teuren Erd-
+  // Zeichnung (Filtern/Sampling/Zeichnen aller Erd-Satelliten) überspringen, Loop aber am Laufen
+  // halten, damit sie sofort weiterzeichnet, sobald wieder auf Erde umgeschaltet wird.
+  if(canvas.offsetParent === null){ orbitAnimHandle = requestAnimationFrame(drawOrbitScene); return; }
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio||1;
   const cw = canvas.clientWidth, ch = canvas.clientHeight;
@@ -10293,10 +10443,6 @@ function drawOrbitScene(ts){
   const REF_W = 1000, REF_H = 520; // Referenz-Design-Größe (ursprüngliches Layout)
   const S = Math.min(cw/REF_W, ch/REF_H);
   const earthR = Math.min(cw,ch)*0.16*ZOOM_BASE*orbitZoom;
-
-  // update satellite angles
-  const dt = 0.006;
-  state.orbitSats.forEach(s=>{ s.angle += ORBITS[s.orbit].speed*dt; });
 
   // sort rings LEO->GEO for radii
   const ringOrder = ['LEO','MEO','GEO'];
@@ -10351,8 +10497,11 @@ function drawOrbitScene(ts){
 
   // BACK satellites (sin(angle) < 0) — NEU (TODO-KOLONIE-ORBIT): nur Erd-Satelliten, Kolonie-
   // Satelliten haben ihre eigene, leichtgewichtige Ring-Ansicht (renderOrbitColonyRings)
-  state.orbitSats.forEach(s=>{
-    if((s.location||'earth')!=='earth') return;
+  // NEU (TODO-ORBIT-PUNKTE-REDUZIEREN): sampleOrbitSatsForDisplay() statt der vollen Liste, siehe
+  // Erklärung dort -- bei großen Flotten steht ein Punkt dann für ~50 echte Satelliten.
+  const earthSatsAll = state.orbitSats.filter(s=>(s.location||'earth')==='earth');
+  const earthSatsVisible = sampleOrbitSatsForDisplay(earthSatsAll);
+  earthSatsVisible.forEach(s=>{
     if(Math.sin(s.angle) >= 0) return;
     drawSatDot(ctx, cx, cy, s, rings);
   });
@@ -10602,15 +10751,17 @@ function drawOrbitScene(ts){
   });
 
   // FRONT satellites — NEU (TODO-KOLONIE-ORBIT): nur Erd-Satelliten anzeigen/klickbar
+  // NEU (TODO-ORBIT-PUNKTE-REDUZIEREN): dieselbe gesampelte Liste wie beim BACK-Durchlauf
+  // (earthSatsVisible oben) -- Klick-Ziele entsprechen so immer genau den sichtbaren Punkten.
   const clickTargets = [];
-  state.orbitSats.forEach(s=>{
+  earthSatsVisible.forEach(s=>{
     if((s.location||'earth')!=='earth') return;
     if(Math.sin(s.angle) < 0) return;
     const p = drawSatDot(ctx, cx, cy, s, rings);
     if(p) clickTargets.push({s,p});
   });
   // also gather back targets for click (approx position ok)
-  state.orbitSats.forEach(s=>{
+  earthSatsVisible.forEach(s=>{
     if((s.location||'earth')!=='earth') return;
     if(Math.sin(s.angle) >= 0) return;
     const r = rings.find(rr=>rr.key===s.orbit);
@@ -10647,6 +10798,34 @@ function payloadColorFor(s){
   const mods = s.mods.map(findMod).filter(Boolean);
   const p = mods.find(m=>m.cat==='payload');
   return p ? PAYLOAD_TYPES[p.type].color : '#848484';
+}
+// NEU (TODO-ORBIT-PUNKTE-REDUZIEREN, Nutzer-Wunsch: "Anzahl der sichtbaren Satelliten reduzieren,
+// vielleicht 50 Satelliten entsprechen 1 Punkt"): bei kleinen Flotten weiterhin jeden Satelliten als
+// eigenen Punkt zeigen, ab ORBIT_SAT_GROUP_SIZE aber nur noch einen repräsentativen Punkt je ~50
+// echten Satelliten -- sonst verschmiert die Szene bei sehr großen Flotten (100.000+ im Spätspiel)
+// zu einem einzigen Farbklecks und die Klick-Erkennung (canvas._clickTargets) wird unbrauchbar
+// langsam. Gleichmäßige Schritt-Stichprobe (wie schon bei dosOrbitRingSample() für die ASCII-Karte),
+// zusätzlich mit einer Obergrenze gedeckelt, falls selbst 1:50 noch zu viele Punkte wären. Der
+// aktuell ausgewählte Satellit (selectedSatId) wird IMMER mit angezeigt, auch wenn er beim
+// Sampling nicht getroffen wurde -- sonst verschwindet sein Auswahl-Ring plötzlich aus der Szene.
+const ORBIT_SAT_GROUP_SIZE = 50;
+const ORBIT_SAT_MAX_VISIBLE_DOTS = 400;
+function orbitVisibleDotCount(n){
+  if(n<=0) return 0;
+  return Math.min(ORBIT_SAT_MAX_VISIBLE_DOTS, Math.max(1, Math.ceil(n/ORBIT_SAT_GROUP_SIZE)));
+}
+function sampleOrbitSatsForDisplay(list){
+  if(list.length===0) return list;
+  const maxDots = orbitVisibleDotCount(list.length);
+  if(list.length<=maxDots) return list;
+  const step = list.length/maxDots;
+  const out = [];
+  for(let i=0;i<maxDots;i++) out.push(list[Math.floor(i*step)]);
+  if(selectedSatId!=null && !out.some(s=>s.id===selectedSatId)){
+    const sel = list.find(s=>s.id===selectedSatId);
+    if(sel) out.push(sel);
+  }
+  return out;
 }
 
 function initOrbitCanvasClicks(){
@@ -10836,6 +11015,11 @@ let colonyOrbitAnimHandle = null;
 function drawColonyOrbitScene(ts){
   const canvas = document.getElementById('orbitColonyCanvas');
   if(!canvas){ colonyOrbitAnimHandle = requestAnimationFrame(drawColonyOrbitScene); return; }
+  // NEU (TODO-ORBIT-PERF): analog drawOrbitScene() -- komplett anhalten, solange der Orbit-Tab
+  // gar nicht aktiv ist, statt permanent im Hintergrund weiterzulaufen. Neustart über den
+  // Tab-Klick-Handler weiter unten.
+  const viewOrbit = document.getElementById('view-orbit');
+  if(!viewOrbit || !viewOrbit.classList.contains('active')){ colonyOrbitAnimHandle = null; return; }
   const dpr = window.devicePixelRatio||1;
   const cw = canvas.clientWidth, ch = canvas.clientHeight;
   // BUGFIX-Muster wie bei drawMoneyChart()/statsMoneyChart: bei unsichtbarem Tab ist
@@ -10895,7 +11079,10 @@ function drawColonyOrbitScene(ts){
       ctx.restore();
     });
 
-    const colSats = state.orbitSats.filter(s=>(s.location||'earth')===orbitViewLocation);
+    // NEU (TODO-ORBIT-PUNKTE-REDUZIEREN): auch hier gesampelte Liste statt jedes einzelnen
+    // Satelliten -- siehe sampleOrbitSatsForDisplay() weiter oben.
+    const colSatsAll = state.orbitSats.filter(s=>(s.location||'earth')===orbitViewLocation);
+    const colSats = sampleOrbitSatsForDisplay(colSatsAll);
     // BACK-Satelliten zuerst (hinter dem Planeten)
     colSats.forEach(s=>{ if(Math.sin(s.angle) < 0) drawSatDot(ctx, cx, cy, s, rings); });
 
@@ -14080,6 +14267,209 @@ function renderAchievements(){
   updateAchievementsTabIndicator();
 }
 
+// NEU (TODO-LOGBUCH, Nutzer-Wunsch: "Lore/Story reinbauen... als eigener Reiter, aber mit echtem
+// Datum statt Spieltag"): Firmenlogbuch -- narrative Einträge, die bei denselben Art Meilensteinen
+// aufploppen wie Erfolge, aber Story statt Statistik erzählen. Bewusst eine EIGENE Liste statt
+// Wiederverwendung von ACHIEVEMENTS: unterschiedlicher Zweck (Fortschritts-Erzählung vs.
+// Vollständigkeits-Sammlung), unterschiedliche Struktur (title/hint/text statt name/desc/reward),
+// daher keine Kopplung -- ein Erfolg kann verändert werden, ohne das Logbuch zu verschieben und
+// umgekehrt. Wiederverwendet aber bewusst dieselben check()-Bedingungen wie die passenden
+// ACHIEVEMENTS-Einträge (bereits robust erprobt), keine neuen Tracking-Felder nötig.
+// Reihenfolge hier = grobe chronologische Erzähl-Reihenfolge einer typischen Firmengeschichte
+// (Gründung -> erster Start -> Mond -> Erstkontakt -> Mars/Terraforming -> Außenposten ->
+// interstellar -> intergalaktisch), NICHT die Anzeige-Reihenfolge (die sortiert renderLogbook()
+// nach tatsächlichem Freischalt-Tag, da manche Spieler Reihenfolgen abweichend erreichen können,
+// z.B. Raumstation vor erstem Kontakt).
+const LOGBOOK_ENTRIES = [
+  { id:'founding', icon:'🏢', title:'Firmengründung', hint:'Schon geschehen -- der erste Eintrag im Logbuch.',
+    text:'Mit der Eintragung ins Firmenregister beginnt die Geschichte von Anchor Systems. Ein Konferenzraum, ein paar Investoren, viele offene Fragen -- und ein Ziel, das größer ist als alles, was diese Firma bisher gebaut hat: hinaus, so weit es geht.',
+    check:s=>s.day>=1 },
+  { id:'firstLaunch', icon:'🚀', title:'Erster Start', hint:'Wird freigeschaltet mit dem ersten Raketenstart.',
+    text:'Countdown, Zündung, Abheben -- die erste Rakete der Firma verlässt die Startrampe. Im Kontrollraum wird nicht gejubelt, sondern geschwiegen, bis die Telemetrie sauberen Orbit meldet. Erst danach bricht der Applaus los.',
+    check:s=>s.stats.launchesTotal>=1 },
+  { id:'firstMoon', icon:'🌕', title:'Der Mond aus der Nähe', hint:'Wird freigeschaltet, sobald eine Sonde den Mond erreicht.',
+    text:'Zum ersten Mal sendet eine eigene Sonde Bilder vom Mond aus nächster Nähe zurück. Nichts Neues für die Menschheit -- aber für diese Firma der erste handfeste Beweis, dass die eigene Technik tatsächlich funktioniert, wenn es darauf ankommt.',
+    check:s=>s.exploredTargets && s.exploredTargets.includes('mond') },
+  { id:'moonColony', icon:'🏠', title:'Mondbasis', hint:'Wird freigeschaltet mit der ersten Mondkolonie.',
+    text:'Die ersten dauerhaften Habitate auf dem Mond nehmen den Betrieb auf. Kein Außenposten mehr, sondern eine echte Adresse: Menschen leben und arbeiten jetzt permanent außerhalb der Erde. Die Firma hat offiziell einen zweiten Standort.',
+    check:s=>s.colonies.some(c=>c.destKey==='mond') },
+  { id:'firstContact', icon:'👽', title:'Erstkontakt', hint:'Wird freigeschaltet bei der ersten Entdeckung außerirdischen Lebens.',
+    text:'Eine Anomalie in den Sensordaten, die sich nicht wegerklären lässt. Nach Tagen der Nachprüfung steht fest: Es ist echt. Die Firma war nicht darauf vorbereitet, die erste zu sein -- und ist es trotzdem.',
+    check:s=>s.firstContacts.length>=1 },
+  { id:'stationFounded', icon:'🛰️', title:'Außenposten im Orbit', hint:'Wird freigeschaltet mit der ersten Raumstation.',
+    text:'Modul für Modul montiert die Werft die erste eigene Raumstation zusammen. Kein Planet, kein Mond -- ein reines Bauwerk der Firma, frei schwebend im Erdorbit. Von hier aus soll künftig alles Weitere seinen Ausgang nehmen.',
+    check:s=>!!s.station },
+  { id:'terraformStarted', icon:'🌋', title:'Erste Emissionen über dem Mars', hint:'Wird freigeschaltet, sobald das Mars-Terraforming beginnt.',
+    text:'Die ersten Anlagen beginnen, die dünne Marsatmosphäre zu verdichten. Es wird Generationen dauern, bis sich das spürbar auswirkt -- aber irgendwo muss angefangen werden, und die Firma hat gerade angefangen.',
+    check:s=>terraformStageIndex('mars')>=1 },
+  { id:'terraformDone', icon:'🌍', title:'Der rote Planet wird grün', hint:'Wird freigeschaltet, sobald der Mars die letzte Terraforming-Stufe erreicht.',
+    text:'Der Marshimmel zeigt zum ersten Mal einen Hauch von Blau statt endlosem Rostrot. Wasser fließt offen an der Oberfläche. Was als ferne Vision begann, ist jetzt eine bewohnbare Welt -- bereit für die erste echte Kolonie.',
+    check:s=>terraformStageIndex('mars')>=TERRAFORM_STAGES.length-1 },
+  { id:'marsColony', icon:'🔴', title:'Kolonie auf dem Mars', hint:'Wird freigeschaltet mit der ersten Marskolonie.',
+    text:'Die ersten Siedler beziehen ihre Habitate unter offenem Marshimmel. Was Generationen von Ingenieuren nur berechnet hatten, ist jetzt bewohnter Alltag: der zweite Planet der Firma, und der erste komplett terraformte.',
+    check:s=>s.colonies.some(c=>c.destKey==='mars') },
+  { id:'outerColony', icon:'☄️', title:'Vorposten im Asteroidengürtel', hint:'Wird freigeschaltet mit der ersten Kolonie auf Ceres oder Titan.',
+    text:'Weit jenseits von Mond und Mars nimmt ein neuer Außenposten den Betrieb auf -- karg, kalt, und trotzdem lebenswichtig für alles, was die Firma als Nächstes plant. Rohstoffe und Erfahrung, die kein anderer Standort liefern kann.',
+    check:s=>s.colonies.some(c=>c.destKey==='ceres'||c.destKey==='titanMond') },
+  { id:'ownNetwork', icon:'📡', title:'Die erste Unterfirma', hint:'Wird freigeschaltet mit der ersten eigenen Unterfirma.',
+    text:'Aus einem Satelliten-Netzwerk wird ein eigenständiges Tochterunternehmen. Die Firma verdient jetzt nicht mehr nur an Aufträgen für andere, sondern an einer Infrastruktur, die ihr selbst gehört.',
+    check:s=>s.ownNetworks.length>=1 },
+  { id:'firstInterstellar', icon:'✨', title:'Jenseits des Sonnensystems', hint:'Wird freigeschaltet, sobald ein Ziel außerhalb des Sonnensystems erreicht wird.',
+    text:'Nach Jahren voller Berechnungen meldet eine Sonde Daten aus einem fremden Sternsystem. Kein Planet mehr, um den die Erde ihre Sonne kreisen sieht -- ein völlig anderer Himmel. Die Firma hat das Sonnensystem verlassen.',
+    check:s=>DEEP_SPACE_KEYS.some(k=>DEEP_SPACE[k].interstellar && s.exploredTargets.includes(k)) },
+  { id:'exoplanetColony', icon:'🪐', title:'Die erste fremde Welt', hint:'Wird freigeschaltet mit der ersten Kolonie auf einem Exoplaneten.',
+    text:'Zum ersten Mal siedeln Menschen unter einer fremden Sonne. Die Reise dorthin war länger als manche Karriere bei der Firma -- aber am Ziel wächst jetzt eine echte, dauerhafte Kolonie, Lichtjahre von der Erde entfernt.',
+    check:s=>s.colonies.some(c=>DEEP_SPACE[c.destKey] && DEEP_SPACE[c.destKey].interstellar) },
+  { id:'firstIntergalactic', icon:'🌀', title:'Jenseits der Milchstraße', hint:'Wird freigeschaltet, sobald ein Ziel jenseits der Milchstraße erreicht wird.',
+    text:'Die Messwerte, die zurückkommen, stammen nicht mehr aus der eigenen Galaxie. Was als Firmenprojekt begann, hat gerade eine Grenze überschritten, die noch vor wenigen Jahrzehnten als endgültig galt.',
+    check:s=>DEEP_SPACE_KEYS.some(k=>DEEP_SPACE[k].intergalactic && s.exploredTargets.includes(k)) },
+  { id:'edgeOfKnown', icon:'🔭', title:'Am Rand des Bekannten', hint:'Wird freigeschaltet, sobald NGC 1365 kartiert ist.',
+    text:'Die Kartierung von NGC 1365 markiert das Ende dessen, was mit heutiger Technik überhaupt erreichbar ist. Kein Etappenziel mehr, sondern die aktuelle Reichweite der gesamten Menschheit -- maßgeblich mitgeschrieben von dieser Firma.',
+    check:s=>s.purchasedResearch.includes('ngc1365Kartierung') },
+];
+// silent=true unterdrückt den Toast (für den stillen Nachtrag beim Laden/Catch-up, analog
+// checkAchievements). Schaltet nur frei -- keine Belohnung, das Logbuch ist rein narrativ.
+function checkLogbookEntries(silent){
+  LOGBOOK_ENTRIES.forEach(e=>{
+    if(state.logbook.some(u=>(u.kind===undefined||u.kind==='milestone') && u.id===e.id)) return;
+    if(!e.check(state)) return;
+    state.logbook.push({ kind:'milestone', id:e.id, day: state.day });
+    if(!silent){
+      toast(`Neuer Logbucheintrag: ${e.icon} ${e.title}`, 'good');
+    }
+  });
+}
+// NEU (TODO-LOGBUCH-ERWEITERT, Nutzer-Feedback: "ein echtes Logbuch registriert doch eigentlich
+// alles -- Forschung, Ziele, und ne Jahreszusammenfassung"): generischer Baustein für die drei
+// neuen laufenden Eintragsarten (Forschung/Ziel/Kolonie) plus den Jahresbericht -- im Unterschied
+// zu checkLogbookEntries() KEIN Freischalt-Check, sondern direkter Aufruf an der jeweiligen
+// Trigger-Stelle in tick() (siehe dort), weil hier -- anders als bei Meilensteinen -- JEDES
+// Vorkommnis einen eigenen Eintrag bekommen soll (jede Forschung, nicht nur die erste). Bewusst
+// OHNE Toast: die jeweilige Trigger-Stelle toastet ohnehin schon selbst (z.B. "Erforscht: ...");
+// ein zweiter Toast wäre nur Redundanz. Das Logbuch ist zum Nachschlagen da, nicht zum ständigen
+// Unterbrechen.
+function addLogbookEntry(kind, icon, title, text){
+  state.logbook.push({ kind, icon, title, text, day: state.day });
+}
+// Migration für Altspielstände ohne das Feld (vor TODO-LOGBUCH-ERWEITERT) -- initialisiert auf den
+// aktuellen Stand, damit der ERSTE Jahresbericht danach nur die Aktivität AB JETZT zeigt statt
+// rückwirkend die gesamte bisherige Firmengeschichte auf einen Schlag in einen einzelnen
+// "Jahresbericht" zu pressen.
+function snapshotForYearlyReport(){
+  const s = state.stats;
+  return {
+    launchesTotal: s.launchesTotal, satellitesBuilt: s.satellitesBuilt, modulesBuilt: s.modulesBuilt,
+    contractsCompleted: s.contractsCompleted, researchCompleted: s.researchCompleted,
+    satellitesLost: s.satellitesLost, lifetimeIncome: s.lifetimeIncome,
+    coloniesCount: state.colonies.length, exploredCount: state.exploredTargets.length,
+  };
+}
+function ensureLogbookYearSnapshot(){
+  if(!state.logbookYearSnapshot) state.logbookYearSnapshot = snapshotForYearlyReport();
+}
+// Aufgerufen von tick() GENAU an Firmentagen 366, 731, 1096, ... (Beginn eines neuen Firmenjahres,
+// siehe formatCompanyDate() -- ein "Jahr" = 365 Firmentage). Baut aus der reinen Differenz zum
+// letzten Schnappschuss einen Bericht OHNE jede Fantasie -- nur echte, im Spielstand vorhandene
+// Zahlen, ganz bewusst statt eines KI-generierten Texts (dafür gibt's zur Laufzeit keine echte KI
+// im Spiel, siehe Chat-Diskussion). Leere Kategorien (z.B. 0 neue Forschungen) werden ausgelassen,
+// damit ein ruhiges Jahr auch als kurzer Bericht erscheint statt mit Nullen aufgebläht zu werden.
+function generateYearlyLogbookReport(){
+  ensureLogbookYearSnapshot();
+  const prev = state.logbookYearSnapshot;
+  const cur = snapshotForYearlyReport();
+  const yearNum = Math.floor(state.day/365);
+  const lines = [];
+  const dLaunches = cur.launchesTotal - prev.launchesTotal;
+  if(dLaunches>0) lines.push(`${dLaunches.toLocaleString('de-DE')} Raketenstart(s)`);
+  const dSats = cur.satellitesBuilt - prev.satellitesBuilt;
+  if(dSats>0) lines.push(`${dSats.toLocaleString('de-DE')} gefertigte Satellit(en)`);
+  const dMods = cur.modulesBuilt - prev.modulesBuilt;
+  if(dMods>0) lines.push(`${dMods.toLocaleString('de-DE')} gefertigte Einzelmodul(e)`);
+  const dContracts = cur.contractsCompleted - prev.contractsCompleted;
+  if(dContracts>0) lines.push(`${dContracts.toLocaleString('de-DE')} abgeschlossene(r) Auftrag/Aufträge`);
+  const dResearch = cur.researchCompleted - prev.researchCompleted;
+  if(dResearch>0) lines.push(`${dResearch.toLocaleString('de-DE')} neue Forschungsergebnis(se)`);
+  const dTargets = cur.exploredCount - prev.exploredCount;
+  if(dTargets>0) lines.push(`${dTargets.toLocaleString('de-DE')} neu erreichte(s) Ziel(e)`);
+  const dColonies = cur.coloniesCount - prev.coloniesCount;
+  if(dColonies>0) lines.push(`${dColonies.toLocaleString('de-DE')} neu gegründete Kolonie(n)`);
+  const dLost = cur.satellitesLost - prev.satellitesLost;
+  if(dLost>0) lines.push(`${dLost.toLocaleString('de-DE')} durch Weltraumschrott verlorene(r) Satellit(en)`);
+  const dIncome = cur.lifetimeIncome - prev.lifetimeIncome;
+  const incomeLine = dIncome>0 ? `Gesamteinnahmen im vergangenen Jahr: ${fmtMoney(dIncome)}.` : '';
+  const bodyLines = lines.length ? lines.map(l=>`• ${l}`).join('\n') : '• Ein ruhiges Jahr ohne nennenswerte neue Aktivität.';
+  const text = `${bodyLines}${incomeLine ? '\n'+incomeLine : ''}`;
+  addLogbookEntry('yearly', '📊', `Jahresbericht — Firmenjahr ${yearNum}`, text);
+  state.logbookYearSnapshot = cur;
+}
+// Rendert das Logbuch chronologisch (neueste zuerst) -- gemischt aus freigeschalteten
+// Meilensteinen (rich lore, siehe LOGBOOK_ENTRIES) UND den laufenden Einträgen (Forschung/Ziel/
+// Kolonie/Jahresbericht, siehe addLogbookEntry()). Auf die letzten LOGBOOK_RENDER_CAP Einträge
+// begrenzt (Performance bei sehr langen Spielständen mit vielen Jahresberichten) -- ältere bleiben
+// im Spielstand erhalten, verschwinden nur aus der Anzeige. Noch nicht erreichte Meilensteine
+// erscheinen darunter separat gesperrt (Titel + Hinweis, kein Story-Spoiler).
+const LOGBOOK_RENDER_CAP = 300;
+function renderLogbook(){
+  const wrap = document.getElementById('logbookList');
+  if(!wrap) return;
+  const unlockedMilestoneIds = new Set(state.logbook.filter(e=>(e.kind===undefined||e.kind==='milestone')).map(e=>e.id));
+  const countEl = document.getElementById('logbookCount');
+  if(countEl) countEl.textContent = `${unlockedMilestoneIds.size} / ${LOGBOOK_ENTRIES.length} Meilensteine · ${state.logbook.length} Einträge gesamt`;
+  const ordered = state.logbook.map((entry, idx)=>({ entry, idx }))
+    .sort((a,b)=> (b.entry.day - a.entry.day) || (b.idx - a.idx));
+  const truncated = ordered.length > LOGBOOK_RENDER_CAP;
+  const visible = ordered.slice(0, LOGBOOK_RENDER_CAP);
+  function entryHtml({entry}){
+    const isMilestone = (entry.kind===undefined||entry.kind==='milestone');
+    const def = isMilestone ? LOGBOOK_ENTRIES.find(e=>e.id===entry.id) : null;
+    if(isMilestone && !def) return '';
+    const icon = isMilestone ? def.icon : entry.icon;
+    const title = isMilestone ? def.title : entry.title;
+    const text = isMilestone ? def.text : entry.text;
+    const dateStr = formatCalendarDateDE(addDaysISO(state.foundingDate, entry.day-1));
+    return `
+      <div style="display:flex; gap:12px; align-items:flex-start; padding:10px 12px; border:1px solid ${isMilestone?'var(--accent)':'var(--border)'}; border-radius:var(--radius); ${isMilestone?'background:rgba(255,176,46,.06);':''}">
+        <div style="font-size:22px; line-height:1.2;">${icon}</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; gap:10px; align-items:baseline;">
+            <div style="font-size:12px; font-weight:600;">${title}</div>
+            <div class="small-muted" style="white-space:nowrap;">${dateStr}</div>
+          </div>
+          <div style="font-size:11px; color:var(--muted); margin-top:4px; line-height:1.5; white-space:pre-line;">${text}</div>
+        </div>
+      </div>`;
+  }
+  // Kein Vorschau-Block für gesperrte Meilensteine mehr: die dürfen keinen Spoiler
+  // liefern, was noch kommt. Sie erscheinen erst in der chronologischen Liste oben,
+  // sobald sie tatsächlich erreicht werden (dann automatisch an ihrer echten Datums-
+  // position zwischen den Jahresberichten einsortiert).
+  wrap.innerHTML = visible.map(entryHtml).join('')
+    + (truncated ? `<div class="small-muted" style="text-align:center; padding:6px;">… ${ordered.length - LOGBOOK_RENDER_CAP} ältere Einträge ausgeblendet</div>` : '')
+    + (ordered.length===0 ? `<div class="small-muted" style="text-align:center; padding:20px;">Noch keine Einträge im Logbuch.</div>` : '');
+  updateLogbookTabIndicator();
+}
+// NEU (TODO-LOGBUCH-TAB-BLINKEN, Nutzer-Wunsch: "Tab soll leuchten sobald ein neuer Eintrag da
+// ist"): analog updateAchievementsTabIndicator() -- vergleicht state.logbook.length gegen den
+// zuletzt beim Tab-Besuch gespeicherten Stand (state.logbookLastSeen) und lässt den Tab bei einer
+// Differenz blinken (Klasse has-reward, siehe CSS @keyframes tabBlink) plus Zähler-Badge mit der
+// Anzahl neuer Einträge. Läuft am Ende von renderLogbook() mit, also bei jedem renderAll()-Tick --
+// reagiert damit auch, während der Logbuch-Tab NICHT sichtbar ist. Wird zurückgesetzt, sobald der
+// Tab tatsächlich geöffnet wird (siehe Tab-Klick-Handler weiter unten), nicht schon durch bloßes
+// Rendern im Hintergrund.
+function updateLogbookTabIndicator(){
+  const tab = document.querySelector('.tab[data-view="logbuch"]');
+  if(!tab) return;
+  const newCount = Math.max(0, state.logbook.length - state.logbookLastSeen);
+  tab.classList.toggle('has-reward', newCount>0);
+  let badge = tab.querySelector('.badge');
+  if(newCount>0){
+    if(!badge){ badge = document.createElement('span'); badge.className='badge'; tab.appendChild(badge); }
+    badge.textContent = newCount;
+  } else if(badge){
+    badge.remove();
+  }
+}
+
 function renderStats(){
   const dayEl = document.getElementById('statsDay');
   if(!dayEl) return;
@@ -14299,6 +14689,8 @@ function renderAll(){
   renderStats();
   checkAchievements();
   renderAchievements();
+  checkLogbookEntries();
+  renderLogbook();
   autosave();
 }
 
@@ -14336,6 +14728,13 @@ document.querySelectorAll('.tab').forEach(tab=>{
     if(tab.dataset.view==='galaxy') requestAnimationFrame(()=>{ drawGalaxyMap(); drawGalaxyHub(); drawGalaxyDetailMap(selectedGalaxyId); if(selectedStarSystemId) drawStarSystemMap(selectedStarSystemId); if(selectedGalaxyTargetId) drawStarSystemMap(selectedGalaxyTargetId,'targetPlanetMapCanvas'); renderDosGalaxyHubMenu(); renderGalaxyMapAsciiMap(); renderStarSystemAsciiMap(); renderGalaxyDetailAsciiMap(); renderGalaxyTargetAsciiMap(); });
     if(tab.dataset.view==='research' && !rtreeFitDone) requestAnimationFrame(()=>{ if(rtreeFit()){ rtreeFitDone = true; renderResearch(); } });
     if(tab.dataset.view==='stats') requestAnimationFrame(drawMoneyChart);
+    if(tab.dataset.view==='logbuch'){ state.logbookLastSeen = state.logbook.length; updateLogbookTabIndicator(); }
+    // NEU (TODO-ORBIT-PERF): drawOrbitScene()/drawColonyOrbitScene() halten sich selbst an, sobald
+    // dieser Tab NICHT aktiv ist (siehe dort) -- hier beim Öffnen des Tabs ggf. wieder anstoßen.
+    if(tab.dataset.view==='orbit'){
+      if(orbitAnimHandle===null) orbitAnimHandle = requestAnimationFrame(drawOrbitScene);
+      if(colonyOrbitAnimHandle===null) colonyOrbitAnimHandle = requestAnimationFrame(drawColonyOrbitScene);
+    }
     Sound.click();
   });
 });
@@ -14768,6 +15167,17 @@ document.getElementById('btnCancelEdit').addEventListener('click', cancelEdit);
 document.getElementById('btnRepairAll').addEventListener('click', repairAllSats);
 document.getElementById('btnBuyDrone1').addEventListener('click', ()=>buyRepairDrone(1));
 document.getElementById('btnBuyDrone10').addEventListener('click', ()=>buyRepairDrone(10));
+// NEU (TODO-DROHNEN-MASSENKAUF, Nutzer-Wunsch: "Reiter mit 1000 oder mehr Drohnen kaufen"): freies
+// Eingabefeld statt fester Buttons -- erlaubt beliebige Stückzahl in einem Kauf statt vieler
+// Einzelklicks (die bei den alten +1/+10-Buttons ohnehin schon aus Perf-Gründen keine Toast-Flut
+// mehr auslösen würden, aber trotzdem unpraktisch wären). Ungültige/leere Eingabe fällt auf 1000
+// zurück (Standardwert des Feldes), keine Obergrenze außer der bereits in buyRepairDrone()
+// geprüften Kaufkraft.
+document.getElementById('btnBuyDroneQty').addEventListener('click', ()=>{
+  const input = document.getElementById('droneQtyInput');
+  const n = Math.max(1, Math.floor(Number(input.value)) || 1000);
+  buyRepairDrone(n);
+});
 
 document.getElementById('btnHelp').addEventListener('click', ()=>{
   const body = document.getElementById('helpModalBody');
@@ -15444,6 +15854,13 @@ function mergeLoadedGameState(loaded){
     }];
   }
   delete merged.ownNetwork; // altes Feld wird nicht mehr genutzt, siehe ownNetworks oben
+  // NEU (TODO-LOGBUCH-TAB-BLINKEN): alte Spielstände kennen logbookLastSeen noch nicht -- ohne
+  // Migration würde Object.assign()/freshState() das auf 0 defaulten und der Logbuch-Tab würde
+  // beim ersten Laden fälschlich für JEDEN bereits vorhandenen Alteintrag blinken. Stattdessen auf
+  // die aktuelle Länge setzen, sodass nur wirklich neue Einträge ab jetzt das Blinken auslösen.
+  if(!loaded || loaded.logbookLastSeen === undefined){
+    merged.logbookLastSeen = merged.logbook.length;
+  }
   // NEU (TODO-RAUMSTATION): defensive Migration falls ein alter Spielstand bereits eine Station
   // besitzt, aber (noch) nicht alle Unterfelder (z.B. buildQueue) — siehe ensureStationDefaults().
   state = merged;
@@ -15503,6 +15920,7 @@ function beginCommonGameLoop(){
     state.stats.monthlyMoneyHistory.push({ day: state.day, money: state.money });
   }
   checkAchievements(true);
+  checkLogbookEntries(true);
   renderAll();
   requestAnimationFrame(drawOrbitScene);
   requestAnimationFrame(drawColonyOrbitScene);
