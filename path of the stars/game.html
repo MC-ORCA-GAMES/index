@@ -29,6 +29,11 @@
     --mono:'Consolas','SFMono-Regular',ui-monospace,Menlo,monospace;
     --comic:'Bangers','Oswald',var(--mono);
     --ink:#000;
+    /* v0_0244: MC ORCA GAMES OS Boot-Sequenz - eigene Akzentfarbe, absichtlich
+       NICHT --accent/--accent2 wiederverwendet, damit die Boot-Sequenz nie
+       versehentlich mit Farbanpassungen am restlichen Spiel-UI kollidiert. */
+    --boot-accent:#e8b64a;
+    --boot-accent-dim:#7a5820;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   input[type="range"]{ accent-color:var(--accent); }
@@ -905,6 +910,87 @@
     font-family:inherit; font-size:14.5px; letter-spacing:1px;
     color:var(--text-dim, #b9a98f); opacity:0.5;
   }
+
+  /* ---------- v0_0244: MC ORCA GAMES OS - CRT-Poweron-Flash (Vorspann) ----------
+     Kurzer Röhrenmonitor-Einschalt-Flash beim allerersten Laden, läuft einmalig
+     über dem bestehenden Vorspann (#preSplash), bevor Logo/Hinweis wie gewohnt
+     einblenden. Engine/Timing unverändert aus dem Studio-Boot-Template übernommen. */
+  #crtBootOverlay{
+    position:absolute; inset:0; z-index:5; background:#000; pointer-events:none; overflow:hidden;
+    animation: crtBootOverlayFade 0.25s linear 0.6s forwards;
+  }
+  .crt-boot-line{
+    position:absolute; left:50%; top:50%; width:100%; height:3px;
+    background:linear-gradient(90deg, transparent, #dff6ff 15%, #ffffff 50%, #dff6ff 85%, transparent);
+    box-shadow:0 0 20px 4px rgba(180,230,255,.9), 0 0 60px 14px rgba(120,200,255,.5);
+    transform:translate(-50%,-50%) scaleY(0.002); opacity:0;
+    animation: crtBootLine 0.42s cubic-bezier(.2,.85,.3,1) 0.2s forwards;
+  }
+  @keyframes crtBootLine{
+    0%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:0; }
+    15%{ opacity:1; }
+    40%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:1; }
+    78%{ transform:translate(-50%,-50%) scaleY(1.08); opacity:1; }
+    92%{ transform:translate(-50%,-50%) scaleY(0.97); }
+    100%{ transform:translate(-50%,-50%) scaleY(1); opacity:0; }
+  }
+  @keyframes crtBootOverlayFade{ from{ opacity:1; } to{ opacity:0; visibility:hidden; } }
+
+  /* ---------- v0_0244: MC ORCA GAMES OS - DOS-Bootstream (Spielstart) ----------
+     Läuft beim tatsächlichen Wechsel vom Startbildschirm ins Spiel (siehe
+     initGame() -> playDosBootSequence()), NICHT auf dem Vorspann. */
+  #dosBootOverlay{
+    position:fixed; inset:0; z-index:600; background:#000;
+    display:none; align-items:flex-start; justify-content:flex-start;
+    padding:40px; box-sizing:border-box; cursor:pointer; overflow:hidden;
+    opacity:1; transition:opacity .4s ease;
+  }
+  #dosBootOverlay.visible{ display:flex; }
+  #dosBootOverlay.crt-poweron{ animation: crtPowerOn .55s ease-out both; transform-origin:center center; }
+  @keyframes crtPowerOn{
+    0%{ transform:scaleY(.008); filter:brightness(28); opacity:1; }
+    10%{ transform:scaleY(.02); filter:brightness(20); }
+    20%{ transform:scaleY(.55); filter:brightness(7); }
+    32%{ transform:scaleY(1); filter:brightness(2.6); }
+    45%{ transform:scaleY(1); filter:brightness(1.15); }
+    100%{ transform:scaleY(1); filter:brightness(1); }
+  }
+  #dosBootOverlay.crt-poweroff{ animation: crtPowerOff .55s ease-in forwards; transform-origin:center center; }
+  @keyframes crtPowerOff{
+    0%{ transform:scaleY(1) scaleX(1); filter:brightness(1); opacity:1; }
+    55%{ transform:scaleY(.012) scaleX(1); filter:brightness(5); opacity:1; }
+    78%{ transform:scaleY(.012) scaleX(.02); filter:brightness(9); opacity:1; }
+    100%{ transform:scaleY(.012) scaleX(.002); filter:brightness(0); opacity:0; }
+  }
+  #dosBootOverlay::after{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
+    background:repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 2px, transparent 3px);
+    mix-blend-mode:multiply; opacity:.5;
+  }
+  .dos-boot-inner{ width:100%; max-width:900px; position:relative; z-index:1; }
+  .dos-boot-banner{
+    margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
+    font-size:9.5px; line-height:1.15; color:var(--boot-accent);
+    text-shadow:0 0 10px rgba(232,182,74,.75), 0 0 2px rgba(232,182,74,1);
+    opacity:0; animation: dosBannerFlash .5s ease-out forwards;
+  }
+  @media (min-width:700px){ .dos-boot-banner{ font-size:13px; } }
+  @keyframes dosBannerFlash{
+    0%{ opacity:0; filter:brightness(3); }
+    60%{ opacity:1; filter:brightness(2.2); }
+    100%{ opacity:1; filter:brightness(1); }
+  }
+  .dos-boot-text{ margin:0; white-space:pre-wrap; word-break:break-word;
+    font-family:'Courier New', ui-monospace, monospace; font-size:14px; line-height:1.55;
+    color:var(--boot-accent); text-shadow:0 0 6px rgba(232,182,74,.55), 0 0 1px rgba(232,182,74,.9); }
+  #dosBootText.typing::after{
+    content:''; display:inline-block; width:8px; height:14px; background:var(--boot-accent);
+    box-shadow:0 0 6px rgba(232,182,74,.7); animation:dosCursorBlink 1s steps(1) infinite;
+    vertical-align:-2px; margin-left:1px;
+  }
+  @keyframes dosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .dos-boot-skip{ position:fixed; bottom:22px; right:28px; font-size:11px; letter-spacing:1.5px;
+    color:var(--boot-accent-dim); text-transform:uppercase; z-index:601; }
 
   /* ---------- START SCREEN ---------- */
   #startScreen{
@@ -2015,6 +2101,7 @@
   </defs>
 </svg>
 <div id="preSplash">
+  <div id="crtBootOverlay" aria-hidden="true"><div class="crt-boot-line"></div></div>
   <div id="preSplashWorlds"></div>
   <div class="localInkOverlay" style="z-index:0;"></div>
   <img id="preSplashLogo" alt="Path of the Stars">
@@ -2377,6 +2464,13 @@
   <img id="imgLightboxImg" src="" alt="">
 </div>
 
+<div id="dosBootOverlay" aria-hidden="true">
+  <div class="dos-boot-inner">
+    <pre class="dos-boot-banner" id="dosBootBanner"></pre>
+    <pre class="dos-boot-text" id="dosBootText"></pre>
+  </div>
+  <div class="dos-boot-skip">Klicken zum Überspringen</div>
+</div>
 <div id="app">
 
   <div id="topbar">
@@ -2598,8 +2692,286 @@
 
 /* Zentrale Versionsnummer — bei jeder inhaltlichen Änderung hochzählen
    und einen passenden CHANGELOG-Eintrag weiter unten ergänzen. */
-const GAME_VERSION = 'v0_0243';
+const GAME_VERSION = 'v0_0246';
 console.log(`[Path of the Stars] Version ${GAME_VERSION} geladen.`);
+
+/* ===========================================================================
+   MC ORCA GAMES OS - BOOT-SEQUENZ (v0_0244)
+   Gemeinsames Studio-Branding, aus dem zentralen Boot-Sequenz-Template
+   übernommen (siehe boot-sequence-template.html). Zwei unabhängige Teile:
+   1) CRT-POWERON - kurzer Flash über dem Vorspann (#preSplash) beim
+      allerersten Laden. Rein CSS, siehe #crtBootOverlay weiter oben im
+      <style>-Block, wird unten in initCrtBootFlash() einmalig angestoßen.
+   2) DOS-BOOTSTREAM - Retro-Terminal-Textaufbau beim tatsächlichen
+      Spielstart (Wechsel Startbildschirm -> Spiel), siehe initGame() weiter
+      unten, wo playDosBootSequence() aufgerufen wird.
+   =========================================================================== */
+
+/* IMMER GLEICH - Studio-Branding, 1:1 aus dem Boot-Template übernommen,
+   NICHT pro Spiel verändern. */
+const BOOT_BANNER = ` __  __  ____    ___  ____   ____    _       ____    _    __  __ _____ ____     ___  ____
+|  \\/  |/ ___|  / _ \\|  _ \\ / ___|  / \\     / ___|  / \\  |  \\/  | ____/ ___|   / _ \\/ ___|
+| |\\/| | |     | | | | |_) | |     / _ \\   | |  _  / _ \\ | |\\/| |  _| \\___ \\  | | | \\___ \\
+| |  | | |___  | |_| |  _ <| |___ / ___ \\  | |_| |/ ___ \\| |  | | |___ ___) | | |_| |___) |
+|_|  |_|\\____|  \\___/|_| \\_\\\\____/_/   \\_\\  \\____/_/   \\_\\_|  |_|_____|____/   \\___/|____/`;
+
+/* PRO SPIEL: Name/Copyright unterhalb des Banners sowie der "OS"-Name, der
+   am Ende als "<OS_NAME> BEREIT." erscheint. */
+const OS_NAME = "DRIFTOS";
+const BIOS_LINE = "PATH OF THE STARS BIOS v2.4";
+const COPYRIGHT_LINE = "(C) 2087 MC ORCA Games.";
+
+/* PRO SPIEL: echte Werte aus dem laufenden Spielstand statt Platzhaltern.
+   Wird von generateBootLines() bei JEDEM Boot frisch aufgerufen (nicht
+   cachen), player/fleet/systems stehen zu diesem Zeitpunkt bereits fest,
+   da playDosBootSequence() in initGame() erst NACH dem Laden/Erzeugen des
+   Spielstands aufgerufen wird. */
+function getBootContext(){
+  const sys = (player && systems && systems[player.system]) ? systems[player.system] : null;
+  const cargoUsed = (player && player.cargo) ? Object.values(player.cargo).reduce((a,b)=>a+(b||0),0) : 0;
+  const discovered = (typeof systems!=='undefined' && systems) ? systems.filter(s=>s.visited).length : 0;
+  const totalSystems = (typeof systems!=='undefined' && systems) ? systems.length : 0;
+  const exploredPct = totalSystems>0 ? Math.round(100*discovered/totalSystems) : 0;
+  const repOf = (key)=> (player && typeof getReputation==='function') ? getReputation(key) : 0;
+  const fmtRep = (v)=> (v>0?'+':'') + v;
+  return {
+    profileName: 'Kommandant',
+    credits: player ? player.credits : 0,
+    fleetCount: (typeof fleet!=='undefined' && fleet) ? fleet.length : 0,
+    systemName: sys ? sys.name : '—',
+    cargoUsed, cargoCap: player ? player.cargoCap : 0,
+    weapons: player ? player.weapons : 0, shields: player ? player.shields : 0,
+    discovered, totalSystems, exploredPct,
+    researchPoints: player ? Math.floor(player.researchPoints||0) : 0,
+    repMeridian: fmtRep(repOf('freihandel')),
+    repValorian: fmtRep(repOf('imperium')),
+    repSynthis:  fmtRep(repOf('kollektiv')),
+    repFreiwelten: fmtRep(repOf('unabhaengig')),
+    mode: (typeof introMode!=='undefined' && introMode) ? 'DRIFTING WORLDS (Story)' : 'Offene Galaxie (Sandbox)'
+  };
+}
+
+/* v0_0245: deutlich ausführlicherer Bootstream (40+ Zeilen statt einer
+   Handvoll) - soll wie das Hochfahren eines großen 70er/80er-Jahre-
+   Großrechners wirken: Speichertest, viele einzelne Modul-Checks,
+   mehrere Diagnose-/Ladebalken, ein "Netzwerk-Handshake" mit den vier
+   Fraktionen, danach erst die eigentlichen Spielstand-Werte. Rein
+   kosmetisch/Flavor - keine der Zahlen hat eine technische Bedeutung. */
+function generateBootLines(){
+  const ctx = getBootContext();
+  const fleetLabel = ctx.fleetCount===1 ? 'Schiff' : 'Schiffe';
+  return [
+    BIOS_LINE,
+    COPYRIGHT_LINE,
+    "CPU: MC-ORCA STELLAR-CORE 6809 @ 4.77 MHZ  ·  COPROC: VEKTOR-FPU V2",
+    "",
+    { progress: "Speichertest", ms: 2400 },
+    "  640K CONVENTIONAL + 15872K EXTENDED ................ [ OK ]",
+    "  PARITAETSPRUEFUNG ..................................... [ OK ]",
+    "",
+    `Kommandoprofil ................... ${ctx.profileName} [OK]`,
+    `Betriebsmodus ..................... ${ctx.mode}`,
+    "",
+    { progress: "Pruefe Massenspeicher", ms: 2200 },
+    "  LAUFWERK C: STERNENARCHIV.VOL ......................... [ OK ]",
+    "  LAUFWERK D: HANDELSNETZ.VOL ............................ [ OK ]",
+    "  SEKTORPRUEFSUMME 0x4F91-A2E3 ........................... [ OK ]",
+    "",
+    `Lade ${OS_NAME} Kernel...`,
+    "  [ OK ] Kernel-Basis geladen (0x1000:0000)",
+    "  [ OK ] Speicherverwaltung",
+    "  [ OK ] Unterbrechungscontroller",
+    "  [ OK ] Echtzeituhr synchronisiert",
+    "  [ OK ] Ereigniswarteschlange",
+    "",
+    { progress: "Initialisiere Subsysteme", ms: 2600 },
+    "  [ OK ] Antriebssteuerung",
+    "  [ OK ] Sprungantrieb-Controller",
+    "  [ OK ] Schildgenerator-Treiber",
+    "  [ OK ] Waffenleitsystem",
+    "  [ OK ] Frachtraum-Verwaltung",
+    "  [ OK ] Sensor-Array",
+    "  [ OK ] Autopilot-Modul",
+    "  [ OK ] Notfall-Protokoll",
+    "",
+    "Mounte Datenbanken...",
+    "  [ OK ] STERNENKARTEN.SYS",
+    "  [ OK ] MARKTDATEN.DAT",
+    "  [ OK ] FRAKTIONSNETZ.DAT",
+    "  [ OK ] CREWLISTE.DAT",
+    "  [ OK ] LOGBUCH.DAT",
+    "  [ OK ] ERFOLGSARCHIV.DAT",
+    "",
+    { progress: "Baue Sternennetz-Verbindung auf", ms: 2400 },
+    "Handshake mit bekannten Fraktionsnetzwerken...",
+    `  MERIDIAN-KONFOEDERATION ........... VERBUNDEN (Ruf ${ctx.repMeridian})`,
+    `  VALORIANISCHES REICH ............... VERBUNDEN (Ruf ${ctx.repValorian})`,
+    `  SYNTHISCHE UNION .................... VERBUNDEN (Ruf ${ctx.repSynthis})`,
+    `  FREIE WELTEN ......................... VERBUNDEN (Ruf ${ctx.repFreiwelten})`,
+    "  PIRATENFREQUENZEN ..................... IGNORIERT",
+    "",
+    { progress: "Kalibriere Navigationscomputer", ms: 1800 },
+    "  STERNENKARTE ABGEGLICHEN ............................... [ OK ]",
+    "",
+    "--- SPIELSTAND ---",
+    `Standort .......................... ${ctx.systemName}`,
+    `Guthaben ........................... ${ctx.credits.toLocaleString('de-DE')} Credits`,
+    `Flotte .............................. ${ctx.fleetCount} ${fleetLabel}`,
+    `Fracht ............................... ${ctx.cargoUsed}/${ctx.cargoCap}`,
+    `Waffen/Schilde ........................ ${ctx.weapons}/${ctx.shields}`,
+    `Erkundung ............................. ${ctx.discovered}/${ctx.totalSystems} Systeme (${ctx.exploredPct}%)`,
+    `Forschungspunkte ....................... ${ctx.researchPoints}`,
+    "",
+    `${OS_NAME} BEREIT.`,
+    "",
+    `Willkommen zurueck, ${ctx.profileName}.`
+  ];
+}
+
+function renderProgressLine(label, pct, width=24){
+  const filled = Math.max(0, Math.min(width, Math.round(width*pct/100)));
+  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
+  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
+}
+
+/* PRO SPIEL (optional): eigene, in sich geschlossene Sound-Hooks - bewusst
+   NICHT an das spieleigene Audiosystem (weiter unten, Abschnitt 13)
+   angebunden, damit die Boot-Sequenz unabhängig vom Ladezustand des
+   restlichen Spiels funktioniert (eigener audioCtx, daher bootAudioCtx
+   statt audioCtx benannt, um nicht mit dem spieleigenen audioCtx zu
+   kollidieren). Alle Aufrufe try/catch-geschützt. */
+let bootAudioCtx = null;
+function bootTone(freq, dur, type='square', vol=0.05){
+  try{
+    bootAudioCtx = bootAudioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const o = bootAudioCtx.createOscillator(), g = bootAudioCtx.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = vol;
+    o.connect(g); g.connect(bootAudioCtx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, bootAudioCtx.currentTime+dur);
+    o.stop(bootAudioCtx.currentTime+dur+0.02);
+  }catch(err){}
+}
+const BootSound = {
+  postBeep: ()=> bootTone(900, 0.15, 'square', 0.06),
+  tone: bootTone,
+  diskAccess: ()=> bootTone(220+Math.random()*40, 0.03, 'square', 0.03),
+  modemHandshake: ()=> bootTone(1400, 0.25, 'sawtooth', 0.03),
+  buildOk: ()=> { bootTone(660,0.12); setTimeout(()=>bootTone(880,0.18),120); },
+};
+
+/* Ab hier: generischer Engine-Code (Typewriter, Fortschrittsbalken,
+   Skip-per-Klick/Taste, CRT-Poweron/-Poweroff), unverändert aus dem
+   Boot-Template übernommen, NICHT pro Spiel anpassen. */
+let dosBootToken = 0;
+function playDosBootSequence(){
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById('dosBootOverlay');
+    const textEl = document.getElementById('dosBootText');
+    const bannerEl = document.getElementById('dosBootBanner');
+    if(!overlay || !textEl){ resolve(); return; }
+    const BOOT_LINES = generateBootLines();
+    const myToken = ++dosBootToken;
+    const totalCharBudgetMs = 55000; // v0_0246: bewusst langsam (~75-90s Gesamtlaufzeit je nach Spielstand-Text) - per Klick/Taste jederzeit ueberspringbar
+    const totalChars = BOOT_LINES.reduce((n,l)=> n + (typeof l==='string' ? Math.max(l.length,1):0), 0);
+    const perCharMs = Math.min(34, Math.max(11, totalCharBudgetMs/Math.max(totalChars,1)));
+    const interLineMs = 180;
+    const finalHoldMs = 1800;
+    const bannerRevealMs = 600;
+
+    textEl.textContent = '';
+    textEl.classList.add('typing');
+    if(bannerEl){
+      bannerEl.textContent = BOOT_BANNER;
+      bannerEl.style.animation = 'none'; void bannerEl.offsetWidth; bannerEl.style.animation = '';
+    }
+    overlay.classList.remove('fading','crt-poweroff');
+    overlay.classList.add('visible');
+    overlay.classList.remove('crt-poweron'); void overlay.offsetWidth; overlay.classList.add('crt-poweron');
+    try{ BootSound.postBeep(); }catch(err){}
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    let finished = false, timeoutIds = [];
+    const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds=[]; };
+    let renderedLines = [];
+    const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); overlay.scrollTop = overlay.scrollHeight; };
+
+    const finishNow = ()=>{
+      if(finished || myToken!==dosBootToken) return;
+      finished = true; clearAllTimers();
+      textEl.textContent = BOOT_LINES.map(l=> typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
+      overlay.scrollTop = overlay.scrollHeight;
+      overlay.classList.remove('crt-poweron'); overlay.classList.add('crt-poweroff');
+      textEl.classList.remove('typing');
+      document.body.style.overflow = prevOverflow;
+      setTimeout(()=>{
+        if(myToken!==dosBootToken) return;
+        overlay.classList.remove('visible','fading','crt-poweroff');
+        overlay.removeEventListener('click', skipHandler);
+        document.removeEventListener('keydown', skipHandler);
+        resolve();
+      }, 550);
+    };
+    const skipHandler = ()=> finishNow();
+    overlay.addEventListener('click', skipHandler);
+    document.addEventListener('keydown', skipHandler);
+
+    let lineIndex = 0, blipCounter = 0;
+    const keyBlip = ()=>{ blipCounter++; if(blipCounter%3===0){ try{ BootSound.tone(760+Math.random()*260,0.02,'square',0.045); }catch(err){} } };
+    const okBlip = ()=>{ try{ BootSound.tone(1180,0.05,'square',0.05); }catch(err){} };
+    const readyChord = ()=>{ try{ BootSound.buildOk(); }catch(err){} };
+
+    const processLine = ()=>{
+      if(myToken!==dosBootToken) return;
+      if(lineIndex >= BOOT_LINES.length){ timeoutIds.push(setTimeout(finishNow, finalHoldMs)); return; }
+      const entry = BOOT_LINES[lineIndex];
+      if(typeof entry === 'string') typeStringLine(entry);
+      else if(entry && entry.progress) runProgressLine(entry);
+    };
+
+    const typeStringLine = (line)=>{
+      if(line.length === 0){
+        renderedLines[lineIndex] = ''; redraw(); lineIndex++;
+        timeoutIds.push(setTimeout(processLine, interLineMs/2));
+        return;
+      }
+      let charIndex = 0;
+      const step = ()=>{
+        if(myToken!==dosBootToken) return;
+        charIndex++;
+        renderedLines[lineIndex] = line.slice(0, charIndex);
+        redraw();
+        if(charIndex < line.length){ keyBlip(); timeoutIds.push(setTimeout(step, perCharMs)); }
+        else{
+          const trimmed = line.trim();
+          if(trimmed.startsWith('[ OK ]')) okBlip();
+          else if(trimmed === `${OS_NAME} BEREIT.`) readyChord();
+          lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs));
+        }
+      };
+      step();
+    };
+
+    const runProgressLine = (entry)=>{
+      try{ BootSound.diskAccess(); }catch(err){}
+      const steps = 22, stepMs = Math.max(30, entry.ms/steps);
+      let step = 0;
+      renderedLines[lineIndex] = renderProgressLine(entry.progress, 0); redraw();
+      const tick = ()=>{
+        if(myToken!==dosBootToken) return;
+        step++;
+        const pct = Math.min(100, Math.round(step/steps*100));
+        renderedLines[lineIndex] = renderProgressLine(entry.progress, pct); redraw();
+        if(step%4===0){ try{ BootSound.tone(500+pct*4,0.02,'square',0.03); }catch(err){} }
+        if(step < steps) timeoutIds.push(setTimeout(tick, stepMs));
+        else{ lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs)); }
+      };
+      tick();
+    };
+
+    timeoutIds.push(setTimeout(processLine, bannerRevealMs));
+  });
+}
 
 /* ---------------------------------------------------------------------
    0. VORSPANN / SPLASH-SCREEN
@@ -18190,6 +18562,9 @@ const CHANGELOG = [
   { version:'v0_0241', title:'Kategorie-Umbau Prioritaet 1 abgeschlossen: Story und Offene Galaxie als eigene Startbildschirm-Buttons + neuer Sandbox-Setup-Screen', desc:'Zweiter und letzter Schritt des Kategorie-Umbaus. Der Startbildschirm hat jetzt zwei eigene Buttons statt eines gemeinsamen Neues-Spiel-Knopfs mit Zwischenauswahl: 📖 Story startet Drifting Worlds direkt, 🌌 Offene Galaxie oeffnet einen neuen Sandbox-Setup-Screen mit vier einstellbaren Parametern vor dem eigentlichen Start - Kartengroesse (Klein/Mittel/Groß/Riesig), Anzahl Sternensysteme (300/600/1000/1500), Anzahl Fraktionen (1-4) und Kaempfe an/aus. Technisch: Kartengroesse/Systemanzahl liefen bisher als feste Konstanten - jetzt aendbare Werte, die der Setup-Screen vor der Generierung setzt (inkl. Neuberechnung aller davon abgeleiteten Werte wie Gefahrenzonen-Radius). Die Fraktionsanzahl wirkt direkt auf die bestehende, bereits generisch geschriebene Gebietsvergabe-Logik (einfach auf die gewaehlte Anzahl begrenzt - nicht besetzte Systeme fallen wie gehabt automatisch an die Piraten). Kaempfe aus unterdrueckt zufaellige Piraten-/Kriegsschiff-Ueberfaelle unterwegs komplett, ohne die Zufalls-/Cooldown-Logik selbst anzufassen. Die alte Schwierigkeitsauswahl (Overlay mit Drifting-Worlds/Offene-Galaxie-Wahl) bleibt als schlankerer Zwischenschritt fuer den Neu-starten-Knopf im laufenden Spiel bestehen, wo dafuer jetzt ebenfalls der Sandbox-Setup-Screen dazwischenhaengt. Weitere Parameter (laut Prioritaetenliste "nach Bedarf ergaenzbar") lassen sich nach demselben Baukasten-Muster (Preset-Objekt + Pillen-Reihe im Setup-Screen) leicht ergaenzen.' },
   { version:'v0_0242', title:'Prioritaet 2: alle 5 gemeldeten Bugs behoben (Story-Archiv, UI-Ueberlappung, Gebaeude-Funktionen, Audio-Crash)', desc:'1) Story-Archiv haengte nach introCompleted fest: das Flag bleibt ab dem ersten Abschluss dauerhaft true, wodurch das Archiv bei jedem erneuten Durchspielen von Drifting Worlds sofort wieder nur die statische Abschluss-Zusammenfassung zeigte statt der echten, gerade erst freigeschalteten Kapitel. Praefix introMode ergaenzt - die Zusammenfassung erscheint jetzt nur noch ausserhalb einer laufenden Runde. 2) UI-Ueberlappung behoben, und zwar grundsaetzlich: die sechs rechts-oben verankerten Status-Elemente (Sicherheit/Souveraenitaet-Buttons, Legende, Andock-Badge, Story-Signal, Kampfeinsatz-Badge) hingen bisher einzeln mit hart codierten top-Werten uebereinander und kollidierten bei mehreren gleichzeitig sichtbaren Elementen. Jetzt ein gemeinsamer Flexbox-Stapel (#rightStatusStack) - nur tatsaechlich sichtbare Elemente beanspruchen Platz, alles ruckt automatisch lueckenlos nach. Behebt nicht nur den gemeldeten Einzelfall (Story-Signal vs. Souveraenitaet), sondern die ganze Fehlerklasse. 3) Eigene passive Gebaeude (Mine/Handelsstation/Verteidigung/Forschung) hatten keine echte Funktion beim Antippen (nur Toast) - neues Status-Panel zeigt jetzt Einkommen/Std., bei Verteidigung das aktuelle Gefahrenlevel, bei Forschung Punkte/Std. und Gesamtstand. 4) NPC-Stationen mine/factory/farm oeffneten beim Andocken kein Panel (reine Sackgasse) - docken dort oeffnet jetzt wie am Handelsposten den Markt (Kategorie Rohstoffe), da sie dieselbe Marktsimulation speisen; dabei auch gleich ein Schlupfloch geschlossen, durch das man die Ruf-Handelssperre einer feindlichen Fraktion ueber diese Stationen haette umgehen koennen. 5) Audio-Crash bestaetigt und gefunden: startAudioCtx war fälschlich mit dem Boolean true statt null initialisiert, wodurch der echte AudioContext-Aufbau beim allerersten Ambient-Fallback-Sound uebersprungen wurde und true.createGain() aufgerufen wurde - deterministischer Init-Tippfehler, kein Testumgebungs-Sonderfall.' },
   { version:'v0_0243', title:'Icon-Umbau Teil 1: Menue und Haupt-Tabs bekommen eigene Vektor-Icons statt bunter Emoji', desc:'Start der schrittweisen Icon-Ueberarbeitung (weitere Bereiche wie Werft/Module/Gebaeude folgen in kommenden Patches). Die 10 Haupt-Tabs im Menue-Overlay (Karte/Markt/Flotte/Crew/Log/Archiv/Imperium/Auftraege/Erfolge/Einstellungen) sowie der Menue-Button selbst nutzten bisher Unicode-Emoji/-Symbole (✦🛒▲♟☰▤⬡⚔★⚙) - auf manchen Plattformen, besonders Android, rendern einige davon als bunte Farb-Emoji und brechen mit der Neon-Noir-Goldton-Palette des restlichen UI. Ersetzt durch ein neues, selbst gezeichnetes SVG-Icon-Set (11 Symbole: Kompassstern, Tausch-Pfeile, Schiffssilhouette, Crew-Abzeichen, Listenpunkte, aufgeschlagenes Buch, Sechseck, gekreuzte Schwerter, Medaillenstern, Zahnrad, Hamburger-Menue) im selben klar-comichaften Stil wie die Gebaeude-Icons - alle nutzen currentColor und passen sich dadurch automatisch aktivem/inaktivem Button-Zustand an, genau wie es Text/Emoji tun wuerde, nur stilecht statt bunt. Technisch als SVG-Sprite (<symbol>/<use>) direkt nach <body> eingebunden, keine externen Dateien noetig. Log-Tab hatte zuvor zufaellig dasselbe Symbol wie der Menue-Button (beide ☰) - jetzt klar unterschieden (Listenpunkte vs. Balken).' },
+  { version:'v0_0244', title:'MC ORCA GAMES OS Boot-Sequenz eingebaut (CRT-Poweron + DOS-Bootstream)', desc:'Studio-weite Boot-Sequenz aus dem zentralen Boot-Template uebernommen, wie bei den anderen MC-Orca-Spielen. Zwei Teile: 1) CRT-Poweron - kurzer Roehrenmonitor-Einschalt-Flash ueber dem bestehenden Vorspann (#preSplash), laeuft einmalig beim allerersten Laden, bevor Logo/Hinweis wie gewohnt einblenden. 2) DOS-Bootstream - laengerer Retro-Terminal-Textaufbau mit dem unveraenderten "MC ORCA GAMES OS"-ASCII-Banner, der jetzt beim eigentlichen Spielstart laeuft (Uebergang vom Start-/Menuebildschirm in den Spielbereich, direkt nach setupStartScreen() in initGame(), egal ob Fortsetzen/Neues Spiel/Drifting-Worlds/Import). Zeigt echte Werte aus dem gerade geladenen bzw. neu erzeugten Spielstand (Guthaben, Flottengroesse, aktuelles System). Boot-Akzentfarbe an die goldene Neon-Noir-Palette des Spiels angepasst (#e8b64a, ueber eigene --boot-accent-Variablen, um nicht mit dem bestehenden --accent/--accent2 des restlichen UI zu kollidieren). Ueberspringbar per Klick/Taste, eigener in sich geschlossener Sound-Hook (bootAudioCtx) getrennt vom spieleigenen Audiosystem. BIOS-Zeile "PATH OF THE STARS BIOS v2.4", OS-Name "DRIFTOS".' },
+  { version:'v0_0245', title:'Bootstream deutlich ausgebaut: wirkt jetzt wie ein hochfahrender Grossrechner aus den 70ern/80ern (60+ Zeilen statt einer Handvoll)', desc:'Der in v0_0244 eingefuehrte DOS-Bootstream war mit rund 17 Zeilen recht kurz fuer den gewuenschten "grosser alter Rechner faehrt hoch"-Eindruck. Jetzt deutlich umfangreicher (60+ Zeilen/Balken statt bisher ~17), Engine/Timing dabei unveraendert (skaliert automatisch mit der laengeren Textmenge): Speichertest mit fiktiver RAM-/Paritaetspruefung, CPU-/Coprozessor-Kennzeile, Massenspeicher-Diagnose mit Sektorpruefsumme, ausfuehrlicherer Kernel-Ladevorgang (Basis/Speicherverwaltung/Interrupt-Controller/Echtzeituhr/Ereigniswarteschlange), neun einzelne Subsystem-Checks (Antrieb/Sprungantrieb/Schilde/Waffen/Frachtraum/Sensoren/Autopilot/Notfall), sechs gemountete Datenbanken (Sternenkarten/Marktdaten/Fraktionsnetz/Crewliste/Logbuch/Erfolgsarchiv), ein simulierter Netzwerk-Handshake mit allen vier grossen Fraktionen (zeigt dabei den echten aktuellen Ruf des Spielers bei jeder Fraktion) sowie eine Navigationskalibrierung - insgesamt fuenf Fortschrittsbalken statt bisher einem. Der abschliessende Spielstand-Block zeigt jetzt zusaetzlich zu Standort/Guthaben/Flotte auch Fracht-Auslastung, Waffen/Schilde-Stufe, Erkundungsfortschritt (Systeme + Prozent) und gesammelte Forschungspunkte - alles live aus getBootContext() gelesen, keine Platzhalter. getBootContext() dafuer entsprechend um die neuen echten Werte erweitert (Fraktionsruf ueber die bestehende getReputation(), Erkundungsstand ueber systems.filter(visited), Frachtauslastung ueber player.cargo).' },
+  { version:'v0_0246', title:'Bootstream laeuft jetzt spuerbar langsamer (~75-90s statt ~15s), wie ein echtes altes Terminal', desc:'Auf Wunsch: der in v0_0245 stark erweiterte Bootstream tippte trotz der vielen neuen Zeilen immer noch im alten, kurzen Zeittempo (totalCharBudgetMs war unveraendert bei 24s Gesamtbudget fuer deutlich mehr Text als zuvor, wirkte dadurch eher gehetzt als wie ein hochfahrender Grossrechner). Zeitbudget auf 55s angehoben (Tippgeschwindigkeit skaliert wie gehabt automatisch mit der tatsaechlichen Zeichenmenge, Obergrenze pro Zeichen von 28ms auf 34ms angehoben, damit das hoehere Budget auch wirklich in sichtbar langsameres Tippen uebersetzt wird statt nur mehr Leerlauf zu erzeugen), Pause zwischen Zeilen von 130ms auf 180ms, Schlusspause von 1.4s auf 1.8s und die fuenf Fortschrittsbalken jeweils um 600-800ms verlaengert. Ergibt in der Praxis rund 75-90 Sekunden Gesamtlaufzeit (abhaengig von der Laenge der eingesetzten Spielstand-Werte wie Systemname), bewusst grosszuegig, da die Sequenz jederzeit per Klick/Taste ueberspringbar bleibt (Skip-Logik unveraendert).' },
 ];
 
 /* =========================================================================
@@ -19377,6 +19752,13 @@ async function initGame(){
     addLog(`Erkundungsschiff aktiviert in ${systems[startId].name}. Willkommen, Kommandant.`, 'system');
     setTimeout(()=>triggerStoryIntro(STORIES.find(s=>s.id==='ascension')), 2500);
   }
+
+  // v0_0244: MC ORCA GAMES OS Bootstream - läuft am Übergang vom Start-/
+  // Menübildschirm (setupStartScreen()) in den eigentlichen Spielbereich.
+  // Spielstand (player/fleet/systems) steht an dieser Stelle bereits fest,
+  // daher zeigt getBootContext() bereits die echten, frisch geladenen bzw.
+  // neu erzeugten Werte.
+  await playDosBootSequence();
 
   refreshTopbar();
   refreshExploredCount();

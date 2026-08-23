@@ -3,6 +3,57 @@
 ============================================================
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v1.0.8
+- Boot-Sequenz spürbar verlangsamt (Feedback: soll ~1 Minute oder länger dauern): Tipp-Tempo-Budget
+  von 24s auf 60s angehoben (saettigt jetzt am eingebauten Tempo-Deckel von 28ms/Zeichen statt
+  ~12ms/Zeichen vorher — also durchgehend langsames Zeichen-für-Zeichen-Tippen), Pause zwischen den
+  Boot-Zeilen von 130ms auf 220ms erhöht, alle Fortschrittsbalken um ca. 40% verlängert, Schluss-
+  Verweildauer bei "BEREIT." von 1.4s auf 1.8s erhöht. Gesamtdauer dadurch von vorher ~40-45s auf
+  jetzt ca. 80-90s (abhängig vom Profiltext) — weiterhin per Klick/Taste jederzeit überspringbar.
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.0.7" auf "v1.0.8" erhöht.
+
+v1.0.7
+- Boot-Sequenz nochmal deutlich erweitert (Feedback: "noch mehr rein machen"):
+  - Neue Fake-Hardware-/POST-Zeilen im 80er-Stil: Co-Prozessor-Erkennung, Erweiterungsspeicher, CMOS-
+    Setup, Defragmentierung, Viren-Scan, Peripherie-Erkennung (Joystick/Sound/Hologramm), IRQ-Tabelle,
+    zusätzliche Fortschrittsbalken (Flottenformationen, mehr Sync-Schritte), IP-Adress-Vergabe beim
+    Uplink-Aufbau.
+  - 2 weitere Kernel-Module (Dyson-Sphaeren-Treiber, Rangliste-Synchronisation).
+  - Deutlich mehr Live-Werte aus dem Profil in der Statistik am Ende: Monde, Offiziere aktiv,
+    Metall/Kristall/Deuterium-Lager (zusätzlich zu Dunkle Materie/Aetherium), Autopilot-Status,
+    Rangliste-Platzierung, Spielgeschwindigkeit.
+  - Boot-Log ist dadurch spürbar länger (authentischeres "als würde ein echter PC starten"-Gefühl),
+    bleibt aber jederzeit per Klick/Taste überspringbar.
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.0.6" auf "v1.0.7" erhöht.
+
+v1.0.6
+- Boot-Sequenz überarbeitet (Feedback: Banner zu breit fürs Handy, Boot-Log sollte sich mehr wie ein
+  echter PC-Start aus den 70ern/80ern anfühlen):
+  - ASCII-Banner jetzt in 2 Zeilen getrennt ("MC ORCA" / "GAMES OS" statt einer 92 Zeichen breiten
+    Zeile) — max. Zeilenbreite von 92 auf 48 Zeichen halbiert, dadurch auf schmalen Handy-Bildschirmen
+    ohne horizontales Scrollen lesbar. Bannergröße dafür leicht angehoben (11px mobil / 15px Desktop).
+  - Boot-Log deutlich erweitert: CPU-/Speichertest, Laufwerkserkennung (A:/C:/D:), mehr Kernel-Module,
+    Sternenkarten-Sync, Warpantrieb-Kalibrierung, Hyperraum-Uplink-Verbindungsaufbau mit eigenem
+    Modem-Sound — dazu mehr Live-Werte aus dem Profil (Flottenstärke, Dunkle Materie, Aetherium-Lager,
+    Errungenschaften, letzter Login). Boot-Tempo dafür von der Demo-Kurzfassung (6s) auf die im Template
+    vorgesehene Originaldauer (24s) angehoben, weiterhin per Klick/Taste überspringbar.
+  - #dosBootOverlay scrollt jetzt vertikal (vorher overflow:hidden), damit das längere Log auf kleinen
+    Bildschirmen nicht abgeschnitten wird.
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.0.5" auf "v1.0.6" erhöht.
+
+v1.0.5
+- Neu: MC ORCA GAMES OS Boot-Sequenz eingebaut (Studio-Branding, gemeinsam mit den anderen MC ORCA
+  Spielen) — ASCII-Banner und Engine/Timing-Logik 1:1 aus dem gemeinsamen Template übernommen,
+  Akzentfarbe auf AETHERIS-Gold umgestellt. Zwei Effekte:
+  1) CRT-Poweron-Flash auf dem "Berühren zum Start"-Vorstartbildschirm (startGate) — kurzer
+     Röhrenmonitor-Einschalt-Effekt beim allerersten Laden der Seite.
+  2) DOS-Bootstream beim tatsächlichen Spielstart (Neues Spiel / Fortsetzen, in beginGame()) — Retro-
+     Terminal-Textaufbau mit Banner, Fortschrittsbalken und Live-Werten aus dem aktiven Profil
+     (Profilname, Kolonienzahl, Gesamt-Technologiestufe, Imperiumspunkte). Sound-Blips nutzen die
+     bestehende tone()/sfx-Engine des Spiels (kein separates Audio-System). Per Klick/Taste
+     überspringbar.
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.0.4" auf "v1.0.5" erhöht.
+
 v1.0.4
 - Balancing: Energieverbrauch überarbeitet — bisher haben nur die 3 Minen sowie Forschungslabor,
   Robotikfabrik, Nanitenfabrik und Werft Energie verbraucht. Speicher (Metall/Kristall/Deuterium),
@@ -1060,15 +1111,127 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
     color:#D4AF37; animation: tapPulse 1.8s ease-in-out infinite;
   }
   @keyframes tapPulse { 0%,100% { opacity:0.4; } 50% { opacity:1; } }
+
+  /* ============================================================================
+     v1.0.5: MC ORCA GAMES OS BOOT-SEQUENZ (Studio-Branding, aus dem gemeinsamen
+     boot-sequence-template.html übernommen). ASCII-Banner + Engine/Timing-Logik
+     1:1 unverändert; hier nur Akzentfarbe auf AETHERIS-Gold umgestellt.
+     Besteht aus 2 unabhängigen Effekten:
+     1) CRT-POWERON — kurzer Röhrenmonitor-Einschalt-Flash auf #startGate (dem
+        allerersten "Berühren zum Start"-Bildschirm), läuft einmalig beim Laden.
+     2) DOS-BOOTSTREAM — Retro-Terminal-Textaufbau mit Banner + Fortschrittsbalken,
+        läuft beim eigentlichen Spielstart (Neues Spiel / Fortsetzen), siehe
+        beginGame(). Überspringbar per Klick/Taste.
+     ============================================================================ */
+  :root{
+    --accent:#D4AF37;       /* AETHERIS-Gold, statt deep_anchor-Orange */
+    --accent-dim:#B08D57;   /* Bronze — gedimmter Gold-Ton fürs Boot-Branding */
+  }
+
+  /* ---------- 1) CRT-POWERON (auf #startGate) ---------- */
+  #crtBootOverlay{
+    position:absolute; inset:0; z-index:5; background:#000; pointer-events:none; overflow:hidden;
+    animation: crtBootOverlayFade 0.25s linear 0.6s forwards;
+  }
+  .crt-boot-line{
+    position:absolute; left:50%; top:50%; width:100%; height:3px;
+    background:linear-gradient(90deg, transparent, #dff6ff 15%, #ffffff 50%, #dff6ff 85%, transparent);
+    box-shadow:0 0 20px 4px rgba(180,230,255,.9), 0 0 60px 14px rgba(120,200,255,.5);
+    transform:translate(-50%,-50%) scaleY(0.002); opacity:0;
+    animation: crtBootLine 0.42s cubic-bezier(.2,.85,.3,1) 0.2s forwards;
+  }
+  @keyframes crtBootLine{
+    0%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:0; }
+    15%{ opacity:1; }
+    40%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:1; }
+    78%{ transform:translate(-50%,-50%) scaleY(1.08); opacity:1; }
+    92%{ transform:translate(-50%,-50%) scaleY(0.97); }
+    100%{ transform:translate(-50%,-50%) scaleY(1); opacity:0; }
+  }
+  @keyframes crtBootOverlayFade{ from{ opacity:1; } to{ opacity:0; visibility:hidden; } }
+  #startGate.crt-boot{
+    opacity:0; animation: crtBootContentIn 0.35s ease-out 0.42s forwards;
+  }
+  @keyframes crtBootContentIn{
+    0%{ opacity:0; filter:brightness(2.4) contrast(1.5); }
+    100%{ opacity:1; filter:brightness(1) contrast(1); }
+  }
+
+  /* ---------- 2) DOS-BOOTSTREAM (Spielstart) ---------- */
+  #dosBootOverlay{
+    position:fixed; inset:0; z-index:600; background:#000;
+    display:none; align-items:flex-start; justify-content:flex-start;
+    padding:28px 18px; box-sizing:border-box; cursor:pointer;
+    overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
+    opacity:1; transition:opacity .4s ease;
+    font-family:ui-monospace, 'Courier New', monospace;
+  }
+  @media (min-width:700px){ #dosBootOverlay{ padding:40px; } }
+  #dosBootOverlay.visible{ display:flex; }
+  #dosBootOverlay.crt-poweron{ animation: crtPowerOn .55s ease-out both; transform-origin:center center; }
+  @keyframes crtPowerOn{
+    0%{ transform:scaleY(.008); filter:brightness(28); opacity:1; }
+    10%{ transform:scaleY(.02); filter:brightness(20); }
+    20%{ transform:scaleY(.55); filter:brightness(7); }
+    32%{ transform:scaleY(1); filter:brightness(2.6); }
+    45%{ transform:scaleY(1); filter:brightness(1.15); }
+    100%{ transform:scaleY(1); filter:brightness(1); }
+  }
+  #dosBootOverlay.crt-poweroff{ animation: crtPowerOff .55s ease-in forwards; transform-origin:center center; }
+  @keyframes crtPowerOff{
+    0%{ transform:scaleY(1) scaleX(1); filter:brightness(1); opacity:1; }
+    55%{ transform:scaleY(.012) scaleX(1); filter:brightness(5); opacity:1; }
+    78%{ transform:scaleY(.012) scaleX(.02); filter:brightness(9); opacity:1; }
+    100%{ transform:scaleY(.012) scaleX(.002); filter:brightness(0); opacity:0; }
+  }
+  #dosBootOverlay::after{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
+    background:repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 2px, transparent 3px);
+    mix-blend-mode:multiply; opacity:.5;
+  }
+  .dos-boot-inner{ width:100%; max-width:900px; position:relative; z-index:1; }
+  .dos-boot-banner{
+    margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
+    font-size:11px; line-height:1.15; color:var(--accent);
+    text-shadow:0 0 10px rgba(212,175,55,.75), 0 0 2px rgba(212,175,55,1);
+    opacity:0; animation: dosBannerFlash .5s ease-out forwards;
+  }
+  @media (min-width:700px){ .dos-boot-banner{ font-size:15px; } }
+  @keyframes dosBannerFlash{
+    0%{ opacity:0; filter:brightness(3); }
+    60%{ opacity:1; filter:brightness(2.2); }
+    100%{ opacity:1; filter:brightness(1); }
+  }
+  .dos-boot-text{ margin:0; white-space:pre-wrap; word-break:break-word;
+    font-family:'Courier New', ui-monospace, monospace; font-size:14px; line-height:1.55;
+    color:var(--accent); text-shadow:0 0 6px rgba(212,175,55,.55), 0 0 1px rgba(212,175,55,.9); }
+  #dosBootText.typing::after{
+    content:''; display:inline-block; width:8px; height:14px; background:var(--accent);
+    box-shadow:0 0 6px rgba(212,175,55,.7); animation:dosCursorBlink 1s steps(1) infinite;
+    vertical-align:-2px; margin-left:1px;
+  }
+  @keyframes dosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .dos-boot-skip{ position:fixed; bottom:22px; right:28px; font-size:11px; letter-spacing:1.5px;
+    color:var(--accent-dim); text-transform:uppercase; z-index:3; }
 </style>
 </head>
 <body>
   <canvas id="bgStarfield" aria-hidden="true"></canvas>
-  <div class="title-screen" id="startGate">
+  <div class="title-screen crt-boot" id="startGate">
+    <div id="crtBootOverlay" aria-hidden="true"><div class="crt-boot-line"></div></div>
     <canvas class="warp-canvas" id="warpGate"></canvas>
     <div class="game-logo" id="logoGate"></div>
     <div class="tap-hint" id="startGateBtn">Berühren zum Start</div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.4</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.8</div>
+  </div>
+
+  <!-- MC ORCA GAMES OS — DOS-Bootstream-Overlay, läuft beim Spielstart (siehe beginGame()) -->
+  <div id="dosBootOverlay" aria-hidden="true">
+    <div class="dos-boot-inner">
+      <pre class="dos-boot-banner" id="dosBootBanner"></pre>
+      <pre class="dos-boot-text" id="dosBootText"></pre>
+    </div>
+    <div class="dos-boot-skip">Klicken zum Überspringen</div>
   </div>
 
   <div class="title-screen hidden" id="titleScreen">
@@ -1085,7 +1248,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <button class="menu-btn" id="titleMusicBtn" style="font-size:11px;width:100%">🎵 Musik</button>
       <input type="range" class="music-volume-input" id="titleMusicVolume" min="0" max="1" step="0.05" style="width:130px;margin-top:8px;accent-color:#D4AF37;display:block">
     </div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.4</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.8</div>
   </div>
   <div class="header">
     <div class="title-row">
@@ -13903,6 +14066,290 @@ function renderRankView() {
   return html;
 }
 
+/* ============================================================================
+   MC ORCA GAMES OS — DOS-BOOTSTREAM (Spielstart)
+   Aus dem gemeinsamen boot-sequence-template.html übernommen. Engine/Timing-Logik
+   darunter (playDosBootSequence, typeStringLine, runProgressLine, Skip-per-Klick/
+   Taste) unverändert. Spielanpassung: OS_NAME, BIOS_LINE, getBootContext() und
+   der Inhalt von generateBootLines() (liest den echten Stand des aktiven Profils).
+   v1.0.6: Banner in 2 Zeilen "MC ORCA" / "GAMES OS" getrennt (statt einer 92
+   Zeichen breiten Zeile) — passt jetzt auch auf schmale Handy-Bildschirme ohne
+   horizontales Scrollen. Boot-Log deutlich erweitert (mehr Fake-Hardware-/
+   Kernel-/Verbindungs-Zeilen im 80er-Heimcomputer-Stil) für ein authentischeres
+   "echter PC-Start"-Gefühl.
+   ========================================================================== */
+const BOOT_BANNER = ` __  __  ____    ___  ____   ____    _    
+|  \\/  |/ ___|  / _ \\|  _ \\ / ___|  / \\   
+| |\\/| | |     | | | | |_) | |     / _ \\  
+| |  | | |___  | |_| |  _ <| |___ / ___ \\ 
+|_|  |_|\\____|  \\___/|_| \\_\\\\____/_/   \\_\\
+
+  ____    _    __  __ _____ ____     ___  ____  
+ / ___|  / \\  |  \\/  | ____/ ___|   / _ \\/ ___| 
+| |  _  / _ \\ | |\\/| |  _| \\___ \\  | | | \\___ \\ 
+| |_| |/ ___ \\| |  | | |___ ___) | | |_| |___) |
+ \\____/_/   \\_\\_|  |_|_____|____/   \\___/|____/ `;
+
+const OS_NAME = "IMPERIUM-OS";
+const BIOS_LINE = "AETHERIS BIOS v1.0 — MC-ORCA STELLARIS Z80 QUANTUM CORE";
+const COPYRIGHT_LINE = "(C) 2087 MC ORCA Games.";
+
+/* Liest den echten Live-Stand des aktiven Profils (kein Caching — bei jedem Boot
+   frisch aufrufen, siehe generateBootLines()). */
+function getBootContext(){
+  const prof = loadProfiles().find(p => p.id === activeProfileId);
+  const techLevel = RESEARCHES.reduce((sum, r) => sum + ((research && research[r.key]) || 0), 0);
+  const planetList = Object.values(planets);
+  const metalTotal = planetList.reduce((sum, p) => sum + ((p.resources && p.resources.metal) || 0), 0);
+  const crystalTotal = planetList.reduce((sum, p) => sum + ((p.resources && p.resources.crystal) || 0), 0);
+  const deuteriumTotal = planetList.reduce((sum, p) => sum + ((p.resources && p.resources.deuterium) || 0), 0);
+  const aetheriumTotal = planetList.reduce((sum, p) => sum + ((p.resources && p.resources.aetherium) || 0), 0);
+  const moonCount = planetList.reduce((sum, p) => sum + planetMoons(p).length, 0);
+  const officersActiveCount = OFFICERS.reduce((sum, o) => sum + (officerActive(o.key) ? 1 : 0), 0);
+  const achievementsCount = Object.keys(achievementsClaimed || {}).length;
+  let rank = "-";
+  try{
+    const board = computeLeaderboard();
+    const idx = board.findIndex(e => e.isActive);
+    if(idx >= 0) rank = `${idx+1}/${board.length}`;
+  }catch(err){}
+  return {
+    profileName: (prof && prof.name) || "Kommandant",
+    lastLogin: lastSavedAt ? new Date(lastSavedAt).toLocaleString('de-DE') : "Erststart — kein vorheriges Login",
+    speed: SPEED_MULTIPLIER,
+    planetCount: realColonyCount(),
+    moonCount,
+    fleetCount: totalFleetCount(),
+    officersActiveCount,
+    officersTotal: OFFICERS.length,
+    techLevel,
+    metalTotal: Math.floor(metalTotal),
+    crystalTotal: Math.floor(crystalTotal),
+    deuteriumTotal: Math.floor(deuteriumTotal),
+    darkMatterTotal: Math.floor(darkMatter),
+    aetheriumTotal: Math.floor(aetheriumTotal),
+    points: totalPoints(),
+    rank,
+    autopilotStatus: autopilotOn ? "AKTIV" : "inaktiv",
+    achievementsCount,
+    achievementsTotal: ACHIEVEMENTS.length,
+  };
+}
+
+function renderProgressLine(label, pct, width=24){
+  const filled = Math.max(0, Math.min(width, Math.round(width*pct/100)));
+  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
+  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
+}
+
+function generateBootLines(){
+  const ctx = getBootContext();
+  return [
+    BIOS_LINE,
+    COPYRIGHT_LINE,
+    "",
+    "CPU .......................... MC-ORCA STELLARIS Z80 QUANTUM CORE @ 4.77 MHz",
+    "Co-Prozessor .................. STELLARIS FPU-87 erkannt",
+    { progress: "Speichertest (RAM)", ms: 1300 },
+    "  [ OK ] 655360 Bytes belegt, 0 Bytes fehlerhaft",
+    "Erweiterungsspeicher .......... 16384 KB EMS erkannt",
+    "",
+    "CMOS-Setup wird gelesen...",
+    "  [ OK ] Datum/Uhrzeit synchronisiert",
+    "  [ OK ] Bootreihenfolge: A:, C:, Sternennetz",
+    "",
+    "Erkenne Laufwerke...",
+    "  A: Wechseldatentraeger .............. 1.44 MB [OK]",
+    "  C: Fixplatte ........................ 20 MB [OK]",
+    "  D: Sternenarchiv (Netzwerk) ......... verbunden [OK]",
+    "",
+    { progress: "Pruefe Dateisystem-Integritaet", ms: 1400 },
+    { progress: "Defragmentiere Sternenarchiv", ms: 1300 },
+    { progress: "Viren-Scan (Schattennetz-Signaturen)", ms: 1400 },
+    "  [ OK ] Keine Bedrohungen gefunden",
+    "",
+    "Erkenne Peripherie...",
+    "  [ OK ] Steuerkonsole (Joystick Port A)",
+    "  [ OK ] Soundmodul (Aetherium-Blaster kompatibel)",
+    "  [ OK ] Hologramm-Anzeige",
+    "",
+    `Profil .................... ${ctx.profileName} [OK]`,
+    `Letzter Login .............. ${ctx.lastLogin}`,
+    `Spielgeschwindigkeit ....... ${ctx.speed}x`,
+    "",
+    `Lade ${OS_NAME} Kernel...`,
+    "  [ OK ] Sternenkarten-Modul",
+    "  [ OK ] Flottenregister",
+    "  [ OK ] Imperiums-Datenbank",
+    "  [ OK ] Forschungsnetzwerk",
+    "  [ OK ] Handelsroutenplaner",
+    "  [ OK ] Schattennetz-Relais",
+    "  [ OK ] Autopilot-Subsystem",
+    "  [ OK ] Diplomatie-Protokoll",
+    "  [ OK ] Dyson-Sphaeren-Treiber",
+    "  [ OK ] Rangliste-Synchronisation",
+    "",
+    { progress: "Synchronisiere Sternenkarten", ms: 1800 },
+    { progress: "Kalibriere Warpantrieb", ms: 1300 },
+    { progress: "Lade Flottenformationen", ms: 1200 },
+    "",
+    "IRQ-Tabelle:",
+    "  IRQ 3 ... Hyperraum-Sensor",
+    "  IRQ 5 ... Schildgenerator",
+    "  IRQ 7 ... Warpantrieb",
+    "  IRQ 9 ... Schattennetz-Uplink",
+    "",
+    "Baue Hyperraum-Uplink zum Imperiumsnetz auf...",
+    { progress: "Verbindungsaufbau", ms: 1800 },
+    "  [ OK ] Uplink stabil (2400 Sternenbaud)",
+    "  [ OK ] IP-Adresse zugewiesen: 192.87.221.4",
+    "",
+    `Kolonien ......................... ${ctx.planetCount}`,
+    `Monde ............................ ${ctx.moonCount}`,
+    `Flottenstaerke (Schiffe) ......... ${ctx.fleetCount}`,
+    `Offiziere aktiv .................. ${ctx.officersActiveCount}/${ctx.officersTotal}`,
+    `Technologiestufen (gesamt) ....... ${ctx.techLevel}`,
+    `Metall (Lager) ................... ${ctx.metalTotal}`,
+    `Kristall (Lager) ................. ${ctx.crystalTotal}`,
+    `Deuterium (Lager) ................ ${ctx.deuteriumTotal}`,
+    `Dunkle Materie .................... ${ctx.darkMatterTotal}`,
+    `Aetherium (Lager) ................ ${ctx.aetheriumTotal}`,
+    `Autopilot ......................... ${ctx.autopilotStatus}`,
+    `Imperiumspunkte ................... ${ctx.points}`,
+    `Rang (Rangliste) .................. ${ctx.rank}`,
+    `Errungenschaften .................. ${ctx.achievementsCount}/${ctx.achievementsTotal}`,
+    "",
+    `${OS_NAME} BEREIT.`,
+    "",
+    `Willkommen zurueck, ${ctx.profileName}.`
+  ];
+}
+
+/* Sound-Hooks: nutzt die bestehende tone()/sweep()/sfx-Engine des Spiels (kein
+   eigenes Audio-System), respektiert damit automatisch den soundOn-Schalter. */
+const BootSound = {
+  postBeep: ()=> tone(900, 0.15, 'square', 0.06),
+  diskAccess: ()=> tone(220+Math.random()*40, 0.03, 'square', 0.03),
+  okBlip: ()=> tone(1180, 0.05, 'square', 0.05),
+  keyBlip: ()=> tone(760+Math.random()*260, 0.02, 'square', 0.045),
+  modemHandshake: ()=> sweep(200, 900, 0.3, 'sawtooth', 0.05),
+  readyChord: ()=> sfx.buildComplete(),
+};
+
+/* --------------------------------------------------------------------------
+   Ab hier: generischer Engine-Code aus dem Template, NICHT pro Spiel anpassen.
+   -------------------------------------------------------------------------- */
+let dosBootToken = 0;
+function playDosBootSequence(){
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById('dosBootOverlay');
+    const textEl = document.getElementById('dosBootText');
+    const bannerEl = document.getElementById('dosBootBanner');
+    if(!overlay || !textEl){ resolve(); return; }
+    const BOOT_LINES = generateBootLines();
+    const myToken = ++dosBootToken;
+    const totalCharBudgetMs = 60000; // weit über dem Tipp-Tempo-Deckel (28ms/Zeichen) -> saettigt bewusst am Maximum, langsames "Zeichen-für-Zeichen"-Tippen wie auf einem echten alten Terminal
+    const totalChars = BOOT_LINES.reduce((n,l)=> n + (typeof l==='string' ? Math.max(l.length,1):0), 0);
+    const perCharMs = Math.min(28, Math.max(9, totalCharBudgetMs/Math.max(totalChars,1)));
+    const interLineMs = 220; // Pause zwischen Zeilen, erhöht fürs gemächlichere 80er-Boot-Tempo (vorher 130ms)
+    const finalHoldMs = 1800;
+    const bannerRevealMs = 500;
+
+    textEl.textContent = '';
+    textEl.classList.add('typing');
+    if(bannerEl){
+      bannerEl.textContent = BOOT_BANNER;
+      bannerEl.style.animation = 'none'; void bannerEl.offsetWidth; bannerEl.style.animation = '';
+    }
+    overlay.classList.remove('fading','crt-poweroff');
+    overlay.classList.add('visible');
+    overlay.classList.remove('crt-poweron'); void overlay.offsetWidth; overlay.classList.add('crt-poweron');
+    try{ BootSound.postBeep(); }catch(err){}
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    let finished = false, timeoutIds = [];
+    const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds=[]; };
+    let renderedLines = [];
+    const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); overlay.scrollTop = overlay.scrollHeight; };
+
+    const finishNow = ()=>{
+      if(finished || myToken!==dosBootToken) return;
+      finished = true; clearAllTimers();
+      textEl.textContent = BOOT_LINES.map(l=> typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
+      overlay.scrollTop = overlay.scrollHeight;
+      overlay.classList.remove('crt-poweron'); overlay.classList.add('crt-poweroff');
+      textEl.classList.remove('typing');
+      document.body.style.overflow = prevOverflow;
+      setTimeout(()=>{
+        if(myToken!==dosBootToken) return;
+        overlay.classList.remove('visible','fading','crt-poweroff');
+        overlay.removeEventListener('click', skipHandler);
+        document.removeEventListener('keydown', skipHandler);
+        resolve();
+      }, 550);
+    };
+    const skipHandler = ()=> finishNow();
+    overlay.addEventListener('click', skipHandler);
+    document.addEventListener('keydown', skipHandler);
+
+    let lineIndex = 0, blipCounter = 0;
+    const keyBlip = ()=>{ blipCounter++; if(blipCounter%3===0){ try{ BootSound.keyBlip(); }catch(err){} } };
+    const okBlip = ()=>{ try{ BootSound.okBlip(); }catch(err){} };
+    const readyChord = ()=>{ try{ BootSound.readyChord(); }catch(err){} };
+
+    const processLine = ()=>{
+      if(myToken!==dosBootToken) return;
+      if(lineIndex >= BOOT_LINES.length){ timeoutIds.push(setTimeout(finishNow, finalHoldMs)); return; }
+      const entry = BOOT_LINES[lineIndex];
+      if(typeof entry === 'string') typeStringLine(entry);
+      else if(entry && entry.progress) runProgressLine(entry);
+    };
+
+    const typeStringLine = (line)=>{
+      if(line.length === 0){
+        renderedLines[lineIndex] = ''; redraw(); lineIndex++;
+        timeoutIds.push(setTimeout(processLine, interLineMs/2));
+        return;
+      }
+      let charIndex = 0;
+      const step = ()=>{
+        if(myToken!==dosBootToken) return;
+        charIndex++;
+        renderedLines[lineIndex] = line.slice(0, charIndex);
+        redraw();
+        if(charIndex < line.length){ keyBlip(); timeoutIds.push(setTimeout(step, perCharMs)); }
+        else{
+          const trimmed = line.trim();
+          if(trimmed.startsWith('[ OK ]')) okBlip();
+          else if(trimmed === `${OS_NAME} BEREIT.`) readyChord();
+          lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs));
+        }
+      };
+      step();
+    };
+
+    const runProgressLine = (entry)=>{
+      try{ BootSound.diskAccess(); }catch(err){}
+      const steps = 22, stepMs = Math.max(30, entry.ms/steps);
+      let step = 0;
+      renderedLines[lineIndex] = renderProgressLine(entry.progress, 0); redraw();
+      const tick = ()=>{
+        if(myToken!==dosBootToken) return;
+        step++;
+        const pct = Math.min(100, Math.round(step/steps*100));
+        renderedLines[lineIndex] = renderProgressLine(entry.progress, pct); redraw();
+        if(step%4===0){ try{ tone(500+pct*4,0.02,'square',0.03); }catch(err){} }
+        if(step < steps) timeoutIds.push(setTimeout(tick, stepMs));
+        else{ lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs)); }
+      };
+      tick();
+    };
+
+    timeoutIds.push(setTimeout(processLine, bannerRevealMs));
+  });
+}
+
 /* ---------- Start ---------- */
 
 function startGameLoops() {
@@ -13913,9 +14360,10 @@ function startGameLoops() {
   document.addEventListener("visibilitychange", () => { if (document.hidden) saveGame(); });
 }
 
-function beginGame() {
+async function beginGame() {
   document.getElementById("titleScreen").classList.add("hidden");
   if (window.stopWarpTunnel) window.stopWarpTunnel();
+  await playDosBootSequence(); // MC ORCA GAMES OS Boot-Sequenz — analog zu showGameRoot() in deep_anchor
   startGameplayMusic();
   updateAutopilotButton();
   if (autopilotOn) autopilotTick(); // war beim letzten Mal schon an -> sofort erste Aktion statt 5s zu warten
