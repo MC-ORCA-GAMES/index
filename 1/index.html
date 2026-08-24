@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MC ORCA Games — Sternenprojekte</title>
+<meta name="description" content="MC ORCA Games: Zwei browserbasierte Weltraumspiele ohne Download — AETHERIS — Echoes of an Eternal Empire und PATH OF THE STARS — Drifting Worlds.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Spectral:ital,wght@0,400;0,500;1,400&family=Bangers&family=Oswald:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#0A0A0C; --line:#241E1E; --cream:#EAE2D4;
+    --gold:#D4AF37; --gold-soft:rgba(212,175,55,0.35); --gold-dim:#8A7A6A;
+    --cyan:#4FD1C5; --cyan-soft:rgba(79,209,197,0.35); --cyan-dim:#6E8B93;
+    --potsred:#C81E2C; --potsred-soft:rgba(200,30,44,0.4); --potsred-dim:#9C5A57;
+    --astviolet:#7C5CFF; --astviolet-soft:rgba(124,92,255,0.4); --astviolet-dim:#9088B8;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--bg); color:var(--cream);
+    font-family:'Spectral',Georgia,serif; font-size:17px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,.display{ font-family:'Cinzel',serif; font-weight:700; letter-spacing:0.5px; margin:0; }
+  .mono{ font-family:'IBM Plex Mono',monospace; }
+  a{ color:inherit; }
+  ::selection{ background:var(--cream); color:#0A0A0C; }
+  :focus-visible{ outline:2px solid var(--cream); outline-offset:3px; }
+
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.5; pointer-events:none; }
+
+  /* ---------- Marke ---------- */
+  .brandbar{
+    position:relative; z-index:2; display:flex; justify-content:center; padding:26px 24px 0;
+  }
+  .brandmark{
+    display:flex; align-items:center; gap:14px; font-family:'IBM Plex Mono',monospace;
+    font-size:12px; letter-spacing:2.5px; text-transform:uppercase; color:#B9AF9C;
+  }
+  .brandmark img{ height:150px; width:auto; display:block; margin:0 auto; }
+  .brandmark img:not([src]),.brandmark img[src=""]{ display:none; }
+  .brandmark b{ color:var(--cream); font-family:'Cinzel',serif; letter-spacing:1px; font-weight:700; }
+
+  /* ---------- Kopf ---------- */
+  header{
+    position:relative; z-index:2; text-align:center; padding:8px 24px 60px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:3px; text-transform:uppercase;
+    color:#8A8578; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:20px;
+  }
+  .eyebrow::before,.eyebrow::after{ content:""; width:22px; height:1px; background:#3A342E; }
+  header h1{ font-size:clamp(32px,5.4vw,54px); color:var(--cream); line-height:1.15; }
+  header h1 .accent1{ color:var(--gold); }
+  header h1 .accent2{ color:var(--potsred); }
+  header p{ margin:20px auto 0; max-width:520px; color:#B9AF9C; font-size:16.5px; }
+
+  /* ---------- Portal-Karten ---------- */
+  .portals{
+    position:relative; z-index:2; max-width:1520px; margin:0 auto; padding:0 24px 100px;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:26px;
+  }
+  @media (max-width:1180px){ .portals{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:640px){ .portals{ grid-template-columns:1fr; } }
+
+  .portal{
+    --pc: var(--gold); --pc-soft: var(--gold-soft); --pc-dim: var(--gold-dim);
+    position:relative; overflow:hidden; border-radius:20px; border:1px solid var(--line);
+    background:#111014; min-height:460px; display:flex; flex-direction:column; justify-content:flex-end;
+    padding:38px 34px; text-decoration:none; isolation:isolate;
+    transition:transform .25s ease, border-color .25s ease;
+  }
+  .portal:hover{ transform:translateY(-4px); border-color:var(--pc-soft); }
+  .portal.pots{ --pc: var(--potsred); --pc-soft: var(--potsred-soft); --pc-dim: var(--potsred-dim); background:#0F0C0C; }
+  .portal.pots h2, .portal.pots .psub{ font-family:'Bangers',cursive; }
+  .portal.pots .psub{ letter-spacing:2px; }
+  .portal.astrion{ --pc: var(--astviolet); --pc-soft: var(--astviolet-soft); --pc-dim: var(--astviolet-dim); background:#0F0D18; }
+
+  .portal-bg{
+    position:absolute; inset:0; z-index:-2; width:100%; height:100%; object-fit:cover;
+    opacity:0.55; transition:opacity .3s ease, transform .5s ease;
+  }
+  .portal:hover .portal-bg{ opacity:0.75; transform:scale(1.04); }
+  .portal::before{
+    content:""; position:absolute; inset:0; z-index:-1;
+    background:radial-gradient(120% 90% at 30% 100%, color-mix(in srgb, var(--pc) 22%, transparent), transparent 60%),
+      linear-gradient(180deg, rgba(10,10,12,0.35) 0%, rgba(10,10,12,0.78) 55%, rgba(10,10,12,0.97) 100%);
+  }
+
+  .portal .plabel{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--pc); margin-bottom:14px;
+  }
+  .portal .plogo{ display:flex; margin-bottom:6px; }
+  .portal .plogo img{ max-width:min(320px,80%); height:auto; filter:drop-shadow(0 6px 26px rgba(0,0,0,0.6)); }
+  .portal .plogo:empty{ display:none; }
+  .portal h2{ font-size:clamp(26px,3.2vw,36px); color:var(--pc); text-shadow:0 2px 10px rgba(0,0,0,0.7); }
+  .portal .psub{
+    font-family:'Cinzel',serif; font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
+    color:#D9CFBE; margin-top:6px;
+  }
+  .portal p.ppitch{
+    margin:18px 0 0; max-width:420px; font-size:15px; color:#E3DACB; text-shadow:0 1px 6px rgba(0,0,0,0.7);
+  }
+  .portal .pmeta{
+    margin-top:22px; display:flex; gap:14px; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace;
+    font-size:11px; letter-spacing:0.5px; color:#B9AF9C;
+  }
+  .portal .pctas{ display:flex; gap:12px; margin-top:26px; flex-wrap:wrap; }
+  .pbtn{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:1.5px; text-transform:uppercase;
+    padding:12px 22px; border-radius:9px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+    border:1px solid var(--pc-soft); color:var(--pc); cursor:pointer;
+    transition:background .15s, transform .15s;
+  }
+  .pbtn.primary{ background:var(--pc); color:#0A0A0C; border-color:var(--pc); font-weight:600; }
+  .pbtn:hover{ transform:translateY(-1px); }
+  .pbtn.primary:hover{ filter:brightness(1.08); }
+  .pbtn:not(.primary):hover{ background:rgba(255,255,255,0.06); }
+
+  /* ---------- Footer ---------- */
+  footer{
+    position:relative; z-index:2; border-top:1px solid var(--line); padding:30px 24px 44px; text-align:center;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8A8578; letter-spacing:0.5px;
+  }
+  footer a{ color:#8A8578; text-decoration:underline; text-underline-offset:2px; }
+  footer a:hover{ color:var(--cream); }
+  footer .sep{ margin:0 8px; opacity:0.5; }
+
+  .reveal{ opacity:0; transform:translateY(24px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in{ opacity:1; transform:none; }
+
+  @media (prefers-reduced-motion:reduce){
+    .reveal{ transition:none; opacity:1; transform:none; }
+  }
+
+  /* NEU (TODO-CLOUD-SAVE-KONTOLEISTE): gemeinsames Konto-Widget für alle Spiele. Loggt man sich
+     hier ein, sieht jedes Spiel (aetheris/game.html, astrion/game.html, ...) dieselbe Supabase-
+     Session automatisch mit, weil die Session im localStorage der Domain liegt, nicht pro
+     Unterordner -- Voraussetzung: überall dieselbe SUPABASE_URL/ANON_KEY eingetragen. */
+  #accountBar{
+    position:fixed; top:18px; right:18px; z-index:20;
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; letter-spacing:0.5px;
+  }
+  #accountToggle{
+    background:rgba(10,10,12,0.75); border:1px solid var(--gold-soft); color:var(--cream);
+    padding:8px 14px; border-radius:20px; cursor:pointer; backdrop-filter:blur(6px);
+    text-transform:uppercase; letter-spacing:1.5px; font-size:10.5px;
+  }
+  #accountToggle:hover{ border-color:var(--gold); }
+  #accountPanel{
+    display:none; position:absolute; top:calc(100% + 8px); right:0; width:260px;
+    background:#111013; border:1px solid var(--gold-soft); border-radius:10px; padding:14px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.5);
+  }
+  #accountPanel.open{ display:block; }
+  #accountPanel input{
+    width:100%; box-sizing:border-box; margin-top:8px; padding:8px 10px; background:#1a191c;
+    border:1px solid var(--line); border-radius:6px; color:var(--cream); font-family:inherit; font-size:12.5px;
+  }
+  #accountPanel button{
+    width:100%; margin-top:8px; padding:8px; border-radius:6px; border:1px solid var(--gold-soft);
+    background:transparent; color:var(--cream); cursor:pointer; font-family:inherit; font-size:11px;
+    text-transform:uppercase; letter-spacing:1px;
+  }
+  #accountPanel button:hover{ border-color:var(--gold); }
+  #accountStatus{ display:block; margin-top:8px; font-size:10.5px; line-height:1.5; color:var(--gold-dim); }
+  #accountStatus.err{ color:var(--potsred); }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): einmaliger Login hier gilt automatisch für alle Spiele
+     auf dieser Domain, siehe Kommentar bei #accountBar weiter oben. -->
+<div id="accountBar">
+  <button id="accountToggle">☁ Konto</button>
+  <div id="accountPanel">
+    <div data-cloud-out>
+      <div style="color:var(--gold-dim); line-height:1.5;">Einmal einloggen — gilt für alle Spiele auf dieser Seite. Kein Passwort, nur ein Link per E-Mail.</div>
+      <input type="email" id="accountEmail" placeholder="deine@email.de" autocomplete="email">
+      <button id="btnAccountSendLink">Login-Link senden</button>
+    </div>
+    <div data-cloud-in style="display:none;">
+      <div style="color:var(--gold-dim); line-height:1.5;">Eingeloggt als <b id="accountUserEmail" style="color:var(--cream);">—</b></div>
+      <button id="btnAccountSignOut">Ausloggen</button>
+    </div>
+    <span id="accountStatus"></span>
+  </div>
+</div>
+
+<div class="brandbar reveal">
+  <div class="brandmark" id="brandmark">
+    <img src="bilder/logo.png" alt="MC ORCA GAMES" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+    <b style="display:none">MC ORCA GAMES</b>
+  </div>
+</div>
+
+<header class="reveal">
+  <div class="eyebrow">ZWEI GALAXIEN · EIN STUDIO</div>
+  <h1>Browserbasierte Weltraumspiele<br>von <span class="accent1">MC</span> <span class="accent2">ORCA</span></h1>
+  <p>Kein Download, kein Konto bei Dritten — einfach öffnen und spielen. Wähle dein
+    Universum.</p>
+</header>
+
+<div class="portals">
+
+  <a class="portal aetheris reveal" href="aetheris/index.html">
+    <img class="portal-bg" src="aetheris/bilder/logo.png" onerror="this.style.display='none'" alt="">
+    <div class="plabel">Weltraum-Imperium</div>
+    <div class="plogo" id="aetherisLogo"></div>
+    <div id="aetherisTitleText">
+      <h2>AETHERIS</h2>
+      <div class="psub">Echoes of an Eternal Empire</div>
+    </div>
+    <div class="mono" style="font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--pc-dim);margin-top:8px">Ein MC ORCA Games Projekt</div>
+    <p class="ppitch">Gründe eine Kolonie, baue eine Flotte auf und handle mit Dunkler Materie —
+      in einer Galaxie, die sich weiterdreht, auch wenn du gerade nicht online bist.</p>
+    <div class="pmeta">
+      <span>v1.0 · Release</span>
+      <span>30 Sternensysteme</span>
+    </div>
+    <div class="pctas">
+      <span class="pbtn primary">Entdecken →</span>
+      <span class="pbtn" onclick="event.preventDefault();event.stopPropagation();window.location.href='aetheris/game.html'">Direkt spielen</span>
+    </div>
+  </a>
+
+  <a class="portal pots reveal" href="path%20of%20the%20stars/index.html">
+    <img class="portal-bg" src="path%20of%20the%20stars/bilder/logo.png" onerror="this.style.display='none'" alt="">
+    <div class="plabel">Generationenschiff-Saga</div>
+    <div class="plogo" id="potsLogo"></div>
+    <div id="potsTitleText">
+      <h2>PATH OF THE STARS</h2>
+      <div class="psub">Drifting Worlds</div>
+    </div>
+    <div class="mono" style="font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--pc-dim);margin-top:8px">Ein MC ORCA Games Projekt</div>
+    <p class="ppitch">Die Sonne stirbt. Die Erde flieht — handle zwischen den Sternen und
+      verfolge ein uraltes Signal, während an Bord nur Jahre vergehen und draußen
+      Jahrtausende verstreichen.</p>
+    <div class="pmeta">
+      <span>v0_0243 · Open Beta</span>
+      <span>4 Fraktionen + Piraten</span>
+    </div>
+    <div class="pctas">
+      <span class="pbtn primary">Entdecken →</span>
+      <span class="pbtn" onclick="event.preventDefault();event.stopPropagation();window.location.href='path%20of%20the%20stars/game.html'">Direkt spielen</span>
+    </div>
+  </a>
+
+  <a class="portal astrion reveal" href="astrion/index.html">
+    <img class="portal-bg" src="astrion/art/logo.png" onerror="this.style.display='none'" alt="">
+    <div class="plabel">Sammelkarten-Universum</div>
+    <div class="plogo" id="astrionLogo"></div>
+    <div id="astrionTitleText">
+      <h2>ASTRION</h2>
+      <div class="psub">Karten aus den Tiefen des Alls</div>
+    </div>
+    <div class="mono" style="font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--pc-dim);margin-top:8px">Ein MC ORCA Games Projekt</div>
+    <p class="ppitch">Öffne Booster, sammle Karten aus vier Völkern und tritt in der
+      Sternen-Akademie an — ein entspanntes Sammelkartenspiel, das nebenbei
+      Deutsch und Mathe übt.</p>
+    <div class="pmeta">
+      <span>Open Beta</span>
+      <span>4 Völker · Sternen-Akademie</span>
+    </div>
+    <div class="pctas">
+      <span class="pbtn primary">Entdecken →</span>
+      <span class="pbtn" onclick="event.preventDefault();event.stopPropagation();window.location.href='astrion/game.html'">Direkt spielen</span>
+    </div>
+  </a>
+
+</div>
+
+<footer>
+  MC ORCA Games — Indie-Solo-Projekte
+  <span class="sep">·</span><a href="aetheris/impressum.html">AETHERIS: Impressum &amp; Datenschutz</a>
+  <span class="sep">·</span><a href="path%20of%20the%20stars/impressum.html">Path of the Stars: Impressum &amp; Datenschutz</a>
+  <span class="sep">·</span><a href="astrion/impressum.html">Astrion: Impressum &amp; Datenschutz</a>
+</footer>
+
+<script>
+/* ---------- Starfield ---------- */
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], w, h;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    const count = Math.min(240, Math.floor((w*h)/9500));
+    stars = Array.from({length:count}, () => ({
+      x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.3+0.2,
+      p: Math.random()*Math.PI*2, s: Math.random()*0.015+0.005
+    }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#EAE2D4';
+    stars.forEach(st=>{
+      const tw = reduced ? 0.7 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.12 + tw*0.5;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if(!reduced) requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+  if(reduced) draw(0);
+})();
+
+/* ---------- Logo-Fallback pro Portal-Karte ---------- */
+function initPortalLogo(slotId, textId, src, alt){
+  const slot = document.getElementById(slotId);
+  const text = document.getElementById(textId);
+  const test = new Image();
+  test.onload = () => {
+    const img = document.createElement('img');
+    img.src = src; img.alt = alt;
+    slot.appendChild(img);
+    text.style.display = 'none';
+  };
+  test.src = src;
+}
+initPortalLogo('aetherisLogo', 'aetherisTitleText', 'aetheris/bilder/logo.png', 'AETHERIS');
+initPortalLogo('potsLogo', 'potsTitleText', 'path%20of%20the%20stars/bilder/logo.png', 'PATH OF THE STARS');
+initPortalLogo('astrionLogo', 'astrionTitleText', 'astrion/art/logo.png', 'ASTRION');
+
+/* ---------- Scroll reveal ---------- */
+(function(){
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+  }, { threshold:0.1 });
+  document.querySelectorAll('.reveal').forEach(el=> io.observe(el));
+})();
+</script>
+
+<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): Supabase-Client für die gemeinsame Konto-Leiste. WICHTIG:
+     SUPABASE_URL/ANON_KEY müssen exakt dieselben Werte sein wie in jedem game.html, sonst landet
+     die Session in einem anderen Storage-Bucket und wird von den Spielen nicht gefunden. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  const supabaseClient = (SUPABASE_URL.startsWith('https://') && typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  let currentUser = null;
+
+  const toggle = document.getElementById('accountToggle');
+  const panel = document.getElementById('accountPanel');
+  const statusEl = document.getElementById('accountStatus');
+
+  function setStatus(msg, isErr){
+    statusEl.textContent = msg || '';
+    statusEl.className = isErr ? 'err' : '';
+  }
+  function render(){
+    panel.querySelectorAll('[data-cloud-out]').forEach(el=>{ el.style.display = currentUser ? 'none' : ''; });
+    panel.querySelectorAll('[data-cloud-in]').forEach(el=>{ el.style.display = currentUser ? '' : 'none'; });
+    toggle.textContent = currentUser ? '☁ Eingeloggt' : '☁ Konto';
+    const emailEl = document.getElementById('accountUserEmail');
+    if(emailEl) emailEl.textContent = currentUser ? currentUser.email : '—';
+  }
+
+  toggle.addEventListener('click', ()=> panel.classList.toggle('open'));
+  document.addEventListener('click', (e)=>{
+    if(!document.getElementById('accountBar').contains(e.target)) panel.classList.remove('open');
+  });
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(({data:{session}})=>{
+      currentUser = session ? session.user : null;
+      render();
+    });
+    supabaseClient.auth.onAuthStateChange((event, session)=>{
+      currentUser = session ? session.user : null;
+      render();
+      if(event === 'SIGNED_IN') setStatus('Eingeloggt — gilt jetzt in jedem Spiel.', false);
+    });
+
+    document.getElementById('btnAccountSendLink').addEventListener('click', async ()=>{
+      const email = document.getElementById('accountEmail').value.trim();
+      if(!email || !email.includes('@')){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Login-Link …', false);
+      const { error } = await supabaseClient.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.href } });
+      if(error) setStatus('Fehler: ' + error.message, true);
+      else setStatus('Link an ' + email + ' geschickt — Postfach prüfen!', false);
+    });
+    document.getElementById('btnAccountSignOut').addEventListener('click', async ()=>{
+      await supabaseClient.auth.signOut();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
