@@ -17203,6 +17203,12 @@ window.addEventListener("resize", () => { if (currentView === "dyson") positionD
     : null;
   var supabaseClient = window.__cloudSupabase;
   window.__cloudUser = null;
+  // NEU (Bugfix Race-Condition): Solange die initiale Sync-Entscheidung nach dem Login
+  // (Cloud laden vs. Geraet behalten) noch nicht abgeschlossen ist, blockiert dieses Flag
+  // JEDEN Cloud-Upload -- egal ob vom Autosave-Timer oder von normalen Spiel-Speicherpfaden.
+  // Ohne das konnte der Autosave-Timer (alle 8s) den echten Cloud-Stand ueberschreiben,
+  // bevor der Spieler die Abfrage ueberhaupt beantwortet hat. Siehe __cloudUpsert unten.
+  window.__cloudSyncLocked = false;
   var pendingEmail = '';
   var uiState = 'email';
 
@@ -17315,6 +17321,11 @@ function __aetherisCollectKeys(){
 }
 window.__cloudUpsert = async function(key, value){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Bugfix Race-Condition): Waehrend der initialen Sync-Entscheidung nach dem Login
+  // laeuft, wird JEDER Upload blockiert -- das ist der zentrale Fluchtpunkt aller
+  // Schreibpfade (Autosave-Timer, direkte Spiel-Speicherpfade), daher reicht die
+  // Sperre hier allein aus.
+  if(window.__cloudSyncLocked) return;
   var res = await window.__cloudSupabase.from('saves').upsert(
     { user_id: window.__cloudUser.id, key: key, value: value, updated_at: new Date().toISOString() },
     { onConflict: 'user_id,key' }
@@ -17361,6 +17372,10 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel){
 }
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Bugfix Race-Condition): Sperre setzen, BEVOR der erste await laeuft -- dazwischen
+  // kann kein anderer Code mehr laufen (JS ist single-threaded), also ist ab hier garantiert
+  // kein Upload mehr moeglich, bis wir die Entscheidung getroffen haben (finally unten).
+  window.__cloudSyncLocked = true;
   try{
     // NEU (Bugfix): LIKE statt fester Key-Liste, siehe Kommentar bei Deep Anchor -- gleiches
     // Henne-Ei-Problem bei mehreren Profilen auf einem frischen Geraet.
@@ -17369,7 +17384,7 @@ window.__cloudSyncOnLogin = async function(){
     var localHasData = false;
     try{ localHasData = localStorage.getItem('aetheris_save_v1') !== null; }catch(e){}
     if(!sel.data || sel.data.length === 0){
-      if(localHasData) await __aetherisPushAllLocal();
+      if(localHasData){ window.__cloudSyncLocked = false; await __aetherisPushAllLocal(); }
       return;
     }
     if(localHasData){
@@ -17378,6 +17393,7 @@ window.__cloudSyncOnLogin = async function(){
         sel.data.forEach(function(row){ localStorage.setItem(row.key, row.value); });
         location.reload();
       } else {
+        window.__cloudSyncLocked = false;
         await __aetherisPushAllLocal();
       }
     } else {
@@ -17385,6 +17401,12 @@ window.__cloudSyncOnLogin = async function(){
       location.reload();
     }
   }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
+  finally{
+    // Sicherheitsnetz: falls oben ein return/throw die Sperre nicht schon explizit geloest
+    // hat (z.B. Fehlerfall oder "kein lokaler Stand"-Zweig), hier in jedem Fall entsperren --
+    // sonst wuerde nach einem Fehler NIE WIEDER in die Cloud gespeichert.
+    window.__cloudSyncLocked = false;
+  }
 };
 // Autosave-Intervall: alle 8s aktives Profil hochladen, wenn eingeloggt -- deckt alle
 // Schreibpfade ab (viele verstreute localStorage.setItem-Aufrufe statt einer zentralen

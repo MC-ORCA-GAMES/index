@@ -3312,7 +3312,10 @@ if (!window.storage) {
   var __origDelete = window.storage.delete.bind(window.storage);
   window.storage.set = async function(key, value, shared){
     var res = await __origSet(key, value, shared);
-    if(window.__cloudUser && window.__cloudSupabase){
+    // NEU (Bugfix Race-Condition): Waehrend der initialen Sync-Entscheidung nach dem Login
+    // laeuft (siehe __cloudSyncOnLogin unten), wird jeder Cloud-Upload blockiert -- sonst
+    // koennte ein Spiel-Save waehrend der offenen Abfrage den echten Cloud-Stand ueberschreiben.
+    if(window.__cloudUser && window.__cloudSupabase && !window.__cloudSyncLocked){
       window.__cloudSupabase.from('saves').upsert(
         { user_id: window.__cloudUser.id, key: 'pots:' + key, value: value, updated_at: new Date().toISOString() },
         { onConflict: 'user_id,key' }
@@ -3322,7 +3325,7 @@ if (!window.storage) {
   };
   window.storage.delete = async function(key, shared){
     var res = await __origDelete(key, shared);
-    if(window.__cloudUser && window.__cloudSupabase){
+    if(window.__cloudUser && window.__cloudSupabase && !window.__cloudSyncLocked){
       window.__cloudSupabase.from('saves').delete().eq('user_id', window.__cloudUser.id).eq('key', 'pots:' + key)
         .then(function(r){ if(r.error) console.warn('Cloud-Loeschen fehlgeschlagen fuer', key, r.error.message); });
     }
@@ -3332,6 +3335,10 @@ if (!window.storage) {
 
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Bugfix Race-Condition): Sperre setzen, BEVOR der erste await laeuft -- dazwischen
+  // kann kein anderer Code mehr laufen (JS ist single-threaded), also ist ab hier garantiert
+  // kein Upload mehr moeglich, bis wir die Entscheidung getroffen haben (finally unten).
+  window.__cloudSyncLocked = true;
   try{
     var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'pots:%');
     if(sel.error) throw sel.error;
@@ -3372,6 +3379,12 @@ window.__cloudSyncOnLogin = async function(){
       location.reload();
     }
   }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
+  finally{
+    // Sicherheitsnetz: falls oben ein return/throw die Sperre nicht schon explizit geloest
+    // hat, hier in jedem Fall entsperren -- sonst wuerde nach einem Fehler NIE WIEDER in
+    // die Cloud gespeichert.
+    window.__cloudSyncLocked = false;
+  }
 };
 
 /* ... der Rest deines bestehenden Codes bleibt unverändert ... */
@@ -19709,6 +19722,9 @@ window.addEventListener('load', initGame);
     : null;
   var supabaseClient = window.__cloudSupabase;
   window.__cloudUser = null;
+  // NEU (Bugfix Race-Condition): siehe window.storage.set-Wrapper weiter oben im Script sowie
+  // __cloudSyncOnLogin weiter unten.
+  window.__cloudSyncLocked = false;
   var pendingEmail = '';
   var uiState = 'email';
 

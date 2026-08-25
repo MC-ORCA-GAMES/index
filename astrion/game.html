@@ -14383,6 +14383,8 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
     : null;
   var supabaseClient = window.__cloudSupabase;
   window.__cloudUser = null;
+  // NEU (Bugfix Race-Condition): siehe __cloudUpsert / __cloudSyncOnLogin weiter unten.
+  window.__cloudSyncLocked = false;
   var pendingEmail = '';
   var uiState = 'email';
 
@@ -14492,6 +14494,11 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
 <script>
 window.__cloudUpsert = async function(key, value){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Bugfix Race-Condition): Waehrend der initialen Sync-Entscheidung nach dem Login
+  // laeuft, wird JEDER Upload blockiert -- __cloudUpsert ist der zentrale Fluchtpunkt aller
+  // Schreibpfade (u.a. der direkte Aufruf beim normalen Spiel-Speichern), daher reicht die
+  // Sperre hier allein aus.
+  if(window.__cloudSyncLocked) return;
   var res = await window.__cloudSupabase.from('saves').upsert(
     { user_id: window.__cloudUser.id, key: key, value: value, updated_at: new Date().toISOString() },
     { onConflict: 'user_id,key' }
@@ -14531,6 +14538,10 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel){
 }
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Bugfix Race-Condition): Sperre setzen, BEVOR der erste await laeuft -- dazwischen
+  // kann kein anderer Code mehr laufen (JS ist single-threaded), also ist ab hier garantiert
+  // kein Upload mehr moeglich, bis wir die Entscheidung getroffen haben (finally unten).
+  window.__cloudSyncLocked = true;
   try{
     var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).eq('key','astrion_save');
     if(sel.error) throw sel.error;
@@ -14538,18 +14549,24 @@ window.__cloudSyncOnLogin = async function(){
     try{ localRaw = localStorage.getItem('astrion_save'); }catch(e){}
     var cloudRow = (sel.data && sel.data[0]) || null;
     if(!cloudRow){
-      if(localRaw) await window.__cloudUpsert('astrion_save', localRaw);
+      if(localRaw){ window.__cloudSyncLocked = false; await window.__cloudUpsert('astrion_save', localRaw); }
       return;
     }
     if(localRaw){
       var useCloud = await __cloudCustomConfirm('Es gibt sowohl einen lokalen als auch einen Cloud-Spielstand fuer Astrion.', 'Cloud laden', 'Geraet behalten');
       if(useCloud){ localStorage.setItem('astrion_save', cloudRow.value); location.reload(); }
-      else{ await window.__cloudUpsert('astrion_save', localRaw); }
+      else{ window.__cloudSyncLocked = false; await window.__cloudUpsert('astrion_save', localRaw); }
     } else {
       localStorage.setItem('astrion_save', cloudRow.value);
       location.reload();
     }
   }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
+  finally{
+    // Sicherheitsnetz: falls oben ein return/throw die Sperre nicht schon explizit geloest
+    // hat, hier in jedem Fall entsperren -- sonst wuerde nach einem Fehler NIE WIEDER in
+    // die Cloud gespeichert.
+    window.__cloudSyncLocked = false;
+  }
 };
 </script>
 </body>
