@@ -16821,8 +16821,11 @@ async function __deepAnchorPushAllLocal(){
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
   try{
-    var keys = await __deepAnchorCollectKeys();
-    var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).in('key', keys);
+    // NEU (Bugfix): Statt einer festen Key-Liste (die auf einem frischen Geraet die
+    // profilspezifischen Save-Keys noch gar nicht kennen kann -- Henne-Ei-Problem) holen wir
+    // per LIKE einfach ALLES, was mit "deepanchor_" beginnt. So werden auch Profile erkannt,
+    // die auf diesem Geraet noch nie lokal existiert haben.
+    var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
     if(sel.error) throw sel.error;
     var localHasData = false;
     try{ await storageGet('deepanchor_save'); localHasData = true; }catch(e){}

@@ -17310,8 +17310,9 @@ async function __aetherisPushAllLocal(){
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
   try{
-    var keys = __aetherisCollectKeys();
-    var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).in('key', keys);
+    // NEU (Bugfix): LIKE statt fester Key-Liste, siehe Kommentar bei Deep Anchor -- gleiches
+    // Henne-Ei-Problem bei mehreren Profilen auf einem frischen Geraet.
+    var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'aetheris_%');
     if(sel.error) throw sel.error;
     var localHasData = false;
     try{ localHasData = localStorage.getItem('aetheris_save_v1') !== null; }catch(e){}
