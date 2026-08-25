@@ -17187,7 +17187,6 @@ window.addEventListener("resize", () => { if (currentView === "dyson") positionD
     </div>
     <div id="cloudStepIn" style="display:none;">
       <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
-      <button id="cloudManualSyncBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">⟳ Jetzt synchronisieren</button>
       <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
     </div>
     <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
@@ -17272,28 +17271,6 @@ window.addEventListener("resize", () => { if (currentView === "dyson") positionD
       uiState = 'email';
       render();
       setStatus('Ausgeloggt.', false);
-    });
-
-    // NEU (manueller Sync-Button): erzwingt den Cloud-Stand OHNE Rückfrage — im Gegensatz zu
-    // __cloudSyncOnLogin (der bei bereits vorhandenen lokalen Daten erst per confirm() nachfragt).
-    // Der Button ist ein bewusster Klick des Spielers, daher direkt überschreiben.
-    document.getElementById('cloudManualSyncBtn').addEventListener('click', async function(){
-      if(!window.__cloudUser || !window.__cloudSupabase){ setStatus('Nicht eingeloggt.', true); return; }
-      setStatus('Synchronisiere …', false);
-      try{
-        var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'aetheris_%');
-        if(sel.error) throw sel.error;
-        if(!sel.data || sel.data.length === 0){
-          setStatus('Keine Cloud-Daten gefunden — nichts zu laden.', true);
-          return;
-        }
-        sel.data.forEach(function(row){ localStorage.setItem(row.key, row.value); });
-        setStatus('Synchronisiert! Lade neu …', false);
-        setTimeout(function(){ location.reload(); }, 400);
-      }catch(err){
-        setStatus('Sync fehlgeschlagen: ' + err.message, true);
-        console.warn('Manueller Cloud-Sync fehlgeschlagen:', err);
-      }
     });
   }
   render();
