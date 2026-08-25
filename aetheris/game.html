@@ -1221,8 +1221,6 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
 </style>
 </head>
 <body>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init(); console.log('🐛 DEBUG-BUILD aktiv — eruda Konsole geladen');</script>
   <canvas id="bgStarfield" aria-hidden="true"></canvas>
   <div class="title-screen crt-boot" id="startGate">
     <div id="crtBootOverlay" aria-hidden="true"><div class="crt-boot-line"></div></div>
@@ -17332,6 +17330,35 @@ async function __aetherisPushAllLocal(){
     if(v !== null){ await window.__cloudUpsert(k, v); }
   }
 }
+// NEU (Bugfix Auto-Sync): natives confirm() wird auf manchen Android-Browsern lautlos
+// unterdrueckt, wenn es aus einem async-Callback (nach Login) kommt statt direkt aus einem
+// Klick -- der Spieler sieht dann NIE die Abfrage und der Auto-Sync haengt. Eigener Dialog
+// statt confirm(), garantiert sichtbar, da normales DOM-Element statt Browser-natives Popup.
+function __cloudCustomConfirm(message, okLabel, cancelLabel){
+  return new Promise(function(resolve){
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#1A1410;border:1px solid rgba(212,175,55,0.4);border-radius:10px;padding:18px;max-width:360px;width:100%;box-sizing:border-box;font-family:inherit;';
+    var text = document.createElement('div');
+    text.style.cssText = 'color:#D4AF37;font-size:13px;line-height:1.5;white-space:pre-line;margin-bottom:14px;';
+    text.textContent = message;
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;';
+    var okBtn = document.createElement('button');
+    okBtn.textContent = okLabel;
+    okBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #D4AF37;background:#D4AF37;color:#1A1410;font-weight:bold;font-size:12.5px;cursor:pointer;';
+    var cancelBtn = document.createElement('button');
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;font-size:12.5px;cursor:pointer;';
+    okBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(true); });
+    cancelBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(false); });
+    btnRow.appendChild(okBtn); btnRow.appendChild(cancelBtn);
+    box.appendChild(text); box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+  });
+}
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
   try{
@@ -17346,7 +17373,7 @@ window.__cloudSyncOnLogin = async function(){
       return;
     }
     if(localHasData){
-      var useCloud = confirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Aetheris (inkl. Profile).\n\nOK = Cloud-Stand laden (ueberschreibt diesen Geraete-Stand)\nAbbrechen = diesen Geraete-Stand behalten und in die Cloud hochladen');
+      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Aetheris (inkl. Profile).', 'Cloud laden', 'Geraet behalten');
       if(useCloud){
         sel.data.forEach(function(row){ localStorage.setItem(row.key, row.value); });
         location.reload();

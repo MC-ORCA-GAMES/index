@@ -14364,6 +14364,8 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
     </div>
     <div id="cloudStepIn" style="display:none;">
       <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudDownloadBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">⬇ Cloud-Stand laden</button>
+      <button id="cloudUploadBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">⬆ Diesen Stand hochladen</button>
       <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
     </div>
     <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
@@ -14449,6 +14451,39 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
       render();
       setStatus('Ausgeloggt.', false);
     });
+
+    // NEU (manuelle Sync-Buttons): explizite Downloads/Uploads OHNE Rueckfrage -- bewusster
+    // Klick des Spielers, daher direkt ausfuehren statt ueber confirm()/__cloudCustomConfirm.
+    document.getElementById('cloudDownloadBtn').addEventListener('click', async function(){
+      if(!window.__cloudUser || !window.__cloudSupabase){ setStatus('Nicht eingeloggt.', true); return; }
+      setStatus('Lade Cloud-Stand …', false);
+      try{
+        var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).eq('key','astrion_save');
+        if(sel.error) throw sel.error;
+        var cloudRow = (sel.data && sel.data[0]) || null;
+        if(!cloudRow){ setStatus('Kein Cloud-Stand gefunden — nichts zu laden.', true); return; }
+        localStorage.setItem('astrion_save', cloudRow.value);
+        setStatus('Geladen! Lade neu …', false);
+        setTimeout(function(){ location.reload(); }, 400);
+      }catch(err){
+        setStatus('Fehlgeschlagen: ' + err.message, true);
+        console.warn('Manueller Cloud-Download fehlgeschlagen:', err);
+      }
+    });
+    document.getElementById('cloudUploadBtn').addEventListener('click', async function(){
+      if(!window.__cloudUser || !window.__cloudSupabase){ setStatus('Nicht eingeloggt.', true); return; }
+      var localRaw = null;
+      try{ localRaw = localStorage.getItem('astrion_save'); }catch(e){}
+      if(!localRaw){ setStatus('Kein lokaler Spielstand vorhanden.', true); return; }
+      setStatus('Lade hoch …', false);
+      try{
+        await window.__cloudUpsert('astrion_save', localRaw);
+        setStatus('Hochgeladen!', false);
+      }catch(err){
+        setStatus('Fehlgeschlagen: ' + err.message, true);
+        console.warn('Manueller Cloud-Upload fehlgeschlagen:', err);
+      }
+    });
   }
   render();
 })();
@@ -14463,6 +14498,37 @@ window.__cloudUpsert = async function(key, value){
   );
   if(res.error) console.warn('Cloud-Speichern fehlgeschlagen fuer', key, res.error.message);
 };
+// NEU (Bugfix Auto-Sync): natives confirm() wird auf manchen Android-Browsern lautlos
+// unterdrueckt, wenn es aus einem async-Callback (nach Login) kommt statt direkt aus einem
+// Klick -- der Spieler sieht dann NIE die Abfrage, und je nach Browser-Default fuer ein
+// unterdruecktes confirm() (meist "false"/Abbrechen) wird ungewollt der lokale Stand
+// hochgeladen und ueberschreibt den Cloud-Stand eines anderen Geraets. Eigener Dialog statt
+// confirm(), garantiert sichtbar, da normales DOM-Element statt Browser-natives Popup.
+function __cloudCustomConfirm(message, okLabel, cancelLabel){
+  return new Promise(function(resolve){
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#181022;border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:18px;max-width:360px;width:100%;box-sizing:border-box;font-family:inherit;';
+    var text = document.createElement('div');
+    text.style.cssText = 'color:#eee;font-size:13px;line-height:1.5;white-space:pre-line;margin-bottom:14px;';
+    text.textContent = message;
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;';
+    var okBtn = document.createElement('button');
+    okBtn.textContent = okLabel;
+    okBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #eee;background:#eee;color:#181022;font-weight:bold;font-size:12.5px;cursor:pointer;';
+    var cancelBtn = document.createElement('button');
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;font-size:12.5px;cursor:pointer;';
+    okBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(true); });
+    cancelBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(false); });
+    btnRow.appendChild(okBtn); btnRow.appendChild(cancelBtn);
+    box.appendChild(text); box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+  });
+}
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
   try{
@@ -14476,7 +14542,7 @@ window.__cloudSyncOnLogin = async function(){
       return;
     }
     if(localRaw){
-      var useCloud = confirm('Es gibt sowohl einen lokalen als auch einen Cloud-Spielstand fuer Astrion.\n\nOK = Cloud-Stand laden (ueberschreibt diesen Geraete-Stand)\nAbbrechen = diesen Geraete-Stand behalten und in die Cloud hochladen');
+      var useCloud = await __cloudCustomConfirm('Es gibt sowohl einen lokalen als auch einen Cloud-Spielstand fuer Astrion.', 'Cloud laden', 'Geraet behalten');
       if(useCloud){ localStorage.setItem('astrion_save', cloudRow.value); location.reload(); }
       else{ await window.__cloudUpsert('astrion_save', localRaw); }
     } else {

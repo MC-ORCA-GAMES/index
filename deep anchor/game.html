@@ -16705,6 +16705,7 @@ init();
     </div>
     <div id="cloudStepIn" style="display:none;">
       <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudManualSyncBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">⟳ Jetzt synchronisieren</button>
       <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
     </div>
     <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
@@ -16790,6 +16791,28 @@ init();
       render();
       setStatus('Ausgeloggt.', false);
     });
+
+    // NEU (manueller Sync-Button): erzwingt den Cloud-Stand OHNE Rückfrage — im Gegensatz zu
+    // __cloudSyncOnLogin (der bei bereits vorhandenen lokalen Daten erst per confirm() nachfragt).
+    // Der Button ist ein bewusster Klick des Spielers, daher direkt überschreiben.
+    document.getElementById('cloudManualSyncBtn').addEventListener('click', async function(){
+      if(!window.__cloudUser || !window.__cloudSupabase){ setStatus('Nicht eingeloggt.', true); return; }
+      setStatus('Synchronisiere …', false);
+      try{
+        var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
+        if(sel.error) throw sel.error;
+        if(!sel.data || sel.data.length === 0){
+          setStatus('Keine Cloud-Daten gefunden — nichts zu laden.', true);
+          return;
+        }
+        for(var i=0;i<sel.data.length;i++){ await storageSet(sel.data[i].key, sel.data[i].value); }
+        setStatus('Synchronisiert! Lade neu …', false);
+        setTimeout(function(){ location.reload(); }, 400);
+      }catch(err){
+        setStatus('Sync fehlgeschlagen: ' + err.message, true);
+        console.warn('Manueller Cloud-Sync fehlgeschlagen:', err);
+      }
+    });
   }
   render();
 })();
@@ -16818,6 +16841,35 @@ async function __deepAnchorPushAllLocal(){
     try{ var res = await storageGet(keys[i]); await window.__cloudUpsert(keys[i], res.value); }catch(e){}
   }
 }
+// NEU (Bugfix Auto-Sync): natives confirm() wird auf manchen Android-Browsern lautlos
+// unterdrueckt, wenn es aus einem async-Callback (nach Login) kommt statt direkt aus einem
+// Klick -- der Spieler sieht dann NIE die Abfrage und der Auto-Sync haengt. Eigener Dialog
+// statt confirm(), garantiert sichtbar, da normales DOM-Element statt Browser-natives Popup.
+function __cloudCustomConfirm(message, okLabel, cancelLabel){
+  return new Promise(function(resolve){
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#111;border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:18px;max-width:360px;width:100%;box-sizing:border-box;font-family:inherit;';
+    var text = document.createElement('div');
+    text.style.cssText = 'color:#eee;font-size:13px;line-height:1.5;white-space:pre-line;margin-bottom:14px;';
+    text.textContent = message;
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;';
+    var okBtn = document.createElement('button');
+    okBtn.textContent = okLabel;
+    okBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #eee;background:#eee;color:#111;font-weight:bold;font-size:12.5px;cursor:pointer;';
+    var cancelBtn = document.createElement('button');
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;font-size:12.5px;cursor:pointer;';
+    okBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(true); });
+    cancelBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(false); });
+    btnRow.appendChild(okBtn); btnRow.appendChild(cancelBtn);
+    box.appendChild(text); box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+  });
+}
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
   try{
@@ -16834,7 +16886,7 @@ window.__cloudSyncOnLogin = async function(){
       return;
     }
     if(localHasData){
-      var useCloud = confirm('Es gibt sowohl lokale als auch Cloud-Spielstaende (inkl. Profile) fuer Deep Anchor.\n\nOK = Cloud-Stand laden (ueberschreibt diesen Geraete-Stand)\nAbbrechen = diesen Geraete-Stand behalten und in die Cloud hochladen');
+      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende (inkl. Profile) fuer Deep Anchor.', 'Cloud laden', 'Geraet behalten');
       if(useCloud){
         for(var i=0;i<sel.data.length;i++){ await storageSet(sel.data[i].key, sel.data[i].value); }
         location.reload();
