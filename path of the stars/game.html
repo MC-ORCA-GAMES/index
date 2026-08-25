@@ -32,8 +32,8 @@
     /* v0_0244: MC ORCA GAMES OS Boot-Sequenz - eigene Akzentfarbe, absichtlich
        NICHT --accent/--accent2 wiederverwendet, damit die Boot-Sequenz nie
        versehentlich mit Farbanpassungen am restlichen Spiel-UI kollidiert. */
-    --boot-accent:#e8b64a;
-    --boot-accent-dim:#7a5820;
+    --boot-accent:#ff2a2a;
+    --boot-accent-dim:#7a1414;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   input[type="range"]{ accent-color:var(--accent); }
@@ -399,7 +399,7 @@
     position:absolute; inset:0; z-index:60; display:none;
     align-items:center; justify-content:center;
     background:rgba(4,2,6,0.72); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #loreOverlay.show{display:flex;}
   #loreCard{
@@ -425,7 +425,7 @@
     position:absolute; inset:0; z-index:65; display:none;
     align-items:center; justify-content:center;
     background:rgba(6,4,2,0.75); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #rewardOverlay.show{display:flex;}
   #rewardCard{
@@ -457,14 +457,6 @@
     padding:6px 10px; border-radius:7px; font-size:16px; display:none; max-width:220px;
   }
   #storyBeacon.show{display:block;}
-
-  /* ---------- KAMPFEINSATZ-BADGE (läuft im Hintergrund weiter, siehe v0_0155) ---------- */
-  #combatMissionBadge{
-    cursor:pointer;
-    background:rgba(25,10,10,0.92); border:1px solid #ff8a4a; color:#ffd9b8;
-    padding:6px 10px; border-radius:7px; font-size:16px; display:none; max-width:220px;
-  }
-  #combatMissionBadge.show{display:block;}
 
   /* ---------- MINI-MAP (aktuelles System, immer antippbar) ---------- */
   #miniMapWrap{
@@ -971,7 +963,7 @@
   .dos-boot-banner{
     margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
     font-size:9.5px; line-height:1.15; color:var(--boot-accent);
-    text-shadow:0 0 10px rgba(232,182,74,.75), 0 0 2px rgba(232,182,74,1);
+    text-shadow:0 0 10px rgba(255,42,42,.75), 0 0 2px rgba(255,42,42,1);
     opacity:0; animation: dosBannerFlash .5s ease-out forwards;
   }
   @media (min-width:700px){ .dos-boot-banner{ font-size:13px; } }
@@ -982,10 +974,10 @@
   }
   .dos-boot-text{ margin:0; white-space:pre-wrap; word-break:break-word;
     font-family:'Courier New', ui-monospace, monospace; font-size:14px; line-height:1.55;
-    color:var(--boot-accent); text-shadow:0 0 6px rgba(232,182,74,.55), 0 0 1px rgba(232,182,74,.9); }
+    color:var(--boot-accent); text-shadow:0 0 6px rgba(255,42,42,.55), 0 0 1px rgba(255,42,42,.9); }
   #dosBootText.typing::after{
     content:''; display:inline-block; width:8px; height:14px; background:var(--boot-accent);
-    box-shadow:0 0 6px rgba(232,182,74,.7); animation:dosCursorBlink 1s steps(1) infinite;
+    box-shadow:0 0 6px rgba(255,42,42,.7); animation:dosCursorBlink 1s steps(1) infinite;
     vertical-align:-2px; margin-left:1px;
   }
   @keyframes dosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
@@ -1095,7 +1087,6 @@
     #startFooter{ margin-top:6px; font-size:11px; }
   }
   #btnStartLoadFile, #btnStartSettings{ background:transparent; color:var(--text-dim); border:1px solid var(--panel-border); }
-  #btnStartQuit{ background:transparent; color:#e0838a; border:1px solid #5a2a2a; }
   /* v0_0237: Ton/Patch-Notes/Farben-Buttons sitzen jetzt im Einstellungen-
      Overlay statt einzeln frei über dem Bildschirm verteilt zu sein -
      gleiche IDs/Klick-Logik, nur normale Blockbuttons statt absoluter
@@ -1107,7 +1098,8 @@
   #startSettingsOverlay.show{ display:flex; }
   #startSettingsPanel{
     background:var(--panel); border:2px solid var(--ink); border-radius:10px;
-    width:min(360px,100%); box-shadow:4px 4px 0 rgba(0,0,0,0.7); padding:0 0 14px;
+    width:min(360px,100%); max-height:88vh; overflow-y:auto;
+    box-shadow:4px 4px 0 rgba(0,0,0,0.7); padding:0 0 14px;
   }
   #startSettingsHeader{
     display:flex; justify-content:space-between; align-items:center;
@@ -1281,11 +1273,11 @@
     position:fixed; inset:0; z-index:300; display:none;
     align-items:center; justify-content:center;
     background:rgba(4,2,6,0.78); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #difficultyOverlay.show{ display:flex; }
   #difficultyCard{
-    max-width:440px; width:100%;
+    max-width:440px; width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(20,8,8,0.97),rgba(10,5,5,0.98));
     border:2px solid var(--ink); border-radius:12px;
     padding:22px 20px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
@@ -1327,6 +1319,39 @@
     font-family:inherit; text-transform:uppercase; letter-spacing:0.5px;
   }
 
+  /* v0_0249: generischer Bestätigungs-Dialog im Spiel-Look statt nativem
+     window.confirm() (wirkte in der Android-App/WebView wie ein Fremdkörper
+     und ließ sich nicht stylen). showConfirmDialog() befüllt Titel/Text/
+     Button-Beschriftungen und löst als Promise<boolean> auf - true bei
+     Bestätigen, false bei Abbrechen oder Klick auf den Hintergrund. */
+  #confirmOverlay{
+    position:fixed; inset:0; z-index:301; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(4,4,8,0.8); backdrop-filter:blur(2px);
+    padding:20px; overflow-y:auto;
+  }
+  #confirmOverlay.show{ display:flex; }
+  #confirmCard{
+    max-width:420px; width:100%; max-height:88vh; overflow-y:auto;
+    background:linear-gradient(180deg,rgba(20,8,8,0.97),rgba(10,5,5,0.98));
+    border:2px solid var(--ink); border-radius:12px;
+    padding:22px 20px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
+  }
+  #confirmCard h3{
+    margin:0 0 10px; font-family:var(--comic); font-weight:400; letter-spacing:0.5px;
+    font-size:24px; color:var(--accent2);
+  }
+  #confirmMessage{ font-size:17px; color:var(--text-dim); line-height:1.5; margin-bottom:18px; }
+  #confirmButtons{ display:flex; gap:10px; }
+  #confirmButtons button{
+    flex:1; font-family:inherit; font-size:16px; letter-spacing:0.4px; text-transform:uppercase;
+    padding:11px 10px; border-radius:8px; cursor:pointer; font-weight:700; border:2px solid var(--ink);
+    box-shadow:2px 2px 0 rgba(0,0,0,0.8);
+  }
+  #confirmOkBtn{ background:var(--accent2); color:#1a0e02; }
+  #confirmOkBtn.danger{ background:var(--danger); color:#2a0505; }
+  #confirmCancelBtn{ background:#1c1010; color:var(--text-dim); border-color:var(--panel-border); }
+
   /* v0_0241: Sandbox-Setup-Screen ("Offene Galaxie") - gleiches Karten-
      Grundgerüst wie #difficultyCard, aber Parameter als Pillen-Reihen statt
      einer vertikalen Auswahlliste, da hier mehrere unabhängige Einstellungen
@@ -1335,7 +1360,7 @@
     position:fixed; inset:0; z-index:300; display:none;
     align-items:center; justify-content:center;
     background:rgba(4,2,6,0.78); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #sandboxSetupOverlay.show{ display:flex; }
   #sandboxSetupCard{
@@ -1382,7 +1407,7 @@
     position:fixed; inset:0; z-index:300; display:none;
     align-items:center; justify-content:center;
     background:rgba(4,2,6,0.78); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #factionOverlay.show{ display:flex; }
   #factionCard{
@@ -1425,11 +1450,11 @@
     position:fixed; inset:0; z-index:310; display:none;
     align-items:center; justify-content:center;
     background:rgba(20,2,2,0.82); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #encounterOverlay.show{ display:flex; }
   #encounterCard{
-    max-width:min(600px, 94vw); width:100%;
+    max-width:min(600px, 94vw); width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(32,10,10,0.97),rgba(14,4,4,0.98));
     border:2px solid var(--ink); border-radius:12px;
     padding:22px 20px; box-shadow:0 0 40px rgba(255,77,77,0.25), 0 8px 30px rgba(0,0,0,0.6);
@@ -1461,11 +1486,11 @@
     position:fixed; inset:0; z-index:310; display:none;
     align-items:center; justify-content:center;
     background:rgba(2,14,20,0.82); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #distressOverlay.show{ display:flex; }
   #distressCard{
-    max-width:min(600px, 94vw); width:100%;
+    max-width:min(600px, 94vw); width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(20,8,8,0.97),rgba(10,5,5,0.98));
     border:2px solid var(--ink); border-radius:12px;
     padding:22px 20px; box-shadow:0 0 40px rgba(240,178,58,0.22), 0 8px 30px rgba(0,0,0,0.6);
@@ -1491,11 +1516,11 @@
     position:fixed; inset:0; z-index:310; display:none;
     align-items:center; justify-content:center;
     background:rgba(14,4,24,0.82); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #signalOverlay.show{ display:flex; }
   #signalCard{
-    max-width:min(600px, 94vw); width:100%;
+    max-width:min(600px, 94vw); width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(20,8,8,0.97),rgba(10,5,5,0.98));
     border:2px solid var(--ink); border-radius:12px;
     padding:22px 20px; box-shadow:0 0 40px rgba(201,121,63,0.24), 0 8px 30px rgba(0,0,0,0.6);
@@ -1521,11 +1546,11 @@
     position:fixed; inset:0; z-index:310; display:none;
     align-items:center; justify-content:center;
     background:rgba(24,16,4,0.82); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #wreckOverlay.show{ display:flex; }
   #wreckCard{
-    max-width:min(600px, 94vw); width:100%;
+    max-width:min(600px, 94vw); width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(40,28,10,0.97),rgba(18,12,4,0.98));
     border:2px solid var(--ink); border-radius:12px;
     padding:22px 20px; box-shadow:0 0 40px rgba(217,163,95,0.24), 0 8px 30px rgba(0,0,0,0.6);
@@ -1550,11 +1575,11 @@
     position:fixed; inset:0; z-index:310; display:none;
     align-items:center; justify-content:center;
     background:rgba(2,18,24,0.82); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #wormholeOverlay.show{ display:flex; }
   #wormholeCard{
-    max-width:min(600px, 94vw); width:100%;
+    max-width:min(600px, 94vw); width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(20,8,8,0.97),rgba(10,5,5,0.98));
     border:2px solid var(--ink); border-radius:12px;
     padding:22px 20px; box-shadow:0 0 40px rgba(240,178,58,0.28), 0 8px 30px rgba(0,0,0,0.6);
@@ -1580,11 +1605,11 @@
     position:fixed; inset:0; z-index:310; display:none;
     align-items:center; justify-content:center;
     background:rgba(4,20,12,0.82); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #convoyOverlay.show{ display:flex; }
   #convoyCard{
-    max-width:min(600px, 94vw); width:100%;
+    max-width:min(600px, 94vw); width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(10,34,20,0.97),rgba(4,16,9,0.98));
     border:2px solid var(--ink); border-radius:12px;
     padding:22px 20px; box-shadow:0 0 40px rgba(111,223,150,0.24), 0 8px 30px rgba(0,0,0,0.6);
@@ -1610,7 +1635,7 @@
     position:fixed; inset:0; z-index:320; display:none;
     align-items:center; justify-content:center;
     background:rgba(10,4,4,0.88); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #battleOverlay.show{ display:flex; }
   #battleCard{
@@ -1664,8 +1689,26 @@
   #battleRepairBtn{ background:#6fdf96; color:#04180c; }
   #battleFleeBtn{ grid-column:1 / -1; background:#2a0e0e; color:#f0dab8; }
 
+  /* v0_0248: Handy-Querformat (wenig Bildschirmhöhe) - die feste 16:9-Bühne
+     plus Titel/HP-Balken/Logbuch/Aktionsknöpfe sind zusammen oft höher als
+     der sichtbare Bereich, dadurch waren die Aktionsknöpfe unerreichbar.
+     #battleCard scrollt jetzt zwar ohnehin (max-height:92vh, s.u.), aber
+     zusätzlich wird auf kurzen Viewports alles spürbar kompakter: die Bühne
+     bekommt ein flacheres Seitenverhältnis statt fest 16:9 (spart am
+     meisten Höhe), Logbuch/Buttons/Titel schrumpfen mit. */
+  @media (max-height:560px){
+    #battleCard{ padding:12px 12px 10px; }
+    #battleCard h3{ font-size:21px; margin-bottom:6px; }
+    .battleStageWrap{ aspect-ratio:2.6/1; margin-bottom:6px; }
+    .battleSide{ margin-bottom:6px; }
+    #battleLogBox{ height:50px; margin:6px 0 8px; font-size:13px; }
+    #battleActions{ gap:6px; }
+    #battleActions button{ padding:7px 6px; font-size:14.5px; }
+    #battleActions button small{ font-size:10.5px; }
+  }
+
   /* ---------- KAMPF-BÜHNE 16:9 (v0_0209) ---------- */
-  #battleCard{ max-width:min(920px, 96vw); }
+  #battleCard{ max-width:min(920px, 96vw); max-height:92vh; overflow-y:auto; }
   .battleStageWrap{
     position:relative; width:100%; aspect-ratio:16/9; overflow:hidden;
     border:2px solid var(--ink); border-radius:10px; margin-bottom:12px;
@@ -1762,7 +1805,7 @@
     position:fixed; inset:0; z-index:320; display:none;
     align-items:center; justify-content:center;
     background:rgba(4,8,14,0.85); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #resultOverlay.show{ display:flex; }
 
@@ -1804,7 +1847,7 @@
     position:fixed; inset:0; z-index:360; display:none;
     align-items:center; justify-content:center;
     background:rgba(2,6,10,0.92); backdrop-filter:blur(3px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #introPrologOverlay.show{ display:flex; }
   #introPrologCard{
@@ -1836,7 +1879,7 @@
     position:fixed; inset:0; z-index:330; display:none;
     align-items:center; justify-content:center;
     background:rgba(2,8,14,0.86); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #introNarrativeOverlay.show{ display:flex; }
   #introNarrativeCard{
@@ -1868,11 +1911,11 @@
     position:fixed; inset:0; z-index:335; display:none;
     align-items:center; justify-content:center;
     background:rgba(8,4,4,0.88); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #introConstructOverlay.show{ display:flex; }
   #introConstructCard{
-    max-width:min(640px, 94vw); width:100%;
+    max-width:min(640px, 94vw); width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(20,8,8,0.97),rgba(10,5,5,0.98));
     border:2px solid #e0a468; border-radius:12px;
     padding:22px 20px; box-shadow:0 8px 34px rgba(0,0,0,0.65), 0 0 44px rgba(201,166,255,0.22);
@@ -1895,11 +1938,11 @@
     position:fixed; inset:0; z-index:340; display:none;
     align-items:center; justify-content:center;
     background:rgba(6,4,4,0.88); backdrop-filter:blur(2px);
-    padding:20px;
+    padding:20px;  overflow-y:auto;
   }
   #introHandoffOverlay.show{ display:flex; }
   #introHandoffCard{
-    max-width:min(640px, 94vw); width:100%;
+    max-width:min(640px, 94vw); width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(22,16,8,0.97),rgba(9,6,3,0.98));
     border:2px solid var(--accent2); border-radius:12px;
     padding:22px 20px; box-shadow:0 8px 34px rgba(0,0,0,0.65), 0 0 44px rgba(232,182,74,0.22);
@@ -1967,7 +2010,7 @@
   }
   #finaleSkipBtn:active{ background:rgba(40,28,16,0.8); }
   #resultCard{
-    max-width:min(560px, 94vw); width:100%;
+    max-width:min(560px, 94vw); width:100%; max-height:88vh; overflow-y:auto;
     background:linear-gradient(180deg,rgba(14,16,22,0.97),rgba(6,7,11,0.98));
     border:2px solid var(--ink); border-radius:12px;
     padding:20px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
@@ -1982,28 +2025,6 @@
     box-shadow:2px 2px 0 rgba(0,0,0,0.8);
   }
 
-  /* ===== DEVTOOLS:START (auf Zuruf "lösche Entwicklertools" komplett entfernbar) ===== */
-  #devToggleBtn{
-    position:fixed; right:10px; bottom:10px; z-index:9000; width:42px; height:42px; border-radius:50%;
-    background:#2a0e0e; border:2px solid #ff4d6a; color:#ff4d6a; font-size:19px; cursor:pointer;
-    display:flex; align-items:center; justify-content:center; box-shadow:2px 2px 0 rgba(0,0,0,0.8);
-  }
-  #devPanel{
-    position:fixed; right:10px; bottom:60px; z-index:9000; width:min(320px, calc(100vw - 20px));
-    max-height:70vh; overflow-y:auto; background:#12080a; border:2px solid #ff4d6a; border-radius:10px;
-    padding:10px; display:none; box-shadow:3px 3px 0 rgba(0,0,0,0.8);
-  }
-  #devPanel.show{ display:block; }
-  #devPanel h3{ margin:0 0 8px; color:#ff4d6a; font-size:16px; letter-spacing:0.5px; text-transform:uppercase; }
-  #devPanel .devNote{ font-size:12.5px; color:var(--text-dim); margin-bottom:8px; line-height:1.4; }
-  #devPanel .devGroup{ font-size:12px; color:#ff9d9d; text-transform:uppercase; letter-spacing:0.5px; margin:10px 0 4px; }
-  #devPanel button{
-    display:block; width:100%; text-align:left; font-family:inherit; font-size:14px; padding:7px 9px;
-    margin-bottom:5px; border-radius:6px; border:1px solid #5c2a2a; background:#1c0e0e; color:var(--text);
-    cursor:pointer;
-  }
-  #devPanel button:hover{ background:#331414; border-color:#ff4d6a; }
-  /* ===== DEVTOOLS:END ===== */
 </style>
 </head>
 <body>
@@ -2126,7 +2147,6 @@
         <button id="btnStartSandbox">🌌 Offene Galaxie</button>
         <button id="btnStartLoadFile">Spiel laden</button>
         <button id="btnStartSettings">Einstellungen</button>
-        <button id="btnStartQuit">Spiel beenden</button>
         <input type="file" id="startLoadFileInput" accept="application/json" style="display:none;">
       </div>
       <div id="startMeta"></div>
@@ -2249,6 +2269,18 @@
     <div id="factionOptions"></div>
     <button id="factionNeutralBtn">Keine Präferenz — neutral in Zentrumsnähe starten</button>
     <button id="factionCancelBtn">Abbrechen</button>
+  </div>
+</div>
+
+<!-- v0_0249: generischer Bestätigungs-Dialog, siehe showConfirmDialog() -->
+<div id="confirmOverlay">
+  <div id="confirmCard">
+    <h3 id="confirmTitle">Bestätigen</h3>
+    <div id="confirmMessage"></div>
+    <div id="confirmButtons">
+      <button id="confirmCancelBtn">Abbrechen</button>
+      <button id="confirmOkBtn">OK</button>
+    </div>
   </div>
 </div>
 
@@ -2514,7 +2546,6 @@
       <div id="sovereigntyLegend"></div>
       <div id="dockBadge"></div>
       <div id="storyBeacon"></div>
-      <div id="combatMissionBadge" title="Klick: Kampf-Fenster wieder in den Vordergrund holen"></div>
     </div>
     <button class="iconbtn" id="storyNotifyBtn">✉ Neue Nachricht</button>
     <div id="introCollectPanel">
@@ -2692,7 +2723,7 @@
 
 /* Zentrale Versionsnummer — bei jeder inhaltlichen Änderung hochzählen
    und einen passenden CHANGELOG-Eintrag weiter unten ergänzen. */
-const GAME_VERSION = 'v0_0246';
+const GAME_VERSION = 'v0_0249';
 console.log(`[Path of the Stars] Version ${GAME_VERSION} geladen.`);
 
 /* ===========================================================================
@@ -2719,7 +2750,7 @@ const BOOT_BANNER = ` __  __  ____    ___  ____   ____    _       ____    _    _
    am Ende als "<OS_NAME> BEREIT." erscheint. */
 const OS_NAME = "DRIFTOS";
 const BIOS_LINE = "PATH OF THE STARS BIOS v2.4";
-const COPYRIGHT_LINE = "(C) 2087 MC ORCA Games.";
+const COPYRIGHT_LINE = "(C) 2026 MC ORCA Games.";
 
 /* PRO SPIEL: echte Werte aus dem laufenden Spielstand statt Platzhaltern.
    Wird von generateBootLines() bei JEDEM Boot frisch aufgerufen (nicht
@@ -3269,6 +3300,79 @@ if (!window.storage) {
   };
   console.info('window.storage nicht gefunden (kein Claude-Artifact) — nutze localStorage-Fallback.');
 }
+
+// NEU (TODO-CLOUD-SAVE): window.storage.set()/delete() werden HIER zentral um einen
+// Cloud-Spiegel erweitert -- das faengt jeden Speicherzugriff im ganzen Spiel ab, egal ob
+// echtes window.storage (Claude-Umgebung) oder der obige localStorage-Fallback-Shim.
+// Eigener Praefix "pots:" beim Cloud-Key, weil die lokalen Schluessel hier generisch sind
+// (z.B. "save:main") und im gemeinsamen Supabase-Projekt mit den anderen Spielen sonst
+// kollidieren koennten.
+(function(){
+  var __origSet = window.storage.set.bind(window.storage);
+  var __origDelete = window.storage.delete.bind(window.storage);
+  window.storage.set = async function(key, value, shared){
+    var res = await __origSet(key, value, shared);
+    if(window.__cloudUser && window.__cloudSupabase){
+      window.__cloudSupabase.from('saves').upsert(
+        { user_id: window.__cloudUser.id, key: 'pots:' + key, value: value, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,key' }
+      ).then(function(r){ if(r.error) console.warn('Cloud-Speichern fehlgeschlagen fuer', key, r.error.message); });
+    }
+    return res;
+  };
+  window.storage.delete = async function(key, shared){
+    var res = await __origDelete(key, shared);
+    if(window.__cloudUser && window.__cloudSupabase){
+      window.__cloudSupabase.from('saves').delete().eq('user_id', window.__cloudUser.id).eq('key', 'pots:' + key)
+        .then(function(r){ if(r.error) console.warn('Cloud-Loeschen fehlgeschlagen fuer', key, r.error.message); });
+    }
+    return res;
+  };
+})();
+
+window.__cloudSyncOnLogin = async function(){
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  try{
+    var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'pots:%');
+    if(sel.error) throw sel.error;
+    var localList = await window.storage.list('', false);
+    var localHasData = localList && localList.keys && localList.keys.length > 0;
+    async function pushAllLocal(){
+      for(var i=0;i<localList.keys.length;i++){
+        var k = localList.keys[i];
+        try{
+          var r = await window.storage.get(k, false);
+          await window.__cloudSupabase.from('saves').upsert(
+            { user_id: window.__cloudUser.id, key: 'pots:' + k, value: r.value, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id,key' }
+          );
+        }catch(e){}
+      }
+    }
+    if(!sel.data || sel.data.length === 0){
+      if(localHasData) await pushAllLocal();
+      return;
+    }
+    if(localHasData){
+      var useCloud = confirm('Es gibt sowohl einen lokalen als auch einen Cloud-Spielstand fuer Path of the Stars.\n\nOK = Cloud-Stand laden (ueberschreibt diesen Geraete-Stand)\nAbbrechen = diesen Geraete-Stand behalten und in die Cloud hochladen');
+      if(useCloud){
+        for(var j=0;j<sel.data.length;j++){
+          var row = sel.data[j];
+          await window.storage.set(row.key.replace(/^pots:/, ''), row.value, false);
+        }
+        location.reload();
+      } else {
+        await pushAllLocal();
+      }
+    } else {
+      for(var m=0;m<sel.data.length;m++){
+        var row2 = sel.data[m];
+        await window.storage.set(row2.key.replace(/^pots:/, ''), row2.value, false);
+      }
+      location.reload();
+    }
+  }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
+};
 
 /* ... der Rest deines bestehenden Codes bleibt unverändert ... */
 /* =========================================================================
@@ -11792,13 +11896,17 @@ document.getElementById('introNarrativeCloseBtn').addEventListener('click', ()=>
    INTRO-SZENARIO: ÜBERGABE-SCHNITTSTELLE FÜR DIE STORY-KI (Schritt 10)
    -------------------------------------------------------------------------
    Zentraler Logik-Trigger für alle erzählerisch relevanten Ereignisse des
-   Intro-Szenarios. Aktuell liefert jeder Trigger nur einen statischen
-   Platzhaltertext ins Logbuch (fallbackText) — TODO(Story-KI): sobald die
-   Story-KI angebunden ist, ersetzt sie den fallbackText-Zweig unten durch
-   einen echten Aufruf an die KI (Kontext = ctx), die dann den passenden,
-   dynamisch generierten Text zurückliefert. Neue Ereignisarten einfach als
-   weiteren Eintrag in INTRO_STORY_HOOKS ergänzen — die Aufrufstellen
+   Intro-Szenarios. Jeder Trigger liefert aktuell einen statischen
+   Fallback-Text, der ins Logbuch geschrieben wird (Kategorie 'story') —
+   TODO(Story-KI): sobald die Story-KI angebunden ist, ersetzt sie den
+   fallbackText-Zweig unten durch einen echten Aufruf an die KI (Kontext =
+   ctx), die dann den passenden, dynamisch generierten Text zurückliefert;
+   addLog() bleibt an dieser Stelle unverändert. Neue Ereignisarten einfach
+   als weiteren Eintrag in INTRO_STORY_HOOKS ergänzen — die Aufrufstellen
    (fireIntroStoryHook(...)) müssen dafür nicht verändert werden.
+   v0_0249: bis eben landete fallbackText nur in der Browser-Konsole, der
+   Spieler sah trotz der sieben Aufrufstellen an wichtigen Story-Momenten
+   nie etwas davon im Spiel - jetzt zusätzlich ein echter Logbuch-Eintrag.
    ========================================================================= */
 const INTRO_STORY_HOOKS = {
   scenario_start:    ctx => `Drifting Worlds bricht von ${ctx.system.name} auf.`,
@@ -11815,7 +11923,7 @@ function fireIntroStoryHook(key, ctx){
   const fallbackText = gen(ctx||{});
   // TODO(Story-KI): fallbackText hier durch das Ergebnis eines echten
   // Story-KI-Aufrufs ersetzen, sobald diese Schnittstelle existiert.
-  console.log(`[Story-Hook:${key}]`, fallbackText, ctx);
+  if(typeof addLog==='function') addLog(fallbackText, 'story');
 }
 
 /* ---------------------------------------------------------------------
@@ -13252,232 +13360,6 @@ function jobBonusRewardDesc(job){
   return parts.length ? parts.join(' · ') : '';
 }
 
-/* ---------------------------------------------------------------------
-   KAMPFEINSATZ — Missions-Datenmodell für das separate RTS-Kampf-Projekt
-   (siehe TODO_Kampfsimulator.md, Phase -1). Das hier ist NUR die Daten-
-   struktur zum Testen gegen echte Spieldaten - kein window.open(), kein
-   echter Kampf, noch NICHT in der Job-Tafel sichtbar/spielbar. Anbindung
-   an die Job-Tafel folgt erst in Phase 8 des Projekts.
-
-   Design-Entscheidung (siehe TODO): Budget-System statt echter Flotte -
-   entryPrice wird sofort in echten Credits fällig (Konto-Ledger, Kategorie
-   'combat'), startBudget ist eine rein virtuelle Ressource NUR für die
-   RTS-Mission selbst. lossCredits ist aktuell immer 0 (bei Niederlage ist
-   nur der entryPrice futsch, kein zusätzlicher Verlust) - das Feld bleibt
-   aber im Schema für spätere "Hochrisiko"-Varianten.
-
-   Schema eines Kampfeinsatz-Objekts:
-   {
-     missionId:        string        eindeutige ID ('combat_<timestamp>_<zufall>')
-     type:             'combat'      analog zu 'deliver'|'bounty'|'explore' der Job-Tafel
-     title, icon:      string        Anzeigetext/-icon für die spätere Job-Tafel-Karte
-     targetSystemId:   number        ID eines bestehenden Systems (aus systems[])
-     targetPlanetName: string|null   Name eines konkreten, benannten Planeten (sys.planets, v0_0151) - null bei reinem Weltraum-Gefecht
-     schauplatz:       'all'|'planet'|'beides'
-     difficulty:       'leicht'|'mittel'|'schwer'  Schlüssel in COMBAT_MISSION_DIFFICULTY
-     gegnerstaerke:    number        grobe Gegner-Stärke 1-3, aus der Schwierigkeit abgeleitet
-     entryPrice:       number        echte Credits, sofort fällig bei Missionsstart
-     startBudget:      number        virtuelle Start-Ressource für die RTS-Mission
-     rewardCredits:    number        echte Credits-Belohnung im Hauptspiel bei Sieg
-     lossCredits:      number        zusätzlicher Verlust über entryPrice hinaus bei Niederlage (aktuell 0)
-     repFaction:       string|null   optionale Ruf-Belohnung, analog zu den bestehenden Job-Typen
-     repAmount:        number
-   }
-   --------------------------------------------------------------------- */
-const COMBAT_MISSION_DIFFICULTY = {
-  leicht: { label:'Leicht', icon:'🟢', gegnerstaerke:1, entryPrice:0,    startBudget:1500, rewardCredits:4000,  lossCredits:0 },
-  mittel: { label:'Mittel', icon:'🟠', gegnerstaerke:2, entryPrice:2500, startBudget:3000, rewardCredits:12000, lossCredits:0 },
-  schwer: { label:'Schwer', icon:'🔴', gegnerstaerke:3, entryPrice:8000, startBudget:6000, rewardCredits:35000, lossCredits:0 }
-};
-const COMBAT_MISSION_SCHAUPLATZ = ['all','planet','beides'];
-function generateCombatMissionOffer(difficultyKey){
-  const diffKey = COMBAT_MISSION_DIFFICULTY[difficultyKey] ? difficultyKey
-    : Object.keys(COMBAT_MISSION_DIFFICULTY)[Math.floor(Math.random()*3)];
-  const diff = COMBAT_MISSION_DIFFICULTY[diffKey];
-  const missionId = 'combat_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-  const discoveredIds = systems.filter(s=>s.discovered).map(s=>s.id);
-  const pool = discoveredIds.length ? discoveredIds : systems.map(s=>s.id);
-  const targetSystemId = pool[Math.floor(Math.random()*pool.length)];
-  const targetSys = systems[targetSystemId];
-  const schauplatz = COMBAT_MISSION_SCHAUPLATZ[Math.floor(Math.random()*COMBAT_MISSION_SCHAUPLATZ.length)];
-  let targetPlanetName = null;
-  if(schauplatz!=='all'){
-    const local = ensureLocalLayout(targetSys);
-    if(local.planets && local.planets.length){
-      targetPlanetName = local.planets[Math.floor(Math.random()*local.planets.length)].name;
-    }
-  }
-  const activeFactionKeys = FACTIONS.filter(f=>f.key!=='grenzland').map(f=>f.key);
-  const repFaction = Math.random()<0.5 ? activeFactionKeys[Math.floor(Math.random()*activeFactionKeys.length)] : null;
-  const repAmount = repFaction ? 4 + diff.gegnerstaerke*3 : 0;
-  return {
-    missionId, type:'combat', title:'Kampfeinsatz', icon:'⚔',
-    targetSystemId, targetPlanetName, schauplatz,
-    difficulty:diffKey, gegnerstaerke:diff.gegnerstaerke,
-    entryPrice:diff.entryPrice, startBudget:diff.startBudget,
-    rewardCredits:diff.rewardCredits, lossCredits:diff.lossCredits,
-    repFaction, repAmount
-  };
-}
-/* Lesbare Kurzbeschreibung eines Kampfeinsatz-Objekts - fürs Testen in der
-   Konsole/als Toast, später auch für die eigentliche Job-Tafel-Karte nutzbar. */
-function combatMissionOfferDesc(m){
-  const sys = systems[m.targetSystemId];
-  const sysName = sys ? sys.name : '???';
-  const where = m.schauplatz==='all' ? `im All bei ${sysName}`
-    : m.schauplatz==='planet' ? `auf ${m.targetPlanetName||'einem Planeten'} bei ${sysName}`
-    : `im All UND auf ${m.targetPlanetName||'einem Planeten'} bei ${sysName}`;
-  const diff = COMBAT_MISSION_DIFFICULTY[m.difficulty];
-  return `${diff.icon} ${diff.label} ${where} — Einsatz: ${m.entryPrice.toLocaleString('de-DE')} Cr. · Startbudget: ${m.startBudget.toLocaleString('de-DE')} · Belohnung: ${m.rewardCredits.toLocaleString('de-DE')} Cr.`;
-}
-/* ---------------------------------------------------------------------
-   KAMPFEINSATZ — Auslöse-Punkt (Phase -1, letzter Schritt)
-   Zieht den Einsatzpreis sofort in echten Credits ab (Konto-Ledger,
-   Kategorie 'combat') und öffnet die separate Kampf-Simulator-Datei in
-   einem neuen Fenster/Tab, mit den Missionsdaten als URL-Parametern.
-   Die Zieldatei (Path_of_the_Stars_Combat.html) existiert in Phase 0 des
-   RTS-Projekts noch nicht bzw. ist noch leer - window.open() öffnet in
-   dem Fall einfach eine leere/„Datei nicht gefunden"-Seite, das ist für
-   diesen Vorbereitungsschritt so erwartet. Aktuell NUR über den Dev-Tools-
-   Knopf erreichbar, noch keine Job-Tafel-Anbindung (folgt Phase 8). */
-function launchCombatMission(m){
-  if(!player) return;
-  if(player.credits < m.entryPrice){ showToast('Nicht genug Credits für diesen Kampfeinsatz.'); playSfx('error'); return; }
-  if(m.entryPrice>0){
-    player.credits -= m.entryPrice;
-    recordTransaction(-m.entryPrice, 'combat', `Einsatz für Kampfeinsatz (${COMBAT_MISSION_DIFFICULTY[m.difficulty].label})`);
-  }
-  addLog(`Kampfeinsatz gestartet: ${combatMissionOfferDesc(m)}`, 'combat');
-  const params = new URLSearchParams({
-    missionId: m.missionId, type: m.type, title: m.title, icon: m.icon,
-    targetSystemId: String(m.targetSystemId), targetPlanetName: m.targetPlanetName || '',
-    schauplatz: m.schauplatz, difficulty: m.difficulty, gegnerstaerke: String(m.gegnerstaerke),
-    entryPrice: String(m.entryPrice), startBudget: String(m.startBudget),
-    rewardCredits: String(m.rewardCredits), lossCredits: String(m.lossCredits),
-    repFaction: m.repFaction || '', repAmount: String(m.repAmount)
-  });
-  /* Die URL-Parameter tragen die Mission bereits mit rüber (z.B. damit das
-     Kampf-Fenster sofort Titel/Icon fürs Ladebildschirm zeigen kann) - die
-     eigentliche, verbindliche Übergabe läuft aber über den postMessage-
-     Handshake unten, sobald sich das Kampf-Fenster bereit gemeldet hat. */
-  combatMissionPending = m;
-  combatMissionWindow = window.open('Path_of_the_Stars_Combat.html?' + params.toString(), '_blank');
-  refreshTopbar();
-  showToast('Kampfeinsatz gestartet — Kampf-Simulator wird in neuem Fenster geöffnet.');
-}
-
-/* ---------------------------------------------------------------------
-   KAMPFEINSATZ — postMessage-Handshake mit dem Kampf-Simulator-Fenster
-   (siehe TODO_Kampfsimulator.md, Phase -1, letzter Punkt). Festgelegtes
-   Protokoll - beide Dateien (Hauptspiel wie künftige Kampf-Datei) halten
-   sich daran:
-     1) Das Kampf-Fenster meldet sich NACH dem eigenen Laden einmalig mit
-        window.opener.postMessage({type:'combatReady'}, '*') beim
-        öffnenden Fenster.
-     2) Das Hauptspiel schickt ERST DANACH die vollständigen Missionsdaten
-        zurück: {type:'combatMission', mission:{...gleiches Schema wie
-        generateCombatMissionOffer()}}. Vorher schickt es nichts - das
-        Kampf-Fenster darf sich also nicht darauf verlassen, dass beim
-        Laden schon irgendwelche Daten (auch nicht aus der URL) final
-        sind, nur der Handshake-Weg ist verbindlich.
-     3) Nach Abschluss des Gefechts schickt das Kampf-Fenster GENAU EINMAL
-        {type:'combatResult', missionId, outcome:'win'|'loss', stats:{...}}
-        zurück ans Hauptspiel-Fenster (stats ist frei erweiterbar, z.B.
-        vernichtete/verlorene Einheiten, gesammelte Ressourcen - wird vom
-        Hauptspiel aktuell nicht ausgewertet, nur mitgeloggt/durchgereicht).
-   Origin-Check bewusst weggelassen: beide Dateien laufen typischerweise
-   lokal über file://, wo die postMessage-Origin leer/"null" ist und ein
-   Vergleich nicht zuverlässig funktioniert. Stattdessen wird über
-   event.source (exakte Fensterreferenz aus dem eigenen window.open())
-   UND die missionId geprüft, ob eine Nachricht wirklich vom gerade
-   erwarteten Kampf-Fenster zur gerade aktiven Mission stammt - Nachrichten
-   von anderswoher werden schlicht ignoriert.
-   --------------------------------------------------------------------- */
-let combatMissionWindow = null;
-let combatMissionPending = null;
-function handleCombatWindowMessage(event){
-  const data = event.data;
-  if(!data || typeof data!=='object') return;
-  if(data.type==='combatReady'){
-    if(!combatMissionPending || !combatMissionWindow || event.source!==combatMissionWindow) return;
-    combatMissionWindow.postMessage({type:'combatMission', mission: combatMissionPending}, '*');
-  } else if(data.type==='combatResult'){
-    if(!combatMissionPending || !combatMissionWindow || event.source!==combatMissionWindow) return;
-    if(data.missionId!==combatMissionPending.missionId) return;
-    applyCombatMissionResult(combatMissionPending, data.outcome, data.stats||{});
-    combatMissionPending = null;
-    combatMissionWindow = null;
-  }
-}
-window.addEventListener('message', handleCombatWindowMessage);
-
-/* Wertet das Ergebnis eines abgeschlossenen Kampfeinsatzes aus, sobald es
-   per Handshake zurückkommt (oder - fürs Testen ohne vorhandene Kampf-
-   Datei - direkt über die Dev-Tools). Sieg: Belohnung + optionaler Ruf-
-   Gewinn werden gutgeschrieben. Niederlage: der Einsatz war beim Start
-   bereits futsch (siehe launchCombatMission), zusätzlich lossCredits
-   (Schema erlaubt das, Tabellenwerte sind aktuell durchgängig 0). Beide
-   Ausgänge bekommen ein deutliches Ergebnis-Fenster, genau wie die
-   übrigen Risiko-Ereignisse (Pirat, Notruf, Signal, Wrack, Konvoi). */
-function applyCombatMissionResult(m, outcome, stats){
-  if(!player) return;
-  if(outcome==='win'){
-    player.credits += m.rewardCredits;
-    recordTransaction(m.rewardCredits, 'combat', `Belohnung Kampfeinsatz (${COMBAT_MISSION_DIFFICULTY[m.difficulty].label})`);
-    let repText = '';
-    if(m.repFaction){
-      adjustReputation(m.repFaction, m.repAmount);
-      repText = ` · +${m.repAmount} Ruf bei ${factionMeta(m.repFaction).name}`;
-    }
-    addLog(`Kampfeinsatz gewonnen: +${m.rewardCredits.toLocaleString('de-DE')} Cr.${repText}`, 'combat');
-    showEventResult('success', 'Kampfeinsatz gewonnen', `Der Einsatz war erfolgreich. Belohnung: ${m.rewardCredits.toLocaleString('de-DE')} Cr.${repText}`);
-  } else {
-    if(m.lossCredits>0){
-      player.credits -= m.lossCredits;
-      recordTransaction(-m.lossCredits, 'combat', `Zusatzverlust Kampfeinsatz (${COMBAT_MISSION_DIFFICULTY[m.difficulty].label})`);
-    }
-    addLog(`Kampfeinsatz verloren — Einsatz von ${m.entryPrice.toLocaleString('de-DE')} Cr. futsch.`, 'combat');
-    showEventResult('failure', 'Kampfeinsatz verloren', `Der Einsatz von ${m.entryPrice.toLocaleString('de-DE')} Cr. ist futsch. Keine echte Flotte ging verloren.`);
-  }
-  refreshTopbar();
-}
-
-/* ---------------------------------------------------------------------
-   KAMPFEINSATZ — Verhalten während offenem Kampf-Fenster (Phase -1,
-   letzter Punkt der TODO-Liste). Entscheidung: (a) das Hauptspiel läuft
-   im Hintergrund ganz normal weiter, während die RTS-Mission im zweiten
-   Fenster läuft - Autosave, Zeit-Tick, Flottenbewegung, Kolonien-
-   Einkommen, Ruf-Drift, Fraktions-Diplomatie, Zufalls-Ereignisse usw.
-   werden NICHT pausiert. Begründung: das Kampf-Budget ist komplett
-   virtuell und vom Hauptspiel-Spielstand getrennt (siehe Budget-
-   Entscheidung, Phase -1) - es gibt daher keinen Hauptspiel-Zustand, der
-   durch parallelen Fortschritt korrumpiert werden könnte. Einzige
-   Ausnahme bleibt rein technisch bedingt: moderne Browser drosseln
-   Timer/Animationsframes in Hintergrund-Tabs von sich aus - das betrifft
-   aber ohnehin jeden beliebigen Hintergrund-Tab und ist kein spiel-
-   spezifisches Pausieren.
-
-   Robustheit: schließt der Spieler das Kampf-Fenster (Kreuz, Tab
-   geschlossen, Absturz), ohne dass ein combatResult zurückkam, würde
-   combatMissionPending sonst für immer "hängen" bleiben - es kommt dann
-   nie wieder eine Nachricht an. Ein einfacher Watcher prüft deshalb
-   regelmäßig, ob combatMissionWindow geschlossen wurde, während noch
-   eine Mission aussteht, und wertet das als Abbruch: der beim Start
-   bereits abgezogene Einsatz bleibt verloren (wie bei einer echten
-   Niederlage), aber ohne zusätzlichen lossCredits-Abzug und ohne
-   Ergebnis-Fenster (es fand ja kein echtes Gefecht statt) - nur ein
-   Logbuch-Hinweis, damit nichts spurlos verschwindet. */
-setInterval(()=>{
-  if(combatMissionPending && combatMissionWindow && combatMissionWindow.closed){
-    addLog(`Kampfeinsatz-Fenster wurde ohne Ergebnis geschlossen — Einsatz von ${combatMissionPending.entryPrice.toLocaleString('de-DE')} Cr. bleibt verloren, das Hauptspiel läuft normal weiter.`, 'combat');
-    combatMissionPending = null;
-    combatMissionWindow = null;
-    refreshTopbar();
-  }
-}, 2000);
-document.getElementById('combatMissionBadge').addEventListener('click', ()=>{
-  if(combatMissionWindow && !combatMissionWindow.closed) combatMissionWindow.focus();
-});
 
 
 /* Füllt die Tafel proportional zur vergangenen Zeit wieder auf (auch nach
@@ -17381,7 +17263,8 @@ const LOG_CATEGORIES = {
   diplomacy:  {label:'Diplomatie',color:'#e8834a', icon:'☍'},
   event:      {label:'Ereignis',  color:'#e0a468', icon:'❔'},
   empire:     {label:'Imperium',  color:'#ffd447', icon:'⬡'},
-  system:     {label:'System',    color:'#9aa5b1', icon:'⚙'}
+  system:     {label:'System',    color:'#9aa5b1', icon:'⚙'},
+  story:      {label:'Story',     color:'#c084fc', icon:'✎'}
 };
 /* v0_0150: echtes Konto-Ledger statt Text-Heuristik auf dem Logbuch. Jede
    Credits-Bewegung (Handel, Kampf, Beute, Käufe, Kolonien-Einkommen, ...)
@@ -17506,15 +17389,6 @@ function refreshTopbar(){
     badge.classList.add('show');
   } else {
     badge.classList.remove('show');
-  }
-  const combatBadge = document.getElementById('combatMissionBadge');
-  if(combatBadge){
-    if(combatMissionPending){
-      combatBadge.textContent = '⚔ Kampfeinsatz läuft…';
-      combatBadge.classList.add('show');
-    } else {
-      combatBadge.classList.remove('show');
-    }
   }
   updateIntroDriveBar();
   updateIntroTabVisibility();
@@ -18565,6 +18439,9 @@ const CHANGELOG = [
   { version:'v0_0244', title:'MC ORCA GAMES OS Boot-Sequenz eingebaut (CRT-Poweron + DOS-Bootstream)', desc:'Studio-weite Boot-Sequenz aus dem zentralen Boot-Template uebernommen, wie bei den anderen MC-Orca-Spielen. Zwei Teile: 1) CRT-Poweron - kurzer Roehrenmonitor-Einschalt-Flash ueber dem bestehenden Vorspann (#preSplash), laeuft einmalig beim allerersten Laden, bevor Logo/Hinweis wie gewohnt einblenden. 2) DOS-Bootstream - laengerer Retro-Terminal-Textaufbau mit dem unveraenderten "MC ORCA GAMES OS"-ASCII-Banner, der jetzt beim eigentlichen Spielstart laeuft (Uebergang vom Start-/Menuebildschirm in den Spielbereich, direkt nach setupStartScreen() in initGame(), egal ob Fortsetzen/Neues Spiel/Drifting-Worlds/Import). Zeigt echte Werte aus dem gerade geladenen bzw. neu erzeugten Spielstand (Guthaben, Flottengroesse, aktuelles System). Boot-Akzentfarbe an die goldene Neon-Noir-Palette des Spiels angepasst (#e8b64a, ueber eigene --boot-accent-Variablen, um nicht mit dem bestehenden --accent/--accent2 des restlichen UI zu kollidieren). Ueberspringbar per Klick/Taste, eigener in sich geschlossener Sound-Hook (bootAudioCtx) getrennt vom spieleigenen Audiosystem. BIOS-Zeile "PATH OF THE STARS BIOS v2.4", OS-Name "DRIFTOS".' },
   { version:'v0_0245', title:'Bootstream deutlich ausgebaut: wirkt jetzt wie ein hochfahrender Grossrechner aus den 70ern/80ern (60+ Zeilen statt einer Handvoll)', desc:'Der in v0_0244 eingefuehrte DOS-Bootstream war mit rund 17 Zeilen recht kurz fuer den gewuenschten "grosser alter Rechner faehrt hoch"-Eindruck. Jetzt deutlich umfangreicher (60+ Zeilen/Balken statt bisher ~17), Engine/Timing dabei unveraendert (skaliert automatisch mit der laengeren Textmenge): Speichertest mit fiktiver RAM-/Paritaetspruefung, CPU-/Coprozessor-Kennzeile, Massenspeicher-Diagnose mit Sektorpruefsumme, ausfuehrlicherer Kernel-Ladevorgang (Basis/Speicherverwaltung/Interrupt-Controller/Echtzeituhr/Ereigniswarteschlange), neun einzelne Subsystem-Checks (Antrieb/Sprungantrieb/Schilde/Waffen/Frachtraum/Sensoren/Autopilot/Notfall), sechs gemountete Datenbanken (Sternenkarten/Marktdaten/Fraktionsnetz/Crewliste/Logbuch/Erfolgsarchiv), ein simulierter Netzwerk-Handshake mit allen vier grossen Fraktionen (zeigt dabei den echten aktuellen Ruf des Spielers bei jeder Fraktion) sowie eine Navigationskalibrierung - insgesamt fuenf Fortschrittsbalken statt bisher einem. Der abschliessende Spielstand-Block zeigt jetzt zusaetzlich zu Standort/Guthaben/Flotte auch Fracht-Auslastung, Waffen/Schilde-Stufe, Erkundungsfortschritt (Systeme + Prozent) und gesammelte Forschungspunkte - alles live aus getBootContext() gelesen, keine Platzhalter. getBootContext() dafuer entsprechend um die neuen echten Werte erweitert (Fraktionsruf ueber die bestehende getReputation(), Erkundungsstand ueber systems.filter(visited), Frachtauslastung ueber player.cargo).' },
   { version:'v0_0246', title:'Bootstream laeuft jetzt spuerbar langsamer (~75-90s statt ~15s), wie ein echtes altes Terminal', desc:'Auf Wunsch: der in v0_0245 stark erweiterte Bootstream tippte trotz der vielen neuen Zeilen immer noch im alten, kurzen Zeittempo (totalCharBudgetMs war unveraendert bei 24s Gesamtbudget fuer deutlich mehr Text als zuvor, wirkte dadurch eher gehetzt als wie ein hochfahrender Grossrechner). Zeitbudget auf 55s angehoben (Tippgeschwindigkeit skaliert wie gehabt automatisch mit der tatsaechlichen Zeichenmenge, Obergrenze pro Zeichen von 28ms auf 34ms angehoben, damit das hoehere Budget auch wirklich in sichtbar langsameres Tippen uebersetzt wird statt nur mehr Leerlauf zu erzeugen), Pause zwischen Zeilen von 130ms auf 180ms, Schlusspause von 1.4s auf 1.8s und die fuenf Fortschrittsbalken jeweils um 600-800ms verlaengert. Ergibt in der Praxis rund 75-90 Sekunden Gesamtlaufzeit (abhaengig von der Laenge der eingesetzten Spielstand-Werte wie Systemname), bewusst grosszuegig, da die Sequenz jederzeit per Klick/Taste ueberspringbar bleibt (Skip-Logik unveraendert).' },
+  { version:'v0_0247', title:'Boot-Sequenz auf Rot umgestellt, Copyright-Jahr korrigiert, Entwicklertools entfernt', desc:'Drei Aenderungen auf Zuruf: (1) Boot-Akzentfarbe (--boot-accent/--boot-accent-dim inkl. der zugehoerigen Text-Glow-Werte fuer Banner, Bootstream-Text und Blink-Cursor) von Amber (#e8b64a) auf Rot (#ff2a2a) umgestellt, betrifft CRT-Poweron-Overlay und DOS-Bootstream gleichermassen. (2) Copyright-Zeile im Impressum/Splash von \"(C) 2087 MC ORCA Games.\" auf \"(C) 2026 MC ORCA Games.\" korrigiert. (3) Der komplette, seit v0_0213 sauber mit DEVTOOLS:START/DEVTOOLS:END-Markern gekapselte Entwicklertools-Block (Toggle-Button, Panel mit allen Test-Buttons fuer Credits, Teleport, Erfolge, Kampfeinsatz-Simulation usw., zugehoerige CSS- und HTML-Abschnitte) vollstaendig entfernt - keine Spuren im Markup, keine Funktionsreferenzen mehr im Code.' },
+  { version:'v0_0248', title:'\"Spiel beenden\" entfernt (funktionierte in der Android-App nicht), mehrere Fenster fuer Handy-Querformat angepasst', desc:'Zwei Aenderungen auf Zuruf: (1) Der \"Spiel beenden\"-Button im Startbildschirm-Menue ist entfernt (Button, Klick-Handler window.close() samt Fallback-Hinweis, ungenutzte CSS-Regel) - in der Android-App gibt es keinen schliessbaren Browser-Tab, der Button tat dort nichts. (2) Mehrere Overlay-Fenster hatten keine Hoehenbegrenzung/kein internes Scrollen (u.a. Piratenueberfall/Notruf/Signal/Wrack/Wurmloch/Konvoi-Ereignis, Kampf-Overlay, Ergebnis-Popup, Story-Konstrukt/Uebergabe-Screens, alte Schwierigkeits-Karte, Start-Einstellungen) - auf kurzen Bildschirmen (Handy im Querformat) konnten sie dadurch ueber den sichtbaren Bereich hinausragen, sodass z.B. Buttons am unteren Rand nicht erreichbar waren. Alle betroffenen Karten haben jetzt max-height:88vh (Kampf-Karte 92vh) mit overflow-y:auto, zusaetzlich die dazugehoerigen Overlay-Hintergruende als Sicherheitsnetz. Das Kampf-Fenster (feste 16:9-Gefechtsbuehne, seit Langem als Problemfall bekannt) bekommt auf Viewports unter 560px Hoehe zusaetzlich ein flacheres Buehnen-Seitenverhaeltnis sowie kompakteres Logbuch/Buttons/Titel, damit es dort gar nicht erst so weit ueberlaeuft.' },
+  { version:'v0_0249', title:'1.0-Vorbereitung: toter Kampfeinsatz-Code entfernt, Story-Hooks ins Logbuch, eigener Bestaetigungs-Dialog statt Browser-Popup', desc:'Drei Aufraeumarbeiten auf dem Weg zu 1.0: (1) Das komplette \"Kampfeinsatz\"-System (Missions-Datenmodell, launchCombatMission(), postMessage-Handshake mit einer separaten, noch gar nicht existierenden Kampf-Simulator-Datei, Watcher, Badge) war seit der Entfernung des Dev-Tools-Panels in v0_0247 komplett unerreichbar (keine Job-Tafel-Anbindung existierte je) - der gesamte tote Code (JS-Block, HTML-Badge, CSS) ist jetzt entfernt. (2) fireIntroStoryHook() (7 Aufrufstellen an wichtigen Story-Momenten: Szenariostart, Ankunft, Fund, Anomalie-Aufloesung, Konstrukt-Kontakt, Etappen-Bereitschaft, Szenario-Abschluss) schrieb den Erzaehltext bisher nur in die Browser-Konsole - der Spieler sah nie etwas davon. Jetzt landet der Text als echter Logbuch-Eintrag, dafuer eine neue Logbuch-Kategorie \"Story\" (lila, \u270e-Icon, eigener Filter-Chip). Die TODO(Story-KI)-Anbindung fuer spaeter bleibt unveraendert vorbereitet. (3) Die zwei verbliebenen window.confirm()-Aufrufe (\"Neues Spiel starten?\", \"Drifting Worlds starten?\") - native Browser-Dialoge, die den Neon-Noir-Look brachen und in der Android-App wie ein Fremdkoerper wirkten - sind durch einen neuen spielinternen Bestaetigungs-Dialog (showConfirmDialog(), gleiches Promise-Muster wie showDifficultyPicker()) ersetzt: eigene Karte mit Titel/Text/zwei Buttons, roter Warn-Button bei destruktiven Aktionen (Spielstand-Verlust), sonst normale Akzentfarbe, aufloesbar per Klick auf einen Button oder auf den Hintergrund.' },
 ];
 
 /* =========================================================================
@@ -18880,6 +18757,39 @@ document.getElementById('themeCloseBtn').addEventListener('click', hideThemePick
 document.getElementById('openThemePickerBtn')?.addEventListener('click', showThemePicker);
 loadUITheme(); /* so schnell wie möglich anwenden, bereits auf dem Startbildschirm */
 
+/* v0_0249: generischer Bestätigungs-Dialog (löst window.confirm() ab, das
+   in der Android-App/WebView wie ein Systemfremdkörper wirkte). Gleiches
+   Promise-Muster wie showDifficultyPicker() nebenan: löst mit true bei
+   Bestätigen, mit false bei Abbrechen/Hintergrundklick auf. opts.danger
+   färbt den Bestätigen-Knopf rot ein (für destruktive Aktionen wie
+   "Spielstand geht verloren"), sonst die normale Akzentfarbe. */
+function showConfirmDialog(title, message, opts){
+  opts = opts || {};
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById('confirmOverlay');
+    const okBtn = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    document.getElementById('confirmTitle').textContent = title || 'Bestätigen';
+    document.getElementById('confirmMessage').textContent = message || '';
+    okBtn.textContent = opts.okLabel || 'OK';
+    cancelBtn.textContent = opts.cancelLabel || 'Abbrechen';
+    okBtn.classList.toggle('danger', !!opts.danger);
+    overlay.classList.add('show');
+    function cleanup(){
+      overlay.classList.remove('show');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onBackdrop);
+    }
+    function onOk(){ cleanup(); resolve(true); }
+    function onCancel(){ cleanup(); resolve(false); }
+    function onBackdrop(e){ if(e.target===overlay){ cleanup(); resolve(false); } }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onBackdrop);
+  });
+}
+
 function showDifficultyPicker(){
   return new Promise((resolve)=>{
     const overlay = document.getElementById('difficultyOverlay');
@@ -19013,18 +18923,6 @@ async function setupStartScreen(){
   });
   settingsOverlay.addEventListener('click', (e)=>{
     if(e.target.id==='startSettingsOverlay') settingsOverlay.classList.remove('show');
-  });
-
-  // v0_0237: "Spiel beenden" - Browser lassen sich aus Sicherheitsgründen
-  // nur schließen, wenn das Skript den Tab selbst geöffnet hat (bei einem
-  // normal aufgerufenen Tab schlägt window.close() lautlos fehl) - daher
-  // Best-Effort-Versuch mit freundlichem Hinweis als Fallback.
-  document.getElementById('btnStartQuit').addEventListener('click', ()=>{
-    window.close();
-    setTimeout(()=>{
-      const metaEl2 = document.getElementById('startMeta');
-      if(metaEl2) metaEl2.textContent = 'Du kannst dieses Fenster/diesen Tab jetzt einfach schließen.';
-    }, 150);
   });
 
   // v0_0237: "Spiel laden" lädt eine exportierte Speicherdatei direkt vom
@@ -19467,7 +19365,7 @@ function startAutosave(){
 
 async function newGame(confirmNeeded, preferredFactionKey){
   if(confirmNeeded){
-    const ok = window.confirm('Neues Spiel starten? Der aktuelle Spielstand geht dabei verloren.');
+    const ok = await showConfirmDialog('Neues Spiel starten?', 'Der aktuelle Spielstand geht dabei verloren.', {okLabel:'Neues Spiel starten', cancelLabel:'Abbrechen', danger:true});
     if(!ok) return;
   }
   try{ await window.storage.delete(SAVE_KEY, false); }catch(e){ /* ggf. noch kein Save vorhanden */ }
@@ -19615,7 +19513,7 @@ document.getElementById('btnNewGame').addEventListener('click', async ()=>{
   const diff = await showDifficultyPicker();
   if(!diff) return;
   if(diff==='intro'){
-    const ok = window.confirm('„Drifting Worlds" starten? Der aktuelle Spielstand bleibt erhalten, wird aber vorübergehend dadurch ersetzt — lade danach einfach wieder, um zurückzukehren.');
+    const ok = await showConfirmDialog('„Drifting Worlds" starten?', 'Der aktuelle Spielstand bleibt erhalten, wird aber vorübergehend dadurch ersetzt — lade danach einfach wieder, um zurückzukehren.', {okLabel:'Drifting Worlds starten', cancelLabel:'Abbrechen'});
     if(!ok) return;
     await startIntroScenario();
     return;
@@ -19770,301 +19668,118 @@ async function initGame(){
 
 window.addEventListener('load', initGame);
 
-/* ===== DEVTOOLS:START (auf Zuruf "lösche Entwicklertools" komplett entfernbar) =====
-   Reine Test-Werkzeuge für den Entwickler, ohne jede Auswirkung auf normales
-   Spieldesign/Balance, solange der Block nicht benutzt wird. Kompletter,
-   in sich geschlossener Abschnitt - beim Entfernen genügt es, alles zwischen
-   diesem Kommentar und "DEVTOOLS:END" (inkl. der zugehörigen CSS- und
-   HTML-Blöcke mit denselben Markern) zu löschen. */
-(function(){
-  function initDevTools(){
-    const btn = document.getElementById('devToggleBtn');
-    const panel = document.getElementById('devPanel');
-    if(!btn || !panel) return;
-    btn.addEventListener('click', ()=>panel.classList.toggle('show'));
-
-  function devDone(msg){
-    if(typeof refreshTopbar==='function') refreshTopbar();
-    if(typeof showToast==='function') showToast('🛠 ' + msg);
-    if(typeof addLog==='function') addLog('[DEV] ' + msg, 'system');
-  }
-
-  /* v0_0213: Teleport-Helfer fürs Intro-Szenario "Drifting Worlds" - versetzt
-     die Erde direkt an ein beliebiges Ziel-System (0-indiziert), ohne die
-     Reise dorthin abzufliegen. Markiert alle übersprungenen Systeme als
-     besucht/Story-gelesen (introStoryProgress hoch genug gesetzt), damit das
-     Story-Archiv keine Lücke zeigt, und ruft anschließend denselben
-     onPlayerArrive()-Pfad wie eine normale Ankunft auf (Kamera, Ankunfts-
-     Popup, Nachbarn aufdecken usw.) - reines Testwerkzeug, keine normale
-     Spielfunktion. */
-  function teleportIntroTo(sid){
-    if(!introMode){ devDone('Nur im Intro-Szenario „Drifting Worlds" verfügbar.'); return; }
-    if(!systems.length || sid<0 || sid>=systems.length){ devDone('Ungültige Stations-Nummer.'); return; }
-    for(let i=0; i<sid; i++){
-      systems[i].visited = true;
-      systems[i].introNarrativeShown = true;
-    }
-    if(sid > introStoryProgress) introStoryProgress = sid;
-    saveMetaProgress();
-    player.traveling = false;
-    player.progress = 0;
-    player.from = sid>0 ? sid-1 : null;
-    player.to = null;
-    player.system = sid;
-    player.pendingGateJump = null;
-    player.waitingForCharge = false;
-    onPlayerArrive(sid);
-    devDone(`Zu Station ${sid+1}/${systems.length} gesprungen (${systems[sid].name}).`);
-  }
-
-  const DEV_ACTIONS = {
-    credits1m: ()=>{ player.credits += 1000000; devDone('+1.000.000 Cr.'); },
-    creditsInf: ()=>{ player.credits = 999999999; devDone('Credits auf 999.999.999 gesetzt.'); },
-    credits5b: ()=>{ player.credits = 5000000000; devDone('Credits auf 5.000.000.000 gesetzt.'); },
-    cargoFill: ()=>{
-      const cap = (typeof effectiveCargoCap==='function') ? effectiveCargoCap(player) : (player.cargoCap||40);
-      player.cargo.ERZ = cap; devDone('Frachtraum mit Erz aufgefüllt.');
-    },
-    unlockAllAch: ()=>{
-      player.unlockedAchievements = ACHIEVEMENTS.map(a=>a.id);
-      if(typeof invalidateAchievementBonusCache==='function') invalidateAchievementBonusCache();
-      devDone('Alle 36 Erfolge freigeschaltet.');
-      if(typeof renderAchievePanel==='function') renderAchievePanel();
-    },
-    resetAch: ()=>{
-      player.unlockedAchievements = [];
-      player.stats = makeEmptyStats();
-      if(typeof invalidateAchievementBonusCache==='function') invalidateAchievementBonusCache();
-      devDone('Erfolge & Statistik zurückgesetzt.');
-      if(typeof renderAchievePanel==='function') renderAchievePanel();
-    },
-    revealAll: ()=>{
-      for(const s of systems) s.discovered = true;
-      if(typeof refreshExploredCount==='function') refreshExploredCount();
-      devDone('Ganze Galaxie aufgedeckt.');
-    },
-    maxRep: ()=>{
-      if(!player.reputation) player.reputation = {};
-      for(const f of FACTIONS) if(f.key!=='grenzland') player.reputation[f.key] = 100;
-      devDone('Ruf bei allen Fraktionen auf 100 gesetzt.');
-    },
-    unlockStories: ()=>{
-      for(const s of STORIES) s.locked = false;
-      devDone('Alle Storylines entsperrt.');
-    },
-    maxAscension: ()=>{
-      storyProgressMap.ascension = 24;
-      devDone('Ascension-Chronicles auf Kapitel 24 gesetzt.');
-    },
-    maxCombat: ()=>{
-      player.weapons = 50; player.shields = 50;
-      devDone('Waffen/Schild auf 50/50 gesetzt.');
-    },
-    fillJump: ()=>{
-      if(player.hasJumpDrive) player.jumpCharge = effectiveJumpRange(player);
-      for(const sh of fleet) if(sh.hasJumpDrive) sh.jumpCharge = effectiveJumpRange(sh);
-      devDone('Sprungladung aller Schiffe aufgefüllt.');
-    },
-    addHauler: ()=>{
-      const t = SHIP_TYPES['hauler'];
-      const ship = { id: 'ship'+(shipIdCounter++), type:'hauler', system:player.system, from:null, to:null,
-        traveling:false, progress:0, speed:t.speed, cargoCap:t.cargoCap, weapons:t.weapons||0, shields:t.shields||0,
-        hasJumpDrive: !!t.hasJumpDrive, jumpRange: t.hasJumpDrive ? t.jumpRange : null,
-        jumpCharge: t.hasJumpDrive ? t.jumpRange : null, jumpRechargeTimer:0,
-        cargo:{ERZ:0,TREIBSTOFF:0,TECHNIK:0,NAHRUNG:0}, order:null, path:[] };
-      fleet.push(ship);
-      devDone('Kostenloser Hauler zur Flotte hinzugefügt.');
-    },
-    testEncounter: ()=>{
-      player.pendingEncounter = { dangerLevel: systems[player.system].dangerLevel||1, targetId: player.system };
-      showPirateEncounter(); panel.classList.remove('show');
-    },
-    testDistress: ()=>{
-      const sys = systems[player.system];
-      player.pendingDistress = { progressThreshold:0.4, dangerLevel: sys.dangerLevel||1, targetId: player.system, facKey: sys.faction||'grenzland', category:'test' };
-      showDistressEvent(); panel.classList.remove('show');
-    },
-    testSignal: ()=>{
-      player.pendingSignal = { progressThreshold:0.4, dangerLevel: systems[player.system].dangerLevel||1 };
-      showSignalEvent(); panel.classList.remove('show');
-    },
-    testWreck: ()=>{
-      player.pendingWreck = { fromId: player.system, toId: player.system, t:0.5, offset:0 };
-      showWreckPrompt(); panel.classList.remove('show');
-    },
-    testConvoy: ()=>{
-      const sys = systems[player.system];
-      player.pendingConvoy = { fromId: player.system, toId: player.system, t:0.5, offset:0, facKey: sys.faction||'grenzland', dangerLevel: sys.dangerLevel||1 };
-      showConvoyPrompt(); panel.classList.remove('show');
-    },
-    testWormhole: ()=>{
-      player.pendingWormhole = { progressThreshold:0.4, targetId: player.system };
-      showWormholeEvent(); panel.classList.remove('show');
-    },
-    testCombatMission: ()=>{
-      const m = generateCombatMissionOffer();
-      console.log('[Kampfeinsatz-Testobjekt]', m);
-      devDone('Kampfeinsatz-Testobjekt erzeugt (Details in der Konsole): ' + combatMissionOfferDesc(m));
-    },
-    launchCombatMissionDev: ()=>{
-      const m = generateCombatMissionOffer();
-      console.log('[Kampfeinsatz-Auslösung]', m);
-      launchCombatMission(m);
-      panel.classList.remove('show');
-    },
-    simulateCombatWin: ()=>{
-      const m = generateCombatMissionOffer();
-      console.log('[Kampfeinsatz-Ergebnis simuliert: Sieg]', m);
-      applyCombatMissionResult(m, 'win', {});
-      panel.classList.remove('show');
-    },
-    simulateCombatLoss: ()=>{
-      const m = generateCombatMissionOffer();
-      console.log('[Kampfeinsatz-Ergebnis simuliert: Niederlage]', m);
-      applyCombatMissionResult(m, 'loss', {});
-      panel.classList.remove('show');
-    },
-    jumpPenultimateSystem: ()=>{
-      teleportIntroTo(systems.length-2);
-      panel.classList.remove('show');
-    },
-    jumpLastSystem: ()=>{
-      teleportIntroTo(systems.length-1);
-      panel.classList.remove('show');
-    },
-    jumpToSystemPrompt: ()=>{
-      if(!introMode){ devDone('Nur im Intro-Szenario „Drifting Worlds" verfügbar.'); return; }
-      const raw = window.prompt(`Zu welcher Stations-Nummer springen? (1 = Sol ... ${systems.length} = Sagittarius A*)`, String(systems.length-1));
-      if(raw===null) return;
-      const n = parseInt(raw, 10);
-      if(isNaN(n) || n<1 || n>systems.length){ devDone('Ungültige Nummer.'); return; }
-      teleportIntroTo(n-1);
-      panel.classList.remove('show');
-    },
-    maxSideStories: ()=>{
-      for(const s of STORIES) s.locked = false;
-      storyProgressMap.erwachende = 24;
-      storyProgressMap.stille = 24;
-      devDone('„Die Erwachenden der Ascendenz" & „Das Geheimnis der Stille" auf letztes Kapitel gesetzt.');
-      if(typeof renderCodexPanel==='function') renderCodexPanel();
-    },
-    maxDefense: ()=>{
-      while((player.defenseUpgrades||0) < MAX_DEFENSE_LEVEL){
-        player.defenseUpgrades = (player.defenseUpgrades||0) + 1;
-        player.weapons = (player.weapons||0) + 1;
-        player.shields = (player.shields||0) + 2;
-      }
-      devDone('Verteidigungsmodul auf Maximalstufe ' + MAX_DEFENSE_LEVEL + ' gesetzt.');
-    },
-    claimAll: ()=>{
-      player.credits = 999999999;
-      let count = 0;
-      for(const s of systems){ if(s.discovered && s.ownedBy!=='player'){ claimSystem(s.id); count++; } }
-      devDone(count + ' entdeckte Systeme kostenlos beansprucht.');
-    },
-    simulate24h: ()=>{
-      player.empireLastTick = Date.now() - 24*3600000;
-      player.reputationLastTick = Date.now() - 24*3600000;
-      factionRelationsLastTick = Date.now() - 24*3600000;
-      // v0_0226/v0_0227/v0_0229: läuft gerade eine Werft- oder Produktions-
-      // station bzw. ein PI-Extraktor, wird das durch die simulierten 24h
-      // ebenfalls fertig/vorgerückt, statt separat abgewartet werden zu müssen.
-      for(const s of systems){
-        if(s.shipyardBuild) s.shipyardBuild.completesAt = Date.now() - 1000;
-        if(s.productionBuild) s.productionBuild.completesAt = Date.now() - 1000;
-        if(Array.isArray(s.planets)){
-          for(const p of s.planets){
-            if(p.extractor) p.extractor.lastTick = Date.now() - 24*3600000;
-          }
-        }
-      }
-      tickEmpireIncome({announce:true});
-      tickShipyardProduction({announce:true});
-      tickProductionStations({announce:true});
-      tickPIExtraction({announce:true});
-      player.researchLastTick = Date.now() - 24*3600000; // v0_0231
-      tickResearchPoints({announce:true});
-      tickReputationDrift();
-      tickFactionRelations();
-      devDone('24 Std. Imperium-Einkommen, Werft-/Produktionsstation, PI-Extraktion, Forschungspunkte, Ruf-Drift & Fraktionsbeziehungen simuliert.');
-    },
-    manualSave: ()=>{
-      if(typeof saveGame==='function') saveGame(true);
-      devDone('Spielstand manuell gespeichert.');
-    },
-    hardReset: ()=>{
-      if(typeof newGame==='function') newGame(true);
-      panel.classList.remove('show');
-    }
-  };
-
-  panel.addEventListener('click', (e)=>{
-    const b = e.target.closest('[data-dev]');
-    if(!b) return;
-    const fn = DEV_ACTIONS[b.dataset.dev];
-    if(fn){ try{ fn(); }catch(err){ console.error('Devtool error:', err); showToast('🛠 Fehler: '+err.message); } }
-  });
-  } // Ende initDevTools
-  if(document.readyState==='complete') initDevTools();
-  else window.addEventListener('load', initDevTools);
-})();
-/* ===== DEVTOOLS:END ===== */
 </script>
 
 
-<!-- ===== DEVTOOLS:START (auf Zuruf "lösche Entwicklertools" komplett entfernbar) ===== -->
-<button id="devToggleBtn" title="Entwicklertools">🛠</button>
-<div id="devPanel">
-  <h3>🛠 Entwicklertools</h3>
-  <div class="devNote">Nur zum Testen. Sag „lösche Entwicklertools", um diesen kompletten Block wieder zu entfernen.</div>
 
-  <div class="devGroup">Credits &amp; Ressourcen</div>
-  <button data-dev="credits1m">+1.000.000 Cr.</button>
-  <button data-dev="creditsInf">Credits auf 999.999.999 setzen</button>
-  <button data-dev="credits5b">Credits auf 5.000.000.000 setzen</button>
-  <button data-dev="cargoFill">Frachtraum mit Erz auffüllen</button>
 
-  <div class="devGroup">Drifting Worlds: Stationssprung</div>
-  <button data-dev="jumpPenultimateSystem">Zum vorletzten System springen</button>
-  <button data-dev="jumpLastSystem">Zum letzten System springen (Sagittarius A*)</button>
-  <button data-dev="jumpToSystemPrompt">Zu Stations-Nummer springen …</button>
-
-  <div class="devGroup">Fortschritt</div>
-  <button data-dev="unlockAllAch">Alle Erfolge freischalten</button>
-  <button data-dev="resetAch">Alle Erfolge zurücksetzen</button>
-  <button data-dev="revealAll">Ganze Galaxie aufdecken</button>
-  <button data-dev="maxRep">Ruf bei allen Fraktionen auf 100</button>
-  <button data-dev="unlockStories">Alle Storylines entsperren</button>
-  <button data-dev="maxAscension">Ascension-Chronicles auf Kapitel 24</button>
-
-  <div class="devGroup">Schiff &amp; Flotte</div>
-  <button data-dev="maxCombat">Waffen/Schild auf 50/50 setzen</button>
-  <button data-dev="fillJump">Sprungladung aller Schiffe auffüllen</button>
-  <button data-dev="addHauler">Kostenlosen Hauler zur Flotte hinzufügen</button>
-
-  <div class="devGroup">Ereignisse testen</div>
-  <button data-dev="testEncounter">Piratenüberfall auslösen</button>
-  <button data-dev="testDistress">Notruf auslösen</button>
-  <button data-dev="testSignal">Sensor-Signal auslösen</button>
-  <button data-dev="testWreck">Wrack-Fund auslösen</button>
-  <button data-dev="testConvoy">Konvoi-Ereignis auslösen</button>
-  <button data-dev="testWormhole">Wurmloch-Anomalie auslösen</button>
-  <button data-dev="testCombatMission">Kampfeinsatz-Datenmodell testen (Konsole)</button>
-  <button data-dev="launchCombatMissionDev">Kampfeinsatz auslösen (Credits abziehen &amp; Kampf-Simulator öffnen)</button>
-  <button data-dev="simulateCombatWin">Kampfeinsatz-Ergebnis simulieren: Sieg</button>
-  <button data-dev="simulateCombatLoss">Kampfeinsatz-Ergebnis simulieren: Niederlage</button>
-
-  <div class="devGroup">Schwierigkeit &amp; Meta</div>
-  <button data-dev="maxSideStories">Nebenstorys auf letztes Kapitel setzen</button>
-
-  <div class="devGroup">Sonstiges</div>
-  <button data-dev="maxDefense">Verteidigungsmodul auf Maximalstufe</button>
-  <button data-dev="claimAll">Alle entdeckten Systeme kostenlos beanspruchen</button>
-  <button data-dev="simulate24h">24 Std. Imperium-Einkommen & Ruf-Drift simulieren</button>
-  <button data-dev="manualSave">Jetzt manuell speichern</button>
-  <button data-dev="hardReset">Hartes Reset: neues Spiel starten</button>
+<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): eigenstaendiges Konto-Widget, 6-stelliger E-Mail-Code
+     statt Magic-Link (funktioniert auch aus einer APK-WebView heraus, kein Browser-Redirect
+     noetig). Gleiche Supabase-Zugangsdaten wie in den anderen Spielen -> eine Anmeldung gilt
+     ueberall auf dieser Domain, weil die Session im localStorage der Domain liegt. -->
+<div id="cloudAccountBar" style="position:fixed;top:14px;right:14px;z-index:99999;font-family:system-ui,-apple-system,sans-serif;font-size:12px;">
+  <button id="cloudAccountToggle" style="background:rgba(15,15,20,0.85);color:#eee;border:1px solid #555;padding:7px 14px;border-radius:18px;cursor:pointer;backdrop-filter:blur(4px);">☁ Konto</button>
+  <div id="cloudAccountPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:250px;background:#16161a;border:1px solid #444;border-radius:10px;padding:12px;box-shadow:0 10px 26px rgba(0,0,0,0.5);color:#ddd;">
+    <div id="cloudStepEmail">
+      <div style="line-height:1.5;color:#aaa;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+      <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;">
+      <button id="cloudSendCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Code senden</button>
+    </div>
+    <div id="cloudStepCode" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Code aus der E-Mail eingeben:</div>
+      <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;letter-spacing:3px;text-align:center;">
+      <button id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Bestätigen</button>
+    </div>
+    <div id="cloudStepIn" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
+    </div>
+    <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
+  </div>
 </div>
-<!-- ===== DEVTOOLS:END ===== -->
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+
+  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.style.color = isErr ? '#e37b7b' : '#8fd18f'; }
+  function render(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
+    var emailEl = document.getElementById('cloudUserEmail');
+    if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+  }
+
+  toggle.addEventListener('click', function(){ panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
+  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.style.display = 'none'; });
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data.session;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      var wasLoggedOut = !window.__cloudUser;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(wasLoggedOut && window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+
+    document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+      var email = document.getElementById('cloudEmailInput').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+      var code = document.getElementById('cloudCodeInput').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+
+    document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      render();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+  render();
+})();
+</script>
 </body>
 </html>

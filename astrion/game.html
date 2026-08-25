@@ -4,6 +4,336 @@
  ASTRION — Karten aus den Tiefen des Alls
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v0.06.101
+- Wochen-Rotations-Banner (`#titleWeekBanner`) auf dem Titelbildschirm neu
+  positioniert — war bisher unabhängig vom Logo mit festem `bottom:120px`
+  gesetzt und landete dadurch tief unten, fast auf Höhe des Start-Buttons
+  (siehe Screenshot: schlecht platziert, wirkte verloren). Jetzt stecken
+  Banner + Logo gemeinsam in einem neuen `.title-header-stack`-Container,
+  der als Ganzes zentriert wird — Banner sitzt dadurch immer mit festem
+  Abstand DIREKT ÜBER dem Logo (nicht drauf, nicht drunter), unabhängig
+  von der tatsächlichen Logo-Höhe (Bild vs. Text-Fallback bei fehlendem
+  `art/logo.png`). Kein Pixel-Rätselraten mehr mit unabhängigen
+  `bottom:Npx`-Werten für zwei Elemente, die eigentlich zusammengehören.
+  Zusätzlich etwas größer: Cover 34×48 → 42×60px, Schrift 10px/13px →
+  11px/14px, mehr Innenabstand.
+  Technischer Hinweis: die Positionierungs-Regel musste bewusst als
+  `#screen-title .title-header-stack` (nicht nur `.title-header-stack`)
+  geschrieben werden — sonst hätte die bereits bestehende generische Regel
+  `#screen-title>*:not(.warp-canvas){position:relative}` (gleiche
+  Spezifität, aber weiter oben im Stylesheet) das `position:absolute`
+  wieder auf `relative` zurückgesetzt und die Zentrierung wäre kaputt
+  gegangen — derselbe Spezifitäts-Kniff, der vorher schon für
+  `.title-logo-wrap` einzeln nötig war.
+  IDs (`titleWeekBanner`/`titleWeekCover`/`titleWeekLabel`/
+  `titleWeekSetName`) unverändert, `renderTitleWeekBanner()` unangetastet
+  — nur die HTML-Verschachtelung/CSS-Positionierung hat sich geändert.
+  Getestet: `node --check` sauber, Div/Pre/Button/Canvas-Tag-Balance
+  sauber (+1 Div durch den neuen Stack-Container, beidseitig ausgeglichen).
+
+v0.06.100
+- Emoji-Icon aus dem Boot-Log entfernt: die Liga-Zeile
+  (`bootLine("Liga", ctx.leagueLabel)`) hat bisher das Liga-Emoji der
+  jeweils aktuellen Turnier-Liga mit reingebaut
+  (`${league.icon} ${league.label}`, z.B. 💎/🔥/🦝 je nach Liga) — passt
+  nicht in einen Retro-Terminal-Boot, echtes DOS/BIOS hätte sowas nie
+  angezeigt. `getBootContext()` liefert `leagueLabel` jetzt nur noch als
+  reinen Text (`league.label`), ohne Icon. Das ✦-Zeichen bei
+  "Tauschpunkte" bleibt bewusst stehen — kein Emoji, sondern ein simples
+  Unicode-Sternsymbol, wie es in echten 80er-Terminals/BBS-ASCII-Art
+  durchaus vorkam.
+  Geprüft: keine weiteren Emoji-Fundstellen in `getBootContext()`/
+  `generateBootLines()`. `node --check` sauber.
+
+v0.06.99
+- Boot-Sequenz auf Wunsch etwas beschleunigt: Gesamtdauer von ~80s
+  (v0.06.93-98) auf ~48s runtergeschraubt (mit echtem Boot-Inhalt via
+  Node nachgerechnet, kein Schätzwert). Timing-Anpassungen:
+  `totalCharBudgetMs` 65000 → 38000, Tipp-Tempo-Deckel 14-45ms → 8-28ms
+  pro Zeichen, `interLineMs` 160 → 100ms, `finalHoldMs` 1800 → 1400ms,
+  die vier Fortschrittsbalken-Zeilen proportional gekürzt (1500/1100/
+  1000/850ms → 1050/800/700/600ms). Bleibt wie immer jederzeit per
+  Klick/Taste überspringbar.
+  Getestet: `node --check` sauber. Neue Gesamtdauer mit dem tatsächlichen
+  `generateBootLines()`-Inhalt (inkl. `bootLine()`-Ausrichtung, echten
+  Beispiel-Spielstand-Werten) durchgerechnet: 48.0s.
+
+v0.06.98
+- **Der wahre Grund, warum das Banner unsichtbar war, endlich gefunden.**
+  Diesmal kein Scroll-Problem (das war v0.06.96) — das Banner war
+  buchstäblich auf 0px Höhe geklemmt. Ursache: `fitBootBanner()` wurde in
+  `playDosBootSequence()` VOR `overlay.classList.add('visible')`
+  aufgerufen. Bis zu diesem Aufruf hatte `#dosBootOverlay` aber noch
+  `display:none` — die komplette Banner-Struktur darin hatte dadurch
+  buchstäblich KEIN Layout, jede Messung (`scrollWidth`, `scrollHeight`,
+  `clientWidth`) lieferte 0. In `fitOneBootBanner()` griff dadurch
+  IMMER der else-Zweig und setzte `wrapEl.style.height = '0px'` — als
+  Inline-Style, der auch bestehen blieb, nachdem das Overlay kurz danach
+  sichtbar wurde (Inline-Styles überschreiben CSS-Regeln). Das Banner war
+  dadurch nicht verscrollt oder falsch positioniert, sondern schlicht auf
+  eine Wrapper-Höhe von 0 eingeklemmt — quasi unsichtbar, exakt wie
+  gemeldet ("erscheint gar nicht").
+  **Fix:** Reihenfolge getauscht — `overlay.classList.add('visible')`
+  läuft jetzt VOR dem Banner-Setup/`fitBootBanner()`-Aufruf, dadurch hat
+  `#dosBootOverlay` an dem Punkt bereits `display:flex` und alle Messwerte
+  sind korrekt. Zusätzlich Sicherheitsnetz in `fitOneBootBanner()`
+  eingebaut: falls `naturalHeight` aus irgendeinem Grund trotzdem ≤0
+  gemessen wird (z.B. Web-Font noch nicht geladen), wird KEINE Höhe
+  gesetzt (bleibt `auto`) statt den Wrapper erneut auf 0px zu klemmen.
+  Getestet: `node --check` sauber, Div/Pre/Button/Canvas-Tag-Balance
+  sauber. Zusätzlich die Kernlogik von `fitOneBootBanner()` isoliert mit
+  simulierten Messwerten durchgespielt (einmal mit den alten 0-Werten wie
+  bei `display:none`, einmal mit realistischen Werten wie nach dem Fix) —
+  bestätigt den Unterschied zwischen dem alten `height=0px`-Bug und dem
+  jetzt korrekten skalierten Ergebnis.
+
+v0.06.97
+- Boot-Sequenz gegen die neue offizielle Vorlage (boot-sequence-template-v2.html)
+  abgeglichen — Astrion hatte durch die vorherigen Runden (v0.06.90–96) aber
+  bereits die wichtigsten Verbesserungen der v2-Vorlage vorweggenommen bzw.
+  robuster gelöst, deshalb hier nur noch ein Angleich, kein Umbau:
+  - **Padding-Schema** an die Vorlage angeglichen: 28px/18px mobil, 40px ab
+    700px Breite (vorher: eigene 40px/16px-14px-Werte mit 520px-Breakpoint).
+    Dasselbe Schema läuft jetzt auch im MC-ORCA-Hub (index.html) — einheit-
+    licher Rahmen für alle Spiele, die diese Vorlage nutzen.
+  - **Bewusst NICHT von der Vorlage übernommen:** die Vorlage schaltet das
+    Banner nur zwischen zwei festen Schriftgrößen um (11px/15px an einem
+    700px-Breakpoint) und lässt bei langen Boot-Logs `overlay.scrollTop`
+    das GANZE Overlay scrollen. Astrion hat stattdessen schon seit v0.06.92/
+    96: `fitBootBanner()` skaliert jedes der beiden Banner-Teile
+    kontinuierlich per JS auf die tatsächlich verfügbare Breite (feiner als
+    zwei feste Breakpoints), und das Banner ist als `flex:0 0 auto` fest
+    oben angepinnt, nur der Terminaltext scrollt in einem eigenen Container
+    — genau der Fix, der jetzt auch in den Hub übernommen wurde. Diese
+    beiden Astrion-eigenen Lösungen sind robuster als die Vorlage selbst,
+    deshalb hier beibehalten statt zurückgebaut.
+  Alles andere (violette Schriftfarbe, schwarzer Hintergrund, getrenntes
+  MC-ORCA/GAMES-OS-Banner, ~65s-Timing, Skip-Hinweistext) unverändert.
+  Getestet: `node --check` sauber, Div/Pre/Button/Canvas-Tag-Balance sauber.
+
+v0.06.96
+- **Der eigentliche Bug hinter "ich sehe kein Banner" gefunden und
+  gefixt.** Das Banner war die ganze Zeit korrekt im DOM und korrekt
+  befüllt (siehe Screenshot des Nutzers: violetter Terminaltext lief
+  einwandfrei) — es war nur unsichtbar aus dem Sichtbereich gescrollt.
+  Ursache: `redraw()` und `finishNow()` haben bisher
+  `overlay.scrollTop = overlay.scrollHeight` gesetzt, also bei JEDEM
+  getippten Zeichen das GESAMTE `#dosBootOverlay` (inkl. Banner ganz oben)
+  nach unten gescrollt, sobald der Inhalt nicht mehr auf den Bildschirm
+  passte. Durch die in v0.06.92 stark verlängerte Boot-Sequenz plus die
+  zwei Banner-Blöcke aus v0.06.94 passiert das inzwischen fast sofort —
+  und bei `overflow:hidden` (kein Scrollbalken, keine Möglichkeit manuell
+  zurückzuscrollen) blieb das Banner dauerhaft oberhalb des sichtbaren
+  Bereichs verborgen. Genau das zeigte der Screenshot: Terminaltext ab
+  "ASTRION BIOS v1.0" sichtbar, aber alles darüber (die zwei
+  MC-ORCA/GAMES-OS-Banner) abgeschnitten.
+  **Fix:** komplettes Boot-Overlay-Layout auf Flexbox-Spalte umgestellt.
+  `.dos-boot-inner` füllt jetzt die volle Höhe (`flex:1 1 auto;
+  min-height:0`), die beiden `.dos-boot-banner-wrap`-Blöcke bekommen
+  `flex:0 0 auto` (schrumpfen nie, scrollen nie mit) und bleiben dadurch
+  fest oben stehen — wie bei einem echten Rechner, dessen Boot-Logo auch
+  nicht mitscrollt. Neuer Container `.dos-boot-text-scroll` (mit
+  `overflow-y:auto`, eigener schmaler Scrollbar in Akzent-Violett) wickelt
+  jetzt nur noch den `<pre id="dosBootText">`-Terminaltext und scrollt für
+  sich allein (`textScrollEl.scrollTop = textScrollEl.scrollHeight`
+  ersetzt die alten `overlay.scrollTop`-Aufrufe in `redraw()` und
+  `finishNow()`). Ergebnis: Banner ist ab jetzt permanent sichtbar, nur
+  der darunterliegende Diagnosetext läuft wie bei einem echten Terminal
+  durch.
+  Getestet: `node --check` sauber, Div/Pre/Button/Canvas-Tag-Balance
+  sauber (Kommentare beim Zählen korrekt ausgeklammert, nachdem ein
+  Changelog-Text mit wörtlichem `<div>`-Beispiel in v0.06.95 kurzzeitig
+  eine Falschmeldung ausgelöst hatte — Prüfskript entsprechend
+  nachgebessert).
+
+v0.06.95
+- Hintergrund vom Boot-Overlay zurück auf reines Schwarz (`#000`) —
+  der violette Glow aus v0.06.93 ist wieder raus, war nicht gewünscht.
+- Split-Banner (MC ORCA / GAMES OS, seit v0.06.94) nochmal komplett
+  nachverfolgt und zusätzlich abgesichert: `.dos-boot-inner` und
+  `.dos-boot-banner-wrap` bekommen jetzt explizit `display:block` (statt
+  sich nur auf den Browser-Default für Div-Elemente zu verlassen), damit unter
+  keinen Umständen — auch nicht durch eine spätere, an anderer Stelle
+  hinzugefügte Flex-/Inline-Regel — beide Teilbanner nebeneinander statt
+  untereinander landen können. Habe die komplette Verdrahtung noch mal
+  Zeile für Zeile nachverfolgt (HTML-IDs `dosBootBanner1`/`dosBootBanner2`
+  ↔ JS `getElementById` ↔ `BOOT_BANNER_MC`/`BOOT_BANNER_GAMES`) — keine
+  Reste der alten Einzel-Banner-Konstante oder der alten
+  `dosBootBanner`-ID (ohne Ziffer) mehr im Code, alles zeigt korrekt auf
+  die zwei getrennten Teile.
+  Hinweis: falls du weiterhin das alte Einzel-Banner siehst, prüf bitte,
+  ob im Browser noch die vorherige heruntergeladene Datei offen ist (bei
+  `file://`-URLs merken sich manche Browser/Tabs den zuletzt geladenen
+  Stand) — am sichersten ist ein harter Reload (Strg+Shift+R) oder die
+  Datei einmal frisch aus dem Download-Ordner neu zu öffnen.
+
+v0.06.94
+- Korrektur zu v0.06.93 — hatte "trennen" aus dem ursprünglichen Wunsch
+  falsch verstanden und stattdessen ein zusätzliches ASTRION-Logo plus
+  violetten Glow-Hintergrund eingebaut. Gemeint war eigentlich: das
+  MC-ORCA-GAMES-OS-Banner selbst in zwei Teile trennen. Jetzt korrigiert:
+  1. **Banner in zwei gestapelte Teile getrennt** — `BOOT_BANNER_MC`
+     ("MC ORCA") und `BOOT_BANNER_GAMES` ("GAMES OS"), je eigener
+     `.dos-boot-banner-wrap` mit eigenem `fitOneBootBanner()`-Aufruf
+     (`fitBootBanner()` ruft jetzt beide auf). Beide Teile mit `pyfiglet`
+     (Figlet-Font "standard") nachgebaut und Zeichen-für-Zeichen mit dem
+     Original-Einzelbanner abgeglichen — kombiniert ergeben sie exakt
+     dasselbe Banner wie vorher (per Node-Test verifiziert), nur als zwei
+     ~46 statt einem ~94 Zeichen breiten Block. Grund: auf einem
+     Hochformat-Handy reicht die Breite für ~46 Zeichen bei brauchbarer
+     Schriftgröße noch aus, für die vollen ~94 praktisch nie — das eine
+     breite Banner musste vorher extrem herunterskaliert werden und war
+     kaum noch lesbar ("merkwürdig abgeschnitten").
+  2. **ASTRION-Logo-Zusatz aus v0.06.93 wieder entfernt** (`.dos-boot-logo`
+     samt Bild+Fallback, HTML-Block, CSS) — war nicht Teil des
+     eigentlichen Wunsches.
+  3. **Lila jetzt als Schriftfarbe des Boots**, nicht (nur) als
+     Hintergrund-Glow: Banner + Terminaltext + blinkender Cursor laufen
+     jetzt komplett in Violett (`var(--accent2)`, `#7c5cff` — dieselbe
+     Farbe wie z.B. `.btn-primary`), vorher Gold (`var(--accent)`). Der
+     violette Hintergrund-Glow aus v0.06.93 bleibt bestehen (dafür gab's
+     kein Rückbau-Signal), passt jetzt farblich zum violetten Text.
+     Skip-Hinweis unten rechts auf ein gedimmtes Violett (`#8f7fd6`) statt
+     dem alten `--accent-dim` (Gold) umgestellt.
+  Timing/Skip-Logik unverändert (v0.06.93: ~65s Basis-Budget, jederzeit
+  überspringbar).
+  Getestet: `node --check` sauber, Div/Pre/Button/Canvas-Tag-Balance
+  sauber, beide Teilbanner per Node zusammengesetzt und mit dem
+  Original-Einzelbanner verglichen — identisch bis auf einen zusätzlichen
+  Leerraum an der Trennstelle (durch die separate Figlet-Generierung,
+  optisch irrelevant).
+
+v0.06.93
+- Boot-Sequenz (Fortsetzung v0.06.90–92), drei Wünsche umgesetzt:
+  1. **Violetter Glow-Hintergrund** im `#dosBootOverlay` statt reinem
+     Schwarz — zwei `radial-gradient`s auf Basis von `--accent2`
+     (`#7c5cff`, dasselbe Violett, das ASTRION an anderen Stellen schon
+     fürs Marken-Branding nutzt, z.B. `.btn-primary`), oben-links stärker,
+     unten-rechts dezenter, dahinter dunkler Fond `#05030f`. Scanline-
+     Overlay (`::after`) bleibt unverändert oben drauf.
+  2. **ASTRION-Logo jetzt auch im Boot-Overlay** — vorher tauchte im
+     gesamten Boot-Vorgang nur das MC-ORCA-Studio-Branding auf, die
+     eigentliche Spielmarke gar nicht. Neuer Block `.dos-boot-logo` ganz
+     oben im `.dos-boot-inner`, noch vor dem MC-ORCA-ASCII-Banner —
+     selbes Bild+Fallback-Muster wie auf `#screen-title` (`art/logo.png`
+     mit `onerror`-Fallback auf ein Gradient-Text-Logo), nur kleiner
+     skaliert fürs Terminal-Layout. Reihenfolge jetzt wie bei einem
+     klassischen Publisher-dann-Spiel-Boot: erst Spiellogo, dann Studio-
+     Banner, dann die eigentliche Boot-Diagnostik.
+  3. **Boot-Dauer deutlich erhöht** (`totalCharBudgetMs` 30000 → 65000,
+     `interLineMs` 110 → 160, `finalHoldMs` 1400 → 1800) — Gesamtlaufzeit
+     jetzt bei typischem Spielstand rechnerisch ~80s statt ~30s. Bleibt
+     jederzeit per Klick/Taste überspringbar (Skip-Logik unverändert),
+     macht also nichts, dass es jetzt spürbar länger "wie ein echter
+     Rechnerstart" dauert.
+  Getestet: `node --check` sauber, Div/Pre/Button/Canvas-Tag-Balance
+  sauber. Laufzeit mit Beispiel-Spielstand durchgerechnet (Node-
+  Testskript, kein DOM) → ~79.8s bei den neuen Timing-Konstanten, passt
+  zur Vorgabe "1 Minute oder mehr".
+
+v0.06.92
+- Boot-Sequenz (aus v0.06.90/91) überarbeitet: **Mobile-Fit** + **deutlich
+  mehr Boot-Daten**, wie besprochen ("muss getrennt werden, so dass es für
+  mobile Spiele passt, und viel mehr Daten im Boot, als ob es ein echter
+  Start ist wie bei PC/Großrechnern aus den 70er/80er Jahren").
+  1. **Mobile-Fit fürs ASCII-Banner:** vorher `overflow-x:auto` — auf
+     schmalen Handy-/APK-Webview-Breiten wurde das ~94 Zeichen breite
+     Banner seitlich abgeschnitten, man musste auf einem Vollbild-Overlay
+     wischen, das eigentlich nur Taps zum Skip erwartet (schlechte Mobile-
+     UX). Jetzt: neue Funktion `fitBootBanner()` skaliert das Banner per
+     CSS `transform:scale()` exakt auf die verfügbare Breite runter (reine
+     Optik, der Zeicheninhalt bleibt 1:1 unverändert), der neue Wrapper
+     `.dos-boot-banner-wrap` (`overflow:hidden`, feste Höhe im skalierten
+     Maß) verhindert eine Lücke durch die vom `transform` unberührte
+     Original-Boxhöhe. Läuft beim Banner-Aufbau UND (debounced) bei
+     `resize` (Bildschirmdrehung). Zusätzlich schmaleres Padding fürs
+     Overlay sowie kleinere Skip-Hinweis-/Text-Schrift unter 520px
+     Breite (eigene `@media`-Regeln).
+  2. **Viel mehr Boot-Daten:** `generateBootLines()` komplett erweitert —
+     vorher ~20 Zeilen, jetzt ein waschechter POST-artiger Ablauf in 3
+     Phasen: (1) Power-On-Self-Test mit CPU-/Board-Kennung, Kernspeicher-
+     Prüfsumme, Speichertest (640K/65536K, klassischer BIOS-Look),
+     Peripherie-Erkennung, COM-Ports/IRQs, sowie zwei bewusst nostalgische
+     Großrechner-Anleihen (Bandlaufwerk, Lochkartenleser — Letzterer
+     natürlich "nicht verbunden", kleiner Insider-Gag); (2) OS-Kernel-Start
+     mit den bestehenden Modulen; (3) erweiterte Profil-/Spielstand-Zeilen
+     — zusätzlich zu Deck/Sammlung/Liga/Booster/Kredite jetzt auch
+     Deckgröße, Glanz-Kartenzahl, Gefechtsbilanz (Siege/Niederlagen +
+     Quote), Login-Serie-Tage und Tauschpunkte, alle aus echten
+     `state`-Werten (`getBootContext()` entsprechend um
+     `deckSize`/`foilCount`/`battleWins`/`battleLosses`/`dailyStreak`/
+     `points` ergänzt). Neue Hilfsfunktion `bootLine(label, value, width)`
+     richtet Label/Wert per Punkten auf eine feste Breite aus (klassischer
+     BIOS-Listenlook) statt manuell abgezählter Punkte pro Zeile — fällt
+     bei zu langem Label (z.B. sehr langer Deckname) auf ein Mindestmaß
+     von 3 Punkten zurück statt mit negativer `repeat()`-Länge zu crashen
+     (isoliert getestet, siehe unten).
+  Timing: `totalCharBudgetMs` von 24000 auf 30000 angehoben (mehr Inhalt
+  bei ähnlichem Lesetempo braucht spürbar länger, wirkt dadurch wie ein
+  "echter" Boot statt eines durchgehetzten Textblocks), `interLineMs` von
+  130 auf 110ms leicht gesenkt, damit die zusätzlichen Kurzzeilen (COM-
+  Ports, Peripherie-Liste) nicht zäh wirken. Timing-Engine selbst
+  (Typewriter/Skip/CRT-Poweron/-Poweroff) unverändert.
+  Getestet: `node --check` sauber. Isolierter Node-Test von `bootLine()`
+  bestätigt korrekte Punkt-Ausrichtung bei normaler Länge und den
+  Mindestabstand-Fallback bei einem absichtlich sehr langen Testlabel
+  (kein Crash, keine negative `repeat()`-Länge).
+
+v0.06.91
+- Bugfix (Absturz beim Laden — `Uncaught TypeError: console.table is not a
+  function`): das Debug-Logging der Karten-IDs direkt nach `buildCardDB()`
+  rief `console.table()` ungeschützt auf. In Umgebungen ohne diese Methode
+  (z.B. manche APK-Webviews, siehe Kommentar bei `LS_KEY`/`hasCloudStorage`
+  — Astrion läuft ja auch dort) crashte das mit einem Uncaught TypeError,
+  der als Top-Level-Fehler ALLE nachfolgenden Statements im Script-Block
+  verhindert hat — inkl. `TOTAL_CARDS`, `DEFAULT_STATE`/`state`, der ganzen
+  Boot-Sequenz-Initialisierung und der `startBtn`/`screen-soundgate`-
+  Listener ganz unten. Ergebnis: Seite lud, aber nichts reagierte mehr.
+  Fix: `console.table()` nur noch aufgerufen, wenn
+  `typeof console.table === 'function'`, sonst Fallback auf `console.log()`
+  mit denselben Daten (reine Debug-Ausgabe für die CARD_IMAGES-Zuordnung,
+  kein Funktionsverlust) — zusätzlich das ganze Logging in try/catch
+  gewrappt, damit von hier aus grundsätzlich nichts mehr den Boot-Vorgang
+  stoppen kann.
+  Getestet: `node --check` sauber.
+
+v0.06.90
+- Neu: **MC ORCA GAMES OS Boot-Sequenz** eingebaut (Studio-Branding, aus
+  `boot-sequence-template.html` übernommen — dasselbe Template, das auch
+  bei deep_anchor läuft). Zwei unabhängige Effekte:
+  1. **CRT-Poweron-Flash** auf `#screen-soundgate` (der allererste
+     Bildschirm überhaupt, noch vor dem Titelbildschirm): kurzer
+     Röhrenmonitor-Einschalt-Flash beim ersten Laden, rein CSS
+     (`crtBootOverlay`/`.crt-boot-line`, neue Klasse `crt-boot` auf dem
+     Screen-Div, Inhalt jetzt in `.splash-inner` gewrappt, damit die
+     bestehenden Kinder (Logo, Tap-Hinweis) gemeinsam reingeblendet werden
+     können). Rein optisch, kein Sound (Browser blockt Audio vor der
+     ersten Nutzer-Interaktion ohnehin).
+  2. **DOS-Bootstream** (`#dosBootOverlay`, `playDosBootSequence()`):
+     läuft beim tatsächlichen Spielstart — Klick auf `#startBtn` auf
+     `#screen-title`, NICHT auf dem Sound-Gate. Eingehängt direkt nach
+     `ensureStateLoaded()` (Ladeanzeige "Sammlung wird geladen..." läuft
+     wie gehabt vorher), vor `startGameplayMusic()`/`switchScreen('hub')`
+     bzw. `tryRestoreBattle()` — d.h. auch beim Wiederaufnehmen eines
+     pausierten Gefechts bootet zuerst das OS. Getippter Retro-Terminal-
+     Textaufbau mit dem exakt 1:1 übernommenen ASCII-Banner "MC ORCA GAMES
+     OS", Fortschrittsbalken-Zeilen, Sound-Blips (nutzt ASTRIONs eigenes
+     `playTone()` statt eines eigenen Audio-Ersatzes) und CRT-Poweron/
+     -Poweroff-Übergang. Per Klick/Taste überspringbar.
+  Pro-Spiel-Anpassungen (Timing-Engine selbst 1:1 aus dem Template):
+  `--accent-dim` neu in `:root` ergänzt (gedimmtes Gold, nur für den
+  Skip-Hinweis); Banner-/Text-Glow-Farben von Orange auf ASTRIONS Gold
+  (`#e8b64a`) umgestellt; `OS_NAME = "ASTRION-OS"`, `BIOS_LINE = "ASTRION
+  BIOS v1.0"`. `getBootContext()` liest echte Werte aus `state`: Name des
+  aktiven Decks (`state.decks`/`state.activeDeckId`), aktuelle Turnier-
+  Liga (`TOURNAMENT_LEAGUES[state.tournament.currentLeagueIdx]`),
+  Sammlungsgröße gegen `TOTAL_CARDS`, Booster-Bestand über alle Reihen
+  (Summe von `state.boosterQueueBySet`) und Sternenkredite
+  (`state.credits`) — kein `profileName`-Feld im State vorhanden, daher
+  Begrüßung generisch ("Willkommen zurück, Sternenreisende(r)."), Deckname
+  übernimmt stattdessen die identitätsstiftende Rolle.
+  Getestet: `node --check` sauber, Python Div-/Tag-Balance-Check sauber.
+
 v0.06.89
 - Bugfix (Daily-Login-Booster verschwanden ins Nichts): der Booster-
   Reward im 7-Tage-Login-Bonus wurde bisher SOFORT über
@@ -2878,6 +3208,7 @@ v0.00.1
     --text-dim:#9490ab;
     --card-text-dim:#c7c4dc;
     --accent:#e8b64a;
+    --accent-dim:#a8843a;      /* v0.06.90 — gedimmtes Gold, nur fuer die Boot-Sequenz (Skip-Hinweis) */
     --accent2:#7c5cff;
     --c1:#8a93a6; --c1-glow:rgba(138,147,166,0.55);   /* common */
     --c2:#5da3ff; --c2-glow:rgba(93,163,255,0.55);    /* uncommon */
@@ -2934,22 +3265,29 @@ v0.00.1
   .warp-canvas{position:absolute;inset:0;z-index:0;width:100%;height:100%;display:block;}
   #screen-soundgate>*:not(.warp-canvas),#screen-title>*:not(.warp-canvas){position:relative;z-index:1;}
   .title-logo-wrap{display:flex;flex-direction:column;align-items:center;}
-  /* v0.06.87 — Wochen-Rotations-Banner auf dem Titelbildschirm, zeigt das
-     Cover-Bild + den Namen des Sets, das diese Woche dran ist (siehe
-     renderTitleWeekBanner()). Bewusst dezent unter dem Logo platziert,
-     kein neues Bild-Asset nötig — nutzt die bereits vorhandenen
-     art/sets/<id>.png Booster-Cover. */
-  .title-week-banner{display:flex;align-items:center;gap:10px;background:rgba(10,8,20,0.55);
-    border:1px solid rgba(232,182,74,0.35);border-radius:12px;padding:6px 14px 6px 6px;
-    backdrop-filter:blur(4px);}
-  #screen-title .title-week-banner{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);margin:0;z-index:2;}
-  .title-week-cover{width:34px;height:48px;object-fit:cover;border-radius:6px;
+  /* v0.06.101 — Wochen-Rotations-Banner war bisher unabhängig vom Logo mit
+     einem festen `bottom:120px` positioniert (siehe Screenshot: landete
+     dadurch tief unten, fast auf Höhe des Start-Buttons, wirkte
+     "verloren" bzw. schlecht platziert). Jetzt: Banner + Logo stecken
+     gemeinsam in `.title-header-stack`, die als GANZES zentriert wird
+     (statt Banner und Logo einzeln beide mit eigenem absoluten
+     top:50%-Trick zu positionieren). Banner sitzt dadurch immer direkt
+     ÜBER dem Logo mit einem festen Abstand (margin-bottom auf dem
+     Banner), unabhängig von der tatsächlichen Logo-Höhe (Bild vs.
+     Text-Fallback) — kein Überlappen, keine Rätselrechnerei mit Pixel-
+     Offsets. Zusätzlich etwas größer: Cover 34x48 -> 42x60, Schrift
+     10px/13px -> 11px/14px, mehr Padding. */
+  .title-header-stack{display:flex;flex-direction:column;align-items:center;}
+  #screen-title .title-header-stack{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;}
+  .title-week-banner{display:flex;align-items:center;gap:12px;background:rgba(10,8,20,0.55);
+    border:1px solid rgba(232,182,74,0.35);border-radius:12px;padding:8px 18px 8px 8px;
+    backdrop-filter:blur(4px);margin:0 0 22px;}
+  .title-week-cover{width:42px;height:60px;object-fit:cover;border-radius:6px;
     border:1px solid rgba(232,182,74,0.5);}
-  .title-week-txt{display:flex;flex-direction:column;line-height:1.25;}
-  .title-week-label{font-size:10px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-dim);}
-  .title-week-setname{font-size:13px;font-weight:700;color:var(--accent);}
+  .title-week-txt{display:flex;flex-direction:column;line-height:1.3;}
+  .title-week-label{font-size:11px;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-dim);}
+  .title-week-setname{font-size:14px;font-weight:700;color:var(--accent);}
   #screen-title{justify-content:flex-end;padding-bottom:64px;}
-  #screen-title .title-logo-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;}
   .logo-img{max-width:min(620px,92vw);width:100%;height:auto;filter:drop-shadow(0 0 40px rgba(232,182,74,0.35));}
   .logo-mark{font-family:var(--font-head);font-weight:900;font-size:clamp(38px,10vw,64px);
     letter-spacing:6px;background:linear-gradient(180deg,#fff,#e8b64a 70%);
@@ -2988,6 +3326,122 @@ v0.00.1
     border:1px solid var(--panel-border);border-radius:10px;padding:10px 12px;z-index:2;text-align:center;}
   .music-popover-btn{margin:0;padding:8px 14px;font-size:11px;box-shadow:none;width:100%;}
   .music-volume-input{width:130px;margin-top:8px;accent-color:var(--accent);display:block;}
+
+  /* ============================================================
+     MC ORCA GAMES OS — BOOT-SEQUENZ (v0.06.90)
+     Aus boot-sequence-template.html übernommen, siehe Kopf-Kommentar dort.
+     ASCII-Banner + Timing-Engine (Typewriter, Fortschrittsbalken, Skip,
+     CRT-Poweron/-Poweroff) 1:1 unverändert — nur Farben (var(--accent),
+     hier Gold statt Orange) und der Inhalt der Boot-Zeilen sind ASTRION-
+     spezifisch angepasst (siehe generateBootLines()/getBootContext() im
+     Script weiter unten).
+
+     1) CRT-POWERON läuft einmalig auf #screen-soundgate (der allererste
+        Bildschirm überhaupt, siehe HTML — analog #splashScreen im Template).
+     2) DOS-BOOTSTREAM (#dosBootOverlay) läuft beim tatsächlichen Spielstart,
+        wenn #startBtn auf #screen-title geklickt wird, siehe Script-Ende
+        (analog showGameRoot() in deep_anchor).
+     ============================================================ */
+  #screen-soundgate #crtBootOverlay{position:absolute;inset:0;z-index:5;background:#000;pointer-events:none;overflow:hidden;
+    animation:crtBootOverlayFade .25s linear .6s forwards;}
+  .crt-boot-line{position:absolute;left:50%;top:50%;width:100%;height:3px;
+    background:linear-gradient(90deg,transparent,#dff6ff 15%,#ffffff 50%,#dff6ff 85%,transparent);
+    box-shadow:0 0 20px 4px rgba(180,230,255,.9),0 0 60px 14px rgba(120,200,255,.5);
+    transform:translate(-50%,-50%) scaleY(0.002);opacity:0;
+    animation:crtBootLine .42s cubic-bezier(.2,.85,.3,1) .2s forwards;}
+  @keyframes crtBootLine{
+    0%{transform:translate(-50%,-50%) scaleY(0.002);opacity:0;}
+    15%{opacity:1;}
+    40%{transform:translate(-50%,-50%) scaleY(0.002);opacity:1;}
+    78%{transform:translate(-50%,-50%) scaleY(1.08);opacity:1;}
+    92%{transform:translate(-50%,-50%) scaleY(0.97);}
+    100%{transform:translate(-50%,-50%) scaleY(1);opacity:0;}
+  }
+  @keyframes crtBootOverlayFade{from{opacity:1;}to{opacity:0;visibility:hidden;}}
+  #screen-soundgate.crt-boot .splash-inner{opacity:0;animation:crtBootContentIn .35s ease-out .42s forwards;}
+  @keyframes crtBootContentIn{
+    0%{opacity:0;filter:brightness(2.4) contrast(1.5);}
+    100%{opacity:1;filter:brightness(1) contrast(1);}
+  }
+
+  #dosBootOverlay{position:fixed;inset:0;z-index:900;background:#000;
+    display:none;flex-direction:column;align-items:flex-start;justify-content:flex-start;
+    padding:28px 18px;box-sizing:border-box;cursor:pointer;overflow:hidden;
+    opacity:1;transition:opacity .4s ease;font-family:'Courier New',ui-monospace,monospace;}
+  #dosBootOverlay.visible{display:flex;}
+  /* v0.06.97 — Vorlage: boot-sequence-template-v2.html. Padding-Schema an
+     die Vorlage angeglichen (28px/18px mobil, 40px ab 700px Breite) —
+     dasselbe Schema wie jetzt auch im MC-ORCA-Hub (index.html) und
+     Referenzwert für alle künftigen Spiele, die dieselbe Vorlage nutzen.
+     Astrions eigene Mobile-Fit-Lösung (fitBootBanner(), skaliert das
+     Banner per JS kontinuierlich auf die tatsächlich verfügbare Breite)
+     bleibt bestehen — sie deckt Breiten feiner ab als die Vorlage selbst
+     (die nur zwischen zwei festen Schriftgrößen umschaltet), das Padding-
+     Angleichen ändert daran nichts, macht nur den Rahmen einheitlich. */
+  @media (max-width:700px){ #dosBootOverlay{padding:16px 14px;} }
+  #dosBootOverlay.crt-poweron{animation:crtPowerOn .55s ease-out both;transform-origin:center center;}
+  @keyframes crtPowerOn{
+    0%{transform:scaleY(.008);filter:brightness(28);opacity:1;}
+    10%{transform:scaleY(.02);filter:brightness(20);}
+    20%{transform:scaleY(.55);filter:brightness(7);}
+    32%{transform:scaleY(1);filter:brightness(2.6);}
+    45%{transform:scaleY(1);filter:brightness(1.15);}
+    100%{transform:scaleY(1);filter:brightness(1);}
+  }
+  #dosBootOverlay.crt-poweroff{animation:crtPowerOff .55s ease-in forwards;transform-origin:center center;}
+  @keyframes crtPowerOff{
+    0%{transform:scaleY(1) scaleX(1);filter:brightness(1);opacity:1;}
+    55%{transform:scaleY(.012) scaleX(1);filter:brightness(5);opacity:1;}
+    78%{transform:scaleY(.012) scaleX(.02);filter:brightness(9);opacity:1;}
+    100%{transform:scaleY(.012) scaleX(.002);filter:brightness(0);opacity:0;}
+  }
+  #dosBootOverlay::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:2;
+    background:repeating-linear-gradient(180deg,rgba(0,0,0,.25) 0px,rgba(0,0,0,.25) 1px,transparent 2px,transparent 3px);
+    mix-blend-mode:multiply;opacity:.5;}
+  /* v0.06.96 — WICHTIGER FIX: das Banner war technisch die ganze Zeit da,
+     ist aber unsichtbar aus dem Sichtbereich gescrollt worden! redraw()
+     hat bisher `overlay.scrollTop = overlay.scrollHeight` gesetzt, also
+     das GESAMTE Overlay inkl. Banner nach unten gescrollt, sobald der
+     getippte Text nicht mehr auf den Bildschirm passte (und das passiert
+     bei der inzwischen sehr langen Boot-Sequenz fast sofort) — bei
+     `overflow:hidden` gibt's dann keinen Weg mehr zurück nach oben, das
+     Banner blieb dauerhaft oberhalb des sichtbaren Bereichs verborgen.
+     Fix: komplettes Layout auf Flexbox-Spalte umgestellt. `.dos-boot-inner`
+     füllt die volle Höhe (`flex:1 1 auto;min-height:0`), die beiden
+     Banner-Wrapper bleiben als `flex:0 0 auto` fest oben stehen (schrumpfen
+     nie, scrollen nie mit), nur der neue `.dos-boot-text-scroll`-Container
+     darunter bekommt `overflow-y:auto` und scrollt für sich allein
+     (`textScrollEl.scrollTop = textScrollEl.scrollHeight` in redraw(),
+     nicht mehr `overlay.scrollTop`). Banner ist damit permanent sichtbar,
+     nur der Terminaltext läuft wie bei einem echten Terminal durch. */
+  .dos-boot-inner{display:flex;flex-direction:column;width:100%;max-width:900px;
+    flex:1 1 auto;min-height:0;position:relative;z-index:1;}
+  .dos-boot-banner-wrap{display:block;flex:0 0 auto;width:100%;overflow:hidden;margin:0 0 4px;}
+  .dos-boot-banner-wrap+.dos-boot-banner-wrap{margin:0 0 10px;}
+  .dos-boot-banner{display:inline-block;margin:0;white-space:pre;font-family:'Courier New',ui-monospace,monospace;
+    font-size:13px;line-height:1.15;color:var(--accent2);transform-origin:left top;
+    text-shadow:0 0 10px rgba(124,92,255,.75),0 0 2px rgba(124,92,255,1);
+    opacity:0;animation:dosBannerFlash .5s ease-out forwards;}
+  @keyframes dosBannerFlash{
+    0%{opacity:0;filter:brightness(3);}
+    60%{opacity:1;filter:brightness(2.2);}
+    100%{opacity:1;filter:brightness(1);}
+  }
+  .dos-boot-text-scroll{flex:1 1 auto;min-height:0;width:100%;overflow-y:auto;overflow-x:hidden;
+    scrollbar-color:var(--accent2) transparent;scrollbar-width:thin;}
+  .dos-boot-text-scroll::-webkit-scrollbar{width:6px;}
+  .dos-boot-text-scroll::-webkit-scrollbar-thumb{background:var(--accent2);border-radius:3px;}
+  .dos-boot-text{margin:0;white-space:pre-wrap;word-break:break-word;
+    font-family:'Courier New',ui-monospace,monospace;font-size:14px;line-height:1.55;
+    color:var(--accent2);text-shadow:0 0 6px rgba(124,92,255,.55),0 0 1px rgba(124,92,255,.9);}
+  @media (max-width:520px){ .dos-boot-text{font-size:12.5px;line-height:1.45;} }
+  #dosBootText.typing::after{content:'';display:inline-block;width:8px;height:14px;background:var(--accent2);
+    box-shadow:0 0 6px rgba(124,92,255,.7);animation:dosCursorBlink 1s steps(1) infinite;
+    vertical-align:-2px;margin-left:1px;}
+  @keyframes dosCursorBlink{0%,49%{opacity:1;}50%,100%{opacity:0;}}
+  .dos-boot-skip{position:fixed;bottom:22px;right:28px;font-size:11px;letter-spacing:1.5px;
+    color:#8f7fd6;text-transform:uppercase;z-index:3;}
+  @media (max-width:520px){ .dos-boot-skip{bottom:12px;right:14px;font-size:9.5px;letter-spacing:1px;} }
 
   /* ---------- HUB ---------- */
   #screen-hub{padding:16px 16px 90px;}
@@ -3994,29 +4448,35 @@ v0.00.1
        separater "Ohne Ton"-Button mehr (v0.06.26) - ein Tap reicht, Musik
        läuft danach einfach im normalen Ein/Aus-Zustand weiter (Lautsprecher-
        Knopf oben rechts auf #screen-title schaltet sie jederzeit ab). -->
-  <div id="screen-soundgate" class="screen tap-anywhere">
+  <div id="screen-soundgate" class="screen tap-anywhere crt-boot">
     <canvas class="warp-canvas" id="warpGate"></canvas>
-    <div class="title-logo-wrap">
-      <img class="logo-img" src="art/logo.png" alt="ASTRION"
-        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'logo-mark',textContent:'ASTRION'}))">
-      <div class="logo-sub">Karten aus den Tiefen des Alls</div>
+    <!-- v0.06.90 — MC ORCA GAMES OS CRT-Poweron-Flash, siehe boot-sequence-template.html -->
+    <div id="crtBootOverlay" aria-hidden="true"><div class="crt-boot-line"></div></div>
+    <div class="splash-inner">
+      <div class="title-logo-wrap">
+        <img class="logo-img" src="art/logo.png" alt="ASTRION"
+          onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'logo-mark',textContent:'ASTRION'}))">
+        <div class="logo-sub">Karten aus den Tiefen des Alls</div>
+      </div>
+      <div class="tap-hint-btn" id="soundGateHint">✨ Berühre den Kosmos, um dein Deck zu rufen</div>
     </div>
-    <div class="tap-hint-btn" id="soundGateHint">✨ Berühre den Kosmos, um dein Deck zu rufen</div>
   </div>
 
   <!-- TITLE -->
   <div id="screen-title" class="screen hidden">
     <canvas class="warp-canvas" id="warpTitle"></canvas>
-    <div class="title-logo-wrap">
-      <img class="logo-img" src="art/logo.png" alt="ASTRION"
-        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'logo-mark',textContent:'ASTRION'}))">
-      <div class="logo-sub">Karten aus den Tiefen des Alls</div>
-    </div>
-    <div class="title-week-banner" id="titleWeekBanner">
-      <img class="title-week-cover" id="titleWeekCover" src="" alt="">
-      <div class="title-week-txt">
-        <div class="title-week-label" id="titleWeekLabel">Diese Woche im Fokus</div>
-        <div class="title-week-setname" id="titleWeekSetName"></div>
+    <div class="title-header-stack">
+      <div class="title-week-banner" id="titleWeekBanner">
+        <img class="title-week-cover" id="titleWeekCover" src="" alt="">
+        <div class="title-week-txt">
+          <div class="title-week-label" id="titleWeekLabel">Diese Woche im Fokus</div>
+          <div class="title-week-setname" id="titleWeekSetName"></div>
+        </div>
+      </div>
+      <div class="title-logo-wrap">
+        <img class="logo-img" src="art/logo.png" alt="ASTRION"
+          onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'logo-mark',textContent:'ASTRION'}))">
+        <div class="logo-sub">Karten aus den Tiefen des Alls</div>
       </div>
     </div>
     <button class="music-toggle-btn" id="titleMusicToggleBtn" title="Musik-Einstellungen"><span style="filter:grayscale(1) brightness(0) invert(21%) sepia(89%) saturate(7466%) hue-rotate(357deg) brightness(90%) contrast(119%)">🎵</span></button>
@@ -4028,7 +4488,7 @@ v0.00.1
       <button class="btn-primary" id="startBtn">Berühren zum Start</button>
       <div class="loading-txt" id="loadingTxt"></div>
     </div>
-    <div class="version-badge" id="versionBadge">v0.06.88</div>
+    <div class="version-badge" id="versionBadge">v0.06.101</div>
   </div>
 
   <!-- HUB -->
@@ -4477,11 +4937,23 @@ v0.00.1
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- v0.06.90 — MC ORCA GAMES OS DOS-Bootstream, läuft beim Spielstart
+       (#startBtn auf #screen-title), siehe boot-sequence-template.html
+       und playDosBootSequence() weiter unten im Script. -->
+  <div id="dosBootOverlay" aria-hidden="true">
+    <div class="dos-boot-inner">
+      <div class="dos-boot-banner-wrap" id="dosBootBannerWrap1"><pre class="dos-boot-banner" id="dosBootBanner1"></pre></div>
+      <div class="dos-boot-banner-wrap" id="dosBootBannerWrap2"><pre class="dos-boot-banner" id="dosBootBanner2"></pre></div>
+      <div class="dos-boot-text-scroll" id="dosBootTextScroll"><pre class="dos-boot-text" id="dosBootText"></pre></div>
+    </div>
+    <div class="dos-boot-skip">Klicken zum Überspringen</div>
+  </div>
 </div>
 
 <script>
 "use strict";
-const VERSION = "v0.06.89";
+const VERSION = "v0.06.101";
 
 /* Debug-Werkzeuge im Karten-Detail-Modal (Raster ein/aus + Zonen bearbeiten).
    Auf true setzen, um beim Nachjustieren von RACE_LAYOUT/RACE_ART_BOX wieder
@@ -6127,8 +6599,20 @@ function buildCardDB(){
 
 const CARD_DB = buildCardDB();
 const CARD_BY_ID = Object.fromEntries(CARD_DB.map(c=>[c.id,c]));
-console.log('%cASTRION — Karten-IDs (für CARD_IMAGES)', 'font-weight:bold;color:#e8b64a;');
-console.table(CARD_DB.map(c=>({id:c.id, name:c.name, type:c.type, rarity:c.rarity})));
+// v0.06.91 — Fix: console.table() existiert nicht in jeder Umgebung (fehlt
+// z.B. in manchen APK-Webviews) — ungeschützt aufgerufen crashte das mit
+// "console.table is not a function" und riss dabei ALLE nachfolgenden
+// Top-Level-Statements im Script mit (CARD_DB war zu dem Zeitpunkt zwar
+// schon fertig, aber alles danach — state, DEFAULT_STATE-Verbrauch, Boot-
+// Sequenz-Setup etc. — lief nie). Jetzt: console.table() nur aufrufen, wenn
+// vorhanden, sonst Fallback auf console.log (reine Debug-Ausgabe für
+// CARD_IMAGES-Zuordnung, kein Funktionsverlust).
+try{
+  console.log('%cASTRION — Karten-IDs (für CARD_IMAGES)', 'font-weight:bold;color:#e8b64a;');
+  const cardIdDebugRows = CARD_DB.map(c=>({id:c.id, name:c.name, type:c.type, rarity:c.rarity}));
+  if(typeof console.table === 'function') console.table(cardIdDebugRows);
+  else console.log(cardIdDebugRows);
+}catch(err){ /* reine Debug-Ausgabe, darf niemals den Boot-Vorgang stoppen */ }
 const TOTAL_CARDS = CARD_DB.length;
 
 /* ============================================================
@@ -6539,6 +7023,7 @@ async function saveState(){
   if(hasCloudStorage){
     try{ await window.storage.set(LS_KEY, json, false); }catch(e){ /* optional, kein harter Fehler */ }
   }
+  if(window.__cloudUser && window.__cloudUpsert){ window.__cloudUpsert('astrion_save', json); }
 }
 async function loadState(){
   let raw = null;
@@ -13497,6 +13982,335 @@ document.getElementById('importFileInput').addEventListener('change', (e)=>{
 })();
 
 /* ============================================================
+   MC ORCA GAMES OS — BOOT-SEQUENZ (v0.06.90)
+   Aus boot-sequence-template.html übernommen (siehe Kopf-Kommentar dort).
+   Das ASCII-Banner "MC ORCA GAMES OS" ist Studio-Branding und läuft in
+   allen MC-ORCA-Spielen 1:1 identisch — NICHT verändern. Die Timing-Engine
+   (playDosBootSequence() ganz unten in diesem Block) ist ebenfalls
+   unverändert aus dem Template übernommen. ASTRION-spezifisch sind nur:
+   OS_NAME/BIOS_LINE, getBootContext() (liest echte Werte aus `state`) und
+   generateBootLines() (Inhalt/Reihenfolge der Boot-Zeilen).
+   ============================================================ */
+// v0.06.94 — Banner in zwei gestapelte Teile getrennt (MC ORCA / GAMES OS),
+// damit auf schmalen Hochformat-Handys nicht ein einziges ~94 Zeichen
+// breites Banner brutal herunterskaliert werden muss. Beide Teile sind
+// exakt dieselben Zeichen wie im ursprünglichen Einzelbanner (per
+// pyfiglet, Figlet-Font "standard", nachgebaut und verglichen) — nur in
+// zwei Zeilenblöcken statt einem, macht optisch keinen Unterschied auf
+// breiten Screens (untereinander statt nebeneinander), hilft aber massiv
+// auf schmalen.
+const BOOT_BANNER_MC = ` __  __  ____    ___  ____   ____    _    
+|  \\/  |/ ___|  / _ \\|  _ \\ / ___|  / \\   
+| |\\/| | |     | | | | |_) | |     / _ \\  
+| |  | | |___  | |_| |  _ <| |___ / ___ \\ 
+|_|  |_|\\____|  \\___/|_| \\_\\\\____/_/   \\_\\`;
+const BOOT_BANNER_GAMES = `  ____    _    __  __ _____ ____     ___  ____  
+ / ___|  / \\  |  \\/  | ____/ ___|   / _ \\/ ___| 
+| |  _  / _ \\ | |\\/| |  _| \\___ \\  | | | \\___ \\ 
+| |_| |/ ___ \\| |  | | |___ ___) | | |_| |___) |
+ \\____/_/   \\_\\_|  |_|_____|____/   \\___/|____/ `;
+
+const OS_NAME = "ASTRION-OS";
+const BIOS_LINE = "ASTRION BIOS v1.0";
+const COPYRIGHT_LINE = "(C) 2087 MC ORCA Games.";
+
+// ASTRION-spezifisch: liest echte Werte aus `state` (aktives Deck, Liga-
+// Rang aus dem Turnier, Sammlungsgröße gg. TOTAL_CARDS, Booster-Bestand
+// über alle Reihen, Sternenkredite). Wird bei JEDEM Boot frisch aufgerufen
+// (nicht gecacht), damit die Werte immer aktuell sind.
+function getBootContext(){
+  const activeDeck = state.decks.find(d=>d.id===state.activeDeckId);
+  const league = TOURNAMENT_LEAGUES[state.tournament.currentLeagueIdx] || TOURNAMENT_LEAGUES[0];
+  const boosterCount = Object.values(state.boosterQueueBySet||{}).reduce((sum,n)=>sum+n,0);
+  const foilCount = Object.keys(state.foils||{}).length;
+  return {
+    profileName: activeDeck ? activeDeck.name : 'Sternenreisende(r)',
+    deckName: activeDeck ? activeDeck.name : '—',
+    deckSize: activeDeck ? activeDeck.cards.length : 0,
+    leagueLabel: league ? league.label : '—', // v0.06.100 — Emoji-Icon entfernt, passt nicht in einen Retro-Terminal-Boot
+    cardCount: Object.keys(state.collection||{}).length,
+    totalCards: TOTAL_CARDS,
+    foilCount,
+    boosterCount,
+    credits: state.credits,
+    points: state.points,
+    battleWins: state.battleWins||0,
+    battleLosses: state.battleLosses||0,
+    dailyStreak: state.dailyStreak||0,
+  };
+}
+
+// Richtet Label/Wert per Punkten auf eine feste Gesamtbreite aus (klassischer
+// BIOS-/POST-Listenlook). Fällt bei zu langem Label einfach auf 3 Punkte
+// zurück statt negativer repeat()-Länge zu crashen.
+function bootLine(label, value, width=42){
+  const dots = '.'.repeat(Math.max(3, width - label.length));
+  return `${label} ${dots} ${value}`;
+}
+
+function generateBootLines(){
+  const ctx = getBootContext();
+  const winRate = (ctx.battleWins+ctx.battleLosses) > 0
+    ? Math.round(ctx.battleWins/(ctx.battleWins+ctx.battleLosses)*100)
+    : 0;
+  return [
+    // ---------- PHASE 1: POST (Power-On-Self-Test) ----------
+    // Bewusst betont "altmodisch" gehalten (IBM-PC/BIOS-Ära + ein paar
+    // Großrechner-Anleihen wie Kernspeicher/Lochkarten) — soll sich wie ein
+    // echter Rechnerstart aus der Zeit anfühlen, nicht wie ein modernes
+    // Ladescreen-Textblöckchen.
+    BIOS_LINE,
+    COPYRIGHT_LINE,
+    "",
+    bootLine("CPU", "MC-ORCA WARPCORE X2 @ 233MHz"),
+    bootLine("Board-ID", "ORCA-ASTN-4 Rev.C"),
+    bootLine("Kernspeicher-Pruefsumme", "0x4F3A — OK"),
+    "",
+    { progress: "Speichertest", ms: 1050 },
+    bootLine("640K Basisspeicher", "OK"),
+    bootLine("65536K Erweiterter Speicher", "OK"),
+    bootLine("Level-2-Cache", "aktiviert"),
+    "",
+    "Erkenne Peripheriegeraete...",
+    "  [ OK ] Warpkern-Controller",
+    "  [ OK ] Sensor-Array MK.II",
+    "  [ OK ] Kartendatenbank-Laufwerk",
+    "  [ OK ] Kommunikationsmodul (Sub-Ether)",
+    "  [ OK ] Eingabegeraet (Touch/Zeiger)",
+    "",
+    bootLine("COM1", "Sub-Ether-Funk, IRQ4"),
+    bootLine("COM2", "Sensor-Telemetrie, IRQ3"),
+    bootLine("Bandlaufwerk 1", "bereit"),
+    bootLine("Lochkartenleser", "nicht verbunden"),
+    "",
+    { progress: "Pruefe Dateisystem-Integritaet", ms: 800 },
+    "Suche Startlaufwerk...",
+    "Gefunden: ASTRION_CORE.IMG",
+    "Starte Bootloader...",
+    "",
+    // ---------- PHASE 2: OS-Kernel ----------
+    `Lade ${OS_NAME} Kernel...`,
+    "  [ OK ] Kartendatenbank",
+    "  [ OK ] Warp-Renderer",
+    "  [ OK ] Turnier-Modul",
+    "  [ OK ] Handelsposten-Dienst",
+    "",
+    { progress: "Synchronisiere Sammlung", ms: 700 },
+    { progress: "Verbinde Sub-Ether-Netzwerk", ms: 600 },
+    "",
+    // ---------- PHASE 3: Profil-/Spielstand-Daten ----------
+    bootLine("Aktives Deck", `${ctx.deckName} (${ctx.deckSize} Karten)`),
+    bootLine("Sammlung", `${ctx.cardCount}/${ctx.totalCards} Karten, ${ctx.foilCount} Glanz`),
+    bootLine("Liga", ctx.leagueLabel),
+    bootLine("Gefechtsbilanz", `${ctx.battleWins}S / ${ctx.battleLosses}N (${winRate}%)`),
+    bootLine("Login-Serie", `${ctx.dailyStreak} Tag(e)`),
+    bootLine("Booster im Lager", `${ctx.boosterCount}`),
+    bootLine("Sternenkredite", `${ctx.credits} AC`),
+    bootLine("Tauschpunkte", `${ctx.points} ✦`),
+    "",
+    `${OS_NAME} BEREIT.`,
+    "",
+    `Willkommen zurueck, ${ctx.profileName}.`
+  ];
+}
+
+function renderProgressLine(label, pct, width=24){
+  const filled = Math.max(0, Math.min(width, Math.round(width*pct/100)));
+  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
+  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
+}
+
+/* Sound-Hooks: nutzt ASTRIONs eigenes WebAudio-System (playTone(), weiter
+   oben definiert) statt eines eigenen Minimal-Ersatzes — genau wie in der
+   Anleitung im Template vorgesehen ("durch das eigene Sound-System des
+   jeweiligen Spiels ersetzen"). playTone() prüft bereits selbst
+   state.soundOn, ein zusätzliches try/catch schadet trotzdem nicht. */
+const Sound = {
+  postBeep: ()=>{ try{ playTone({freq:900, dur:0.15, type:'square', vol:0.06}); }catch(err){} },
+  diskAccess: ()=>{ try{ playTone({freq:220+Math.random()*40, dur:0.03, type:'square', vol:0.03}); }catch(err){} },
+  tone: (freq,dur,type='square',vol=0.05)=>{ try{ playTone({freq, dur, type, vol}); }catch(err){} },
+  buildOk: ()=>{ try{ playTone({freq:660,dur:0.12,type:'square',vol:0.08}); setTimeout(()=>{ try{ playTone({freq:880,dur:0.18,type:'square',vol:0.08}); }catch(err){} },120); }catch(err){} },
+};
+
+/* v0.06.94 — Mobile-Fit fürs (jetzt zweigeteilte) Banner: skaliert jedes
+   der beiden Teilbanner ("MC ORCA" / "GAMES OS") unabhängig per CSS
+   transform so weit runter, dass es in die tatsächlich verfügbare Breite
+   passt (Handy-Display/APK-Webview oft deutlich schmaler als 900px).
+   Ändert NUR die Darstellungsgröße, nicht den Zeicheninhalt. Jeder
+   Wrapper (.dos-boot-banner-wrap, overflow:hidden) bekommt eine feste
+   Höhe im skalierten Maß, damit unter dem Banner keine leere Lücke durch
+   die (vom transform unverändert gebliebene) Original-Boxhöhe entsteht. */
+function fitOneBootBanner(bannerId, wrapId){
+  const bannerEl = document.getElementById(bannerId);
+  const wrapEl = document.getElementById(wrapId);
+  if(!bannerEl || !wrapEl || !bannerEl.textContent) return;
+  bannerEl.style.transform = 'none';
+  const naturalWidth = bannerEl.scrollWidth;
+  const naturalHeight = bannerEl.scrollHeight;
+  const availWidth = wrapEl.clientWidth;
+  // v0.06.98 — Sicherheitsnetz: falls naturalHeight aus irgendeinem Grund
+  // (z.B. Web-Font noch nicht geladen, oder erneut versehentlich während
+  // display:none gemessen) 0 oder kleiner ist, KEINE feste Höhe setzen
+  // (auto lassen) statt den Wrapper auf 0px zu klemmen — genau das war
+  // der Bug in v0.06.94-97 (siehe Kommentar bei playDosBootSequence()).
+  if(naturalHeight <= 0) return;
+  if(naturalWidth > availWidth && naturalWidth > 0){
+    const scale = Math.max(0.3, availWidth / naturalWidth);
+    bannerEl.style.transform = `scale(${scale})`;
+    wrapEl.style.height = Math.ceil(naturalHeight * scale) + 'px';
+  }else{
+    wrapEl.style.height = naturalHeight + 'px';
+  }
+}
+function fitBootBanner(){
+  fitOneBootBanner('dosBootBanner1', 'dosBootBannerWrap1');
+  fitOneBootBanner('dosBootBanner2', 'dosBootBannerWrap2');
+}
+let bootBannerResizeTimer = null;
+window.addEventListener('resize', ()=>{
+  const overlay = document.getElementById('dosBootOverlay');
+  if(!overlay || !overlay.classList.contains('visible')) return;
+  clearTimeout(bootBannerResizeTimer);
+  bootBannerResizeTimer = setTimeout(fitBootBanner, 120);
+});
+
+/* --------------------------------------------------------------------------
+   Ab hier: generischer Engine-Code, 1:1 aus boot-sequence-template.html
+   übernommen, NICHT pro Spiel anpassen.
+   -------------------------------------------------------------------------- */
+let dosBootToken = 0;
+function playDosBootSequence(){
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById('dosBootOverlay');
+    const textEl = document.getElementById('dosBootText');
+    const textScrollEl = document.getElementById('dosBootTextScroll'); // v0.06.96 — eigener Scrollbereich, siehe CSS-Kommentar oben
+    const bannerEl1 = document.getElementById('dosBootBanner1');
+    const bannerEl2 = document.getElementById('dosBootBanner2');
+    if(!overlay || !textEl){ resolve(); return; }
+    const BOOT_LINES = generateBootLines();
+    const myToken = ++dosBootToken;
+    // v0.06.99 — auf Wunsch etwas beschleunigt: von ~80s (v0.06.93-98) auf
+    // ~48s runtergeschraubt (Deckel 8-28ms/Zeichen statt 14-45ms,
+    // Zeilenpause 100ms statt 160ms, Endhalt 1400ms statt 1800ms). Bleibt
+    // wie immer jederzeit per Klick/Taste überspringbar.
+    const totalCharBudgetMs = 38000;
+    const totalChars = BOOT_LINES.reduce((n,l)=> n + (typeof l==='string' ? Math.max(l.length,1):0), 0);
+    const perCharMs = Math.min(28, Math.max(8, totalCharBudgetMs/Math.max(totalChars,1)));
+    const interLineMs = 100;
+    const finalHoldMs = 1400;
+    const bannerRevealMs = 500;
+
+    textEl.textContent = '';
+    textEl.classList.add('typing');
+    overlay.classList.remove('fading','crt-poweroff');
+    overlay.classList.add('visible');
+    overlay.classList.remove('crt-poweron'); void overlay.offsetWidth; overlay.classList.add('crt-poweron');
+    // v0.06.98 — DER BUG: fitBootBanner() lief bisher HIER VOR
+    // overlay.classList.add('visible') — #dosBootOverlay hatte an dieser
+    // Stelle noch `display:none`, also war die komplette Banner-Struktur
+    // ohne jedes Layout (scrollWidth/scrollHeight/clientWidth = 0). In
+    // fitOneBootBanner() griff dadurch IMMER der else-Zweig
+    // (naturalWidth>0 war false) und setzte `wrapEl.style.height = '0px'`
+    // — als Inline-Style, der auch bestehen blieb, nachdem das Overlay
+    // sichtbar wurde. Das Banner war dadurch nicht "verscrollt" wie beim
+    // letzten Bug, sondern buchstäblich auf 0px Höhe geklemmt — quasi
+    // permanent unsichtbar. Fix: Reihenfolge getauscht, Banner-Setup läuft
+    // jetzt NACH overlay.classList.add('visible'), an dem Punkt hat
+    // #dosBootOverlay bereits display:flex und alle Messwerte stimmen.
+    if(bannerEl1 && bannerEl2){
+      bannerEl1.textContent = BOOT_BANNER_MC;
+      bannerEl2.textContent = BOOT_BANNER_GAMES;
+      bannerEl1.style.animation = 'none'; void bannerEl1.offsetWidth; bannerEl1.style.animation = '';
+      bannerEl2.style.animation = 'none'; void bannerEl2.offsetWidth; bannerEl2.style.animation = 'dosBannerFlash .5s ease-out .12s forwards';
+      fitBootBanner(); // jetzt NACH overlay sichtbar -> echte Breiten/Höhen messbar
+    }
+    try{ Sound.postBeep(); }catch(err){}
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    let finished = false, timeoutIds = [];
+    const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds=[]; };
+    let renderedLines = [];
+    const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); if(textScrollEl) textScrollEl.scrollTop = textScrollEl.scrollHeight; };
+
+    const finishNow = ()=>{
+      if(finished || myToken!==dosBootToken) return;
+      finished = true; clearAllTimers();
+      textEl.textContent = BOOT_LINES.map(l=> typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
+      if(textScrollEl) textScrollEl.scrollTop = textScrollEl.scrollHeight;
+      overlay.classList.remove('crt-poweron'); overlay.classList.add('crt-poweroff');
+      textEl.classList.remove('typing');
+      document.body.style.overflow = prevOverflow;
+      setTimeout(()=>{
+        if(myToken!==dosBootToken) return;
+        overlay.classList.remove('visible','fading','crt-poweroff');
+        overlay.removeEventListener('click', skipHandler);
+        document.removeEventListener('keydown', skipHandler);
+        resolve();
+      }, 550);
+    };
+    const skipHandler = ()=> finishNow();
+    overlay.addEventListener('click', skipHandler);
+    document.addEventListener('keydown', skipHandler);
+
+    let lineIndex = 0, blipCounter = 0;
+    const keyBlip = ()=>{ blipCounter++; if(blipCounter%3===0){ try{ Sound.tone(760+Math.random()*260,0.02,'square',0.045); }catch(err){} } };
+    const okBlip = ()=>{ try{ Sound.tone(1180,0.05,'square',0.05); }catch(err){} };
+    const readyChord = ()=>{ try{ Sound.buildOk(); }catch(err){} };
+
+    const processLine = ()=>{
+      if(myToken!==dosBootToken) return;
+      if(lineIndex >= BOOT_LINES.length){ timeoutIds.push(setTimeout(finishNow, finalHoldMs)); return; }
+      const entry = BOOT_LINES[lineIndex];
+      if(typeof entry === 'string') typeStringLine(entry);
+      else if(entry && entry.progress) runProgressLine(entry);
+    };
+
+    const typeStringLine = (line)=>{
+      if(line.length === 0){
+        renderedLines[lineIndex] = ''; redraw(); lineIndex++;
+        timeoutIds.push(setTimeout(processLine, interLineMs/2));
+        return;
+      }
+      let charIndex = 0;
+      const step = ()=>{
+        if(myToken!==dosBootToken) return;
+        charIndex++;
+        renderedLines[lineIndex] = line.slice(0, charIndex);
+        redraw();
+        if(charIndex < line.length){ keyBlip(); timeoutIds.push(setTimeout(step, perCharMs)); }
+        else{
+          const trimmed = line.trim();
+          if(trimmed.startsWith('[ OK ]')) okBlip();
+          else if(trimmed === `${OS_NAME} BEREIT.`) readyChord();
+          lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs));
+        }
+      };
+      step();
+    };
+
+    const runProgressLine = (entry)=>{
+      try{ Sound.diskAccess(); }catch(err){}
+      const steps = 22, stepMs = Math.max(30, entry.ms/steps);
+      let step = 0;
+      renderedLines[lineIndex] = renderProgressLine(entry.progress, 0); redraw();
+      const tick = ()=>{
+        if(myToken!==dosBootToken) return;
+        step++;
+        const pct = Math.min(100, Math.round(step/steps*100));
+        renderedLines[lineIndex] = renderProgressLine(entry.progress, pct); redraw();
+        if(step%4===0){ try{ Sound.tone(500+pct*4,0.02,'square',0.03); }catch(err){} }
+        if(step < steps) timeoutIds.push(setTimeout(tick, stepMs));
+        else{ lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs)); }
+      };
+      tick();
+    };
+
+    timeoutIds.push(setTimeout(processLine, bannerRevealMs));
+  });
+}
+
+/* ============================================================
    START
    ============================================================ */
 document.getElementById('versionBadge').textContent = VERSION;
@@ -13518,12 +14332,159 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
   document.getElementById('startBtn').disabled = true;
   document.getElementById('loadingTxt').textContent = 'Sammlung wird geladen...';
   await ensureStateLoaded();
-  startGameplayMusic(); // wechselt von Titelsong auf die gemischte Gameplay-OST-Playlist, wie bei AETHERIS
   document.getElementById('loadingTxt').textContent = '';
+  // v0.06.90 — MC ORCA GAMES OS Boot-Sequenz läuft hier, am tatsächlichen
+  // Spielstart-Punkt (Titelbildschirm -> Hub), NICHT auf dem Sound-Gate.
+  // ensureStateLoaded() ist zu diesem Zeitpunkt bereits durch, d.h.
+  // getBootContext() zeigt echte, aktuelle Spielstand-Werte.
+  await playDosBootSequence();
+  startGameplayMusic(); // wechselt von Titelsong auf die gemischte Gameplay-OST-Playlist, wie bei AETHERIS
   const resumed = tryRestoreBattle(); // v0.06.39: pausiertes Gefecht hat Vorrang vor dem normalen Hub-Start
   if(!resumed) switchScreen('hub');
 });
 
+</script>
+
+<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): eigenstaendiges Konto-Widget, 6-stelliger E-Mail-Code
+     statt Magic-Link (funktioniert auch aus einer APK-WebView heraus, kein Browser-Redirect
+     noetig). Gleiche Supabase-Zugangsdaten wie in den anderen Spielen -> eine Anmeldung gilt
+     ueberall auf dieser Domain, weil die Session im localStorage der Domain liegt. -->
+<div id="cloudAccountBar" style="position:fixed;top:14px;right:14px;z-index:99999;font-family:system-ui,-apple-system,sans-serif;font-size:12px;">
+  <button id="cloudAccountToggle" style="background:rgba(15,15,20,0.85);color:#eee;border:1px solid #555;padding:7px 14px;border-radius:18px;cursor:pointer;backdrop-filter:blur(4px);">☁ Konto</button>
+  <div id="cloudAccountPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:250px;background:#16161a;border:1px solid #444;border-radius:10px;padding:12px;box-shadow:0 10px 26px rgba(0,0,0,0.5);color:#ddd;">
+    <div id="cloudStepEmail">
+      <div style="line-height:1.5;color:#aaa;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+      <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;">
+      <button id="cloudSendCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Code senden</button>
+    </div>
+    <div id="cloudStepCode" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Code aus der E-Mail eingeben:</div>
+      <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;letter-spacing:3px;text-align:center;">
+      <button id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Bestätigen</button>
+    </div>
+    <div id="cloudStepIn" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
+    </div>
+    <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+
+  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.style.color = isErr ? '#e37b7b' : '#8fd18f'; }
+  function render(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
+    var emailEl = document.getElementById('cloudUserEmail');
+    if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+  }
+
+  toggle.addEventListener('click', function(){ panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
+  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.style.display = 'none'; });
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data.session;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      var wasLoggedOut = !window.__cloudUser;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(wasLoggedOut && window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+
+    document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+      var email = document.getElementById('cloudEmailInput').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+      var code = document.getElementById('cloudCodeInput').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+
+    document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      render();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+  render();
+})();
+</script>
+
+<script>
+window.__cloudUpsert = async function(key, value){
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  var res = await window.__cloudSupabase.from('saves').upsert(
+    { user_id: window.__cloudUser.id, key: key, value: value, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id,key' }
+  );
+  if(res.error) console.warn('Cloud-Speichern fehlgeschlagen fuer', key, res.error.message);
+};
+window.__cloudSyncOnLogin = async function(){
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  try{
+    var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).eq('key','astrion_save');
+    if(sel.error) throw sel.error;
+    var localRaw = null;
+    try{ localRaw = localStorage.getItem('astrion_save'); }catch(e){}
+    var cloudRow = (sel.data && sel.data[0]) || null;
+    if(!cloudRow){
+      if(localRaw) await window.__cloudUpsert('astrion_save', localRaw);
+      return;
+    }
+    if(localRaw){
+      var useCloud = confirm('Es gibt sowohl einen lokalen als auch einen Cloud-Spielstand fuer Astrion.\n\nOK = Cloud-Stand laden (ueberschreibt diesen Geraete-Stand)\nAbbrechen = diesen Geraete-Stand behalten und in die Cloud hochladen');
+      if(useCloud){ localStorage.setItem('astrion_save', cloudRow.value); location.reload(); }
+      else{ await window.__cloudUpsert('astrion_save', localRaw); }
+    } else {
+      localStorage.setItem('astrion_save', cloudRow.value);
+      location.reload();
+    }
+  }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
+};
 </script>
 </body>
 </html>

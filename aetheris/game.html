@@ -3,6 +3,11 @@
 ============================================================
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v1.0.9
+- Copyright-Zeile im Boot-Log von "(C) 2087" auf "(C) 2026" korrigiert (war ein Zukunfts-Lore-Detail
+  aus dem gemeinsamen Boot-Template, sollte hier aber das echte Jahr zeigen).
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.0.8" auf "v1.0.9" erhöht.
+
 v1.0.8
 - Boot-Sequenz spürbar verlangsamt (Feedback: soll ~1 Minute oder länger dauern): Tipp-Tempo-Budget
   von 24s auf 60s angehoben (saettigt jetzt am eingebauten Tempo-Deckel von 28ms/Zeichen statt
@@ -1222,7 +1227,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
     <canvas class="warp-canvas" id="warpGate"></canvas>
     <div class="game-logo" id="logoGate"></div>
     <div class="tap-hint" id="startGateBtn">Berühren zum Start</div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.8</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.9</div>
   </div>
 
   <!-- MC ORCA GAMES OS — DOS-Bootstream-Overlay, läuft beim Spielstart (siehe beginGame()) -->
@@ -1248,7 +1253,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <button class="menu-btn" id="titleMusicBtn" style="font-size:11px;width:100%">🎵 Musik</button>
       <input type="range" class="music-volume-input" id="titleMusicVolume" min="0" max="1" step="0.05" style="width:130px;margin-top:8px;accent-color:#D4AF37;display:block">
     </div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.8</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.9</div>
   </div>
   <div class="header">
     <div class="title-row">
@@ -14092,7 +14097,7 @@ const BOOT_BANNER = ` __  __  ____    ___  ____   ____    _
 
 const OS_NAME = "IMPERIUM-OS";
 const BIOS_LINE = "AETHERIS BIOS v1.0 — MC-ORCA STELLARIS Z80 QUANTUM CORE";
-const COPYRIGHT_LINE = "(C) 2087 MC ORCA Games.";
+const COPYRIGHT_LINE = "(C) 2026 MC ORCA Games.";
 
 /* Liest den echten Live-Stand des aktiven Profils (kein Caching — bei jedem Boot
    frisch aufrufen, siehe generateBootLines()). */
@@ -17159,6 +17164,187 @@ document.getElementById("mainView").addEventListener("click", (e) => {
 // und der Listener deshalb nie feuerte; genau das war die Ursache der spürbaren Verzögerung. Nur ein
 // Resize-Listener bleibt, für den Fall dass sich Header-Höhe/Fensterbreite ändern (z.B. Drehung).
 window.addEventListener("resize", () => { if (currentView === "dyson") positionDysonPip(); });
+</script>
+
+<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): eigenstaendiges Konto-Widget, 6-stelliger E-Mail-Code
+     statt Magic-Link (funktioniert auch aus einer APK-WebView heraus, kein Browser-Redirect
+     noetig). Gleiche Supabase-Zugangsdaten wie in den anderen Spielen -> eine Anmeldung gilt
+     ueberall auf dieser Domain, weil die Session im localStorage der Domain liegt. -->
+<div id="cloudAccountBar" style="position:fixed;top:14px;right:14px;z-index:99999;font-family:system-ui,-apple-system,sans-serif;font-size:12px;">
+  <button id="cloudAccountToggle" style="background:rgba(15,15,20,0.85);color:#eee;border:1px solid #555;padding:7px 14px;border-radius:18px;cursor:pointer;backdrop-filter:blur(4px);">☁ Konto</button>
+  <div id="cloudAccountPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:250px;background:#16161a;border:1px solid #444;border-radius:10px;padding:12px;box-shadow:0 10px 26px rgba(0,0,0,0.5);color:#ddd;">
+    <div id="cloudStepEmail">
+      <div style="line-height:1.5;color:#aaa;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+      <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;">
+      <button id="cloudSendCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Code senden</button>
+    </div>
+    <div id="cloudStepCode" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Code aus der E-Mail eingeben:</div>
+      <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;letter-spacing:3px;text-align:center;">
+      <button id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Bestätigen</button>
+    </div>
+    <div id="cloudStepIn" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
+    </div>
+    <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+
+  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.style.color = isErr ? '#e37b7b' : '#8fd18f'; }
+  function render(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
+    var emailEl = document.getElementById('cloudUserEmail');
+    if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+  }
+
+  toggle.addEventListener('click', function(){ panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
+  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.style.display = 'none'; });
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data.session;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      var wasLoggedOut = !window.__cloudUser;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(wasLoggedOut && window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+
+    document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+      var email = document.getElementById('cloudEmailInput').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+      var code = document.getElementById('cloudCodeInput').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+
+    document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      render();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+  render();
+})();
+</script>
+
+<script>
+// NEU (TODO-CLOUD-SAVE): Aetheris hat ein eigenes Mehr-Profil-System (mehrere Spielstaende
+// im selben Browser). Alle bekannten Keys (Profilliste, aktives Profil, Homeworld-Registry,
+// sowie ein Save-Key pro angelegtem Profil) werden gesammelt und gespiegelt.
+function __aetherisCollectKeys(){
+  var keys = ["aetheris_profiles_v1", "aetheris_active_profile_v1", "aetheris_homeworld_registry_v1"];
+  try{
+    var raw = localStorage.getItem("aetheris_profiles_v1");
+    var list = raw ? JSON.parse(raw) : [{id:"profil1"}];
+    list.forEach(function(p){
+      keys.push(p.id === "profil1" ? "aetheris_save_v1" : ("aetheris_save_v1__" + p.id));
+    });
+  }catch(e){ keys.push("aetheris_save_v1"); }
+  return keys;
+}
+window.__cloudUpsert = async function(key, value){
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  var res = await window.__cloudSupabase.from('saves').upsert(
+    { user_id: window.__cloudUser.id, key: key, value: value, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id,key' }
+  );
+  if(res.error) console.warn('Cloud-Speichern fehlgeschlagen fuer', key, res.error.message);
+};
+async function __aetherisPushAllLocal(){
+  var keys = __aetherisCollectKeys();
+  for(var i=0;i<keys.length;i++){
+    var k = keys[i];
+    var v = null;
+    try{ v = localStorage.getItem(k); }catch(e){}
+    if(v !== null){ await window.__cloudUpsert(k, v); }
+  }
+}
+window.__cloudSyncOnLogin = async function(){
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  try{
+    var keys = __aetherisCollectKeys();
+    var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).in('key', keys);
+    if(sel.error) throw sel.error;
+    var localHasData = false;
+    try{ localHasData = localStorage.getItem('aetheris_save_v1') !== null; }catch(e){}
+    if(!sel.data || sel.data.length === 0){
+      if(localHasData) await __aetherisPushAllLocal();
+      return;
+    }
+    if(localHasData){
+      var useCloud = confirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Aetheris (inkl. Profile).\n\nOK = Cloud-Stand laden (ueberschreibt diesen Geraete-Stand)\nAbbrechen = diesen Geraete-Stand behalten und in die Cloud hochladen');
+      if(useCloud){
+        sel.data.forEach(function(row){ localStorage.setItem(row.key, row.value); });
+        location.reload();
+      } else {
+        await __aetherisPushAllLocal();
+      }
+    } else {
+      sel.data.forEach(function(row){ localStorage.setItem(row.key, row.value); });
+      location.reload();
+    }
+  }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
+};
+// Autosave-Intervall: alle 8s aktives Profil hochladen, wenn eingeloggt -- deckt alle
+// Schreibpfade ab (viele verstreute localStorage.setItem-Aufrufe statt einer zentralen
+// Speicherfunktion), ohne jede einzelne Stelle im Spiel anfassen zu muessen.
+setInterval(function(){
+  if(!window.__cloudUser) return;
+  var keys = __aetherisCollectKeys();
+  keys.forEach(function(k){
+    var v = null;
+    try{ v = localStorage.getItem(k); }catch(e){}
+    if(v !== null) window.__cloudUpsert(k, v);
+  });
+}, 8000);
 </script>
 </body>
 </html>

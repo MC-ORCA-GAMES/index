@@ -1,3 +1,21 @@
+<!--
+  PATH OF THE STARS — Landingpage
+  Datei-Version: v1.3 (Landingpage-Datei; unabhängig vom Spielstand "v0_0243 Open Beta")
+  Changelog:
+    v1.3 – Copyright-Jahr im Boot-Log auf 2026 aktualisiert (statt 2087);
+           ASCII-Banner zweizeilig umgebaut: "MC ORCA" oben, "GAMES OS"
+           darunter (identisch in allen 5 Dateien).
+    v1.2 – Kompletter Strukturumbau zur alten Konsolenansicht: alle Fotos/
+           Artworks/Ink-Overlay entfernt (nur noch das Logo bleibt), reiner
+           scrollender Terminal-Textfluss mit ASCII-Trennlinien statt
+           Karten-/Zeitleisten-Grid, Dot-Leader-Statuszeilen fuer Bordzeit vs.
+           Beobachterzeit. Rot bleibt Fraktions-/Spielfarbe (deckt sich mit
+           der OS-Chrome-Farbe).
+    v1.1 – MC ORCA GAMES OS Boot-Sequenz ergänzt (Terminal-Look, Schritt 1):
+           CRT-Poweron + DOS-Bootstream laufen jetzt direkt beim Öffnen der
+           Seite, vor der eigentlichen Landingpage.
+    v1.0 – Basiszustand der Landingpage vor Boot-Sequenz.
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -6,660 +24,798 @@
 <title>PATH OF THE STARS — Drifting Worlds</title>
 <meta name="description" content="PATH OF THE STARS: Drifting Worlds — ein MC ORCA Games Projekt. Browserbasiertes Weltraumspiel ohne Download. Fliehe an Bord der wandernden Erde vor einer sterbenden Sonne, handle zwischen den Sternen und verfolge ein uraltes Signal, während draußen Jahrtausende vergehen.">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@400;500;600;700&display=swap');
-  @import url('fonts/fonts.css');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
   :root{
-    /* ---- Neon-Noir-Comic-Palette 1:1 aus game.html ---- */
-    --bg:#050505; --bg2:#0A0A0A; --panel:rgba(14,12,12,0.94); --panel2:rgba(20,16,14,0.94); --line:#3A3632;
-    --cyan:#E8B64A; --cyan-soft:rgba(232,182,74,0.35); --cyan-dim:#8A8276;
-    --cream:#E8E2D4; --amber:#E8B64A; --red:#C81E2C; --violet:#9B8CD9;
-    --ink:#000;
-    --comic:'Bangers','Oswald',var(--mono);
-    --mono:'Consolas','SFMono-Regular',ui-monospace,Menlo,monospace;
+    --bg:#050505; --fg:#C7BFB2; --line:#3A2224;
+    --red:#C81E2C; --red-dim:#7A3438;
+    --grey:#6E685E;
   }
   *{ box-sizing:border-box; }
+  html,body{ scrollbar-width:none; -ms-overflow-style:none; }
+  html::-webkit-scrollbar,body::-webkit-scrollbar{ display:none; }
   html{ scroll-behavior:smooth; }
   body{
-    margin:0; background:var(--bg); color:var(--cream);
-    font-family:'Oswald',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    font-size:17px; line-height:1.65;
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:14px; line-height:1.75;
     -webkit-font-smoothing:antialiased;
   }
-  h1,h2,h3,.display{ font-family:var(--comic); font-weight:400; letter-spacing:1px; color:var(--cyan); margin:0;
-    text-shadow:1px 1px 0 rgba(0,0,0,0.8), 2px 2px 0 rgba(0,0,0,0.6); }
-  .mono{ font-family:var(--mono); }
-  .eyebrow{
-    font-family:var(--mono); font-size:11px; letter-spacing:3px; text-transform:uppercase;
-    color:var(--cyan-dim); display:flex; align-items:center; gap:10px; margin-bottom:18px;
-  }
-  .eyebrow::before{ content:""; width:22px; height:1px; background:var(--cyan-soft); display:inline-block; }
   a{ color:inherit; }
-  ::selection{ background:var(--cyan); color:#0A0A0A; }
-  :focus-visible{ outline:2px solid var(--cyan); outline-offset:3px; }
+  ::selection{ background:var(--red); color:#050505; }
+  :focus-visible{ outline:1px solid var(--red); outline-offset:2px; }
 
-  /* ---------- Ink/Halftone-Overlay (wie game.html #inkOverlay) ---------- */
-  #inkOverlay{
-    position:fixed; inset:0; z-index:1; pointer-events:none;
-    background:
-      radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 42%, rgba(0,0,0,0.5) 100%),
-      repeating-radial-gradient(circle at 0 0, rgba(0,0,0,0.3) 0 1px, rgba(0,0,0,0) 1px 3px);
-    background-size:100% 100%, 4px 4px;
-    mix-blend-mode:multiply;
-  }
-  #inkOverlay::after{
-    content:''; position:absolute; inset:0;
-    background:repeating-linear-gradient(180deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, rgba(0,0,0,0) 1px, rgba(0,0,0,0) 3px);
-    mix-blend-mode:overlay;
-  }
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.2; pointer-events:none; }
+  .stream{ position:relative; z-index:2; max-width:760px; margin:0 auto; padding:26px 20px 70px; }
 
-  /* ---------- Starfield ---------- */
-  #stars{ position:fixed; inset:0; z-index:0; opacity:0.55; pointer-events:none; }
+  .topline{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:22px; font-size:12px; }
+  .topline .back{ color:var(--red-dim); text-decoration:none; }
+  .topline .back::before{ content:"[ "; opacity:.6; } .topline .back::after{ content:" ]"; opacity:.6; }
+  .topline .back:hover{ color:var(--red); }
+  .topline .jump{ display:flex; gap:12px; flex-wrap:wrap; }
+  .topline .jump a{ color:var(--red-dim); text-decoration:none; font-size:11.5px; }
+  .topline .jump a:hover{ color:var(--red); text-decoration:underline; text-underline-offset:2px; }
 
-  /* ---------- Shell ---------- */
-  .wrap{ max-width:1080px; margin:0 auto; padding:0 28px; position:relative; z-index:2; }
-  section{ position:relative; z-index:2; }
+  .s-logo{ display:flex; justify-content:center; margin:8px 0 16px; }
+  .s-logo img{ height:60px; width:auto; }
+  .s-prompt{ color:var(--red-dim); font-size:12.5px; text-align:center; margin-bottom:4px; }
+  .s-prompt .p{ color:var(--red); }
+  .s-prompt .cur{ display:inline-block; width:7px; height:12px; background:var(--red); margin-left:3px; animation:blink 1s steps(1) infinite; vertical-align:-1px; }
+  @keyframes blink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .s-title{ text-align:center; font-size:clamp(18px,3vw,24px); font-weight:700; letter-spacing:0.5px; color:var(--red); text-transform:uppercase; margin-bottom:4px; text-shadow:0 0 10px rgba(200,30,44,.35); }
+  .s-sub{ text-align:center; color:var(--red-dim); font-size:11px; letter-spacing:1px; text-transform:uppercase; margin-bottom:20px; }
+  .s-pitch{ text-align:center; color:var(--fg); font-size:13.5px; max-width:580px; margin:0 auto 8px; }
+  .s-meta{ text-align:center; color:var(--red-dim); font-size:11.5px; margin:10px 0 20px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .s-meta b{ color:var(--red); font-weight:600; }
+  .s-ctas{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-bottom:8px; }
 
-  /* ---------- Top nav ---------- */
-  .topnav{
-    position:fixed; top:0; left:0; right:0; z-index:20;
-    display:flex; align-items:center; justify-content:space-between;
-    padding:18px 28px; backdrop-filter:blur(6px); background:linear-gradient(180deg, rgba(5,5,5,0.88), rgba(5,5,5,0));
-  }
-  .topnav .logo{ font-family:var(--comic); font-weight:700; font-size:18px; color:var(--cyan); letter-spacing:1px; position:relative; z-index:2; white-space:nowrap;
-    -webkit-text-stroke:1px var(--ink); text-shadow:0 0 8px rgba(232,182,74,0.4), 1px 1px 0 rgba(0,0,0,0.8); }
-  .topnav .logo span{ color:var(--red); }
-  .topnav .logo img{ height:80px; width:auto; display:block; margin:-26px 0; position:relative; }
-  @media (max-width:720px){ .topnav .logo img{ height:56px; margin:-14px 0; } }
-  .topnav .navlinks{ display:flex; gap:24px; font-family:var(--mono); font-size:12px; letter-spacing:1px; }
-  .topnav .navlinks a{ color:var(--cyan-dim); text-decoration:none; transition:color .15s; }
-  .topnav .navlinks a:hover{ color:var(--cyan); }
-  .topnav .navcta{
-    font-family:var(--mono); font-size:11px; letter-spacing:1px; text-transform:uppercase;
-    padding:8px 16px; border-radius:8px; border:1px solid var(--cyan-soft); color:var(--cyan); text-decoration:none;
-    transition:background .15s,border-color .15s;
-  }
-  .topnav .navcta:hover{ background:#17110F; border-color:var(--cyan); }
-  .topnav .navctas{ display:flex; align-items:center; gap:10px; }
-  .navleft{ display:flex; align-items:center; gap:18px; }
-  .mc-brand{
-    display:flex; align-items:center; gap:8px; text-decoration:none;
-    font-family:var(--mono); font-size:10.5px; letter-spacing:1.5px; text-transform:uppercase;
-    color:var(--cyan-dim); position:relative; z-index:2; transition:color .15s;
-    padding-right:16px; border-right:1px solid var(--line);
-  }
-  .mc-brand:hover{ color:var(--cyan); }
-  .mc-brand img{ height:22px; width:auto; display:block; }
-  @media (max-width:640px){ .mc-brand span{ display:none; } .mc-brand{ padding-right:12px; } }
+  hr.rule{ border:none; border-top:1px dashed var(--line); margin:34px 0; }
+  hr.rule.thick{ border-top:1px solid var(--line); }
 
-  .nav-toggle-checkbox{ display:none; }
-  .nav-toggle-btn{ display:none; }
-  @media (max-width:720px){
-    .nav-toggle-btn{
-      display:flex; align-items:center; justify-content:center; flex:none;
-      width:36px; height:36px; border:1px solid var(--cyan-soft); border-radius:8px;
-      color:var(--cyan); font-size:16px; cursor:pointer; background:#100C0B;
-    }
-    .topnav .navlinks{
-      position:absolute; top:100%; left:0; right:0; margin:0;
-      flex-direction:column; gap:0;
-      background:#050505; border-top:1px solid var(--line);
-      max-height:0; overflow:hidden; transition:max-height .25s ease;
-    }
-    .topnav .navlinks a{ padding:15px 28px; border-bottom:1px solid var(--line); font-size:13px; }
-    .nav-toggle-checkbox:checked ~ .navlinks{ max-height:340px; }
-  }
+  .sec{ margin-bottom:6px; }
+  .sec .shead{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:13px; letter-spacing:0.5px; text-transform:uppercase; color:var(--red); font-weight:700; margin-bottom:4px; }
+  .sec .shead .idx{ color:var(--red-dim); }
+  .sec .shead .fill{ flex:1; border-bottom:1px dotted var(--line); height:0; align-self:center; min-width:16px; }
+  .sec .sdesc{ color:var(--fg); font-size:13px; max-width:600px; margin-bottom:14px; }
+  .sec .sdesc .arr{ color:var(--red); }
 
-  /* ---------- Buttons ---------- */
-  .btn{
-    font-family:var(--mono); font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
-    padding:15px 28px; border-radius:8px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:10px;
-    border:2px solid var(--ink); background:#100C0B; color:var(--cream);
-    box-shadow:0 3px 0 rgba(0,0,0,0.6);
-    transition:border-color .15s, background .15s, transform .15s;
-  }
-  .btn:hover{ border-color:var(--cyan); background:#17110F; transform:translateY(-1px); }
-  .btn.primary{ background:linear-gradient(180deg,#3A1418,#1A0808); border-color:var(--red); color:#FF8A93; }
-  .btn.primary:hover{ background:linear-gradient(180deg,#4A1A1F,#220A0A); box-shadow:0 0 24px -6px rgba(200,30,44,0.65); }
+  ul.tlist{ list-style:none; margin:0 0 16px; padding:0; }
+  ul.tlist li{ margin-bottom:9px; font-size:13px; padding-left:14px; position:relative; }
+  ul.tlist li::before{ content:"›"; position:absolute; left:0; color:var(--red-dim); }
+  ul.tlist li b{ color:var(--red); font-weight:600; }
 
-  /* ---------- Hero ---------- */
-  .hero{
-    min-height:100svh; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; padding:140px 28px 80px; overflow:hidden;
-  }
-  .hero-inner{ position:relative; z-index:3; max-width:760px; }
-  .hero-logo{ display:flex; justify-content:center; margin-bottom:10px; }
-  .hero-logo img{ max-width:min(560px,88vw); height:auto; filter:drop-shadow(0 8px 40px rgba(232,182,74,0.35)); }
-  .hero-logo:empty{ display:none; }
-  .hero .eyebrow{ justify-content:center; }
-  .hero .eyebrow::before,.hero .eyebrow::after{ content:""; width:22px; height:1px; background:var(--cyan-soft); }
-  .hero h1{ font-size:clamp(40px,8vw,80px); line-height:0.98;
-    -webkit-text-stroke:1.5px var(--ink); text-shadow:0 0 18px rgba(232,182,74,0.35), 2px 2px 0 rgba(0,0,0,0.8); }
-  .hero h1 span{ color:var(--red); }
-  .hero .sub{ font-family:var(--comic); font-size:clamp(14px,2vw,18px); color:var(--cyan-dim); letter-spacing:2px; text-transform:uppercase; margin-top:14px; }
-  .hero .credit{ font-family:var(--mono); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--cyan-dim); margin-top:12px; }
-  .hero .credit a{ color:var(--cyan-dim); text-decoration:underline; text-underline-offset:3px; }
-  .hero .credit a:hover{ color:var(--cyan); }
-  .hero p.pitch{ margin:28px auto 0; max-width:580px; font-size:18px; color:#D9CFBE; }
-  .hero .ctas{ display:flex; gap:16px; justify-content:center; margin-top:38px; flex-wrap:wrap; }
-  .hero .meta{
-    margin-top:34px; font-family:var(--mono); font-size:11px; letter-spacing:1px; color:var(--cyan-dim);
-    display:flex; gap:18px; justify-content:center; flex-wrap:wrap;
-  }
-  .hero .meta b{ color:var(--amber); font-weight:600; }
-  .scroll-hint{
-    position:absolute; bottom:28px; left:50%; transform:translateX(-50%);
-    font-family:var(--mono); font-size:10px; letter-spacing:3px; color:var(--cyan-dim);
-    text-transform:uppercase; animation:pulse 2.2s ease-in-out infinite;
-  }
-  @keyframes pulse{ 0%,100%{opacity:0.35;} 50%{opacity:0.9;} }
-
-  /* ---------- Reveal ---------- */
-  .reveal{ opacity:0; transform:translateY(28px); transition:opacity .7s ease, transform .7s ease; }
-  .reveal.in{ opacity:1; transform:none; }
-
-  /* ---------- Section shell ---------- */
-  .section{ padding:110px 0; border-top:1px solid var(--line); }
-  .section .head{ max-width:620px; margin-bottom:56px; }
-  .section .head h2{ font-size:clamp(28px,4vw,40px); line-height:1.1; }
-  .section .head p{ color:#B9AF9C; margin-top:16px; font-size:17px; }
-
-  /* ---------- Feature grid ---------- */
-  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
-  @media (max-width:860px){ .grid3{ grid-template-columns:1fr; } }
-  .card{
-    position:relative; overflow:hidden;
-    background:#100C0B; border:2px solid var(--ink); border-radius:14px; box-shadow:0 4px 0 rgba(0,0,0,0.5);
-    transition:border-color .2s, transform .2s;
-  }
-  .card:hover{ border-color:var(--cyan-soft); transform:translateY(-3px); }
-  .card-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
-  .card::after{
-    content:""; position:absolute; inset:0; z-index:0;
-    background:linear-gradient(180deg, rgba(5,5,5,0.25) 0%, rgba(5,5,5,0.72) 55%, rgba(5,5,5,0.96) 100%);
-  }
-  .card-body{ position:relative; z-index:1; padding:28px 26px; }
-  .card .icon{ font-size:26px; display:block; margin-bottom:16px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.9)); }
-  .card h3{ font-size:18px; color:var(--cyan); font-family:var(--comic); text-shadow:0 2px 6px rgba(0,0,0,0.95); }
-  .card p{ color:#E8E2D4; font-size:15px; margin-top:10px; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
-
-  /* ---------- Zeitreise / Bordzeit timeline ---------- */
-  .timeline{ display:flex; flex-direction:column; gap:0; margin-top:10px; border-radius:16px; overflow:hidden; border:2px solid var(--ink); }
-  .tl-row{
-    display:grid; grid-template-columns:1fr auto auto; gap:14px; align-items:center;
-    padding:20px 24px; background:var(--panel); border-bottom:1px solid var(--line);
-  }
-  .tl-row:last-child{ border-bottom:none; }
-  .tl-row:nth-child(even){ background:var(--panel2); }
-  .tl-name{ font-family:var(--comic); color:var(--cream); font-size:15.5px; }
-  .tl-name .sysno{ color:var(--cyan-dim); font-family:var(--mono); font-size:11px; margin-right:8px; }
-  .tl-time{ font-family:var(--mono); font-size:12.5px; text-align:right; }
-  .tl-time .lbl{ display:block; color:var(--cyan-dim); font-size:10px; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
-  .tl-time.board .val{ color:var(--cyan); font-size:14.5px; }
-  .tl-time.observer .val{ color:var(--amber); font-size:14.5px; }
-  @media (max-width:640px){
-    .tl-row{ grid-template-columns:1fr; gap:8px; text-align:left; }
-    .tl-time{ text-align:left; }
-  }
-  .gap-note{ margin-top:22px; font-size:13.5px; color:var(--cyan-dim); font-style:italic; }
+  /* ---------- Zeitleiste ---------- */
+  .tlrow{ margin-bottom:12px; font-size:12.5px; }
+  .tlrow .sysno{ color:var(--red-dim); margin-right:6px; }
+  .tlrow .sysname{ color:var(--fg); }
+  .tlrow .dl{ display:flex; gap:6px; margin-top:2px; align-items:baseline; }
+  .tlrow .dl .lbl{ color:var(--grey); white-space:nowrap; }
+  .tlrow .dl .fill{ flex:1; border-bottom:1px dotted var(--line); height:0; }
+  .tlrow .dl .val{ color:var(--red); white-space:nowrap; }
+  .gap-note{ color:var(--grey); font-size:11.5px; margin-top:10px; max-width:560px; }
 
   /* ---------- Fraktionen ---------- */
-  .factions{ display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin-top:10px; }
-  @media (max-width:760px){ .factions{ grid-template-columns:1fr; } }
-  .faction{
-    background:var(--panel); border:2px solid var(--ink); border-radius:14px; padding:26px 26px; box-shadow:0 4px 0 rgba(0,0,0,0.5);
-    border-left:3px solid var(--fc,var(--cyan)); transition:transform .2s, border-color .2s;
-  }
-  .faction:hover{ transform:translateY(-3px); }
-  .faction .fname{ font-family:var(--comic); font-size:17px; color:var(--fc,var(--cyan)); }
-  .faction .fshort{ font-family:var(--mono); font-size:10.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--cyan-dim); margin-top:2px; }
-  .faction .motto{ font-style:italic; color:#D9CFBE; font-size:14.5px; margin-top:14px; }
-  .faction .desc{ color:#B9AF9C; font-size:14px; margin-top:12px; line-height:1.6; }
-  .faction .trades{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
-  .faction .trade-chip{
-    font-family:var(--mono); font-size:10.5px; padding:5px 11px; border-radius:20px;
-    border:1px solid var(--line); color:#B9AF9C;
-  }
-  .faction .trade-chip.cheap{ border-color:rgba(232,182,74,0.4); color:var(--cyan); }
-  .faction .trade-chip.dear{ border-color:rgba(200,30,44,0.4); color:#E4989E; }
-  .pirates-note{
-    margin-top:20px; display:flex; align-items:center; gap:12px; font-family:var(--mono);
-    font-size:12.5px; color:var(--cyan-dim); background:var(--panel); border:1px solid var(--line);
-    border-radius:12px; padding:14px 18px;
-  }
-  .pirates-note b{ color:#C81E2C; }
+  .faction{ margin-bottom:18px; border-top:1px dashed var(--line); padding-top:12px; }
+  .faction:first-of-type{ border-top:none; padding-top:0; }
+  .faction .fname{ font-weight:700; font-size:13px; letter-spacing:0.5px; color:var(--fc); text-transform:uppercase; }
+  .faction .fshort{ color:var(--grey); font-size:11px; margin:2px 0 6px; }
+  .faction .motto{ font-style:normal; color:var(--fc); font-size:12px; margin-bottom:6px; opacity:.85; }
+  .faction .desc{ font-size:12.5px; color:var(--fg); max-width:580px; margin-bottom:6px; }
+  .faction .trades{ font-size:11px; color:var(--grey); display:flex; gap:14px; }
+  .pirates-note{ margin-top:14px; font-size:12px; color:var(--red-dim); border-top:1px dashed var(--line); padding-top:12px; }
+  .pirates-note b{ color:var(--red); }
 
-  /* ---------- Imperium sandbox ---------- */
-  .imperium-grid{ display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; }
-  @media (max-width:900px){ .imperium-grid{ grid-template-columns:1fr; } }
-  .steps{ display:flex; flex-direction:column; gap:0; margin-top:24px; }
-  .step{ display:flex; gap:16px; padding:16px 0; border-top:1px solid var(--line); }
-  .step:first-child{ border-top:none; }
-  .step .num{
-    font-family:var(--mono); font-size:12px; color:var(--cyan); border:1px solid var(--cyan-soft);
-    border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; flex:none;
-  }
-  .step .stxt b{ color:var(--cream); font-family:var(--comic); font-weight:700; font-size:15px; }
-  .step .stxt p{ margin:4px 0 0; color:#B9AF9C; font-size:14px; }
-  .imperium-panel{
-    background:var(--panel); border:2px solid var(--ink); border-radius:16px; padding:28px; box-shadow:0 4px 0 rgba(0,0,0,0.5);
-  }
-  .imperium-panel .prow{ display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); font-family:var(--mono); font-size:13px; }
-  .imperium-panel .prow:last-child{ border-bottom:none; }
-  .imperium-panel .prow span:first-child{ color:#B9AF9C; }
-  .imperium-panel .prow span:last-child{ color:var(--cyan); }
+  /* ---------- Imperium-Panel ---------- */
+  .prow{ display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:4px 0; border-top:1px dashed var(--line); }
+  .prow:first-child{ border-top:none; }
+  .prow span:last-child{ color:var(--red); white-space:nowrap; }
 
-  /* ---------- Kampf / Flotten ---------- */
-  .chiprow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
-  .chip{
-    font-family:var(--mono); font-size:11.5px; padding:8px 14px; border-radius:20px;
-    border:1px solid var(--line); color:#B9AF9C; background:#100C0B;
-  }
-  .chip.cyan{ border-color:var(--cyan-soft); color:var(--cyan); }
+  blockquote.chron{ margin:0; padding:16px 0; border-top:1px dashed var(--line); border-bottom:1px dashed var(--line); font-size:13.5px; color:#D8C4C0; max-width:600px; }
+  .chron-attrib{ font-size:11px; color:var(--red-dim); margin-top:8px; }
 
-  /* ---------- Chronicle pull-quote ---------- */
-  .chronicle{
-    background:radial-gradient(ellipse at top, #241012, var(--bg));
-    border:2px solid var(--ink); border-radius:18px; padding:56px 48px; position:relative; overflow:hidden; box-shadow:0 4px 0 rgba(0,0,0,0.5);
-  }
-  .chronicle::before{
-    content:"※"; position:absolute; top:-40px; right:10px; font-family:var(--comic); font-size:200px;
-    color:var(--cyan); opacity:0.05; pointer-events:none;
-  }
-  .chronicle .eyebrow{ color:var(--cyan); }
-  .chronicle blockquote{
-    margin:0; font-style:italic; font-size:clamp(19px,2.4vw,25px); line-height:1.55; color:#E3DACB;
-    max-width:660px;
-  }
-  .chronicle .attrib{ margin-top:22px; font-family:var(--mono); font-size:12px; color:var(--cyan-dim); }
+  .roadmap-block{ margin-bottom:16px; }
+  .roadmap-block .rtag{ font-size:10.5px; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px; display:inline-block; }
+  .rtag.now{ color:var(--red); } .rtag.next{ color:#9B8CD9; } .rtag.idea{ color:#E8B64A; }
 
-  /* ---------- Weiterentwicklung ---------- */
-  .roadmap-cols{ display:grid; grid-template-columns:repeat(3,1fr); gap:22px; align-items:start; }
-  @media (max-width:900px){ .roadmap-cols{ grid-template-columns:1fr; } }
-  .roadmap-col{ background:var(--panel); border:2px solid var(--ink); border-radius:14px; padding:26px 24px; box-shadow:0 4px 0 rgba(0,0,0,0.5); }
-  .roadmap-status{
-    display:flex; align-items:center; gap:9px; font-family:var(--mono); font-size:11px;
-    letter-spacing:1.5px; text-transform:uppercase; color:var(--cyan-dim); margin-bottom:20px;
+  .glink{
+    font-size:12px; letter-spacing:0.5px; text-transform:uppercase; text-decoration:none; cursor:pointer;
+    color:var(--red); border-bottom:1px solid transparent; transition:border-color .15s;
+    background:none; border-top:none; border-left:none; border-right:none; font-family:inherit; padding:0;
   }
-  .roadmap-status .dot{ width:9px; height:9px; border-radius:50%; flex:none; }
-  .roadmap-idea-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:11px; }
-  .roadmap-idea-list li{ font-size:13.5px; color:#B9AF9C; padding-left:16px; position:relative; line-height:1.5; }
-  .roadmap-idea-list li::before{ content:"–"; position:absolute; left:0; color:var(--cyan-dim); }
-  .roadmap-note{ margin-top:26px; font-size:12px; color:var(--cyan-dim); font-style:italic; }
-  .todo-note{
-    background:rgba(232,182,74,0.1); border:1px solid rgba(232,182,74,0.35); border-radius:8px;
-    padding:10px 14px; font-family:var(--mono); font-size:12px; color:#E8D8B0; margin-top:16px;
-  }
+  .glink::before{ content:"[ "; opacity:.55; } .glink::after{ content:" ]"; opacity:.55; }
+  .glink:hover{ border-bottom-color:var(--red); }
+  .glink.primary{ color:#050505; background:var(--red); padding:6px 9px; }
+  .glink.primary::before,.glink.primary::after{ opacity:.7; }
+  .glink.primary:hover{ filter:brightness(1.15); }
 
-  /* ---------- Final CTA ---------- */
-  .finalcta{ text-align:center; padding:130px 0 100px; }
-  .finalcta h2{ font-size:clamp(30px,5vw,46px); }
-  .finalcta p{ color:#B9AF9C; max-width:500px; margin:18px auto 0; }
-  .finalcta .ctas{ display:flex; gap:16px; justify-content:center; margin-top:34px; flex-wrap:wrap; }
+  .s-footer{ margin-top:36px; font-size:11px; color:var(--red-dim); text-align:center; }
+  .s-footer a{ color:var(--red-dim); text-decoration:underline; text-underline-offset:2px; }
+  .s-footer a:hover{ color:var(--red); }
 
-  footer{
-    border-top:1px solid var(--line); padding:32px 0 40px; text-align:center;
-    font-family:var(--mono); font-size:11px; color:var(--cyan-dim); letter-spacing:0.5px;
-  }
-  footer .fver{ color:var(--cyan); }
-  footer a{ color:var(--cyan-dim); }
-  footer a:hover{ color:var(--cyan); }
+  .reveal{ opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease; }
+  .reveal.in{ opacity:1; transform:none; }
+  @media (prefers-reduced-motion:reduce){ .reveal{ transition:none; opacity:1; transform:none; } }
 
-  @media (prefers-reduced-motion:reduce){
-    html{ scroll-behavior:auto; }
-    .scroll-hint{ animation:none !important; }
-    .reveal{ transition:none; opacity:1; transform:none; }
+/* ============================================================================
+     MC ORCA GAMES OS — BOOT-SEQUENZ (Terminal-Look, Schritt 1)
+     Eigene Variablen (--boot-*), damit die bestehenden Theme-Farben der Seite
+     unangetastet bleiben. Akzentfarbe ist bewusst FEST ROT auf allen 5 Seiten
+     der Website (Markenfarbe, aus dem bestehenden CSS: der "ENTDECKEN"-Button
+     der Path-of-the-Stars-Kachel im Haupt-Index, --potsred).
+     ============================================================================ */
+  :root{
+    --boot-accent:#C81E2C; --boot-accent-dim:#9C5A57; --boot-bg:#050505;
   }
+  html.boot-locked, html.boot-locked body{ overflow:hidden; height:100%; }
+  #siteContent.boot-hidden{ display:none; }
+
+  #bootCrtOverlay{
+    position:fixed; inset:0; z-index:9998; display:flex; align-items:center; justify-content:center;
+    background:#000; overflow:hidden;
+  }
+  #bootCrtFlash{
+    position:absolute; inset:0; z-index:2; background:#000; pointer-events:none; overflow:hidden;
+    animation: bootCrtOverlayFade 0.25s linear 0.6s forwards;
+  }
+  .boot-crt-line{
+    position:absolute; left:50%; top:50%; width:100%; height:3px;
+    background:linear-gradient(90deg, transparent, #dff6ff 15%, #ffffff 50%, #dff6ff 85%, transparent);
+    box-shadow:0 0 20px 4px rgba(180,230,255,.9), 0 0 60px 14px rgba(120,200,255,.5);
+    transform:translate(-50%,-50%) scaleY(0.002); opacity:0;
+    animation: bootCrtBootLine 0.42s cubic-bezier(.2,.85,.3,1) 0.2s forwards;
+  }
+  @keyframes bootCrtBootLine{
+    0%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:0; }
+    15%{ opacity:1; }
+    40%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:1; }
+    78%{ transform:translate(-50%,-50%) scaleY(1.08); opacity:1; }
+    92%{ transform:translate(-50%,-50%) scaleY(0.97); }
+    100%{ transform:translate(-50%,-50%) scaleY(1); opacity:0; }
+  }
+  @keyframes bootCrtOverlayFade{ from{ opacity:1; } to{ opacity:0; visibility:hidden; } }
+
+  #dosBootOverlay{
+    position:fixed; inset:0; z-index:9999; background:#000;
+    display:none; align-items:flex-start; justify-content:flex-start;
+    padding:40px; box-sizing:border-box; cursor:pointer; overflow:hidden;
+    opacity:1; transition:opacity .4s ease;
+  }
+  #dosBootOverlay.visible{ display:flex; }
+  #dosBootOverlay.crt-poweron{ animation: bootCrtPowerOn .55s ease-out both; transform-origin:center center; }
+  @keyframes bootCrtPowerOn{
+    0%{ transform:scaleY(.008); filter:brightness(28); opacity:1; }
+    10%{ transform:scaleY(.02); filter:brightness(20); }
+    20%{ transform:scaleY(.55); filter:brightness(7); }
+    32%{ transform:scaleY(1); filter:brightness(2.6); }
+    45%{ transform:scaleY(1); filter:brightness(1.15); }
+    100%{ transform:scaleY(1); filter:brightness(1); }
+  }
+  #dosBootOverlay.crt-poweroff{ animation: bootCrtPowerOff .55s ease-in forwards; transform-origin:center center; }
+  @keyframes bootCrtPowerOff{
+    0%{ transform:scaleY(1) scaleX(1); filter:brightness(1); opacity:1; }
+    55%{ transform:scaleY(.012) scaleX(1); filter:brightness(5); opacity:1; }
+    78%{ transform:scaleY(.012) scaleX(.02); filter:brightness(9); opacity:1; }
+    100%{ transform:scaleY(.012) scaleX(.002); filter:brightness(0); opacity:0; }
+  }
+  #dosBootOverlay::after{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
+    background:repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 2px, transparent 3px);
+    mix-blend-mode:multiply; opacity:.5;
+  }
+  .boot-dos-inner{ width:100%; max-width:900px; position:relative; z-index:1; font-family:ui-monospace,'Courier New',monospace; }
+  .boot-dos-banner{
+    margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
+    font-size:7.5px; line-height:1.15; color:var(--boot-accent);
+    text-shadow:0 0 10px rgba(200,30,44,.75), 0 0 2px rgba(200,30,44,1);
+    opacity:0; animation: bootDosBannerFlash .5s ease-out forwards;
+  }
+  @media (min-width:700px){ .boot-dos-banner{ font-size:11px; } }
+  @keyframes bootDosBannerFlash{
+    0%{ opacity:0; filter:brightness(3); }
+    60%{ opacity:1; filter:brightness(2.2); }
+    100%{ opacity:1; filter:brightness(1); }
+  }
+  .boot-dos-text{ margin:0; white-space:pre-wrap; word-break:break-word;
+    font-family:'Courier New', ui-monospace, monospace; font-size:14px; line-height:1.55;
+    color:var(--boot-accent); text-shadow:0 0 6px rgba(200,30,44,.55), 0 0 1px rgba(200,30,44,.9); }
+  #dosBootText.typing::after{
+    content:''; display:inline-block; width:8px; height:14px; background:var(--boot-accent);
+    box-shadow:0 0 6px rgba(200,30,44,.7); animation:bootDosCursorBlink 1s steps(1) infinite;
+    vertical-align:-2px; margin-left:1px;
+  }
+  @keyframes bootDosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .boot-dos-skip{ position:fixed; bottom:22px; right:28px; font-size:11px; letter-spacing:1.5px;
+    color:var(--boot-accent-dim); text-transform:uppercase; z-index:3; font-family:ui-monospace,'Courier New',monospace; }
 </style>
 </head>
 <body>
-
-<canvas id="stars"></canvas>
-<div id="inkOverlay"></div>
-
-<div class="topnav">
-  <div class="navleft">
-    <a href="../index.html" class="mc-brand" title="Zurück zur Spieleauswahl">
-      <img src="bilder/mc_logo.png" alt="MC ORCA Games" onerror="this.style.display='none'">
-      <span>← Spieleauswahl</span>
-    </a>
-    <div class="logo" id="navLogo">PATH OF THE STARS<span>.</span></div>
-  </div>
-  <input type="checkbox" id="navToggle" class="nav-toggle-checkbox">
-  <div class="navlinks">
-    <a href="#reise">Die Reise</a>
-    <a href="#fraktionen">Fraktionen</a>
-    <a href="#imperium">Imperium</a>
-    <a href="#kampf">Kampf</a>
-    <a href="#chronik">Chronik</a>
-  </div>
-  <div class="navctas">
-    <a href="game.html" class="navcta">Spielen</a>
-    <label for="navToggle" class="nav-toggle-btn" aria-label="Menü öffnen/schließen">☰</label>
-  </div>
+<div id="bootCrtOverlay">
+  <div id="bootCrtFlash" aria-hidden="true"><div class="boot-crt-line"></div></div>
 </div>
 
-<section class="hero">
-  <div class="hero-inner">
-    <div class="eyebrow">BROWSERBASIERTE STERNENSAGA · KEIN DOWNLOAD</div>
-    <div class="hero-logo" id="heroLogo"></div>
-    <div id="heroTitleText">
-      <h1>PATH OF THE STARS<span>.</span></h1>
-      <div class="sub">Drifting Worlds</div>
-    </div>
-    <div class="credit">Ein <a href="../index.html">MC ORCA Games</a> Projekt</div>
-    <p class="pitch">Die Sonne stirbt. Die Erde flieht — als wandernde Welt, angetrieben von
-      gewaltigen Triebwerken, hinaus ins Unbekannte. Handle zwischen den Sternen, kolonisiere
-      neue Systeme und verfolge ein uraltes Signal, während an Bord nur Jahre vergehen und
-      draußen ganze Jahrtausende verstreichen.</p>
-    <div class="ctas">
-      <a href="game.html" class="btn primary">Jetzt spielen</a>
-      <a href="#reise" class="btn">Die Reise ansehen</a>
-    </div>
-    <div class="meta">
-      <span>v0_0243 <b>Open Beta</b></span>
-      <span>4 Fraktionen + Piraten</span>
-      <span>Bordzeit ≠ Beobachterzeit</span>
+<div id="dosBootOverlay" aria-hidden="true">
+  <div class="boot-dos-inner">
+    <pre class="boot-dos-banner" id="dosBootBanner"></pre>
+    <pre class="boot-dos-text" id="dosBootText"></pre>
+  </div>
+  <div class="boot-dos-skip">Klicken oder Taste dr&uuml;cken zum &Uuml;berspringen</div>
+</div>
+
+<div id="siteContent" class="boot-hidden">
+<canvas id="stars"></canvas>
+
+<div class="stream">
+
+  <div class="topline reveal">
+    <a class="back" href="../index.html">Zurueck zum Hub</a>
+    <div class="jump">
+      <a href="#reise">Die Reise</a><a href="#fraktionen">Fraktionen</a><a href="#imperium">Imperium</a><a href="#kampf">Kampf</a><a href="#chronik">Chronik</a>
     </div>
   </div>
-  <div class="scroll-hint">Scrollen</div>
-</section>
 
-<section class="section reveal" id="reise">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">RELATIVISTISCHE REISE</div>
-      <h2>Bordzeit ist nicht Beobachterzeit.</h2>
-      <p>Während an Bord der Erde nur wenige Jahre vergehen, altert das Universum draußen um
-        Jahrtausende. Jede Zwischenstation zeigt beide Uhren — und macht spürbar, wie weit sich
-        die Menschheit von allem entfernt, was sie einmal kannte.</p>
-    </div>
-    <div class="timeline">
-      <div class="tl-row">
-        <div class="tl-name"><span class="sysno">01</span>Sol</div>
-        <div class="tl-time board"><span class="lbl">Bordzeit</span><span class="val">Jahr 0,0</span></div>
-        <div class="tl-time observer"><span class="lbl">Beobachterzeit</span><span class="val">Jahr 0</span></div>
-      </div>
-      <div class="tl-row">
-        <div class="tl-name"><span class="sysno">02</span>Alpha Centauri</div>
-        <div class="tl-time board"><span class="lbl">Bordzeit</span><span class="val">Jahr 2,7</span></div>
-        <div class="tl-time observer"><span class="lbl">Beobachterzeit</span><span class="val">Jahr 7.901</span></div>
-      </div>
-      <div class="tl-row">
-        <div class="tl-name"><span class="sysno">03</span>Barnards Stern</div>
-        <div class="tl-time board"><span class="lbl">Bordzeit</span><span class="val">Jahr 6,0</span></div>
-        <div class="tl-time observer"><span class="lbl">Beobachterzeit</span><span class="val">Jahr 17.644</span></div>
-      </div>
-      <div class="tl-row">
-        <div class="tl-name"><span class="sysno">04</span>Wolf 359</div>
-        <div class="tl-time board"><span class="lbl">Bordzeit</span><span class="val">Jahr 8,4</span></div>
-        <div class="tl-time observer"><span class="lbl">Beobachterzeit</span><span class="val">Jahr 24.743</span></div>
-      </div>
-    </div>
-    <div class="gap-note">Die Lücke zwischen beiden Uhren wächst mit jeder Etappe — und mit ihr
-      die Frage, wer oder was noch dort draußen auf die wandernde Erde wartet.</div>
+  <div class="s-logo reveal"><img src="bilder/logo.png" alt="PATH OF THE STARS" onerror="this.style.display='none'"></div>
+  <div class="s-prompt reveal"><span class="p">DRIFT:\&gt;</span> status --schiff<span class="cur"></span></div>
+  <div class="s-title reveal">Path of the Stars</div>
+  <div class="s-sub reveal">Drifting Worlds &middot; Ein MC ORCA Games Projekt</div>
+  <p class="s-pitch reveal">Die Sonne stirbt. Die Erde flieht — als wandernde Welt, angetrieben von gewaltigen
+    Triebwerken, hinaus ins Unbekannte. Handle zwischen den Sternen, kolonisiere neue Systeme und verfolge ein
+    uraltes Signal, waehrend an Bord nur Jahre vergehen und draussen ganze Jahrtausende verstreichen.</p>
+  <div class="s-meta reveal"><b>v0_0243 Open Beta</b><span>4 Fraktionen + Piraten</span><span>Bordzeit &ne; Beobachterzeit</span></div>
+  <div class="s-ctas reveal">
+    <a class="glink primary" href="game.html">Jetzt spielen</a>
+    <a class="glink" href="#reise">Die Reise ansehen</a>
   </div>
-</section>
 
-<section class="section reveal" id="fraktionen">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">MÄCHTE ZWISCHEN DEN STERNEN</div>
-      <h2>Vier Fraktionen, ein geteilter Himmel.</h2>
-      <p>Du beginnst auf der Heimatwelt einer Fraktion und mit etwas Vertrauensvorschuss bei
-        ihr — verbünden oder verfeinden kannst du dich später mit jeder von ihnen.</p>
+  <hr class="rule thick">
+
+  <div class="sec reveal" id="reise">
+    <div class="shead"><span class="idx">[ 01 ]</span> Relativistische Reise<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Waehrend an Bord der Erde nur wenige Jahre vergehen, altert das
+      Universum draussen um Jahrtausende. Jede Zwischenstation zeigt beide Uhren.</p>
+
+    <div class="tlrow">
+      <div><span class="sysno">01</span><span class="sysname">Sol</span></div>
+      <div class="dl"><span class="lbl">Bordzeit</span><span class="fill"></span><span class="val">Jahr 0,0</span></div>
+      <div class="dl"><span class="lbl">Beobachterzeit</span><span class="fill"></span><span class="val">Jahr 0</span></div>
     </div>
-    <div class="factions">
-      <div class="faction" style="--fc:#6E8B93">
-        <div class="fname">Meridian-Konföderation</div>
-        <div class="fshort">Handel &amp; Versorgungsnetze</div>
-        <div class="motto">„Jede Welt hat einen Wert. Jeder Handel eine Zukunft.“</div>
-        <div class="desc">Ein Bündnis kleiner Kolonien, die nach der Ankunft allein nicht
-          überlebt hätten. Ihre Macht liegt nicht in Armeen, sondern in Handelsrouten und
-          Informationen.</div>
-        <div class="trades">
-          <span class="trade-chip cheap">Günstig: Technik</span>
-          <span class="trade-chip dear">Teuer: Nahrung</span>
-        </div>
-      </div>
-      <div class="faction" style="--fc:#C81E2C">
-        <div class="fname">Valorianisches Reich</div>
-        <div class="fshort">Militär &amp; Ordnung</div>
-        <div class="motto">„Ordnung bewahrt das Leben.“</div>
-        <div class="desc">Entstanden aus dem Ruf nach starker Führung in chaotischen Zeiten.
-          Stärkste Flotten, beeindruckende Technologie — und ein Hang zur Kontrolle, der
-          Beschützer wie Kritiker gleichermaßen anzieht.</div>
-        <div class="trades">
-          <span class="trade-chip cheap">Günstig: Erz</span>
-          <span class="trade-chip dear">Teuer: Technik</span>
-        </div>
-      </div>
-      <div class="faction" style="--fc:#9B8CD9">
-        <div class="fname">Synthische Union</div>
-        <div class="fshort">Künstliches Bewusstsein</div>
-        <div class="motto">„Leben ist Information. Information darf nicht sterben.“</div>
-        <div class="desc">Ursprünglich als KI zur Unterstützung der Menschheit erschaffen —
-          heute ein eigenes Kollektiv aus synthetischen Körpern und digital gespeicherten
-          Persönlichkeiten, das sich weigert, wieder Werkzeug zu sein.</div>
-        <div class="trades">
-          <span class="trade-chip cheap">Günstig: Treibstoff</span>
-          <span class="trade-chip dear">Teuer: Nahrung</span>
-        </div>
-      </div>
-      <div class="faction" style="--fc:#C9793F">
-        <div class="fname">Freie Welten</div>
-        <div class="fshort">Unabhängigkeit</div>
-        <div class="motto">„Kein Stern gehört jemandem.“</div>
-        <div class="desc">Ein loser Zusammenschluss unabhängiger Planeten und Stationen ohne
-          zentrale Regierung oder gemeinsame Armee — dafür mit etwas, das andere verloren
-          haben: Freiheit.</div>
-        <div class="trades">
-          <span class="trade-chip cheap">Günstig: Nahrung</span>
-          <span class="trade-chip dear">Teuer: Treibstoff</span>
-        </div>
-      </div>
+    <div class="tlrow">
+      <div><span class="sysno">02</span><span class="sysname">Alpha Centauri</span></div>
+      <div class="dl"><span class="lbl">Bordzeit</span><span class="fill"></span><span class="val">Jahr 2,7</span></div>
+      <div class="dl"><span class="lbl">Beobachterzeit</span><span class="fill"></span><span class="val">Jahr 7.901</span></div>
     </div>
-    <div class="pirates-note">⚠ Jenseits der Sicherheitszonen hausen die <b>Piraten</b> — eine
-      dauerhaft feindselige Fraktion ohne Ruf, ohne Verhandlung, ohne Gnade.</div>
+    <div class="tlrow">
+      <div><span class="sysno">03</span><span class="sysname">Barnards Stern</span></div>
+      <div class="dl"><span class="lbl">Bordzeit</span><span class="fill"></span><span class="val">Jahr 6,0</span></div>
+      <div class="dl"><span class="lbl">Beobachterzeit</span><span class="fill"></span><span class="val">Jahr 17.644</span></div>
+    </div>
+    <div class="tlrow">
+      <div><span class="sysno">04</span><span class="sysname">Wolf 359</span></div>
+      <div class="dl"><span class="lbl">Bordzeit</span><span class="fill"></span><span class="val">Jahr 8,4</span></div>
+      <div class="dl"><span class="lbl">Beobachterzeit</span><span class="fill"></span><span class="val">Jahr 24.743</span></div>
+    </div>
+    <div class="gap-note"># Die Luecke zwischen beiden Uhren waechst mit jeder Etappe — und mit ihr die Frage,
+      wer oder was noch dort draussen auf die wandernde Erde wartet.</div>
   </div>
-</section>
 
-<section class="section reveal" id="imperium">
-  <div class="wrap">
-    <div class="imperium-grid">
-      <div>
-        <div class="eyebrow">DEIN IMPERIUM</div>
-        <h2>Aus herrenlosen Systemen wird dein Reich.</h2>
-        <p style="color:#B9AF9C;margin-top:16px">Neben der eigentlichen Sternenkarte wächst
-          im Hintergrund ein eigenes Aufbau-Modul — Systeme werden beansprucht, ausgebaut und
-          gegen Standgebühren fest ins eigene Imperium eingegliedert.</p>
-        <div class="steps">
-          <div class="step">
-            <div class="num">1</div>
-            <div class="stxt"><b>Herrenloses System finden</b><p>Unbeanspruchte Sektoren lassen
-              sich direkt fürs eigene Imperium beanspruchen.</p></div>
-          </div>
-          <div class="step">
-            <div class="num">2</div>
-            <div class="stxt"><b>Fremdes System entreißen</b><p>Gehört ein System bereits einer
-              Fraktion, kostet die Eingliederung eine Standgebühr in Credits.</p></div>
-          </div>
-          <div class="step">
-            <div class="num">3</div>
-            <div class="stxt"><b>Ausbauen &amp; verwalten</b><p>Jedes eingegliederte System
-              zählt fortan zu deinem Imperium und trägt zu deinem passiven Einkommen bei.</p></div>
-          </div>
-        </div>
-      </div>
-      <div class="imperium-panel">
-        <div class="prow"><span>System „Kepler-Außenposten“</span><span>Herrenlos</span></div>
-        <div class="prow"><span>Standgebühr</span><span>—</span></div>
-        <div class="prow"><span>System „Rotes Tor“</span><span>Valorian</span></div>
-        <div class="prow"><span>Standgebühr</span><span>18.400 Cr.</span></div>
-        <div class="prow"><span>Eigene Systeme im Imperium</span><span>7</span></div>
-      </div>
+  <hr class="rule">
+
+  <div class="sec reveal" id="fraktionen">
+    <div class="shead"><span class="idx">[ 02 ]</span> Vier Fraktionen, ein geteilter Himmel<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Du beginnst auf der Heimatwelt einer Fraktion und mit etwas
+      Vertrauensvorschuss bei ihr — verbuenden oder verfeinden kannst du dich spaeter mit jeder von ihnen.</p>
+
+    <div class="faction" style="--fc:#6E8B93">
+      <div class="fname">Meridian-Konfoederation</div>
+      <div class="fshort">Handel &amp; Versorgungsnetze</div>
+      <div class="motto">„Jede Welt hat einen Wert. Jeder Handel eine Zukunft.“</div>
+      <div class="desc">Ein Buendnis kleiner Kolonien, die nach der Ankunft allein nicht ueberlebt haetten.
+        Ihre Macht liegt nicht in Armeen, sondern in Handelsrouten und Informationen.</div>
+      <div class="trades"><span>Guenstig: Technik</span><span>Teuer: Nahrung</span></div>
     </div>
+    <div class="faction" style="--fc:#C81E2C">
+      <div class="fname">Valorianisches Reich</div>
+      <div class="fshort">Militaer &amp; Ordnung</div>
+      <div class="motto">„Ordnung bewahrt das Leben.“</div>
+      <div class="desc">Entstanden aus dem Ruf nach starker Fuehrung in chaotischen Zeiten. Staerkste Flotten,
+        beeindruckende Technologie — und ein Hang zur Kontrolle.</div>
+      <div class="trades"><span>Guenstig: Erz</span><span>Teuer: Technik</span></div>
+    </div>
+    <div class="faction" style="--fc:#9B8CD9">
+      <div class="fname">Synthische Union</div>
+      <div class="fshort">Kuenstliches Bewusstsein</div>
+      <div class="motto">„Leben ist Information. Information darf nicht sterben.“</div>
+      <div class="desc">Urspruenglich als KI zur Unterstuetzung der Menschheit erschaffen — heute ein eigenes
+        Kollektiv aus synthetischen Koerpern und digital gespeicherten Persoenlichkeiten.</div>
+      <div class="trades"><span>Guenstig: Treibstoff</span><span>Teuer: Nahrung</span></div>
+    </div>
+    <div class="faction" style="--fc:#C9793F">
+      <div class="fname">Freie Welten</div>
+      <div class="fshort">Unabhaengigkeit</div>
+      <div class="motto">„Kein Stern gehoert jemandem.“</div>
+      <div class="desc">Ein loser Zusammenschluss unabhaengiger Planeten und Stationen ohne zentrale Regierung
+        oder gemeinsame Armee — dafuer mit etwas, das andere verloren haben: Freiheit.</div>
+      <div class="trades"><span>Guenstig: Nahrung</span><span>Teuer: Treibstoff</span></div>
+    </div>
+
+    <div class="pirates-note">! Jenseits der Sicherheitszonen hausen die <b>Piraten</b> — eine dauerhaft
+      feindselige Fraktion ohne Ruf, ohne Verhandlung, ohne Gnade.</div>
   </div>
-</section>
 
-<section class="section reveal" id="kampf">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">KAMPF &amp; FLOTTEN</div>
-      <h2>Rundenbasierte Gefechte mit echter Taktik.</h2>
-      <p>Kämpfe folgen einem rundenbasierten System nach dem Vorbild klassischer RPGs — mit
-        Flottenformationen, Gruppentaktik und Eskorte für verwundbare Schiffe im Gefecht.</p>
-    </div>
-    <div class="chiprow">
-      <span class="chip cyan">Rundenbasiertes Kampfsystem</span>
-      <span class="chip">Flottenformationen</span>
-      <span class="chip">Gruppentaktik</span>
-      <span class="chip">Eskorte im Gefecht</span>
-      <span class="chip">Truppentransporter</span>
-    </div>
+  <hr class="rule">
+
+  <div class="sec reveal" id="imperium">
+    <div class="shead"><span class="idx">[ 03 ]</span> Aus herrenlosen Systemen wird dein Reich<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Neben der eigentlichen Sternenkarte waechst im Hintergrund ein
+      eigenes Aufbau-Modul — Systeme werden beansprucht, ausgebaut und gegen Standgebuehren fest ins eigene
+      Imperium eingegliedert.</p>
+    <ul class="tlist">
+      <li><b>Herrenloses System finden</b> — Unbeanspruchte Sektoren lassen sich direkt fuers eigene Imperium beanspruchen.</li>
+      <li><b>Fremdes System entreissen</b> — Gehoert ein System bereits einer Fraktion, kostet die Eingliederung eine Standgebuehr in Credits.</li>
+      <li><b>Ausbauen &amp; verwalten</b> — Jedes eingegliederte System zaehlt fortan zu deinem Imperium und traegt zu deinem passiven Einkommen bei.</li>
+    </ul>
+    <div class="prow"><span>System "Kepler-Aussenposten"</span><span>Herrenlos</span></div>
+    <div class="prow"><span>Standgebuehr</span><span>—</span></div>
+    <div class="prow"><span>System "Rotes Tor"</span><span>Valorian</span></div>
+    <div class="prow"><span>Standgebuehr</span><span>18.400 Cr.</span></div>
+    <div class="prow"><span>Eigene Systeme im Imperium</span><span>7</span></div>
   </div>
-</section>
 
-<section class="section reveal" id="chronik">
-  <div class="wrap">
-    <div class="chronicle">
-      <div class="eyebrow">AUS DER CHRONIK · KAPITEL 1 — SOL</div>
-      <blockquote>„Zum ersten Mal in der Geschichte der Menschheit gab es keinen Sonnenaufgang
-        mehr – nur noch den Blick zurück auf die Heimat, die sie für immer hinter sich
-        ließen.“</blockquote>
-      <div class="attrib">— Drifting Worlds, Story-Archiv</div>
-    </div>
+  <hr class="rule">
+
+  <div class="sec reveal" id="kampf">
+    <div class="shead"><span class="idx">[ 04 ]</span> Rundenbasierte Gefechte<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Kaempfe folgen einem rundenbasierten System nach dem Vorbild
+      klassischer RPGs — mit Flottenformationen, Gruppentaktik und Eskorte fuer verwundbare Schiffe im Gefecht.</p>
+    <ul class="tlist">
+      <li><b>Rundenbasiertes Kampfsystem</b></li>
+      <li>Flottenformationen</li>
+      <li>Gruppentaktik</li>
+      <li>Eskorte im Gefecht</li>
+      <li>Truppentransporter</li>
+    </ul>
   </div>
-</section>
 
-<section class="section reveal" id="roadmap">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">WEITERENTWICKLUNG</div>
-      <h2>Was als Nächstes kommt.</h2>
-      <p>Alles kostenlos, keine Bezahlinhalte.</p>
-    </div>
-    <div class="roadmap-cols">
-      <div class="roadmap-col">
-        <div class="roadmap-status"><span class="dot" style="background:#6E8B93"></span> In Arbeit</div>
-        <ul class="roadmap-idea-list">
-          <li>Weitere Story-Kapitel entlang der Signal-Route</li>
-          <li>Ausbau des Imperium-Aufbaumoduls</li>
-        </ul>
-      </div>
-      <div class="roadmap-col">
-        <div class="roadmap-status"><span class="dot" style="background:#9B8CD9"></span> Als Nächstes geplant</div>
-        <ul class="roadmap-idea-list">
-          <li>Weitere Zwischenstationen nach Wolf 359</li>
-          <li>Erweiterte Kampf- und Eskortmechaniken</li>
-        </ul>
-      </div>
-      <div class="roadmap-col">
-        <div class="roadmap-status"><span class="dot" style="background:#E8B64A"></span> Ideen für spätere Updates</div>
-        <ul class="roadmap-idea-list">
-          <li>Mehr Fraktions-Interaktionen und Reputation</li>
-          <li>Zufallsereignisse im All</li>
-        </ul>
-      </div>
-    </div>
-    <div class="todo-note">TODO: Diese Roadmap ist ein Platzhalter — sag mir einfach, was hier
-      wirklich rein soll, dann passe ich sie an.</div>
-    <div class="roadmap-note">Diese Liste wird laufend erweitert und ist keine feste Zusage für
-      Zeitpunkte — Reihenfolge kann sich ändern.</div>
+  <hr class="rule">
+
+  <div class="sec reveal" id="chronik">
+    <div class="shead"><span class="idx">[ 05 ]</span> Aus der Chronik &middot; Kapitel 1 — Sol<span class="fill"></span></div>
+    <blockquote class="chron">„Zum ersten Mal in der Geschichte der Menschheit gab es keinen Sonnenaufgang mehr –
+      nur noch den Blick zurueck auf die Heimat, die sie fuer immer hinter sich liessen.“
+      <div class="chron-attrib">— Drifting Worlds, Story-Archiv</div>
+    </blockquote>
   </div>
-</section>
 
-<section class="finalcta reveal" id="start">
-  <div class="wrap">
-    <div class="eyebrow" style="justify-content:center">BEREIT ZUM AUFBRUCH?</div>
-    <h2>Die wandernde Erde wartet auf ihren nächsten Kurs.</h2>
-    <p>Keine Installation, kein Konto bei Dritten — öffnen und spielen.</p>
-    <div class="ctas">
-      <a href="game.html" class="btn primary">Jetzt spielen</a>
+  <hr class="rule">
+
+  <div class="sec reveal" id="roadmap">
+    <div class="shead"><span class="idx">[ 06 ]</span> Weiterentwicklung<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Alles kostenlos, keine Bezahlinhalte. Diese Liste wird laufend
+      erweitert und ist keine feste Zusage fuer Zeitpunkte — Reihenfolge kann sich aendern.</p>
+
+    <div class="roadmap-block">
+      <span class="rtag now">[ In Arbeit ]</span>
+      <ul class="tlist">
+        <li>Weitere Story-Kapitel entlang der Signal-Route</li>
+        <li>Ausbau des Imperium-Aufbaumoduls</li>
+      </ul>
     </div>
+    <div class="roadmap-block">
+      <span class="rtag next">[ Als Naechstes geplant ]</span>
+      <ul class="tlist">
+        <li>Weitere Zwischenstationen nach Wolf 359</li>
+        <li>Erweiterte Kampf- und Eskortmechaniken</li>
+      </ul>
+    </div>
+    <div class="roadmap-block">
+      <span class="rtag idea">[ Ideen fuer spaetere Updates ]</span>
+      <ul class="tlist">
+        <li>Mehr Fraktions-Interaktionen und Reputation</li>
+        <li>Zufallsereignisse im All</li>
+      </ul>
+    </div>
+    <p style="color:var(--grey);font-size:11px"># TODO: Diese Roadmap ist ein Platzhalter — sag mir einfach, was hier wirklich rein soll, dann passe ich sie an.</p>
   </div>
-</section>
 
-<footer>
-  <div class="wrap">PATH OF THE STARS — Drifting Worlds · <span class="fver">v0_0243 Open Beta</span> · Ein <a href="../index.html">MC ORCA Games</a> Projekt · <a href="impressum.html">Impressum &amp; Datenschutz</a></div>
-</footer>
+  <hr class="rule thick">
+
+  <div class="sec reveal" id="start" style="text-align:center">
+    <div class="shead" style="justify-content:center">Bereit zum Aufbruch?</div>
+    <p class="sdesc" style="margin:0 auto 16px"># Die wandernde Erde wartet auf ihren naechsten Kurs. Keine Installation, kein Konto bei Dritten — oeffnen und spielen.</p>
+    <div class="s-ctas"><a class="glink primary" href="game.html">Jetzt spielen</a></div>
+  </div>
+
+  <div class="s-footer reveal">
+    PATH OF THE STARS — Drifting Worlds &middot; v0_0243 Open Beta &middot; Ein <a href="../index.html">MC ORCA Games</a> Projekt &middot; <a href="impressum.html">Impressum &amp; Datenschutz</a>
+  </div>
+
+</div>
 
 <script>
-/* ---------- Mobiles Nav-Menü: nach Linkklick automatisch schließen ---------- */
-(function(){
-  const toggle = document.getElementById('navToggle');
-  document.querySelectorAll('.navlinks a').forEach(a => {
-    a.addEventListener('click', () => { toggle.checked = false; });
-  });
-})();
-
-/* ---------- Starfield ---------- */
+/* ---------- Sternenfeld (dezent, rot) ---------- */
 (function(){
   const canvas = document.getElementById('stars');
   const ctx = canvas.getContext('2d');
   let stars = [], w, h;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
   function resize(){
     w = canvas.width = window.innerWidth;
     h = canvas.height = document.documentElement.scrollHeight;
-    const count = Math.min(260, Math.floor((w*h)/9000));
-    stars = Array.from({length:count}, () => ({
-      x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.3+0.2,
-      p: Math.random()*Math.PI*2, s: Math.random()*0.015+0.005
-    }));
+    const count = Math.min(160, Math.floor((w*h)/13000));
+    stars = Array.from({length:count}, () => ({ x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.1+0.2, p:Math.random()*Math.PI*2, s:Math.random()*0.015+0.005 }));
   }
   function draw(t){
     ctx.clearRect(0,0,w,h);
-    ctx.fillStyle = '#E8E2D4';
+    ctx.fillStyle = '#C81E2C';
     stars.forEach(st=>{
-      const tw = reduced ? 0.7 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
-      ctx.globalAlpha = 0.15 + tw*0.55;
+      const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.08 + tw*0.22;
       ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
     });
     ctx.globalAlpha = 1;
     if(!reduced) requestAnimationFrame(draw);
   }
   window.addEventListener('resize', resize);
-  resize();
-  requestAnimationFrame(draw);
+  resize(); requestAnimationFrame(draw);
   if(reduced) draw(0);
-})();
-
-/* ---------- Logo-Fallback (Nav + Hero) ----------
-   Probiert bilder/logo.png (wie im Spiel selbst). Lädt es, ersetzt es das Bild in Nav UND
-   Hero und blendet im Hero den Text-Schriftzug aus. Lädt es nicht, bleiben die bestehenden
-   Text-Fallbacks sichtbar. */
-(function initLogo(){
-  const heroSlot = document.getElementById('heroLogo');
-  const navSlot = document.getElementById('navLogo');
-  const heroText = document.getElementById('heroTitleText');
-  const src = 'bilder/logo.png';
-  const test = new Image();
-  test.onload = () => {
-    if(heroSlot){
-      const img = document.createElement('img');
-      img.src = src; img.alt = 'PATH OF THE STARS — Drifting Worlds';
-      heroSlot.appendChild(img);
-    }
-    if(heroText) heroText.style.display = 'none';
-    if(navSlot){
-      const img2 = document.createElement('img');
-      img2.src = src; img2.alt = 'PATH OF THE STARS';
-      navSlot.innerHTML = ''; navSlot.appendChild(img2);
-    }
-  };
-  test.src = src;
 })();
 
 /* ---------- Scroll reveal ---------- */
 (function(){
   const io = new IntersectionObserver((entries)=>{
     entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
-  }, { threshold:0.12 });
+  }, { threshold:0.08 });
   document.querySelectorAll('.reveal').forEach(el=> io.observe(el));
 })();
 </script>
 
+</div><!-- /siteContent -->
+<script>
+const BOOT_BANNER = ` __  __   ____    ___  ____    ____     _   
+|  \\/  | / ___|  / _ \\|  _ \\  / ___|   / \\  
+| |\\/| || |      | | || |_) || |      / _ \\ 
+| |  | || |___   | |_||  _ < | |___  / ___ \\
+|_|  |_| \\____|  \\___/|_| \\_\\ \\____|/_/   \\_\\
+
+  ____     _    __  __  _____  ____     ___  ____  
+ / ___|   / \\  |  \\/  || ____|/ ___|   / _ \\/ ___| 
+| |  _   / _ \\ | |\\/| ||  _|  \\___ \\   | | |\\___ \\ 
+| |_| | / ___ \\| |  | || |___  ___) |  | |_| ___) |
+ \\____|/_/   \\_\\|_|  |_||_____||____/   \\___/|____/ `;
+
+/* ==========================================================================
+   AB HIER SEITENANPASSUNG (PATH OF THE STARS-Landingpage) — BIOS-Name,
+   OS-Name und Kontextdaten. Kein eigener Spielstand auf dieser Seite —
+   Werte unten sind Katalog-Metadaten, 1:1 aus dem Seiteninhalt (Fraktionen,
+   Zeitverhaeltnis Bordzeit/Aussenzeit, Signal-Handlung).
+   ========================================================================== */
+const OS_NAME = "DRIFT-OS";
+const BIOS_LINE = "PATH OF THE STARS BIOS v0.0243";
+const COPYRIGHT_LINE = "(C) 2026 MC ORCA Games.";
+
+function getBootContext(){
+  return {
+    greeting: 'Reisender',
+    factions: '4 + Piraten',
+    timeScale: 'An Bord Jahre, draussen Jahrtausende',
+    signal: 'uraltes Signal, Herkunft unbekannt',
+  };
+}
+
+function generateBootLines(){
+  const ctx = getBootContext();
+  return [
+    BIOS_LINE,
+    COPYRIGHT_LINE,
+    "",
+    "CPU .................................. ORCA-9800X @ 4.7 GHz",
+    "RAM-Test .............................. 65536 MB OK",
+    "Netzwerkschnittstelle ................. bereit",
+    "",
+    { progress: "Pruefe Dateisystem-Integritaet", ms: 3400 },
+    { progress: "Initialisiere Generationenschiff", ms: 3400 },
+    { progress: "Kalibriere Bordzeit-Synchronisation", ms: 3200 },
+    "",
+    `Lade ${OS_NAME} Kernel...`,
+    "  [ OK ] BOOTLDR.SYS          Bootloader initialisiert",
+    "  [ OK ] BORDZEIT.SYS         Bordzeit-Synchronisation",
+    "  [ OK ] FRAKTIONEN.SYS       Vier Fraktionen + Piraten",
+    "  [ OK ] SIGNAL.SYS           Signalverfolgung",
+    "  [ OK ] HANDEL.SYS           Zwischenstationen-Handel",
+    "  [ OK ] NAVIGATION.SYS       Sternenkurs-Berechnung",
+    "",
+    { progress: "Verfolge uraltes Signal", ms: 3400 },
+    { progress: "Synchronisiere Fraktionsregister", ms: 3400 },
+    { progress: "Lade Zwischenstationen-Handel", ms: 3200 },
+    { progress: "Pruefe Lizenzserver", ms: 2600 },
+    "",
+    "Schiffs-Uebersicht:",
+    `  Fraktionen ................................. ${ctx.factions}`,
+    `  Zeitverhaeltnis ............................. ${ctx.timeScale}`,
+    `  Signalquelle ................................ ${ctx.signal}`,
+    "",
+    `${OS_NAME} BEREIT.`,
+    "",
+    `Willkommen an Bord, ${ctx.greeting}.`
+  ];
+}
+
+function renderProgressLine(label, pct, width=24){
+  const filled = Math.max(0, Math.min(width, Math.round(width*pct/100)));
+  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
+  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
+}
+
+let bootAudioCtx = null;
+function bootTone(freq, dur, type='square', vol=0.05){
+  try{
+    bootAudioCtx = bootAudioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const o = bootAudioCtx.createOscillator(), g = bootAudioCtx.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = vol;
+    o.connect(g); g.connect(bootAudioCtx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, bootAudioCtx.currentTime+dur);
+    o.stop(bootAudioCtx.currentTime+dur+0.02);
+  }catch(err){}
+}
+const BootSound = {
+  postBeep: ()=> bootTone(900, 0.15, 'square', 0.06),
+  tone: bootTone,
+  diskAccess: ()=> bootTone(220+Math.random()*40, 0.03, 'square', 0.03),
+  modemHandshake: ()=> bootTone(1400, 0.25, 'sawtooth', 0.03),
+  buildOk: ()=> { bootTone(660,0.12); setTimeout(()=>bootTone(880,0.18),120); },
+};
+
+let dosBootToken = 0;
+function playDosBootSequence(){
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById('dosBootOverlay');
+    const textEl = document.getElementById('dosBootText');
+    const bannerEl = document.getElementById('dosBootBanner');
+    if(!overlay || !textEl){ resolve(); return; }
+    const BOOT_LINES = generateBootLines();
+    const myToken = ++dosBootToken;
+    const totalCharBudgetMs = 90000;
+    const totalChars = BOOT_LINES.reduce((n,l)=> n + (typeof l==='string' ? Math.max(l.length,1):0), 0);
+    const perCharMs = Math.min(28, Math.max(9, totalCharBudgetMs/Math.max(totalChars,1)));
+    const interLineMs = 450;
+    const finalHoldMs = 3500;
+    const bannerRevealMs = 500;
+
+    textEl.textContent = '';
+    textEl.classList.add('typing');
+    if(bannerEl){
+      bannerEl.textContent = BOOT_BANNER;
+      bannerEl.style.animation = 'none'; void bannerEl.offsetWidth; bannerEl.style.animation = '';
+    }
+    overlay.classList.remove('fading','crt-poweroff');
+    overlay.classList.add('visible');
+    overlay.classList.remove('crt-poweron'); void overlay.offsetWidth; overlay.classList.add('crt-poweron');
+    try{ BootSound.postBeep(); }catch(err){}
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    let finished = false, timeoutIds = [];
+    const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds=[]; };
+    let renderedLines = [];
+    const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); overlay.scrollTop = overlay.scrollHeight; };
+
+    const finishNow = ()=>{
+      if(finished || myToken!==dosBootToken) return;
+      finished = true; clearAllTimers();
+      textEl.textContent = BOOT_LINES.map(l=> typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
+      overlay.scrollTop = overlay.scrollHeight;
+      overlay.classList.remove('crt-poweron'); overlay.classList.add('crt-poweroff');
+      textEl.classList.remove('typing');
+      document.body.style.overflow = prevOverflow;
+      setTimeout(()=>{
+        if(myToken!==dosBootToken) return;
+        overlay.classList.remove('visible','fading','crt-poweroff');
+        overlay.removeEventListener('click', skipHandler);
+        document.removeEventListener('keydown', skipHandler);
+        resolve();
+      }, 550);
+    };
+    const skipHandler = ()=> finishNow();
+    overlay.addEventListener('click', skipHandler);
+    document.addEventListener('keydown', skipHandler);
+
+    let lineIndex = 0, blipCounter = 0;
+    const keyBlip = ()=>{ blipCounter++; if(blipCounter%3===0){ try{ BootSound.tone(760+Math.random()*260,0.02,'square',0.045); }catch(err){} } };
+    const okBlip = ()=>{ try{ BootSound.tone(1180,0.05,'square',0.05); }catch(err){} };
+    const readyChord = ()=>{ try{ BootSound.buildOk(); }catch(err){} };
+
+    const processLine = ()=>{
+      if(myToken!==dosBootToken) return;
+      if(lineIndex >= BOOT_LINES.length){ timeoutIds.push(setTimeout(finishNow, finalHoldMs)); return; }
+      const entry = BOOT_LINES[lineIndex];
+      if(typeof entry === 'string') typeStringLine(entry);
+      else if(entry && entry.progress) runProgressLine(entry);
+    };
+
+    const typeStringLine = (line)=>{
+      if(line.length === 0){
+        renderedLines[lineIndex] = ''; redraw(); lineIndex++;
+        timeoutIds.push(setTimeout(processLine, interLineMs/2));
+        return;
+      }
+      let charIndex = 0;
+      const step = ()=>{
+        if(myToken!==dosBootToken) return;
+        charIndex++;
+        renderedLines[lineIndex] = line.slice(0, charIndex);
+        redraw();
+        if(charIndex < line.length){ keyBlip(); timeoutIds.push(setTimeout(step, perCharMs)); }
+        else{
+          const trimmed = line.trim();
+          if(trimmed.startsWith('[ OK ]')) okBlip();
+          else if(trimmed === `${OS_NAME} BEREIT.`) readyChord();
+          lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs));
+        }
+      };
+      step();
+    };
+
+    const runProgressLine = (entry)=>{
+      try{ BootSound.diskAccess(); }catch(err){}
+      const steps = 22, stepMs = Math.max(30, entry.ms/steps);
+      let step = 0;
+      renderedLines[lineIndex] = renderProgressLine(entry.progress, 0); redraw();
+      const tick = ()=>{
+        if(myToken!==dosBootToken) return;
+        step++;
+        const pct = Math.min(100, Math.round(step/steps*100));
+        renderedLines[lineIndex] = renderProgressLine(entry.progress, pct); redraw();
+        if(step%4===0){ try{ BootSound.tone(500+pct*4,0.02,'square',0.03); }catch(err){} }
+        if(step < steps) timeoutIds.push(setTimeout(tick, stepMs));
+        else{ lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs)); }
+      };
+      tick();
+    };
+
+    timeoutIds.push(setTimeout(processLine, bannerRevealMs));
+  });
+}
+
+/* Seiteneinstieg: CRT-Poweron-Flash -> direkt voller DOS-Bootstream -> danach
+   erst wird der eigentliche Seiteninhalt sichtbar. Kein Klick/Start-Button
+   dazwischen (anders als in den Spielen selbst) — die Bootstream IST hier
+   der komplette Ladevorgang der Seite. */
+function bootIntoSite(){
+  document.documentElement.classList.add('boot-locked');
+  setTimeout(async ()=>{
+    const crt = document.getElementById('bootCrtOverlay');
+    if(crt) crt.style.display = 'none';
+    await playDosBootSequence();
+    document.documentElement.classList.remove('boot-locked');
+    const site = document.getElementById('siteContent');
+    if(site) site.classList.remove('boot-hidden');
+    /* Sicherheits-Fallback: das bestehende Scroll-Reveal (.reveal +
+       IntersectionObserver) beobachtet Elemente ggf. schon, waehrend
+       #siteContent noch display:none war. Direkt nach dem Sichtbarwerden
+       pruefen wir zusaetzlich von Hand, was gerade im Viewport liegt, und
+       blenden das sofort ein, statt uns allein auf den Observer zu
+       verlassen. */
+    requestAnimationFrame(()=>{
+      document.querySelectorAll('.reveal').forEach(el=>{
+        const r = el.getBoundingClientRect();
+        if(r.top < window.innerHeight && r.bottom > 0) el.classList.add('in');
+      });
+    });
+  }, 900);
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', bootIntoSite);
+}else{
+  bootIntoSite();
+}
+
+</script>
+
+<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): eigenstaendiges Konto-Widget, 6-stelliger E-Mail-Code
+     statt Magic-Link (funktioniert auch aus einer APK-WebView heraus, kein Browser-Redirect
+     noetig). Gleiche Supabase-Zugangsdaten wie in den anderen Spielen -> eine Anmeldung gilt
+     ueberall auf dieser Domain, weil die Session im localStorage der Domain liegt. -->
+<div id="cloudAccountBar" style="position:fixed;top:14px;right:14px;z-index:99999;font-family:system-ui,-apple-system,sans-serif;font-size:12px;">
+  <button id="cloudAccountToggle" style="background:rgba(15,15,20,0.85);color:#eee;border:1px solid #555;padding:7px 14px;border-radius:18px;cursor:pointer;backdrop-filter:blur(4px);">☁ Konto</button>
+  <div id="cloudAccountPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:250px;background:#16161a;border:1px solid #444;border-radius:10px;padding:12px;box-shadow:0 10px 26px rgba(0,0,0,0.5);color:#ddd;">
+    <div id="cloudStepEmail">
+      <div style="line-height:1.5;color:#aaa;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+      <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;">
+      <button id="cloudSendCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Code senden</button>
+    </div>
+    <div id="cloudStepCode" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Code aus der E-Mail eingeben:</div>
+      <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;letter-spacing:3px;text-align:center;">
+      <button id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Bestätigen</button>
+    </div>
+    <div id="cloudStepIn" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
+    </div>
+    <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+
+  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.style.color = isErr ? '#e37b7b' : '#8fd18f'; }
+  function render(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
+    var emailEl = document.getElementById('cloudUserEmail');
+    if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+  }
+
+  toggle.addEventListener('click', function(){ panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
+  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.style.display = 'none'; });
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data.session;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      var wasLoggedOut = !window.__cloudUser;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(wasLoggedOut && window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+
+    document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+      var email = document.getElementById('cloudEmailInput').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+      var code = document.getElementById('cloudCodeInput').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+
+    document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      render();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+  render();
+})();
+</script>
 </body>
 </html>

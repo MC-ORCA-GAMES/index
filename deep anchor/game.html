@@ -2456,7 +2456,23 @@ body{
 }
 .panel h3::before{ content:''; width:6px; height:6px; background:var(--accent); display:inline-block; }
 .view{ display:none; }
-.view.active{ display:block; }
+/* NEU (TODO-OPTIK-POLITUR, Nutzer-Wunsch: "was können wir noch optisch verfeinern"): bisher
+   schaltete .view.active hart von display:none auf display:block um, ganz ohne Übergang -- jeder
+   Tab-Wechsel wirkte dadurch abrupt. Die Animation läuft nur beim Hinzufügen der active-Klasse an
+   (CSS-Animationen starten neu, sobald das Element gerade erst display:block wird), kostet also
+   nichts im Ruhezustand und muss von KEINER bestehenden Render-Funktion angepasst werden. */
+.view.active{ display:block; animation: viewFadeIn .28s ease; }
+@keyframes viewFadeIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:translateY(0); } }
+/* NEU (TODO-OPTIK-POLITUR): durchgängiges, zum Theme passendes Fokus-Highlight für Tastatur-
+   Navigation -- vorher gab's dafür GAR KEINE eigene Regel, Browser fielen auf ihr Standard-
+   Fokus-Outline zurück (meist grelles Blau), das im dunklen Orange-Theme deplatziert wirkt.
+   :focus-visible statt :focus, damit bei reiner Maus-Bedienung weiterhin kein Rahmen erscheint. */
+.btn:focus-visible, .tab:focus-visible, .speed-btn:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible,
+.qty-stepper button:focus-visible, [tabindex]:focus-visible{
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* Build screen */
 .qty-row{ display:flex; align-items:center; gap:8px; margin-top:12px; }
@@ -2559,9 +2575,17 @@ canvas{ display:block; }
 .queue-item .top .qname{ font-weight:700; }
 .queue-item .top .qmeta{ color:var(--muted); font-size:10px; }
 .progress-bar{ height:4px; background:#101010; border-radius:2px; margin-top:6px; overflow:hidden; }
-.progress-bar > div{ height:100%; background:var(--cyan); }
+/* NEU (TODO-OPTIK-POLITUR): vorher sprang die Füllung bei jedem Render hart auf den neuen Wert --
+   nur .long-contract .bar > div (weiter unten) hatte schon eine Übergangs-Animation. Jetzt einheit-
+   lich überall, betrifft u.a. Bauqueue, Sonden im Transit, Kolonie-Fortschritt, normale Aufträge. */
+.progress-bar > div{ height:100%; background:var(--cyan); transition:width .3s ease; }
 
 .empty-hint{ color:var(--muted2); font-size:11px; padding:14px; text-align:center; border:1px dashed var(--border); border-radius:var(--radius);}
+/* NEU (TODO-OPTIK-POLITUR): dezentes Icon über jedem Leer-Zustand ("Noch keine Satelliten..." usw.,
+   35 Stellen im Spiel) -- als eigenes ::before-Pseudo-Element statt in jedem einzelnen Markup-Text,
+   damit es konsistent überall erscheint UND bereits vorhandene Emojis (z.B. 🔒-Hinweise) nicht
+   stört, da es als eigene Zeile darüber sitzt statt dem Text vorangestellt zu werden. */
+.empty-hint::before{ content:'◇'; display:block; font-size:15px; color:var(--muted2); opacity:.55; margin-bottom:6px; }
 
 /* Contract cards */
 .contract{
@@ -2579,7 +2603,7 @@ canvas{ display:block; }
 }
 .contract .actions{ display:flex; gap:6px; margin-top:6px; }
 .contract .bar{ height:4px; background:#101010; border-radius:2px; margin-top:6px; overflow:hidden; }
-.contract .bar > div{ height:100%; background:var(--cyan); }
+.contract .bar > div{ height:100%; background:var(--cyan); transition:width .3s ease; }
 
 /* Langzeitaufträge + Eigenes Netzwerk (v4-14) */
 .long-contract{ border:1px solid var(--border); background:var(--panel2); border-radius:var(--radius); padding:10px 12px; margin-bottom:10px; }
@@ -2647,7 +2671,7 @@ canvas{ display:block; }
 /* satellite detail panel */
 .sat-detail{ border-top:1px solid var(--border); margin-top:10px; padding-top:10px; }
 .healthbar{ height:7px; background:#101010; border-radius:4px; overflow:hidden; border:1px solid var(--border); }
-.healthbar > div{ height:100%; }
+.healthbar > div{ height:100%; transition: width .3s ease, background-color .3s ease; }
 
 /* modal */
 .modal-bg{
@@ -2814,6 +2838,13 @@ canvas{ display:block; }
   opacity:0; animation: dosBannerFlash .5s ease-out forwards;
 }
 @media (min-width:700px){ .dos-boot-banner{ font-size:13px; } }
+/* NEU (TODO-BOOT-BANNER-STACKED-IMMER, Nutzer-Wunsch: "GAMES OS soll unter MC ORCA kommen", nicht
+   nur auf schmalen Handys): die gestapelte Variante ist jetzt IMMER sichtbar, die breite Ein-
+   Zeilen-Variante immer versteckt -- kein Breakpoint mehr nötig, da der gestapelte Look generell
+   gewünscht ist (die breite Variante bleibt im DOM erhalten statt gelöscht zu werden, falls das
+   doch mal wieder gebraucht wird -- einfach mit vertauschtem display:none/block reaktivierbar). */
+.dos-boot-banner-stacked{ display:block; }
+.dos-boot-banner-wide{ display:none; }
 @keyframes dosBannerFlash{
   0%{ opacity:0; filter:brightness(3); }
   60%{ opacity:1; filter:brightness(2.2); }
@@ -2881,6 +2912,7 @@ textarea.jsonarea{ width:100%; height:120px; background:#0b0b0b; color:var(--tex
   gap:10px; align-items:center;
   border:1px solid var(--border); background:var(--panel2); border-radius:var(--radius);
   padding:8px 10px; font-size:11px; cursor:pointer;
+  transition: border-color .15s ease;
 }
 .sat-list-row:hover{ border-color:var(--border-lit); }
 .sat-list-row.selected{ border-color:var(--accent); }
@@ -3453,7 +3485,14 @@ html.ui-theme-dos input[type="number"]{
 <!-- NEU (TODO-DOS-BOOTSTREAM): siehe CSS-Kommentar weiter oben. Wird von showGameRoot() ein-/ausgeblendet. -->
 <div id="dosBootOverlay" aria-hidden="true">
   <div class="dos-boot-inner">
-    <pre class="dos-boot-banner" id="dosBootBanner"></pre>
+    <!-- NEU (TODO-BOOT-BANNER-MOBILE): zwei pre-Elemente statt eines -- welches sichtbar ist,
+         entscheidet ALLEIN die CSS-Media-Query (dos-boot-banner-wide/-stacked weiter oben), nicht
+         mehr eine einmalige JS-Breitenprüfung beim Sequenzstart. Robuster bei z.B. Zoom, DevTools-
+         Emulation oder Umgebungen, in denen window.innerWidth vom tatsächlichen CSS-Viewport
+         abweicht. Beide werden von playDosBootSequence() befüllt, nur eines ist je nach Breite
+         sichtbar. -->
+    <pre class="dos-boot-banner dos-boot-banner-wide" id="dosBootBanner"></pre>
+    <pre class="dos-boot-banner dos-boot-banner-stacked" id="dosBootBannerStacked"></pre>
     <pre class="dos-boot-text" id="dosBootText"></pre>
   </div>
   <div class="dos-boot-skip">Klicken zum Überspringen</div>
@@ -4627,7 +4666,12 @@ const COLONY_BUILDINGS = {
   greenhouse: { id:'greenhouse', name:'Gewächshaus', desc:'Lokale Nahrungsmittelproduktion statt Nachschub von der Erde — jede Stufe senkt den Unterhalt pro Einwohner um 8% (max. 70%).', baseCost:18000, buildDays:6, upkeepPerPopCut:0.08 },
   medical: { id:'medical', name:'Krankenstation', desc:'Medizinische Versorgung — mildert die Einkommenseinbußen durch negative Kolonie-Ereignisse (Staubsturm, Ressourcenmangel) um 12% je Stufe (max. 80%).', baseCost:22000, buildDays:6, eventMitigation:0.12 },
   spaceport: { id:'spaceport', name:'Raumhafen', desc:'Eigene Start-/Landeinfrastruktur — senkt die Startkosten für Missionen zu diesem Ziel um 5% je Stufe (max. 50%).', baseCost:35000, buildDays:9, launchCostCut:0.05 },
-  researchOutpost: { id:'researchOutpost', name:'Forschungsaußenposten', desc:'Liefert passiv Forschungspunkte, proportional zur Einwohnerzahl.', baseCost:28000, buildDays:8, sciencePerPop:0.05 },
+  // NEU (TODO-KOLONIE-FORSCHUNG-CAP, Nutzer-Feedback: musste reduziert werden): maxLevel:1 --
+  // vorher unbegrenzt baubar, wodurch Bevölkerung UND Stufenzahl gleichzeitig multiplizierten
+  // (echter Doppel-Skalierungs-Effekt, der bei großen Kolonien explodierte). Die Bevölkerungs-
+  // Kopplung bleibt sinnvoll erhalten, nur der zusätzliche Stufen-Multiplikator entfällt -- ab
+  // Stufe 1 lässt sich kein weiterer Ausbau mehr in Auftrag geben, siehe queueColonyBuilding().
+  researchOutpost: { id:'researchOutpost', name:'Forschungsaußenposten', desc:'Liefert passiv Forschungspunkte, proportional zur Einwohnerzahl. Pro Kolonie nur einmal baubar.', baseCost:28000, buildDays:8, sciencePerPop:0.05, maxLevel:1 },
   leisure: { id:'leisure', name:'Freizeitanlage', desc:'Erholung und Zufriedenheit — beschleunigt das Bevölkerungswachstum um 12% je Stufe.', baseCost:16000, buildDays:5, growthSpeedBonus:0.12 },
 };
 const COLONY_BASE_POP_CAP = 200;
@@ -4759,6 +4803,17 @@ function queueColonyBuilding(destKey, type){
   const c = state.colonies.find(c=>c.destKey===destKey);
   if(!c) return;
   if(c.buildQueue.length>=3){ toast('Maximal 3 Bauprojekte gleichzeitig pro Kolonie.', 'bad'); Sound.error(); return; }
+  // NEU (TODO-KOLONIE-FORSCHUNG-CAP): maxLevel-Gebäude (aktuell nur Forschungsaußenposten) lassen
+  // sich nicht weiter ausbauen, sobald Cap erreicht ist -- gebaute Stufen PLUS bereits in der
+  // Warteschlange stehende Aufträge desselben Typs zählen zusammen, sonst ließe sich der Cap durch
+  // mehrfaches Anklicken vor Fertigstellung des ersten Auftrags umgehen.
+  const maxLevel = COLONY_BUILDINGS[type].maxLevel;
+  if(maxLevel){
+    const queued = c.buildQueue.filter(q=>q.type===type).length;
+    if((c.buildings[type]||0) + queued >= maxLevel){
+      toast(`${COLONY_BUILDINGS[type].name} ist pro Kolonie nur ${maxLevel}× baubar.`, 'bad'); Sound.error(); return;
+    }
+  }
   const cost = colonyBuildingCost(c, type);
   if(state.money < cost){ toast('Nicht genug Guthaben für dieses Bauprojekt.', 'bad'); Sound.error(); return; }
   state.money -= cost;
@@ -9293,10 +9348,11 @@ function tick(silent){
   // Catch-up-Berechnung in computeAndApplyOfflineProgress() beim nächsten "Fortsetzen".
   state.lastRealTimestamp = Date.now();
   state.day += 1;
-  // NEU (TODO-LOGBUCH-ERWEITERT): Firmenjahr-Grenze (Tag 366, 731, ... -- ein Firmenjahr = 365
-  // Tage, siehe formatCompanyDate()) löst automatisch den Jahresbericht aus, GENAU EINMAL pro
-  // Jahresgrenze, weil tick() genau einmal pro Spieltag läuft (auch während Offline-Catchup).
-  if(state.day>1 && state.day%365===1) generateYearlyLogbookReport();
+  // NEU (TODO-LOGBUCH-ERWEITERT, TODO-SCHALTJAHRE): löst automatisch den Jahresbericht aus, GENAU
+  // EINMAL pro echtem Kalender-Jahrestag der Firmengründung (isCompanyAnniversaryDay(), schalt-
+  // jahrsicher -- der Abstand zum letzten Jahresbericht ist damit je nach Schaltjahr-Lage 365 oder
+  // 366 Tage), weil tick() genau einmal pro Spieltag läuft (auch während Offline-Catchup).
+  if(isCompanyAnniversaryDay(state.day)) generateYearlyLogbookReport();
   let incomeTotal = 0, upkeepTotal = 0, sciencePointsTotal = 0;
   const maintFactor = hasResearch('maintenance') ? 0.75 : 1;
 
@@ -11306,6 +11362,12 @@ function renderKolonien(){
       const cost = colonyBuildingCost(c, b.id);
       const queueFull = c.buildQueue.length>=3;
       const affordable = state.money >= cost;
+      // NEU (TODO-KOLONIE-FORSCHUNG-CAP): maxLevel-Gebäude (aktuell nur Forschungsaußenposten)
+      // zeigen bei erreichtem Cap "Max. erreicht" statt Preis und deaktivieren den Button, statt
+      // den Klick erst per Toast abzuweisen -- Warteschlangen-Einträge desselben Typs zählen mit
+      // (siehe queueColonyBuilding()), damit der Button auch während des Baus schon ausgegraut ist.
+      const queuedSameType = c.buildQueue.filter(q=>q.type===b.id).length;
+      const atCap = b.maxLevel && (level+queuedSameType) >= b.maxLevel;
       // NEU (TODO-KOLONIE-GEBAEUDE-ERWEITERUNG): bonusTxt kennt jetzt alle Effekt-Felder der
       // sechs neuen Gebäudetypen, nicht mehr nur popCapBonus/incomeMult.
       let bonusTxt;
@@ -11322,7 +11384,7 @@ function renderKolonien(){
         <span class="k">${b.name} <span class="small-muted">(Stufe ${level})</span></span>
         <span class="v" style="display:flex; align-items:center; gap:8px;">
           <span class="small-muted">${bonusTxt}</span>
-          <button class="btn small" data-colbuild="${c.destKey}" data-colbuildtype="${b.id}" ${queueFull||!affordable?'disabled':''}>Bauen (${fmtMoney(cost)})</button>
+          <button class="btn small" data-colbuild="${c.destKey}" data-colbuildtype="${b.id}" ${atCap||queueFull||!affordable?'disabled':''}>${atCap?'Max. erreicht':`Bauen (${fmtMoney(cost)})`}</button>
         </span>
       </div>`;
     }).join('');
@@ -13779,16 +13841,56 @@ function renderAndromeda(){
 }
 
 /* ============================== TOP-LEVEL RENDER ============================== */
+// NEU (TODO-SCHALTJAHRE, Nutzer-Frage: "sind da Schaltjahre mit einberechnet?"): das Firmenjahr
+// lief bisher komplett losgelöst vom echten Kalender -- fest 365 Tage pro Jahr, ganz ohne
+// Schalttage. Jetzt werden stattdessen echte Kalenderjahre zwischen Gründungsdatum und aktuellem
+// Datum gezählt (inkl. Schaltjahren), genau wie bei einer echten Alters-/Jubiläumsberechnung: ein
+// "Jahrestag" ist der Tag im laufenden Jahr mit demselben Monat/Tag wie die Gründung. Fällt die
+// Gründung auf den 29. Februar, gilt in Nicht-Schaltjahren der 28. Februar als Ersatz-Jahrestag
+// (wie bei echten Geburtstagen üblich) -- so verschiebt sich in diesem Sonderfall kein Datum je
+// nach Schaltjahr-Lage.
+function isLeapYear(y){
+  return (y%4===0 && y%100!==0) || y%400===0;
+}
+// Liefert {years, restDays} zwischen zwei ISO-Datums-Strings (startISO <= endISO), schaltjahrsicher
+// weil komplett auf echter Date-Arithmetik basierend statt auf einer festen Tagesanzahl pro Jahr.
+function calendarYearsBetween(startISO, endISO){
+  const [sy,sm,sd] = startISO.split('-').map(Number);
+  const [ey] = endISO.split('-').map(Number);
+  const end = new Date(endISO+'T12:00:00Z');
+  function anniversaryOf(year){
+    const day = (sm===2 && sd===29 && !isLeapYear(year)) ? 28 : sd;
+    return new Date(Date.UTC(year, sm-1, day, 12));
+  }
+  let years = ey - sy;
+  let anniv = anniversaryOf(sy+years);
+  if(anniv.getTime() > end.getTime()){
+    years -= 1;
+    anniv = anniversaryOf(sy+years);
+  }
+  const restDays = Math.round((end.getTime() - anniv.getTime()) / 86400000);
+  return { years: Math.max(0,years), restDays: Math.max(0,restDays) };
+}
 // Wandelt den reinen Tage-Zähler (state.day, läuft intern unverändert weiter — alle anderen
 // Systeme wie Forschung/Bau/Transit rechnen weiterhin mit rohen Tagen) in ein Firmen-Datum um:
-// unter einem vollen Jahr (365 Tage) wird "T. X" gezeigt, danach bricht die Anzeige auf "X J."
-// bzw. "X J., Y T." um (z.B. Tag 365 -> "1 J.", Tag 547 -> "1 J., 182 T.").
+// unter einem vollen Kalenderjahr wird "T. X" gezeigt, danach bricht die Anzeige auf "X J."
+// bzw. "X J., Y T." um -- die genaue Tageszahl pro Jahr hängt jetzt von echten Schaltjahren ab
+// (365 oder 366 Tage, je nachdem ob ein 29. Februar im betreffenden Zeitraum lag).
 function formatCompanyDate(day){
-  const years = Math.floor(day/365);
-  const restDays = day - years*365;
+  ensureFoundingDate();
+  const currentDate = addDaysISO(state.foundingDate, day-1);
+  const {years, restDays} = calendarYearsBetween(state.foundingDate, currentDate);
   if(years<=0) return `T. ${day}`;
   if(restDays<=0) return `${years} J.`;
   return `${years} J., ${restDays} T.`;
+}
+// Prüft, ob "day" exakt ein Jahrestag der Firmengründung ist (schaltjahrsicher über
+// calendarYearsBetween statt über state.day%365) -- löst den Jahresbericht aus (siehe tick()).
+function isCompanyAnniversaryDay(day){
+  if(day<=1) return false;
+  ensureFoundingDate();
+  const cur = addDaysISO(state.foundingDate, day-1);
+  return calendarYearsBetween(state.foundingDate, cur).restDays===0;
 }
 // Echtes Kalenderdatum der Firmengründung: wird bei jedem "Neues Spiel" auf das reale
 // Startdatum (heute) gesetzt — nicht auf einen festen Wert, damit ein in zwei Monaten
@@ -14367,17 +14469,18 @@ function snapshotForYearlyReport(){
 function ensureLogbookYearSnapshot(){
   if(!state.logbookYearSnapshot) state.logbookYearSnapshot = snapshotForYearlyReport();
 }
-// Aufgerufen von tick() GENAU an Firmentagen 366, 731, 1096, ... (Beginn eines neuen Firmenjahres,
-// siehe formatCompanyDate() -- ein "Jahr" = 365 Firmentage). Baut aus der reinen Differenz zum
-// letzten Schnappschuss einen Bericht OHNE jede Fantasie -- nur echte, im Spielstand vorhandene
-// Zahlen, ganz bewusst statt eines KI-generierten Texts (dafür gibt's zur Laufzeit keine echte KI
-// im Spiel, siehe Chat-Diskussion). Leere Kategorien (z.B. 0 neue Forschungen) werden ausgelassen,
+// Aufgerufen von tick() GENAU an echten Kalender-Jahrestagen der Firmengründung (siehe
+// isCompanyAnniversaryDay(), schaltjahrsicher). Baut aus der reinen Differenz zum letzten
+// Schnappschuss einen Bericht OHNE jede Fantasie -- nur echte, im Spielstand vorhandene Zahlen,
+// ganz bewusst statt eines KI-generierten Texts (dafür gibt's zur Laufzeit keine echte KI im
+// Spiel, siehe Chat-Diskussion). Leere Kategorien (z.B. 0 neue Forschungen) werden ausgelassen,
 // damit ein ruhiges Jahr auch als kurzer Bericht erscheint statt mit Nullen aufgebläht zu werden.
 function generateYearlyLogbookReport(){
   ensureLogbookYearSnapshot();
   const prev = state.logbookYearSnapshot;
   const cur = snapshotForYearlyReport();
-  const yearNum = Math.floor(state.day/365);
+  ensureFoundingDate();
+  const yearNum = calendarYearsBetween(state.foundingDate, addDaysISO(state.foundingDate, state.day-1)).years;
   const lines = [];
   const dLaunches = cur.launchesTotal - prev.launchesTotal;
   if(dLaunches>0) lines.push(`${dLaunches.toLocaleString('de-DE')} Raketenstart(s)`);
@@ -15408,13 +15511,15 @@ try{ const t='__ow_test__'; localStorage.setItem(t,'1'); localStorage.removeItem
 const STORAGE_MODE = HAS_ARTIFACT_STORAGE ? 'artifact' : (HAS_LOCAL_STORAGE ? 'local' : 'none');
 
 async function storageSet(key, value){
+  let result = null;
   if(STORAGE_MODE === 'artifact'){
-    return await window.storage.set(key, value);
+    result = await window.storage.set(key, value);
   } else if(STORAGE_MODE === 'local'){
     localStorage.setItem(key, value);
-    return { key, value };
+    result = { key, value };
   }
-  return null;
+  if(window.__cloudUser && window.__cloudSupabase){ window.__cloudUpsert(key, value); }
+  return result;
 }
 async function storageGet(key){
   if(STORAGE_MODE === 'artifact'){
@@ -15432,6 +15537,10 @@ async function storageDelete(key){
     try{ await window.storage.delete(key, false); }catch(err){}
   } else if(STORAGE_MODE === 'local'){
     try{ localStorage.removeItem(key); }catch(err){}
+  }
+  if(window.__cloudUser && window.__cloudSupabase){
+    window.__cloudSupabase.from('saves').delete().eq('user_id', window.__cloudUser.id).eq('key', key)
+      .then(({error})=>{ if(error) console.warn('Cloud-Löschen fehlgeschlagen für', key, error.message); });
   }
 }
 
@@ -15963,6 +16072,25 @@ const DOS_BOOT_BANNER = ` __  __  ____    ___  ____   ____    _       ____    _ 
 | |\\/| | |     | | | | |_) | |     / _ \\   | |  _  / _ \\ | |\\/| |  _| \\___ \\  | | | \\___ \\
 | |  | | |___  | |_| |  _ <| |___ / ___ \\  | |_| |/ ___ \\| |  | | |___ ___) | | |_| |___) |
 |_|  |_|\\____|  \\___/|_| \\_\\\\____/_/   \\_\\  \\____/_/   \\_\\_|  |_|_____|____/   \\___/|____/`;
+// NEU (TODO-BOOT-BANNER-MOBILE, Nutzer-Wunsch: "GAMES OS unter MC ORCA packen für Hochformat-
+// Ansicht am Handy"): DOS_BOOT_BANNER ist als durchgehende Zeile ~90 Zeichen breit -- selbst beim
+// kleinsten Font (9.5px, siehe .dos-boot-banner) auf einem schmalen Hochformat-Handy breiter als
+// der Bildschirm, bisher nur mit horizontalem Scrollen (overflow-x:auto) statt echter Anpassung
+// lösbar. Statt den Banner-Text neu zu erfinden, wird der bestehende exakt an der Wortlücke
+// zwischen "ORCA" und "GAMES" in zwei Teile zerlegt (Spalte 42 von 90, ermittelt indem alle
+// Zeilen gemeinsam auf durchgängige Leerspalten geprüft wurden -- so bleibt die Blockschrift jedes
+// einzelnen Buchstabens exakt erhalten, kein manuelles Nachzeichnen nötig) und untereinander
+// gestapelt. Wird per JS unterhalb einer Breakpoint-Breite ausgewählt, siehe playDosBootSequence().
+const DOS_BOOT_BANNER_STACKED = ` __  __  ____    ___  ____   ____    _    
+|  \\/  |/ ___|  / _ \\|  _ \\ / ___|  / \\   
+| |\\/| | |     | | | | |_) | |     / _ \\  
+| |  | | |___  | |_| |  _ <| |___ / ___ \\ 
+|_|  |_|\\____|  \\___/|_| \\_\\\\____/_/   \\_\\
+  ____    _    __  __ _____ ____     ___  ____
+ / ___|  / \\  |  \\/  | ____/ ___|   / _ \\/ ___|
+| |  _  / _ \\ | |\\/| |  _| \\___ \\  | | | \\___ \\
+| |_| |/ ___ \\| |  | | |___ ___) | | |_| |___) |
+ \\____/_/   \\_\\_|  |_|_____|____/   \\___/|____/`;
 // NEU (Retro-Boot-Effekte, auf Nutzerwunsch: "vielleicht Firmennamen nutzen oder so, das was man
 // eingibt"): DOS_BOOT_LINES ist jetzt kein statisches Array mehr, sondern wird bei jedem Boot per
 // generateDosBootLines() frisch aus dem aktuellen Spielstand + Profil gebaut — Firmenname,
@@ -16007,9 +16135,15 @@ function generateDosBootLines(){
     "  [ OK ] Kollisionswarnsystem",
   ]);
   const easterEgg = pickRandom(EASTER_EGG_VARIANTS);
+  // NEU (TODO-BOOT-COPYRIGHT-JAHR, Nutzer-Klarstellung: Copyright-Jahr = Erstellungsjahr des
+  // Spiels, kein "heute"-Wert -- ein dynamisches new Date().getFullYear() wäre falsch gewesen und
+  // würde sich in Zukunft munter weiterschieben, obwohl Copyright-Jahre per Konvention fest das
+  // Jahr der Erstellung sind (so wie z.B. "© 2024 Firma" auch Jahre später "2024" bleibt). Fest
+  // auf 2026 (Erstellungsjahr), keine Berechnung mehr nötig.
+  const bootCopyrightYear = 2026;
   return [
     "ANCHOR SYSTEMS BIOS v4.39",
-    "(C) 2087 Anchor Systems Ltd. Alle Rechte vorbehalten.",
+    `(C) ${bootCopyrightYear} Anchor Systems Ltd. Alle Rechte vorbehalten.`,
     "",
     `Firma ................... ${ctx.companyName} [OK]`,
     `Sicherheitsstufe ......... ${ctx.difficultyLabel}`,
@@ -16091,6 +16225,7 @@ function playDosBootSequence(){
   const overlay = document.getElementById('dosBootOverlay');
   const textEl = document.getElementById('dosBootText');
   const bannerEl = document.getElementById('dosBootBanner');
+  const bannerStackedEl = document.getElementById('dosBootBannerStacked');
   if(!overlay || !textEl) { resolve(); return; }
   const DOS_BOOT_LINES = generateDosBootLines(); // NEU: pro Boot frisch generiert (Firmenname, Tag, Guthaben, Zufalls-Variation, ...)
   const myToken = ++dosBootToken; // verhindert Überlappung, falls Funktion mehrfach kurz hintereinander aufgerufen wird
@@ -16103,15 +16238,20 @@ function playDosBootSequence(){
 
   textEl.textContent = '';
   textEl.classList.add('typing'); // NEU: blinkender Terminal-Cursor am Zeilenende (::after, CSS oben)
-  if(bannerEl){
-    bannerEl.textContent = DOS_BOOT_BANNER;
+  // NEU (TODO-BOOT-BANNER-MOBILE): beide Varianten IMMER befüllen -- welche sichtbar ist,
+  // entscheidet ausschließlich CSS (.dos-boot-banner-wide/-stacked, 700px-Breakpoint), nicht mehr
+  // eine einmalige JS-Breitenprüfung hier (die z.B. bei Zoom/DevTools-Emulation vom tatsächlichen
+  // CSS-Viewport abweichen konnte -- siehe Nutzer-Feedback "hast du leider nicht drunter gelegt").
+  [bannerEl, bannerStackedEl].forEach(el=>{
+    if(!el) return;
+    el.textContent = (el===bannerStackedEl) ? DOS_BOOT_BANNER_STACKED : DOS_BOOT_BANNER;
     // Animation neu anstoßen (falls die Sequenz schon einmal in dieser Sitzung lief, siehe
     // TODO-ZURUECK-ZUR-STARTSEITE-Flow): ohne Reflow-Trick würde die CSS-Animation beim zweiten
     // Aufruf nicht erneut abspielen.
-    bannerEl.style.animation = 'none';
-    void bannerEl.offsetWidth;
-    bannerEl.style.animation = '';
-  }
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  });
   overlay.classList.remove('fading', 'crt-poweroff');
   overlay.classList.add('visible');
   // NEU (Retro-Boot-Effekte): CRT-Einschalt-Flicker + POST-Beep — Reflow-Trick wie beim Banner,
@@ -16544,6 +16684,166 @@ init();
     requestAnimationFrame(drawFrame);
   };
 })();
+</script>
+
+<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): eigenstaendiges Konto-Widget, 6-stelliger E-Mail-Code
+     statt Magic-Link (funktioniert auch aus einer APK-WebView heraus, kein Browser-Redirect
+     noetig). Gleiche Supabase-Zugangsdaten wie in den anderen Spielen -> eine Anmeldung gilt
+     ueberall auf dieser Domain, weil die Session im localStorage der Domain liegt. -->
+<div id="cloudAccountBar" style="position:fixed;top:14px;right:14px;z-index:99999;font-family:system-ui,-apple-system,sans-serif;font-size:12px;">
+  <button id="cloudAccountToggle" style="background:rgba(15,15,20,0.85);color:#eee;border:1px solid #555;padding:7px 14px;border-radius:18px;cursor:pointer;backdrop-filter:blur(4px);">☁ Konto</button>
+  <div id="cloudAccountPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:250px;background:#16161a;border:1px solid #444;border-radius:10px;padding:12px;box-shadow:0 10px 26px rgba(0,0,0,0.5);color:#ddd;">
+    <div id="cloudStepEmail">
+      <div style="line-height:1.5;color:#aaa;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+      <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;">
+      <button id="cloudSendCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Code senden</button>
+    </div>
+    <div id="cloudStepCode" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Code aus der E-Mail eingeben:</div>
+      <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;letter-spacing:3px;text-align:center;">
+      <button id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Bestätigen</button>
+    </div>
+    <div id="cloudStepIn" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
+    </div>
+    <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+
+  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.style.color = isErr ? '#e37b7b' : '#8fd18f'; }
+  function render(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
+    var emailEl = document.getElementById('cloudUserEmail');
+    if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+  }
+
+  toggle.addEventListener('click', function(){ panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
+  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.style.display = 'none'; });
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data.session;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      var wasLoggedOut = !window.__cloudUser;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(wasLoggedOut && window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+
+    document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+      var email = document.getElementById('cloudEmailInput').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+      var code = document.getElementById('cloudCodeInput').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+
+    document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      render();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+  render();
+})();
+</script>
+
+<script>
+window.__cloudUpsert = async function(key, value){
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  var res = await window.__cloudSupabase.from('saves').upsert(
+    { user_id: window.__cloudUser.id, key: key, value: value, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id,key' }
+  );
+  if(res.error) console.warn('Cloud-Speichern fehlgeschlagen fuer', key, res.error.message);
+};
+async function __deepAnchorCollectKeys(){
+  var keys = ['deepanchor_save', 'deepanchor_profiles', 'deepanchor_active_profile'];
+  try{
+    var list = await loadProfilesList();
+    list.forEach(function(p){ keys.push(saveKeyForProfile(p.id)); });
+  }catch(e){}
+  return keys;
+}
+async function __deepAnchorPushAllLocal(){
+  var keys = await __deepAnchorCollectKeys();
+  for(var i=0;i<keys.length;i++){
+    try{ var res = await storageGet(keys[i]); await window.__cloudUpsert(keys[i], res.value); }catch(e){}
+  }
+}
+window.__cloudSyncOnLogin = async function(){
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  try{
+    var keys = await __deepAnchorCollectKeys();
+    var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).in('key', keys);
+    if(sel.error) throw sel.error;
+    var localHasData = false;
+    try{ await storageGet('deepanchor_save'); localHasData = true; }catch(e){}
+    if(!sel.data || sel.data.length === 0){
+      if(localHasData) await __deepAnchorPushAllLocal();
+      return;
+    }
+    if(localHasData){
+      var useCloud = confirm('Es gibt sowohl lokale als auch Cloud-Spielstaende (inkl. Profile) fuer Deep Anchor.\n\nOK = Cloud-Stand laden (ueberschreibt diesen Geraete-Stand)\nAbbrechen = diesen Geraete-Stand behalten und in die Cloud hochladen');
+      if(useCloud){
+        for(var i=0;i<sel.data.length;i++){ await storageSet(sel.data[i].key, sel.data[i].value); }
+        location.reload();
+      } else {
+        await __deepAnchorPushAllLocal();
+      }
+    } else {
+      for(var j=0;j<sel.data.length;j++){ await storageSet(sel.data[j].key, sel.data[j].value); }
+      location.reload();
+    }
+  }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
+};
 </script>
 </body>
 </html>

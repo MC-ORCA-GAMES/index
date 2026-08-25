@@ -1,3 +1,49 @@
+<!--
+  MC ORCA GAMES — Haupt-Index (Hub)
+  Datei-Version: v1.9
+  Changelog:
+    v1.9 – Logo im Willkommen-Screen deutlich vergroessert (min. 200% ggue.
+           vorher, jetzt 260-460px Hoehe je nach Viewport). Overlay bekommt
+           vorsichtshalber overflow-y:auto, falls das grosse Logo auf
+           kleinen Bildschirmen zusammen mit Titel/Button nicht mehr
+           komplett ohne Scrollen reinpasst.
+    v1.8 – Willkommen-Screen: Text-Banner "MC ORCA / GAMES OS" ersetzt durch
+           das echte Studio-Logo (bilder/logo.png, gleiche Datei wie im
+           Hub-Kopf), gross dargestellt mit rotem Glow-Effekt.
+    v1.7 – ASCII-Pixel-Banner im Willkommen-Screen (Slash/Backslash-Blockschrift)
+           war bei jeder Groesse leicht "verwaschen/verschoben", da diagonale
+           Striche bei kleinen Schriftgroessen nicht sauber aufs Pixelraster
+           passen. Ersetzt durch normalen fett gesetzten Terminal-Text
+           "MC ORCA / GAMES OS" mit Rot-Glow — optisch fast identisch, aber
+           immer scharf gerendert.
+    v1.6 – Fix: ASCII-Banner im Willkommen-Screen wirkte bei 6px/9px
+           Schriftgroesse leicht "verschoben" (Rundungsfehler bei zu
+           kleiner Monospace-Darstellung). Auf dieselbe Groesse wie das
+           echte Boot-Banner (7.5px/11px) angeglichen.
+    v1.5 – Willkommen-Vorstufe vor der Boot-Sequenz ergaenzt: ruhiger
+           Terminal-Screen ("MC ORCA GAMES HUB" + Klick-Button "Systeme
+           starten") wird jetzt SOFORT beim Laden gezeigt, komplett ohne
+           Animation/Sound. Der CRT-Poweron-Flash + DOS-Bootstream startet
+           erst nach Klick (oder Enter/Leertaste) auf den Button, damit
+           Besucher nicht direkt vom Boot-Effekt "erschlagen" werden.
+    v1.4 – Copyright-Jahr im Boot-Log auf 2026 aktualisiert (statt 2087);
+           ASCII-Banner zweizeilig umgebaut: "MC ORCA" oben, "GAMES OS"
+           darunter (identisch in allen 5 Dateien).
+    v1.3 – Kompletter Strukturumbau zur alten Konsolenansicht: keine Fotos/
+           Artwork/Gradients mehr (nur noch das MC-ORCA-Logo und die 4
+           Spiel-Wortmarken-Logos), reiner scrollender Terminal-Textfluss mit
+           ASCII-Trennlinien statt Karten-Grid, Dot-Leader-Statuszeilen,
+           Klammer-Links "[ Text ]". Spielfarben pro Eintrag erhalten.
+    v1.2 – Sichtbarer Seiteninhalt auf Terminal-Look umgestellt: Portal-Karten
+           als ASCII-Terminal-Fenster (Titelleiste, Dot-Leader-Statuszeilen,
+           Klammer-Buttons), Monospace-Typografie, rote OS-Chrome-Farbe mit
+           CRT-Scanlines, Sternenfeld rot statt creme. Einzelne Spielfarben
+           (Gold/Rot/Violett/Orange) pro Kachel bleiben erhalten.
+    v1.1 – MC ORCA GAMES OS Boot-Sequenz ergänzt (Terminal-Look, Schritt 1):
+           CRT-Poweron + DOS-Bootstream laufen jetzt direkt beim Öffnen der
+           Seite, vor der eigentlichen Hub-Übersicht.
+    v1.0 – Basiszustand (Hub-Übersicht der 4 Spiele) vor Boot-Sequenz.
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -6,291 +52,361 @@
 <title>MC ORCA Games — Sternenprojekte</title>
 <meta name="description" content="MC ORCA Games: Zwei browserbasierte Weltraumspiele ohne Download — AETHERIS — Echoes of an Eternal Empire und PATH OF THE STARS — Drifting Worlds.">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Spectral:ital,wght@0,400;0,500;1,400&family=Bangers&family=Oswald:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
   :root{
-    --bg:#0A0A0C; --line:#241E1E; --cream:#EAE2D4;
-    --gold:#D4AF37; --gold-soft:rgba(212,175,55,0.35); --gold-dim:#8A7A6A;
-    --cyan:#4FD1C5; --cyan-soft:rgba(79,209,197,0.35); --cyan-dim:#6E8B93;
-    --potsred:#C81E2C; --potsred-soft:rgba(200,30,44,0.4); --potsred-dim:#9C5A57;
-    --astviolet:#7C5CFF; --astviolet-soft:rgba(124,92,255,0.4); --astviolet-dim:#9088B8;
-    --daorange:#FF6A2B; --daorange-soft:rgba(255,106,43,0.4); --daorange-dim:#B87A5A;
+    --bg:#050505;
+    --fg:#C9B9B9;
+    --red:#C81E2C; --red-dim:#7A3438; --red-faint:#3A2224;
+    --gold:#D4AF37; --gold-dim:#8A7A4A;
+    --astviolet:#B23AFF; --astviolet-dim:#7A5A9A;
+    --daorange:#FF6A2B; --daorange-dim:#A05A38;
   }
   *{ box-sizing:border-box; }
-  html{ scrollbar-width:none; -ms-overflow-style:none; }
-  html::-webkit-scrollbar{ display:none; }
+  html,body{ scrollbar-width:none; -ms-overflow-style:none; }
+  html::-webkit-scrollbar,body::-webkit-scrollbar{ display:none; }
   body{
-    margin:0; background:var(--bg); color:var(--cream);
-    font-family:'Spectral',Georgia,serif; font-size:17px; line-height:1.6;
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:14px; line-height:1.7;
     -webkit-font-smoothing:antialiased;
-    scrollbar-width:none; -ms-overflow-style:none;
   }
-  body::-webkit-scrollbar{ display:none; width:0; height:0; }
-  h1,h2,.display{ font-family:'Cinzel',serif; font-weight:700; letter-spacing:0.5px; margin:0; }
-  .mono{ font-family:'IBM Plex Mono',monospace; }
   a{ color:inherit; }
-  ::selection{ background:var(--cream); color:#0A0A0C; }
-  :focus-visible{ outline:2px solid var(--cream); outline-offset:3px; }
+  ::selection{ background:var(--red); color:#050505; }
+  :focus-visible{ outline:1px solid var(--red); outline-offset:2px; }
 
-  #stars{ position:fixed; inset:0; z-index:0; opacity:0.5; pointer-events:none; }
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.25; pointer-events:none; }
 
-  /* ---------- Marke ---------- */
-  .brandbar{
-    position:relative; z-index:2; display:flex; justify-content:center; padding:18px 24px 0;
-  }
-  .brandmark{
-    display:flex; align-items:center; gap:14px; font-family:'IBM Plex Mono',monospace;
-    font-size:12px; letter-spacing:2.5px; text-transform:uppercase; color:#B9AF9C;
-  }
-  .brandmark img{ height:92px; width:auto; display:block; margin:0 auto; }
+  .stream{ position:relative; z-index:2; max-width:820px; margin:0 auto; padding:36px 20px 60px; }
 
-  /* Ab Desktop-Breite: Logo sitzt links, auf gleicher Höhe wie die Überschrift, kein Extra-Abstand */
-  @media (min-width:901px){
-    .topwrap{ display:flex; align-items:center; justify-content:center; gap:24px; }
-    .brandbar{ padding:0; flex:0 0 auto; }
-    .brandmark img{ height:120px; margin:0; }
-    header{ padding-top:14px; }
-  }
-  .brandmark img:not([src]),.brandmark img[src=""]{ display:none; }
-  .brandmark b{ color:var(--cream); font-family:'Cinzel',serif; letter-spacing:1px; font-weight:700; }
+  .s-logo{ display:flex; justify-content:center; margin-bottom:18px; }
+  .s-logo img{ height:64px; width:auto; filter:grayscale(0.15); }
 
-  /* ---------- Kopf ---------- */
-  header{
-    position:relative; z-index:2; text-align:center; padding:10px 24px 18px;
+  .s-prompt{ color:var(--red-dim); font-size:12.5px; margin-bottom:4px; }
+  .s-prompt .p{ color:var(--red); }
+  .s-prompt .cur{
+    display:inline-block; width:7px; height:12px; background:var(--red); margin-left:3px;
+    animation:sblink 1s steps(1) infinite; vertical-align:-1px;
   }
-  .eyebrow{
-    font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:2.5px; text-transform:uppercase;
-    color:#8A8578; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;
-  }
-  .eyebrow::before,.eyebrow::after{ content:""; width:22px; height:1px; background:#3A342E; }
-  header h1{ font-size:clamp(20px,3vw,30px); color:var(--cream); line-height:1.15; }
-  header h1 .accent1{ color:var(--gold); }
-  header h1 .accent2{ color:var(--potsred); }
-  header p{ margin:8px auto 0; max-width:480px; color:#B9AF9C; font-size:13px; }
+  @keyframes sblink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
 
-  /* ---------- Portal-Karten ---------- */
-  .portals{
-    position:relative; z-index:2; max-width:1320px; margin:0 auto; padding:0 24px 20px;
-    display:grid; grid-template-columns:repeat(2,1fr); gap:12px;
-  }
-  @media (max-width:900px){ .portals{ grid-template-columns:1fr; } }
+  .s-title{ font-size:clamp(18px,3vw,26px); font-weight:700; letter-spacing:0.5px; color:var(--red); text-transform:uppercase; margin:10px 0 6px; }
+  .s-title .w{ color:var(--fg); }
+  .s-lede{ color:var(--red-dim); font-size:13px; margin-bottom:8px; }
+  .s-lede::before{ content:"# "; color:var(--red-faint); }
 
-  .portal{
-    --pc: var(--gold); --pc-soft: var(--gold-soft); --pc-dim: var(--gold-dim);
-    position:relative; overflow:hidden; border-radius:14px; border:1px solid var(--line);
-    background:#111014; min-height:200px; display:flex; flex-direction:column; justify-content:flex-end;
-    padding:18px 18px; text-decoration:none; isolation:isolate;
-    transition:transform .25s ease, border-color .25s ease;
-  }
-  .portal:hover{ transform:translateY(-4px); border-color:var(--pc-soft); }
-  .portal.pots{ --pc: var(--potsred); --pc-soft: var(--potsred-soft); --pc-dim: var(--potsred-dim); background:#0F0C0C; }
-  .portal.pots h2, .portal.pots .psub{ font-family:'Bangers',cursive; }
-  .portal.pots .psub{ letter-spacing:2px; }
-  .portal.astrion{ --pc: var(--astviolet); --pc-soft: var(--astviolet-soft); --pc-dim: var(--astviolet-dim); background:#0F0D18; }
-  .portal.deepanchor{ --pc: var(--daorange); --pc-soft: var(--daorange-soft); --pc-dim: var(--daorange-dim); background:#0F0D0C; }
-  .portal.deepanchor h2, .portal.deepanchor .psub{ font-family:'IBM Plex Mono',monospace; }
+  .s-rule{ border:none; border-top:1px dashed var(--red-faint); margin:26px 0; }
+  .s-rule.thick{ border-top:1px solid var(--red-faint); }
 
-  .portal-bg{
-    position:absolute; inset:0; z-index:-2; width:100%; height:100%; object-fit:cover;
-    opacity:0.55; transition:opacity .3s ease, transform .5s ease;
+  .game{ margin:0 0 30px; }
+  .game .ghead{
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+    font-size:13.5px; letter-spacing:0.5px; color:var(--pc); text-transform:uppercase; font-weight:700;
   }
-  .portal:hover .portal-bg{ opacity:0.75; transform:scale(1.04); }
-  .portal::before{
-    content:""; position:absolute; inset:0; z-index:-1;
-    background:radial-gradient(120% 90% at 30% 100%, color-mix(in srgb, var(--pc) 22%, transparent), transparent 60%),
-      linear-gradient(180deg, rgba(10,10,12,0.35) 0%, rgba(10,10,12,0.78) 55%, rgba(10,10,12,0.97) 100%);
+  .game .ghead .idx{ color:var(--red-faint); }
+  .game .ghead .fill{ flex:1; border-bottom:1px dotted var(--red-faint); height:0; align-self:center; min-width:24px; }
+  .game .ghead .ver{ color:var(--red-dim); font-weight:400; font-size:11.5px; }
+  .game .gsub{ color:var(--pc-dim); font-size:11.5px; letter-spacing:0.5px; margin:4px 0 12px; text-transform:uppercase; }
+  .game .glogo{ margin:2px 0 12px; }
+  .game .glogo img{ height:34px; width:auto; }
+  .game .gpitch{ color:var(--fg); font-size:13.5px; max-width:620px; margin-bottom:14px; }
+  .game .gpitch .arr{ color:var(--pc); }
+  .game .gmeta{ display:flex; flex-direction:column; gap:2px; font-size:12px; color:var(--red-dim); max-width:420px; margin-bottom:16px; }
+  .game .gmeta .row{ display:flex; justify-content:space-between; gap:10px; }
+  .game .gmeta .row .v{ color:var(--pc); }
+  .game .gctas{ display:flex; gap:14px; flex-wrap:wrap; }
+  .glink{
+    font-size:12px; letter-spacing:0.5px; text-transform:uppercase; text-decoration:none; cursor:pointer;
+    color:var(--pc); border-bottom:1px solid transparent; transition:border-color .15s, opacity .15s;
   }
+  .glink::before{ content:"[ "; opacity:.55; }
+  .glink::after{ content:" ]"; opacity:.55; }
+  .glink:hover{ border-bottom-color:var(--pc); }
+  .glink.primary{ color:var(--bg); background:var(--pc); padding:5px 8px; }
+  .glink.primary::before,.glink.primary::after{ opacity:.7; }
+  .glink.primary:hover{ filter:brightness(1.12); }
 
-  .portal .plabel{
-    font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:2px; text-transform:uppercase;
-    color:var(--pc); margin-bottom:10px;
-  }
-  .portal .plogo{ display:flex; margin-bottom:10px; }
-  .portal .plogo img{ max-width:min(180px,60%); height:auto; filter:drop-shadow(0 6px 26px rgba(0,0,0,0.6)); }
-  .portal .plogo:empty{ display:none; }
-  .portal h2{ font-size:clamp(18px,2.2vw,23px); color:var(--pc); text-shadow:0 2px 10px rgba(0,0,0,0.7); }
-  .portal .psub{
-    font-family:'Cinzel',serif; font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase;
-    color:#D9CFBE; margin-top:4px;
-  }
-  .portal p.ppitch{
-    margin:10px 0 0; max-width:400px; font-size:12.5px; color:#E3DACB; text-shadow:0 1px 6px rgba(0,0,0,0.7);
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-  }
-  .portal .pmeta{
-    margin-top:10px; display:flex; gap:12px; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace;
-    font-size:10px; letter-spacing:0.5px; color:#B9AF9C;
-  }
-  .portal .pctas{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
-  .pbtn{
-    font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:1.2px; text-transform:uppercase;
-    padding:6px 12px; border-radius:7px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;
-    border:1px solid var(--pc-soft); color:var(--pc); cursor:pointer;
-    transition:background .15s, transform .15s;
-  }
-  .pbtn.primary{ background:var(--pc); color:#0A0A0C; border-color:var(--pc); font-weight:600; }
-  .pbtn:hover{ transform:translateY(-1px); }
-  .pbtn.primary:hover{ filter:brightness(1.08); }
-  .pbtn:not(.primary):hover{ background:rgba(255,255,255,0.06); }
+  .aetheris{ --pc:var(--gold); --pc-dim:var(--gold-dim); }
+  .pots{ --pc:var(--red); --pc-dim:var(--red-dim); }
+  .astrion{ --pc:var(--astviolet); --pc-dim:var(--astviolet-dim); }
+  .deepanchor{ --pc:var(--daorange); --pc-dim:var(--daorange-dim); }
 
-  /* ---------- Footer ---------- */
-  footer{
-    position:relative; z-index:2; border-top:1px solid var(--line); padding:14px 24px 20px; text-align:center;
-    font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8A8578; letter-spacing:0.5px;
-  }
-  footer a{ color:#8A8578; text-decoration:underline; text-underline-offset:2px; }
-  footer a:hover{ color:var(--cream); }
-  footer .sep{ margin:0 8px; opacity:0.5; }
+  .s-footer{ margin-top:36px; font-size:11px; color:var(--red-faint); text-align:center; }
+  .s-footer a{ color:var(--red-dim); text-decoration:underline; text-underline-offset:2px; }
+  .s-footer a:hover{ color:var(--red); }
+  .s-footer .sep{ margin:0 6px; }
 
-  .reveal{ opacity:0; transform:translateY(24px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal{ opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease; }
   .reveal.in{ opacity:1; transform:none; }
+  @media (prefers-reduced-motion:reduce){ .reveal{ transition:none; opacity:1; transform:none; } }
 
-  @media (prefers-reduced-motion:reduce){
-    .reveal{ transition:none; opacity:1; transform:none; }
+/* ============================================================================
+     MC ORCA GAMES OS — BOOT-SEQUENZ (Terminal-Look, Schritt 1)
+     Eigene Variablen (--boot-*), damit die bestehenden Theme-Farben der Seite
+     unangetastet bleiben. Akzentfarbe ist bewusst FEST ROT auf allen 5 Seiten
+     der Website (Markenfarbe, aus dem bestehenden CSS: der "ENTDECKEN"-Button
+     der Path-of-the-Stars-Kachel im Haupt-Index, --potsred).
+     ============================================================================ */
+  :root{
+    --boot-accent:#C81E2C; --boot-accent-dim:#9C5A57; --boot-bg:#050505;
   }
+  html.boot-locked, html.boot-locked body{ overflow:hidden; height:100%; }
+  #siteContent.boot-hidden{ display:none; }
+
+  #bootCrtOverlay{
+    position:fixed; inset:0; z-index:9998; display:none; align-items:center; justify-content:center;
+    background:#000; overflow:hidden;
+  }
+  #bootCrtOverlay.active{ display:flex; }
+  #bootCrtFlash{
+    position:absolute; inset:0; z-index:2; background:#000; pointer-events:none; overflow:hidden;
+    animation: bootCrtOverlayFade 0.25s linear 0.6s forwards;
+  }
+  .boot-crt-line{
+    position:absolute; left:50%; top:50%; width:100%; height:3px;
+    background:linear-gradient(90deg, transparent, #dff6ff 15%, #ffffff 50%, #dff6ff 85%, transparent);
+    box-shadow:0 0 20px 4px rgba(180,230,255,.9), 0 0 60px 14px rgba(120,200,255,.5);
+    transform:translate(-50%,-50%) scaleY(0.002); opacity:0;
+    animation: bootCrtBootLine 0.42s cubic-bezier(.2,.85,.3,1) 0.2s forwards;
+  }
+  @keyframes bootCrtBootLine{
+    0%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:0; }
+    15%{ opacity:1; }
+    40%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:1; }
+    78%{ transform:translate(-50%,-50%) scaleY(1.08); opacity:1; }
+    92%{ transform:translate(-50%,-50%) scaleY(0.97); }
+    100%{ transform:translate(-50%,-50%) scaleY(1); opacity:0; }
+  }
+  @keyframes bootCrtOverlayFade{ from{ opacity:1; } to{ opacity:0; visibility:hidden; } }
+
+  #dosBootOverlay{
+    position:fixed; inset:0; z-index:9999; background:#000;
+    display:none; align-items:flex-start; justify-content:flex-start;
+    padding:40px; box-sizing:border-box; cursor:pointer; overflow:hidden;
+    opacity:1; transition:opacity .4s ease;
+  }
+  #dosBootOverlay.visible{ display:flex; }
+  #dosBootOverlay.crt-poweron{ animation: bootCrtPowerOn .55s ease-out both; transform-origin:center center; }
+  @keyframes bootCrtPowerOn{
+    0%{ transform:scaleY(.008); filter:brightness(28); opacity:1; }
+    10%{ transform:scaleY(.02); filter:brightness(20); }
+    20%{ transform:scaleY(.55); filter:brightness(7); }
+    32%{ transform:scaleY(1); filter:brightness(2.6); }
+    45%{ transform:scaleY(1); filter:brightness(1.15); }
+    100%{ transform:scaleY(1); filter:brightness(1); }
+  }
+  #dosBootOverlay.crt-poweroff{ animation: bootCrtPowerOff .55s ease-in forwards; transform-origin:center center; }
+  @keyframes bootCrtPowerOff{
+    0%{ transform:scaleY(1) scaleX(1); filter:brightness(1); opacity:1; }
+    55%{ transform:scaleY(.012) scaleX(1); filter:brightness(5); opacity:1; }
+    78%{ transform:scaleY(.012) scaleX(.02); filter:brightness(9); opacity:1; }
+    100%{ transform:scaleY(.012) scaleX(.002); filter:brightness(0); opacity:0; }
+  }
+  #dosBootOverlay::after{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
+    background:repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 2px, transparent 3px);
+    mix-blend-mode:multiply; opacity:.5;
+  }
+  .boot-dos-inner{ width:100%; max-width:900px; position:relative; z-index:1; font-family:ui-monospace,'Courier New',monospace; }
+  .boot-dos-banner{
+    margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
+    font-size:7.5px; line-height:1.15; color:var(--boot-accent);
+    text-shadow:0 0 10px rgba(200,30,44,.75), 0 0 2px rgba(200,30,44,1);
+    opacity:0; animation: bootDosBannerFlash .5s ease-out forwards;
+  }
+  @media (min-width:700px){ .boot-dos-banner{ font-size:11px; } }
+  @keyframes bootDosBannerFlash{
+    0%{ opacity:0; filter:brightness(3); }
+    60%{ opacity:1; filter:brightness(2.2); }
+    100%{ opacity:1; filter:brightness(1); }
+  }
+  .boot-dos-text{ margin:0; white-space:pre-wrap; word-break:break-word;
+    font-family:'Courier New', ui-monospace, monospace; font-size:14px; line-height:1.55;
+    color:var(--boot-accent); text-shadow:0 0 6px rgba(200,30,44,.55), 0 0 1px rgba(200,30,44,.9); }
+  #dosBootText.typing::after{
+    content:''; display:inline-block; width:8px; height:14px; background:var(--boot-accent);
+    box-shadow:0 0 6px rgba(200,30,44,.7); animation:bootDosCursorBlink 1s steps(1) infinite;
+    vertical-align:-2px; margin-left:1px;
+  }
+  @keyframes bootDosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .boot-dos-skip{ position:fixed; bottom:22px; right:28px; font-size:11px; letter-spacing:1.5px;
+    color:var(--boot-accent-dim); text-transform:uppercase; z-index:3; font-family:ui-monospace,'Courier New',monospace; }
+
+  /* ---------- Willkommen-Vorstufe (vor Boot-Sequenz, ganz ruhig) ---------- */
+  #bootWelcomeOverlay{
+    position:fixed; inset:0; z-index:9999; background:var(--boot-bg);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    text-align:center; padding:28px; box-sizing:border-box; overflow-y:auto;
+    font-family:ui-monospace,'Courier New',monospace;
+    opacity:1; transition:opacity .4s ease;
+  }
+  #bootWelcomeOverlay.hidden{ opacity:0; pointer-events:none; }
+  .boot-welcome-banner{
+    margin:0 0 22px; display:flex; justify-content:center;
+  }
+  .boot-welcome-banner img{
+    height:clamp(260px,42vw,460px); width:auto;
+    filter:drop-shadow(0 0 18px rgba(200,30,44,.55)) drop-shadow(0 0 4px rgba(200,30,44,.8));
+  }
+  .boot-welcome-prompt{ font-size:12px; color:var(--boot-accent-dim); margin:0 0 14px; letter-spacing:.5px; }
+  .boot-welcome-prompt .p{ color:var(--boot-accent); }
+  .boot-welcome-title{
+    font-size:clamp(19px,4vw,30px); letter-spacing:1.5px; color:var(--boot-accent);
+    text-transform:uppercase; margin:0 0 12px; font-weight:700;
+    text-shadow:0 0 10px rgba(200,30,44,.55), 0 0 2px rgba(200,30,44,.9);
+  }
+  .boot-welcome-sub{ font-size:12.5px; color:var(--boot-accent-dim); margin:0 0 36px; letter-spacing:.3px; max-width:420px; }
+  .boot-welcome-btn{
+    font-family:inherit; font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
+    background:transparent; color:var(--boot-accent); border:1px solid var(--boot-accent-dim);
+    padding:13px 28px; cursor:pointer; transition:background .15s, color .15s, box-shadow .15s;
+  }
+  .boot-welcome-btn:hover, .boot-welcome-btn:focus-visible{
+    background:var(--boot-accent); color:#050505; box-shadow:0 0 18px rgba(200,30,44,.6); outline:none;
+  }
+  .boot-welcome-btn::before{ content:"[ "; opacity:.6; }
+  .boot-welcome-btn::after{ content:" ]"; opacity:.6; }
+  .boot-welcome-hint{ margin-top:18px; font-size:10px; color:var(--boot-accent-dim); opacity:.55; letter-spacing:.4px; }
 </style>
 </head>
 <body>
+<div id="bootWelcomeOverlay">
+  <div class="boot-welcome-banner"><img src="bilder/logo.png" alt="MC ORCA GAMES" onerror="this.parentElement.style.display='none'"></div>
+  <div class="boot-welcome-prompt"><span class="p">C:\ORCA\HUB&gt;</span> standby</div>
+  <div class="boot-welcome-title">Willkommen auf MC ORCA GAMES HUB</div>
+  <div class="boot-welcome-sub">Terminal im Standby. Vier Weltraumspiele warten auf deine Verbindung.</div>
+  <button type="button" class="boot-welcome-btn" id="bootStartBtn">Systeme starten</button>
+  <div class="boot-welcome-hint">Boot-Sequenz mit Sound &middot; ca. 60&ndash;90&nbsp;Sek. &middot; jederzeit &uuml;berspringbar</div>
+</div>
 
+<div id="bootCrtOverlay">
+  <div id="bootCrtFlash" aria-hidden="true"><div class="boot-crt-line"></div></div>
+</div>
+
+<div id="dosBootOverlay" aria-hidden="true">
+  <div class="boot-dos-inner">
+    <pre class="boot-dos-banner" id="dosBootBanner"></pre>
+    <pre class="boot-dos-text" id="dosBootText"></pre>
+  </div>
+  <div class="boot-dos-skip">Klicken oder Taste dr&uuml;cken zum &Uuml;berspringen</div>
+</div>
+
+<div id="siteContent" class="boot-hidden">
 <canvas id="stars"></canvas>
 
-<div class="topwrap">
-<div class="brandbar reveal">
-  <div class="brandmark" id="brandmark">
-    <img src="bilder/logo.png" alt="MC ORCA GAMES" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-    <b style="display:none">MC ORCA GAMES</b>
+<div class="stream">
+
+  <div class="s-logo reveal">
+    <img src="bilder/logo.png" alt="MC ORCA GAMES" onerror="this.style.display='none'">
   </div>
-</div>
 
-<header class="reveal">
-  <div class="eyebrow">VIER GALAXIEN · SOLO ENTWICKELT</div>
-  <h1>Browserbasierte Weltraumspiele<br>von <span class="accent1">MC</span> <span class="accent2">ORCA</span></h1>
-  <p>Kein Download, kein Konto bei Dritten — einfach öffnen und spielen. Wähle dein
-    Universum.</p>
-</header>
-</div>
+  <div class="s-prompt reveal"><span class="p">C:\ORCA\HUB&gt;</span> whoami --games<span class="cur"></span></div>
+  <div class="s-title reveal">MC <span class="w">ORCA</span> GAMES</div>
+  <div class="s-lede reveal">Browserbasierte Weltraumspiele. Kein Download, kein Konto bei Dritten — einfach oeffnen und spielen.</div>
 
-<div class="portals">
+  <hr class="s-rule thick">
 
-  <a class="portal aetheris reveal" href="aetheris/index.html">
-    <img class="portal-bg" src="aetheris/bilder/logo.png" onerror="this.style.display='none'" alt="">
-    <div class="plabel">Weltraum-Imperium</div>
-    <div class="plogo" id="aetherisLogo"></div>
-    <div id="aetherisTitleText">
-      <h2>AETHERIS</h2>
-      <div class="psub">Echoes of an Eternal Empire</div>
-    </div>
-    <div class="mono" style="font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--pc-dim);margin-top:6px">Ein MC ORCA Games Projekt</div>
-    <p class="ppitch">Gründe eine Kolonie, baue eine Flotte auf und handle mit Dunkler Materie —
+  <div class="game aetheris reveal">
+    <div class="ghead"><span class="idx">[ 01 ]</span> AETHERIS.EXE<span class="fill"></span><span class="ver">v1.0 · Release</span></div>
+    <div class="gsub">Weltraum-Imperium</div>
+    <div class="glogo"><img src="aetheris/bilder/logo.png" alt="AETHERIS" onerror="this.parentElement.style.display='none'"></div>
+    <p class="gpitch"><span class="arr">&gt;</span> Gruende eine Kolonie, baue eine Flotte auf und handle mit Dunkler Materie —
       in einer Galaxie, die sich weiterdreht, auch wenn du gerade nicht online bist.</p>
-    <div class="pmeta">
-      <span>v1.0 · Release</span>
-      <span>30 Sternensysteme</span>
+    <div class="gmeta">
+      <div class="row"><span>Sternensysteme</span><span class="v">30</span></div>
+      <div class="row"><span>Spielbare Spezies</span><span class="v">4</span></div>
     </div>
-    <div class="pctas">
-      <span class="pbtn primary">Entdecken →</span>
-      <span class="pbtn" onclick="event.preventDefault();event.stopPropagation();window.location.href='aetheris/game.html'">Direkt spielen</span>
+    <div class="gctas">
+      <a class="glink primary" href="aetheris/index.html">Entdecken</a>
+      <a class="glink" href="aetheris/game.html">Direkt spielen</a>
     </div>
-  </a>
+  </div>
 
-  <a class="portal pots reveal" href="path%20of%20the%20stars/index.html">
-    <img class="portal-bg" src="path%20of%20the%20stars/bilder/logo.png" onerror="this.style.display='none'" alt="">
-    <div class="plabel">Generationenschiff-Saga</div>
-    <div class="plogo" id="potsLogo"></div>
-    <div id="potsTitleText">
-      <h2>PATH OF THE STARS</h2>
-      <div class="psub">Drifting Worlds</div>
-    </div>
-    <div class="mono" style="font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--pc-dim);margin-top:6px">Ein MC ORCA Games Projekt</div>
-    <p class="ppitch">Die Sonne stirbt. Die Erde flieht — handle zwischen den Sternen und
-      verfolge ein uraltes Signal, während an Bord nur Jahre vergehen und draußen
-      Jahrtausende verstreichen.</p>
-    <div class="pmeta">
-      <span>v0_0243 · Open Beta</span>
-      <span>4 Fraktionen + Piraten</span>
-    </div>
-    <div class="pctas">
-      <span class="pbtn primary">Entdecken →</span>
-      <span class="pbtn" onclick="event.preventDefault();event.stopPropagation();window.location.href='path%20of%20the%20stars/game.html'">Direkt spielen</span>
-    </div>
-  </a>
+  <hr class="s-rule">
 
-  <a class="portal astrion reveal" href="astrion/index.html">
-    <img class="portal-bg" src="astrion/art/logo.png" onerror="this.style.display='none'" alt="">
-    <div class="plabel">Sammelkarten-Universum</div>
-    <div class="plogo" id="astrionLogo"></div>
-    <div id="astrionTitleText">
-      <h2>ASTRION</h2>
-      <div class="psub">Karten aus den Tiefen des Alls</div>
+  <div class="game pots reveal">
+    <div class="ghead"><span class="idx">[ 02 ]</span> PATH_OF_THE_STARS.EXE<span class="fill"></span><span class="ver">v0.0243 · Open Beta</span></div>
+    <div class="gsub">Generationenschiff-Saga</div>
+    <div class="glogo"><img src="path%20of%20the%20stars/bilder/logo.png" alt="PATH OF THE STARS" onerror="this.parentElement.style.display='none'"></div>
+    <p class="gpitch"><span class="arr">&gt;</span> Die Sonne stirbt. Die Erde flieht — handle zwischen den Sternen und verfolge
+      ein uraltes Signal, waehrend an Bord nur Jahre vergehen und draussen Jahrtausende verstreichen.</p>
+    <div class="gmeta">
+      <div class="row"><span>Fraktionen</span><span class="v">4 + Piraten</span></div>
+      <div class="row"><span>Zeitverhaeltnis</span><span class="v">Bordzeit ≠ Aussenzeit</span></div>
     </div>
-    <div class="mono" style="font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--pc-dim);margin-top:6px">Ein MC ORCA Games Projekt</div>
-    <p class="ppitch">Öffne Booster, sammle Karten aus vier Völkern und tritt in der
-      Sternen-Akademie an — ein entspanntes Sammelkartenspiel, das nebenbei
-      Deutsch und Mathe übt.</p>
-    <div class="pmeta">
-      <span>Open Beta</span>
-      <span>4 Völker · Sternen-Akademie</span>
+    <div class="gctas">
+      <a class="glink primary" href="path%20of%20the%20stars/index.html">Entdecken</a>
+      <a class="glink" href="path%20of%20the%20stars/game.html">Direkt spielen</a>
     </div>
-    <div class="pctas">
-      <span class="pbtn primary">Entdecken →</span>
-      <span class="pbtn" onclick="event.preventDefault();event.stopPropagation();window.location.href='astrion/game.html'">Direkt spielen</span>
-    </div>
-  </a>
+  </div>
 
-  <a class="portal deepanchor reveal" href="deep%20anchor/index.html">
-    <img class="portal-bg" src="deep%20anchor/art/bilder/logo.png" onerror="this.style.display='none'" alt="">
-    <div class="plabel">Satelliten-Simulation</div>
-    <div class="plogo" id="deepanchorLogo"></div>
-    <div id="deepanchorTitleText">
-      <h2>DEEP ANCHOR</h2>
-      <div class="psub">Satelliten-Produktion &amp; Orbital-Netzwerk</div>
+  <hr class="s-rule">
+
+  <div class="game astrion reveal">
+    <div class="ghead"><span class="idx">[ 03 ]</span> ASTRION.EXE<span class="fill"></span><span class="ver">Open Beta</span></div>
+    <div class="gsub">Sammelkarten-Universum</div>
+    <div class="glogo"><img src="astrion/art/logo.png" alt="ASTRION" onerror="this.parentElement.style.display='none'"></div>
+    <p class="gpitch"><span class="arr">&gt;</span> Oeffne Booster, sammle Karten aus vier Voelkern und tritt in der Sternen-Akademie
+      an — ein entspanntes Sammelkartenspiel, das nebenbei Deutsch und Mathe uebt.</p>
+    <div class="gmeta">
+      <div class="row"><span>Karten in Serie "Erwachen der Sterne"</span><span class="v">80</span></div>
+      <div class="row"><span>Voelker</span><span class="v">4</span></div>
     </div>
-    <div class="mono" style="font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--pc-dim);margin-top:6px">Ein MC ORCA Games Projekt</div>
-    <p class="ppitch">Baue Satelliten vom ersten Chassis bis zur fertigen Konstellation und
+    <div class="gctas">
+      <a class="glink primary" href="astrion/index.html">Entdecken</a>
+      <a class="glink" href="astrion/game.html">Direkt spielen</a>
+    </div>
+  </div>
+
+  <hr class="s-rule">
+
+  <div class="game deepanchor reveal">
+    <div class="ghead"><span class="idx">[ 04 ]</span> ANCHOR.EXE<span class="fill"></span><span class="ver">Open Beta</span></div>
+    <div class="gsub">Satelliten-Simulation</div>
+    <div class="glogo"><img src="deep%20anchor/art/bilder/logo.png" alt="DEEP ANCHOR" onerror="this.parentElement.style.display='none'"></div>
+    <p class="gpitch"><span class="arr">&gt;</span> Baue Satelliten vom ersten Chassis bis zur fertigen Konstellation und
       expandiere von der Erdumlaufbahn bis in fremde Sonnensysteme und Galaxien.</p>
-    <div class="pmeta">
-      <span>Open Beta</span>
-      <span>Sonnensystem → Galaxien-Hub</span>
+    <div class="gmeta">
+      <div class="row"><span>Reichweite</span><span class="v">Sonnensystem → Galaxien-Hub</span></div>
     </div>
-    <div class="pctas">
-      <span class="pbtn primary">Entdecken →</span>
-      <span class="pbtn" onclick="event.preventDefault();event.stopPropagation();window.location.href='deep%20anchor/game.html'">Direkt spielen</span>
+    <div class="gctas">
+      <a class="glink primary" href="deep%20anchor/index.html">Entdecken</a>
+      <a class="glink" href="deep%20anchor/game.html">Direkt spielen</a>
     </div>
-  </a>
+  </div>
+
+  <hr class="s-rule thick">
+
+  <div class="s-footer reveal">
+    MC ORCA Games — Indie-Solo-Projekte
+    <br>
+    <a href="aetheris/impressum.html">AETHERIS</a><span class="sep">·</span><a href="path%20of%20the%20stars/impressum.html">Path of the Stars</a><span class="sep">·</span><a href="astrion/impressum.html">Astrion</a><span class="sep">·</span><a href="deep%20anchor/impressum.html">Deep Anchor</a>
+    <span class="sep">|</span> Impressum &amp; Datenschutz
+  </div>
 
 </div>
-
-<footer>
-  MC ORCA Games — Indie-Solo-Projekte
-  <span class="sep">·</span><a href="aetheris/impressum.html">AETHERIS: Impressum &amp; Datenschutz</a>
-  <span class="sep">·</span><a href="path%20of%20the%20stars/impressum.html">Path of the Stars: Impressum &amp; Datenschutz</a>
-  <span class="sep">·</span><a href="astrion/impressum.html">Astrion: Impressum &amp; Datenschutz</a>
-  <span class="sep">·</span><a href="deep%20anchor/impressum.html">Deep Anchor: Impressum &amp; Datenschutz</a>
-</footer>
 
 <script>
-/* ---------- Starfield ---------- */
+/* ---------- Sternenfeld (sehr dezent, rot) ---------- */
 (function(){
   const canvas = document.getElementById('stars');
   const ctx = canvas.getContext('2d');
   let stars = [], w, h;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
   function resize(){
     w = canvas.width = window.innerWidth;
     h = canvas.height = document.documentElement.scrollHeight;
-    const count = Math.min(240, Math.floor((w*h)/9500));
+    const count = Math.min(140, Math.floor((w*h)/14000));
     stars = Array.from({length:count}, () => ({
-      x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.3+0.2,
+      x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.1+0.2,
       p: Math.random()*Math.PI*2, s: Math.random()*0.015+0.005
     }));
   }
   function draw(t){
     ctx.clearRect(0,0,w,h);
-    ctx.fillStyle = '#EAE2D4';
+    ctx.fillStyle = '#C81E2C';
     stars.forEach(st=>{
-      const tw = reduced ? 0.7 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
-      ctx.globalAlpha = 0.12 + tw*0.5;
+      const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.08 + tw*0.22;
       ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
     });
     ctx.globalAlpha = 1;
@@ -302,32 +418,396 @@
   if(reduced) draw(0);
 })();
 
-/* ---------- Logo-Fallback pro Portal-Karte ---------- */
-function initPortalLogo(slotId, textId, src, alt){
-  const slot = document.getElementById(slotId);
-  const text = document.getElementById(textId);
-  const test = new Image();
-  test.onload = () => {
-    const img = document.createElement('img');
-    img.src = src; img.alt = alt;
-    slot.appendChild(img);
-    text.style.display = 'none';
-  };
-  test.src = src;
-}
-initPortalLogo('aetherisLogo', 'aetherisTitleText', 'aetheris/bilder/logo.png', 'AETHERIS');
-initPortalLogo('potsLogo', 'potsTitleText', 'path%20of%20the%20stars/bilder/logo.png', 'PATH OF THE STARS');
-initPortalLogo('astrionLogo', 'astrionTitleText', 'astrion/art/logo.png', 'ASTRION');
-initPortalLogo('deepanchorLogo', 'deepanchorTitleText', 'deep%20anchor/art/bilder/logo.png', 'DEEP ANCHOR');
-
 /* ---------- Scroll reveal ---------- */
 (function(){
   const io = new IntersectionObserver((entries)=>{
     entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
-  }, { threshold:0.1 });
+  }, { threshold:0.08 });
   document.querySelectorAll('.reveal').forEach(el=> io.observe(el));
 })();
 </script>
 
+</div><!-- /siteContent -->
+<script>
+const BOOT_BANNER = ` __  __   ____    ___  ____    ____     _   
+|  \\/  | / ___|  / _ \\|  _ \\  / ___|   / \\  
+| |\\/| || |      | | || |_) || |      / _ \\ 
+| |  | || |___   | |_||  _ < | |___  / ___ \\
+|_|  |_| \\____|  \\___/|_| \\_\\ \\____|/_/   \\_\\
+
+  ____     _    __  __  _____  ____     ___  ____  
+ / ___|   / \\  |  \\/  || ____|/ ___|   / _ \\/ ___| 
+| |  _   / _ \\ | |\\/| ||  _|  \\___ \\   | | |\\___ \\ 
+| |_| | / ___ \\| |  | || |___  ___) |  | |_| ___) |
+ \\____|/_/   \\_\\|_|  |_||_____||____/   \\___/|____/ `;
+
+/* ==========================================================================
+   AB HIER SEITENANPASSUNG (Haupt-Index / Hub) — BIOS-Name, OS-Name und die
+   Kontextdaten der Hub-Seite. Da diese Seite keinen eigenen Spielstand hat,
+   sind das reine Katalog-Metadaten, die 1:1 aus den Portal-Kacheln auf
+   dieser Seite stammen (Sternensysteme, Fraktionen, Völker, Reichweite).
+   ========================================================================== */
+const OS_NAME = "HUB-OS";
+const BIOS_LINE = "MC ORCA GAMES BIOS v1.1";
+const COPYRIGHT_LINE = "(C) 2026 MC ORCA Games.";
+
+function getBootContext(){
+  return {
+    greeting: 'Kommandant',
+    gameCount: 4,
+    aetherisSystems: 30,
+    potsFactions: '4 + Piraten',
+    astrionPeoples: 4,
+    deepAnchorScope: 'Sonnensystem -> Galaxien-Hub',
+  };
+}
+
+function generateBootLines(){
+  const ctx = getBootContext();
+  return [
+    BIOS_LINE,
+    COPYRIGHT_LINE,
+    "",
+    "CPU .................................. ORCA-9800X @ 4.7 GHz",
+    "RAM-Test .............................. 65536 MB OK",
+    "Netzwerkschnittstelle ................. bereit",
+    "",
+    { progress: "Pruefe Dateisystem-Integritaet", ms: 3400 },
+    { progress: "Synchronisiere Portal-Register", ms: 3400 },
+    { progress: "Baue Sternenkarten-Register auf", ms: 3200 },
+    "",
+    `Lade ${OS_NAME} Kernel...`,
+    "  [ OK ] BOOTLDR.SYS          Bootloader initialisiert",
+    "  [ OK ] PORTAL.SYS           Portal-Schnittstelle geladen",
+    "  [ OK ] STARFIELD.SYS        Sternenfeld-Renderer",
+    "  [ OK ] AUDIO.SYS            Terminal-Sound-Modul",
+    "  [ OK ] AETHERIS.SYS         Weltraum-Imperium",
+    "  [ OK ] POTS.SYS             Generationenschiff-Saga",
+    "  [ OK ] ASTRION.SYS          Sammelkartenspiel",
+    "  [ OK ] ANCHOR.SYS           Satelliten-Simulation",
+    "",
+    { progress: "Verbinde Portale", ms: 3400 },
+    { progress: "Kalibriere Netzwerkverbindung zu vier Universen", ms: 3400 },
+    { progress: "Lade Katalog-Metadaten", ms: 3200 },
+    { progress: "Pruefe Lizenzserver", ms: 2600 },
+    "",
+    "Katalog-Uebersicht:",
+    `  Verfuegbare Spiele ..................... ${ctx.gameCount}`,
+    `  AETHERIS - Sternensysteme .............. ${ctx.aetherisSystems}`,
+    `  PATH OF THE STARS - Fraktionen ......... ${ctx.potsFactions}`,
+    `  ASTRION - Voelker ....................... ${ctx.astrionPeoples}`,
+    `  DEEP ANCHOR - Reichweite ................ ${ctx.deepAnchorScope}`,
+    "",
+    `${OS_NAME} BEREIT.`,
+    "",
+    `Willkommen, ${ctx.greeting}. Waehle dein Universum.`
+  ];
+}
+
+function renderProgressLine(label, pct, width=24){
+  const filled = Math.max(0, Math.min(width, Math.round(width*pct/100)));
+  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
+  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
+}
+
+let bootAudioCtx = null;
+function bootTone(freq, dur, type='square', vol=0.05){
+  try{
+    bootAudioCtx = bootAudioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const o = bootAudioCtx.createOscillator(), g = bootAudioCtx.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = vol;
+    o.connect(g); g.connect(bootAudioCtx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, bootAudioCtx.currentTime+dur);
+    o.stop(bootAudioCtx.currentTime+dur+0.02);
+  }catch(err){}
+}
+const BootSound = {
+  postBeep: ()=> bootTone(900, 0.15, 'square', 0.06),
+  tone: bootTone,
+  diskAccess: ()=> bootTone(220+Math.random()*40, 0.03, 'square', 0.03),
+  modemHandshake: ()=> bootTone(1400, 0.25, 'sawtooth', 0.03),
+  buildOk: ()=> { bootTone(660,0.12); setTimeout(()=>bootTone(880,0.18),120); },
+};
+
+let dosBootToken = 0;
+function playDosBootSequence(){
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById('dosBootOverlay');
+    const textEl = document.getElementById('dosBootText');
+    const bannerEl = document.getElementById('dosBootBanner');
+    if(!overlay || !textEl){ resolve(); return; }
+    const BOOT_LINES = generateBootLines();
+    const myToken = ++dosBootToken;
+    const totalCharBudgetMs = 90000;
+    const totalChars = BOOT_LINES.reduce((n,l)=> n + (typeof l==='string' ? Math.max(l.length,1):0), 0);
+    const perCharMs = Math.min(28, Math.max(9, totalCharBudgetMs/Math.max(totalChars,1)));
+    const interLineMs = 450;
+    const finalHoldMs = 3500;
+    const bannerRevealMs = 500;
+
+    textEl.textContent = '';
+    textEl.classList.add('typing');
+    if(bannerEl){
+      bannerEl.textContent = BOOT_BANNER;
+      bannerEl.style.animation = 'none'; void bannerEl.offsetWidth; bannerEl.style.animation = '';
+    }
+    overlay.classList.remove('fading','crt-poweroff');
+    overlay.classList.add('visible');
+    overlay.classList.remove('crt-poweron'); void overlay.offsetWidth; overlay.classList.add('crt-poweron');
+    try{ BootSound.postBeep(); }catch(err){}
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    let finished = false, timeoutIds = [];
+    const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds=[]; };
+    let renderedLines = [];
+    const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); overlay.scrollTop = overlay.scrollHeight; };
+
+    const finishNow = ()=>{
+      if(finished || myToken!==dosBootToken) return;
+      finished = true; clearAllTimers();
+      textEl.textContent = BOOT_LINES.map(l=> typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
+      overlay.scrollTop = overlay.scrollHeight;
+      overlay.classList.remove('crt-poweron'); overlay.classList.add('crt-poweroff');
+      textEl.classList.remove('typing');
+      document.body.style.overflow = prevOverflow;
+      setTimeout(()=>{
+        if(myToken!==dosBootToken) return;
+        overlay.classList.remove('visible','fading','crt-poweroff');
+        overlay.removeEventListener('click', skipHandler);
+        document.removeEventListener('keydown', skipHandler);
+        resolve();
+      }, 550);
+    };
+    const skipHandler = ()=> finishNow();
+    overlay.addEventListener('click', skipHandler);
+    document.addEventListener('keydown', skipHandler);
+
+    let lineIndex = 0, blipCounter = 0;
+    const keyBlip = ()=>{ blipCounter++; if(blipCounter%3===0){ try{ BootSound.tone(760+Math.random()*260,0.02,'square',0.045); }catch(err){} } };
+    const okBlip = ()=>{ try{ BootSound.tone(1180,0.05,'square',0.05); }catch(err){} };
+    const readyChord = ()=>{ try{ BootSound.buildOk(); }catch(err){} };
+
+    const processLine = ()=>{
+      if(myToken!==dosBootToken) return;
+      if(lineIndex >= BOOT_LINES.length){ timeoutIds.push(setTimeout(finishNow, finalHoldMs)); return; }
+      const entry = BOOT_LINES[lineIndex];
+      if(typeof entry === 'string') typeStringLine(entry);
+      else if(entry && entry.progress) runProgressLine(entry);
+    };
+
+    const typeStringLine = (line)=>{
+      if(line.length === 0){
+        renderedLines[lineIndex] = ''; redraw(); lineIndex++;
+        timeoutIds.push(setTimeout(processLine, interLineMs/2));
+        return;
+      }
+      let charIndex = 0;
+      const step = ()=>{
+        if(myToken!==dosBootToken) return;
+        charIndex++;
+        renderedLines[lineIndex] = line.slice(0, charIndex);
+        redraw();
+        if(charIndex < line.length){ keyBlip(); timeoutIds.push(setTimeout(step, perCharMs)); }
+        else{
+          const trimmed = line.trim();
+          if(trimmed.startsWith('[ OK ]')) okBlip();
+          else if(trimmed === `${OS_NAME} BEREIT.`) readyChord();
+          lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs));
+        }
+      };
+      step();
+    };
+
+    const runProgressLine = (entry)=>{
+      try{ BootSound.diskAccess(); }catch(err){}
+      const steps = 22, stepMs = Math.max(30, entry.ms/steps);
+      let step = 0;
+      renderedLines[lineIndex] = renderProgressLine(entry.progress, 0); redraw();
+      const tick = ()=>{
+        if(myToken!==dosBootToken) return;
+        step++;
+        const pct = Math.min(100, Math.round(step/steps*100));
+        renderedLines[lineIndex] = renderProgressLine(entry.progress, pct); redraw();
+        if(step%4===0){ try{ BootSound.tone(500+pct*4,0.02,'square',0.03); }catch(err){} }
+        if(step < steps) timeoutIds.push(setTimeout(tick, stepMs));
+        else{ lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs)); }
+      };
+      tick();
+    };
+
+    timeoutIds.push(setTimeout(processLine, bannerRevealMs));
+  });
+}
+
+/* Seiteneinstieg, zweistufig:
+   1) Willkommen-Screen ("MC ORCA GAMES HUB" + Button "Systeme starten") wird
+      SOFORT und ganz ohne Animation/Sound gezeigt — damit Besucher nicht
+      direkt vom Boot-Effekt ueberrumpelt werden.
+   2) Erst nach Klick (oder Enter/Leertaste) auf den Button startet der
+      CRT-Poweron-Flash -> voller DOS-Bootstream -> danach wird der
+      eigentliche Seiteninhalt sichtbar. */
+function startBootSequence(){
+  document.documentElement.classList.add('boot-locked');
+  setTimeout(async ()=>{
+    const crt = document.getElementById('bootCrtOverlay');
+    if(crt) crt.classList.add('active');
+    await playDosBootSequence();
+    if(crt){ crt.classList.remove('active'); crt.style.display = 'none'; }
+    document.documentElement.classList.remove('boot-locked');
+    const site = document.getElementById('siteContent');
+    if(site) site.classList.remove('boot-hidden');
+    /* Sicherheits-Fallback: das bestehende Scroll-Reveal (.reveal +
+       IntersectionObserver) beobachtet Elemente ggf. schon, waehrend
+       #siteContent noch display:none war. Direkt nach dem Sichtbarwerden
+       pruefen wir zusaetzlich von Hand, was gerade im Viewport liegt, und
+       blenden das sofort ein, statt uns allein auf den Observer zu
+       verlassen. */
+    requestAnimationFrame(()=>{
+      document.querySelectorAll('.reveal').forEach(el=>{
+        const r = el.getBoundingClientRect();
+        if(r.top < window.innerHeight && r.bottom > 0) el.classList.add('in');
+      });
+    });
+  }, 900);
+}
+
+function bootIntoSite(){
+  document.documentElement.classList.add('boot-locked');
+  const welcome = document.getElementById('bootWelcomeOverlay');
+  const startBtn = document.getElementById('bootStartBtn');
+
+  if(!welcome || !startBtn){ startBootSequence(); return; }
+
+  const beginBoot = ()=>{
+    startBtn.removeEventListener('click', beginBoot);
+    document.removeEventListener('keydown', keyHandler);
+    try{ BootSound.postBeep(); }catch(err){}
+    welcome.classList.add('hidden');
+    setTimeout(()=>{ welcome.remove(); startBootSequence(); }, 400);
+  };
+  const keyHandler = (e)=>{
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); beginBoot(); }
+  };
+  startBtn.addEventListener('click', beginBoot);
+  document.addEventListener('keydown', keyHandler);
+  startBtn.focus();
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', bootIntoSite);
+}else{
+  bootIntoSite();
+}
+
+</script>
+
+<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): eigenstaendiges Konto-Widget, 6-stelliger E-Mail-Code
+     statt Magic-Link (funktioniert auch aus einer APK-WebView heraus, kein Browser-Redirect
+     noetig). Gleiche Supabase-Zugangsdaten wie in den anderen Spielen -> eine Anmeldung gilt
+     ueberall auf dieser Domain, weil die Session im localStorage der Domain liegt. -->
+<div id="cloudAccountBar" style="position:fixed;top:14px;right:14px;z-index:99999;font-family:system-ui,-apple-system,sans-serif;font-size:12px;">
+  <button id="cloudAccountToggle" style="background:rgba(15,15,20,0.85);color:#eee;border:1px solid #555;padding:7px 14px;border-radius:18px;cursor:pointer;backdrop-filter:blur(4px);">☁ Konto</button>
+  <div id="cloudAccountPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:250px;background:#16161a;border:1px solid #444;border-radius:10px;padding:12px;box-shadow:0 10px 26px rgba(0,0,0,0.5);color:#ddd;">
+    <div id="cloudStepEmail">
+      <div style="line-height:1.5;color:#aaa;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+      <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;">
+      <button id="cloudSendCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Code senden</button>
+    </div>
+    <div id="cloudStepCode" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Code aus der E-Mail eingeben:</div>
+      <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;letter-spacing:3px;text-align:center;">
+      <button id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Bestätigen</button>
+    </div>
+    <div id="cloudStepIn" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
+    </div>
+    <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+
+  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.style.color = isErr ? '#e37b7b' : '#8fd18f'; }
+  function render(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
+    var emailEl = document.getElementById('cloudUserEmail');
+    if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+  }
+
+  toggle.addEventListener('click', function(){ panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
+  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.style.display = 'none'; });
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data.session;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      var wasLoggedOut = !window.__cloudUser;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(wasLoggedOut && window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+
+    document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+      var email = document.getElementById('cloudEmailInput').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+      var code = document.getElementById('cloudCodeInput').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+
+    document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      render();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+  render();
+})();
+</script>
 </body>
 </html>

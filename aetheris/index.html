@@ -1,3 +1,27 @@
+<!--
+  AETHERIS — Landingpage
+  Datei-Version: v1.4 (Landingpage-Datei; unabhängig vom Spielstand "v1.0 Release")
+  Changelog:
+    v1.4 – Copyright-Jahr im Boot-Log auf 2026 aktualisiert (statt 2087);
+           ASCII-Banner zweizeilig umgebaut: "MC ORCA" oben, "GAMES OS"
+           darunter (identisch in allen 5 Dateien).
+    v1.3 – Kompletter Strukturumbau zur alten Konsolenansicht: alle Fotos/
+           Artworks/SVG-Grafiken entfernt (nur noch das AETHERIS-Logo bleibt),
+           reiner scrollender Terminal-Textfluss mit ASCII-Trennlinien statt
+           Karten-/HUD-Grid, Ressourcen-Balken als Text-Blockgrafik
+           ([████░░░░] 41%), Planetenslots als Text-Liste statt Orbit-SVG.
+           Interaktive Demo (tickende Ressourcen, Bau-Warteschlange,
+           Geschenkcode) bleibt voll funktionsfaehig, nur ohne Bilder/Icons.
+    v1.2 – Sichtbarer Seiteninhalt auf Terminal-Look-System umgestellt: dunklerer
+           Hintergrund, komplett Monospace, eckige Ecken statt runder Panels/Buttons,
+           Klammer-Buttons "[ Text ]", CRT-Scanlines, Sternenfeld rot statt creme.
+           Gold bleibt als Aetheris-eigene Akzentfarbe erhalten. Struktur/Layout
+           der einzelnen Sections (Hero-Orbit, HUD, Spezies, Demo) unverändert.
+    v1.1 – MC ORCA GAMES OS Boot-Sequenz ergänzt (Terminal-Look, Schritt 1):
+           CRT-Poweron + DOS-Bootstream laufen jetzt direkt beim Öffnen der
+           Seite, vor der eigentlichen Landingpage.
+    v1.0 – Basiszustand der Landingpage vor Boot-Sequenz.
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -6,942 +30,512 @@
 <title>AETHERIS — Echoes of an Eternal Empire</title>
 <meta name="description" content="AETHERIS: Ein browserbasiertes Weltraum-Imperium ohne Download. Kolonisiere, forsche, handle mit Dunkler Materie — und behaupte dich in einer Galaxie, die auch dir nicht allein gehört.">
 <style>
-  @import url('fonts/fonts.css');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
   :root{
-    --bg:#100C0A; --bg2:#161010; --panel:#1B1512; --panel2:#1F1814; --line:#2B1E19;
-    --gold:#D4AF37; --gold-soft:rgba(212,175,55,0.35); --gold-dim:#8A7A6A;
-    --cream:#EDE4D3; --red:#C4402E; --green:#7FA85A; --blue:#7FA0C4;
+    --bg:#050505; --fg:#CFC0BC; --line:#3A2224;
+    --red:#C81E2C; --red-dim:#7A3438;
+    --gold:#D4AF37; --gold-dim:#8A7A4A;
+    --green:#7FA85A; --grey:#6E6058;
   }
-  *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
+  *{ box-sizing:border-box; }
+  html,body{ scrollbar-width:none; -ms-overflow-style:none; }
+  html::-webkit-scrollbar,body::-webkit-scrollbar{ display:none; }
+  html{ scroll-behavior:smooth; }
   body{
-    margin:0; background:var(--bg); color:var(--cream);
-    font-family:'Spectral',Georgia,serif; font-size:17px; line-height:1.65;
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:14px; line-height:1.75;
     -webkit-font-smoothing:antialiased;
   }
-  h1,h2,h3,.display{ font-family:'Cinzel',serif; font-weight:700; letter-spacing:0.5px; color:var(--gold); margin:0; }
-  .mono{ font-family:'IBM Plex Mono',monospace; }
-  .eyebrow{
-    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:3px; text-transform:uppercase;
-    color:var(--gold-dim); display:flex; align-items:center; gap:10px; margin-bottom:18px;
-  }
-  .eyebrow::before{ content:""; width:22px; height:1px; background:var(--gold-soft); display:inline-block; }
   a{ color:inherit; }
-  ::selection{ background:var(--gold); color:#100C0A; }
-  :focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+  ::selection{ background:var(--gold); color:#050505; }
+  :focus-visible{ outline:1px solid var(--gold); outline-offset:2px; }
 
-  /* ---------- Starfield backdrop ---------- */
-  #stars{ position:fixed; inset:0; z-index:0; opacity:0.55; pointer-events:none; }
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.2; pointer-events:none; }
 
-  /* ---------- Shell ---------- */
-  .wrap{ max-width:1080px; margin:0 auto; padding:0 28px; position:relative; z-index:2; }
-  section{ position:relative; z-index:2; }
+  .stream{ position:relative; z-index:2; max-width:760px; margin:0 auto; padding:26px 20px 70px; }
 
-  /* ---------- Top nav ---------- */
-  .topnav{
-    position:fixed; top:0; left:0; right:0; z-index:20;
-    display:flex; align-items:center; justify-content:space-between;
-    padding:18px 28px; backdrop-filter:blur(6px); background:linear-gradient(180deg, rgba(16,12,10,0.85), rgba(16,12,10,0));
-  }
-  .topnav .logo{ font-family:'Cinzel',serif; font-weight:700; font-size:19px; color:var(--gold); letter-spacing:1px; position:relative; z-index:2; }
-  .topnav .logo span{ color:var(--red); }
-  .topnav .logo img{ height:92px; width:auto; display:block; margin:-30px 0; position:relative; }
-  @media (max-width:720px){ .topnav .logo img{ height:64px; margin:-16px 0; } }
-  .topnav .navlinks{ display:flex; gap:26px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:1px; }
-  .topnav .navlinks a{ color:var(--gold-dim); text-decoration:none; transition:color .15s; }
-  .topnav .navlinks a:hover{ color:var(--gold); }
-  .topnav .navcta{
-    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase;
-    padding:8px 16px; border-radius:8px; border:1px solid var(--gold-soft); color:var(--gold); text-decoration:none;
-    transition:background .15s,border-color .15s;
-  }
-  .topnav .navcta:hover{ background:#221A10; border-color:var(--gold); }
-  .topnav .navctas{ display:flex; align-items:center; gap:10px; }
-  @media (max-width:480px){ .topnav .navcta{ padding:8px 11px; } }
-  .navleft{ display:flex; align-items:center; gap:18px; }
-  .mc-brand{
-    display:flex; align-items:center; gap:8px; text-decoration:none;
-    font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:1.5px; text-transform:uppercase;
-    color:var(--gold-dim); position:relative; z-index:2; transition:color .15s;
-    padding-right:16px; border-right:1px solid var(--line);
-  }
-  .mc-brand:hover{ color:var(--gold); }
-  .mc-brand img{ height:22px; width:auto; display:block; }
-  @media (max-width:640px){ .mc-brand span{ display:none; } .mc-brand{ padding-right:12px; } }
+  .topline{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:22px; font-size:12px; }
+  .topline .back{ color:var(--red-dim); text-decoration:none; }
+  .topline .back::before{ content:"[ "; opacity:.6; } .topline .back::after{ content:" ]"; opacity:.6; }
+  .topline .back:hover{ color:var(--red); }
+  .topline .jump{ display:flex; gap:14px; flex-wrap:wrap; }
+  .topline .jump a{ color:var(--gold-dim); text-decoration:none; font-size:11.5px; }
+  .topline .jump a:hover{ color:var(--gold); text-decoration:underline; text-underline-offset:2px; }
 
-  /* ---------- Mobiles Hamburger-Dropdown-Menü (reines CSS, Checkbox-Trick) ---------- */
-  .nav-toggle-checkbox{ display:none; }
-  .nav-toggle-btn{ display:none; }
-  @media (max-width:720px){
-    .nav-toggle-btn{
-      display:flex; align-items:center; justify-content:center; flex:none;
-      width:36px; height:36px; border:1px solid var(--gold-soft); border-radius:8px;
-      color:var(--gold); font-size:16px; cursor:pointer; background:#161010;
-    }
-    .topnav .navlinks{
-      position:absolute; top:100%; left:0; right:0; margin:0;
-      flex-direction:column; gap:0;
-      background:#100C0A; border-top:1px solid var(--line);
-      max-height:0; overflow:hidden; transition:max-height .25s ease;
-    }
-    .topnav .navlinks a{ padding:15px 28px; border-bottom:1px solid var(--line); font-size:13px; }
-    .nav-toggle-checkbox:checked ~ .navlinks{ max-height:340px; }
-  }
+  .s-logo{ display:flex; justify-content:center; margin:8px 0 16px; }
+  .s-logo img{ height:70px; width:auto; }
 
-  /* ---------- Buttons ---------- */
-  .btn{
-    font-family:'IBM Plex Mono',monospace; font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
-    padding:15px 28px; border-radius:10px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:10px;
-    border:1px solid var(--gold-soft); background:#161010; color:var(--cream);
-    transition:border-color .15s, background .15s, transform .15s;
-  }
-  .btn:hover{ border-color:var(--gold); background:#221A10; transform:translateY(-1px); }
-  .btn.primary{ background:linear-gradient(180deg,#2A2010,#1D1608); border-color:var(--gold); color:var(--gold); }
-  .btn.primary:hover{ background:linear-gradient(180deg,#332714,#221A0C); box-shadow:0 0 24px -6px rgba(212,175,55,0.55); }
+  .s-prompt{ color:var(--red-dim); font-size:12.5px; text-align:center; margin-bottom:4px; }
+  .s-prompt .p{ color:var(--red); }
+  .s-prompt .cur{ display:inline-block; width:7px; height:12px; background:var(--red); margin-left:3px; animation:blink 1s steps(1) infinite; vertical-align:-1px; }
+  @keyframes blink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .s-sub{ text-align:center; color:var(--gold-dim); font-size:11px; letter-spacing:1px; text-transform:uppercase; margin-bottom:20px; }
+  .s-pitch{ text-align:center; color:var(--fg); font-size:13.5px; max-width:560px; margin:0 auto 8px; }
+  .s-meta{ text-align:center; color:var(--red-dim); font-size:11.5px; margin:10px 0 20px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .s-meta b{ color:var(--green); font-weight:600; }
+  .s-ctas{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-bottom:8px; }
 
-  /* ---------- Hero ---------- */
-  .hero{
-    min-height:100svh; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; padding:140px 28px 80px; overflow:hidden;
-  }
-  /* Statisches Sonnensystem — keine Rotation mehr (weder Orbit noch Eigendrehung),
-     damit nichts mehr "spinnt" bzw. ruckelt/flackert. Positionen bleiben fix. */
-  .orbit-group{ transform-origin:250px 250px; pointer-events:auto; }
-  .orbit-node{ cursor:pointer; }
-  .orbit-node circle.core{ fill:#181310; stroke-width:1.6; transition:stroke .2s,filter .2s; }
-  .orbit-node:hover circle.core{ filter:drop-shadow(0 0 6px currentColor); }
-  .orbit-node:hover .planet-spin{ filter:drop-shadow(0 0 5px currentColor); }
-  .orbit-node .counter-spin{ transform-box:fill-box; transform-origin:center; }
-  .planet-spin{ transform-box:fill-box; transform-origin:center; }
-  /* Feste (nicht mitrotierende) Licht/Schatten-Überlagerung je Planet: Glanzpunkt oben links,
-     Terminator-Schatten unten rechts — täuscht Kugelvolumen auf einem flachen PNG vor. */
-  .planet-shade{ pointer-events:none; }
+  .gift{ margin:20px auto 0; max-width:560px; border-top:1px dashed var(--line); border-bottom:1px dashed var(--line); padding:10px 0; font-size:12.5px; color:var(--gold-dim); display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center; text-align:center; }
+  .gift code{ color:var(--gold); }
 
-  .hero-inner{ position:relative; z-index:3; max-width:760px; }
-  /* Logo-Bild über dem Titel — versucht bilder/logo.png zu laden; existiert die Datei (noch) nicht,
-     bleibt der Block einfach leer und nur der Text-Titel darunter ist sichtbar (kein kaputtes Icon). */
-  .hero-logo{ display:flex; justify-content:center; margin-bottom:10px; }
-  .hero-logo img{ max-width:min(600px,88vw); height:auto; filter:drop-shadow(0 8px 40px rgba(212,175,55,0.4)); }
-  .hero-logo:empty{ display:none; }
-  .hero .eyebrow{ justify-content:center; }
-  .hero .eyebrow::before,.hero .eyebrow::after{ content:""; width:22px; height:1px; background:var(--gold-soft); }
-  .hero h1{ font-size:clamp(48px,9vw,96px); line-height:0.95; }
-  .hero h1 span{ color:var(--red); }
-  .hero .sub{ font-family:'Cinzel',serif; font-size:clamp(14px,2vw,18px); color:var(--gold-dim); letter-spacing:2px; text-transform:uppercase; margin-top:14px; }
-  .hero p.pitch{ margin:28px auto 0; max-width:560px; font-size:18px; color:#D8CBB8; }
-  .hero .ctas{ display:flex; gap:16px; justify-content:center; margin-top:38px; flex-wrap:wrap; }
-  .hero .meta{
-    margin-top:34px; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:1px; color:var(--gold-dim);
-    display:flex; gap:18px; justify-content:center; flex-wrap:wrap;
-  }
-  .hero .meta b{ color:#7FA85A; font-weight:600; }
+  hr.rule{ border:none; border-top:1px dashed var(--line); margin:34px 0; }
+  hr.rule.thick{ border-top:1px solid var(--line); }
 
-  /* ---------- 🎁 Geschenk-Code-Banner (Hero) ---------- */
-  .giftcode-banner{
-    display:inline-flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;
-    margin:30px auto 0; padding:12px 20px; max-width:600px;
-    background:linear-gradient(180deg,#221A10,#1A140B); border:1px dashed var(--gold-soft); border-radius:12px;
-  }
-  .giftcode-banner .gc-text{ font-size:13.5px; color:#E4D9C4; text-align:left; }
-  .giftcode-banner .gc-text b{ color:var(--gold); }
-  .giftcode-banner code{
-    font-family:'IBM Plex Mono',monospace; font-size:12.5px; letter-spacing:1px; color:var(--gold);
-    background:rgba(212,175,55,0.12); border:1px solid var(--gold-soft); border-radius:5px; padding:2px 7px;
-  }
-  .giftcode-copy{
-    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase;
-    padding:8px 14px; border-radius:7px; cursor:pointer; border:1px solid var(--gold-soft); background:#161010;
-    color:var(--gold); transition:background .15s, border-color .15s; flex:none;
-  }
-  .giftcode-copy:hover{ background:#2A2010; border-color:var(--gold); }
-  @media (max-width:520px){ .giftcode-banner{ flex-direction:column; text-align:center; } .giftcode-banner .gc-text{ text-align:center; } }
+  .sec{ margin-bottom:6px; }
+  .sec .shead{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:13px; letter-spacing:0.5px; text-transform:uppercase; color:var(--gold); font-weight:700; margin-bottom:4px; }
+  .sec .shead .idx{ color:var(--red-dim); }
+  .sec .shead .fill{ flex:1; border-bottom:1px dotted var(--line); height:0; align-self:center; min-width:16px; }
+  .sec .sdesc{ color:var(--fg); font-size:13px; max-width:600px; margin-bottom:14px; }
+  .sec .sdesc .arr{ color:var(--gold); }
 
-  .scroll-hint{
-    position:absolute; bottom:28px; left:50%; transform:translateX(-50%);
-    font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:3px; color:var(--gold-dim);
-    text-transform:uppercase; animation:pulse 2.2s ease-in-out infinite;
-  }
-  @keyframes pulse{ 0%,100%{opacity:0.35;} 50%{opacity:0.9;} }
+  ul.tlist{ list-style:none; margin:0 0 16px; padding:0; }
+  ul.tlist li{ margin-bottom:9px; font-size:13px; padding-left:14px; position:relative; }
+  ul.tlist li::before{ content:"›"; position:absolute; left:0; color:var(--gold-dim); }
+  ul.tlist li b{ color:var(--gold); font-weight:600; }
 
-  /* ---------- Reveal ---------- */
-  .reveal{ opacity:0; transform:translateY(28px); transition:opacity .7s ease, transform .7s ease; }
-  .reveal.in{ opacity:1; transform:none; }
+  .dl{ display:flex; align-items:baseline; gap:6px; font-size:12.5px; margin-bottom:5px; max-width:560px; }
+  .dl .lbl{ white-space:nowrap; color:var(--fg); }
+  .dl .fill{ flex:1; border-bottom:1px dotted var(--line); height:0; }
+  .dl .val{ white-space:nowrap; color:var(--gold); }
+  .dl .val.g{ color:var(--green); }
 
-  /* ---------- Section shell ---------- */
-  .section{ padding:110px 0; border-top:1px solid var(--line); }
-  .section .head{ max-width:600px; margin-bottom:56px; }
-  .section .head h2{ font-size:clamp(28px,4vw,40px); line-height:1.1; }
-  .section .head p{ color:#B8AC98; margin-top:16px; font-size:17px; }
+  .bar-row{ font-size:11.5px; color:var(--gold-dim); margin-bottom:8px; }
+  .bar-row .bar{ color:var(--gold); letter-spacing:-1px; }
 
-  /* ---------- Feature grid ---------- */
-  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
-  @media (max-width:860px){ .grid3{ grid-template-columns:1fr; } }
-  .card{
-    position:relative; overflow:hidden;
-    background:#181310; border:1px solid var(--line); border-radius:14px;
-    transition:border-color .2s, transform .2s;
-  }
-  .card:hover{ border-color:var(--gold-soft); transform:translateY(-3px); }
-  /* Gleiches Prinzip wie die Werft-/Mehr-Kacheln im Spiel (thumb-bg-img): echtes Bild
-     füllt die ganze Kachel, ein dunkler Verlauf sorgt für lesbaren Text darüber.
-     Lädt das Bild nicht, greift automatisch das Emoji-Fallback (span.icon). */
-  .card-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
-  .card::after{
-    content:""; position:absolute; inset:0; z-index:0;
-    background:linear-gradient(180deg, rgba(16,12,10,0.25) 0%, rgba(16,12,10,0.70) 55%, rgba(16,12,10,0.96) 100%);
-  }
-  .card-body{ position:relative; z-index:1; padding:28px 26px; }
-  .card .icon{ font-size:26px; display:block; margin-bottom:16px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.9)); }
-  .card h3{ font-size:18px; color:var(--gold); font-family:'Cinzel',serif; text-shadow:0 2px 6px rgba(0,0,0,0.95); }
-  .card p{ color:#F0E6D4; font-size:15px; margin-top:10px; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
-
-  /* ---------- Scarcity / signature section ---------- */
-  .scarcity{ display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; }
-  @media (max-width:900px){ .scarcity{ grid-template-columns:1fr; } }
-  .legend{ display:flex; flex-direction:column; gap:12px; margin-top:26px; }
-  .legend .row{ display:flex; align-items:center; gap:12px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#B8AC98; }
-  .legend .dot{ width:11px; height:11px; border-radius:50%; flex:none; }
-  .mini-orbit{ position:relative; aspect-ratio:1/1; }
-  .mini-orbit svg{ width:100%; height:100%; }
-  .ring{ fill:none; stroke:#3A2A1A; stroke-width:1; opacity:0.4; }
-  .sector{ fill:none; stroke:#3A2A1A; stroke-width:1; stroke-dasharray:3 5; opacity:0.35; }
-  .tip{
-    position:absolute; pointer-events:none; font-family:'IBM Plex Mono',monospace; font-size:11px;
-    background:#181310; border:1px solid var(--gold-soft); color:var(--cream); padding:6px 10px; border-radius:7px;
-    transform:translate(-50%,-140%); opacity:0; transition:opacity .15s; white-space:nowrap; z-index:5;
-  }
-  .tip.show{ opacity:1; }
-
-  /* ---------- HUD gauges (autopilot section) ---------- */
-  .hud{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:30px; }
-  .hud-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
-  @media (max-width:760px){ .hud-row{ grid-template-columns:repeat(2,1fr); } }
-  .gauge{
-    position:relative; overflow:hidden;
-    background:#181310; border:1px solid #2A1A1A; border-radius:12px; text-align:center;
-  }
-  /* Ressourcen-Icon als volles Kachelbild (wie Werft-Kacheln), dunkler Verlauf für Kontrast. */
-  .gauge-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
-  .gauge::after{
-    content:""; position:absolute; inset:0; z-index:0;
-    background:linear-gradient(180deg, rgba(16,12,10,0.20) 0%, rgba(16,12,10,0.62) 45%, rgba(16,12,10,0.94) 100%);
-  }
-  .gauge-body{ position:relative; z-index:1; padding:14px 12px; }
-  .gauge .lbl{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:1px; color:#E4D9C4; text-transform:uppercase; text-shadow:0 1px 4px rgba(0,0,0,0.95); }
-  .gauge .val{ font-family:'Cinzel',serif; font-weight:700; font-size:21px; margin-top:6px; color:#FFFFFF; text-shadow:0 1px 5px rgba(0,0,0,0.95); }
-  .gauge .bar{ height:5px; background:rgba(0,0,0,0.55); border-radius:3px; margin-top:10px; overflow:hidden; }
-  .gauge .bar i{ display:block; height:100%; background:var(--gold); border-radius:3px; box-shadow:0 0 6px rgba(212,175,55,0.7); }
-
-  /* ---------- Black market chips ---------- */
-  .chiprow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
-  .chip{
-    font-family:'IBM Plex Mono',monospace; font-size:11.5px; padding:8px 14px; border-radius:20px;
-    border:1px solid var(--line); color:#B8AC98; background:#171210;
-  }
-  .chip.gold{ border-color:var(--gold-soft); color:var(--gold); }
-
-  /* ---------- Species row (gleicher Kachel-Stil wie .card/.gauge: echtes Bild + Verlauf) ---------- */
-  .species{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:10px; }
-  @media (max-width:760px){ .species{ grid-template-columns:repeat(2,1fr); } }
-  .species .sp{
-    position:relative; overflow:hidden; text-align:center; padding:22px 12px;
-    border:1px solid var(--line); border-radius:12px; background:#181310; min-height:150px;
-  }
-  .species .sp-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
-  .species .sp::after{
-    content:""; position:absolute; inset:0; z-index:0;
-    background:linear-gradient(180deg, rgba(16,12,10,0.20) 0%, rgba(16,12,10,0.60) 45%, rgba(16,12,10,0.94) 100%);
-  }
-  .species .sp-body{ position:relative; z-index:1; }
-  .species .sp .glyph{ font-size:28px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.9)); }
-  .species .sp .name{ font-family:'Cinzel',serif; color:var(--gold); font-size:14px; margin-top:10px; text-shadow:0 2px 6px rgba(0,0,0,0.95); }
-  .species .sp .desc{ font-size:12.5px; color:#E4D9C4; margin-top:4px; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
-
-  /* ---------- Roadmap ---------- */
-  .roadmap-cols{ display:grid; grid-template-columns:repeat(3,1fr); gap:22px; align-items:start; }
-  @media (max-width:900px){ .roadmap-cols{ grid-template-columns:1fr; } }
-  .roadmap-col{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:26px 24px; }
-  .roadmap-status{
-    display:flex; align-items:center; gap:9px; font-family:'IBM Plex Mono',monospace; font-size:11px;
-    letter-spacing:1.5px; text-transform:uppercase; color:var(--gold-dim); margin-bottom:20px;
-  }
-  .roadmap-status .dot{ width:9px; height:9px; border-radius:50%; flex:none; }
-  .roadmap-item + .roadmap-item{ margin-top:20px; padding-top:20px; border-top:1px solid var(--line); }
-  .roadmap-item .rname{ font-family:'Cinzel',serif; color:var(--cream); font-size:15.5px; font-weight:700; }
-  .roadmap-item .rdesc{ font-size:13.5px; color:#B8AC98; margin-top:6px; line-height:1.55; }
-  .roadmap-idea-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:11px; }
-  .roadmap-idea-list li{ font-size:13.5px; color:#B8AC98; padding-left:16px; position:relative; line-height:1.5; }
-  .roadmap-idea-list li::before{ content:"–"; position:absolute; left:0; color:var(--gold-dim); }
-  .roadmap-note{ margin-top:26px; font-size:12px; color:var(--gold-dim); font-style:italic; }
-
-  .roadmap-dyson-preview{
-    margin-top:14px; border:1px solid var(--line); border-radius:10px; overflow:hidden;
-    background:#0A0A0A; box-shadow: 0 0 0 1px rgba(212,175,55,0.08) inset;
-  }
-  .roadmap-dyson-preview iframe{
-    display:block; width:100%; height:260px; border:0;
-  }
-  .roadmap-dyson-link{
-    display:inline-block; margin-top:9px; font-size:12px; color:var(--gold);
-    text-decoration:none; border-bottom:1px dashed var(--gold-soft);
-  }
-  .roadmap-dyson-link:hover{ color:var(--cream); }
-  @media (max-width: 640px){
-    .roadmap-dyson-preview iframe{ height:200px; }
-  }
-
-  /* ---------- Chronicle pull-quote ---------- */
-  .chronicle{
-    background:radial-gradient(ellipse at top, #1D1005, var(--bg));
-    border:1px solid var(--line); border-radius:18px; padding:56px 48px; position:relative; overflow:hidden;
-  }
-  .chronicle::before{
-    content:"§"; position:absolute; top:-40px; right:10px; font-family:'Cinzel',serif; font-size:220px;
-    color:var(--gold); opacity:0.05; pointer-events:none;
-  }
-  .chronicle .eyebrow{ color:var(--gold); }
-  .chronicle blockquote{
-    margin:0; font-style:italic; font-size:clamp(19px,2.4vw,25px); line-height:1.55; color:#EAD9B8;
-    max-width:640px;
-  }
-  .chronicle .attrib{ margin-top:22px; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--gold-dim); }
-
-  /* ---------- Final CTA ---------- */
-  .finalcta{ text-align:center; padding:130px 0 100px; }
-  .finalcta h2{ font-size:clamp(30px,5vw,46px); }
-  .finalcta p{ color:#B8AC98; max-width:480px; margin:18px auto 0; }
-  .finalcta .ctas{ display:flex; gap:16px; justify-content:center; margin-top:34px; flex-wrap:wrap; }
-
-  footer{
-    border-top:1px solid var(--line); padding:32px 0 40px; text-align:center;
-    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--gold-dim); letter-spacing:0.5px;
-  }
-  footer .fver{ color:var(--gold); }
-
-  @media (prefers-reduced-motion:reduce){
-    html{ scroll-behavior:auto; }
-    .scroll-hint{ animation:none !important; }
-    .reveal{ transition:none; opacity:1; transform:none; }
-  }
-
-  /* ---------- Interaktive Demo (kein Screenshot, echt anklickbar) ---------- */
-  .demo-widget{
-    background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden;
-  }
-  .demo-tabs{
-    display:flex; overflow-x:auto; background:#161010; border-bottom:1px solid var(--line);
-    -ms-overflow-style:none; scrollbar-width:none;
-  }
-  .demo-tabs::-webkit-scrollbar{ display:none; }
-  .demo-tab{
-    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:1px; text-transform:uppercase;
-    padding:16px 22px; background:none; border:none; color:var(--gold-dim); cursor:pointer;
-    white-space:nowrap; border-bottom:2px solid transparent; transition:color .15s, border-color .15s;
-  }
-  .demo-tab:hover{ color:var(--cream); }
-  .demo-tab.active{ color:var(--gold); border-bottom-color:var(--gold); }
-  .demo-panel{ padding:28px 26px; }
+  /* ---------- Demo (interaktiv, reiner Text) ---------- */
+  .demo{ border:1px solid var(--line); padding:16px 16px 18px; margin:14px 0 20px; }
+  .demo-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; font-size:11.5px; }
+  .demo-tab{ background:none; border:none; color:var(--gold-dim); cursor:pointer; font-family:inherit; font-size:11.5px; text-transform:uppercase; letter-spacing:0.5px; padding:3px 0; }
+  .demo-tab::before{ content:"[ "; opacity:.5; } .demo-tab::after{ content:" ]"; opacity:.5; }
+  .demo-tab.active{ color:var(--gold); }
+  .demo-tab:hover{ color:var(--cream,var(--fg)); }
   .demo-panel[hidden]{ display:none; }
+  .demo-res{ display:flex; flex-direction:column; gap:3px; margin-bottom:14px; }
+  .demo-ov{ display:flex; gap:20px; flex-wrap:wrap; margin-bottom:12px; font-size:12px; }
+  .demo-ov .n{ color:var(--gold); font-weight:700; }
+  .demo-log{ font-size:11px; color:var(--grey); display:flex; flex-direction:column; gap:4px; max-height:120px; overflow-y:auto; border-top:1px dashed var(--line); padding-top:8px; }
+  .demo-log .t{ color:var(--red-dim); margin-right:6px; }
+  .dtile{ padding:9px 0; border-top:1px dashed var(--line); }
+  .dtile:first-child{ border-top:none; }
+  .dcost{ font-size:11px; color:var(--grey); margin:3px 0 6px; }
+  .dbtnrow{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .dbtn{ font-size:11px; }
+  .dbar{ font-size:10.5px; color:var(--gold-dim); }
+  .slotlist{ display:flex; flex-direction:column; gap:3px; font-size:12px; margin:8px 0 4px; }
+  .slotlist .slot b{ font-weight:600; }
+  .legend2{ display:flex; flex-direction:column; gap:3px; font-size:11.5px; color:var(--grey); margin-top:10px; }
+  .legend2 span.k{ display:inline-block; width:14px; }
 
-  .demo-res{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
-  .demo-res .r{
-    background:#181310; border:1px solid var(--line); border-radius:10px; padding:10px 16px; min-width:120px;
-    display:flex; align-items:center; gap:10px;
+  .glink{
+    font-size:12px; letter-spacing:0.5px; text-transform:uppercase; text-decoration:none; cursor:pointer;
+    color:var(--gold); border-bottom:1px solid transparent; transition:border-color .15s;
+    background:none; border-top:none; border-left:none; border-right:none; font-family:inherit; padding:0;
   }
-  .demo-res .r .ico{ font-size:19px; }
-  .demo-icon{ width:34px; height:34px; border-radius:8px; overflow:hidden; position:relative; flex:none;
-    background:#0f0b08; display:flex; align-items:center; justify-content:center; border:1px solid rgba(212,175,55,0.18); }
-  .demo-icon img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .demo-icon .fb{ display:none; font-size:17px; }
-  .demo-tile .ihead{ display:flex; align-items:center; gap:10px; }
-  .demo-res .r .lbl{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:1px; color:var(--gold-dim); text-transform:uppercase; }
-  .demo-res .r .amt{ font-family:'Cinzel',serif; font-weight:700; font-size:15px; color:var(--cream); }
-  .demo-res .r .rate{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--green); margin-left:2px; }
+  .glink::before{ content:"[ "; opacity:.55; } .glink::after{ content:" ]"; opacity:.55; }
+  .glink:hover{ border-bottom-color:var(--gold); }
+  .glink.primary{ color:#050505; background:var(--gold); padding:6px 9px; }
+  .glink.primary::before,.glink.primary::after{ opacity:.7; }
+  .glink.primary:hover{ filter:brightness(1.1); }
+  .glink.small{ font-size:10.5px; }
 
-  .demo-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; }
-  .demo-tile{ background:#181310; border:1px solid var(--line); border-radius:12px; padding:16px; transition:border-color .15s; }
-  .demo-tile:hover{ border-color:var(--gold-soft); }
-  .demo-tile .th{ display:flex; align-items:center; justify-content:space-between; }
-  .demo-tile h4{ font-family:'Cinzel',serif; color:var(--gold); font-size:14.5px; }
-  .demo-tile .lvl{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--gold-dim); }
-  .demo-tile .cost{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:#B8AC98; margin:10px 0 12px; min-height:14px; }
-  .demo-btn{
-    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase;
-    padding:8px 14px; border-radius:7px; cursor:pointer; border:1px solid var(--gold-soft); background:#221A10; color:var(--gold);
-    transition:background .15s, border-color .15s; width:100%;
+  blockquote.chron{ margin:0; padding:16px 0; border-top:1px dashed var(--line); border-bottom:1px dashed var(--line); font-size:13.5px; color:#D8C9A8; max-width:600px; }
+  .chron-attrib{ font-size:11px; color:var(--gold-dim); margin-top:8px; }
+
+  .roadmap-block{ margin-bottom:16px; }
+  .roadmap-block .rtag{ font-size:10.5px; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px; display:inline-block; }
+  .rtag.now{ color:var(--gold); } .rtag.next{ color:#7FA0C4; } .rtag.idea{ color:var(--grey); }
+
+  .s-footer{ margin-top:36px; font-size:11px; color:var(--red-dim); text-align:center; }
+  .s-footer a{ color:var(--red-dim); text-decoration:underline; text-underline-offset:2px; }
+  .s-footer a:hover{ color:var(--red); }
+
+  .reveal{ opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease; }
+  .reveal.in{ opacity:1; transform:none; }
+  @media (prefers-reduced-motion:reduce){ .reveal{ transition:none; opacity:1; transform:none; } }
+
+/* ============================================================================
+     MC ORCA GAMES OS — BOOT-SEQUENZ (Terminal-Look, Schritt 1)
+     Eigene Variablen (--boot-*), damit die bestehenden Theme-Farben der Seite
+     unangetastet bleiben. Akzentfarbe ist bewusst FEST ROT auf allen 5 Seiten
+     der Website (Markenfarbe, aus dem bestehenden CSS: der "ENTDECKEN"-Button
+     der Path-of-the-Stars-Kachel im Haupt-Index, --potsred).
+     ============================================================================ */
+  :root{
+    --boot-accent:#C81E2C; --boot-accent-dim:#9C5A57; --boot-bg:#050505;
   }
-  .demo-btn:hover:not(:disabled){ background:#2A2010; border-color:var(--gold); }
-  .demo-btn:disabled{ opacity:0.45; cursor:default; }
-  .demo-bar{ height:5px; background:rgba(0,0,0,0.55); border-radius:3px; margin-top:10px; overflow:hidden; }
-  .demo-bar i{ display:block; height:100%; width:0%; background:var(--gold); box-shadow:0 0 6px rgba(212,175,55,0.7); }
-  .demo-tile .qlbl{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--gold-dim); margin-top:7px; min-height:13px; }
+  html.boot-locked, html.boot-locked body{ overflow:hidden; height:100%; }
+  #siteContent.boot-hidden{ display:none; }
 
-  .demo-overview{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
-  @media (max-width:760px){ .demo-overview{ grid-template-columns:repeat(2,1fr); } }
-  .demo-ostat{ background:#181310; border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center; }
-  .demo-ostat .n{ font-family:'Cinzel',serif; font-weight:700; font-size:22px; color:var(--gold); }
-  .demo-ostat .l{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:1px; color:var(--gold-dim); text-transform:uppercase; margin-top:5px; }
-  .demo-log{ background:#161010; border:1px solid var(--line); border-radius:10px; padding:14px 16px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#B8AC98; display:flex; flex-direction:column; gap:8px; max-height:150px; overflow-y:auto; }
-  .demo-log .row{ display:flex; gap:8px; }
-  .demo-log .t{ color:var(--gold-dim); flex:none; }
+  #bootCrtOverlay{
+    position:fixed; inset:0; z-index:9998; display:flex; align-items:center; justify-content:center;
+    background:#000; overflow:hidden;
+  }
+  #bootCrtFlash{
+    position:absolute; inset:0; z-index:2; background:#000; pointer-events:none; overflow:hidden;
+    animation: bootCrtOverlayFade 0.25s linear 0.6s forwards;
+  }
+  .boot-crt-line{
+    position:absolute; left:50%; top:50%; width:100%; height:3px;
+    background:linear-gradient(90deg, transparent, #dff6ff 15%, #ffffff 50%, #dff6ff 85%, transparent);
+    box-shadow:0 0 20px 4px rgba(180,230,255,.9), 0 0 60px 14px rgba(120,200,255,.5);
+    transform:translate(-50%,-50%) scaleY(0.002); opacity:0;
+    animation: bootCrtBootLine 0.42s cubic-bezier(.2,.85,.3,1) 0.2s forwards;
+  }
+  @keyframes bootCrtBootLine{
+    0%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:0; }
+    15%{ opacity:1; }
+    40%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:1; }
+    78%{ transform:translate(-50%,-50%) scaleY(1.08); opacity:1; }
+    92%{ transform:translate(-50%,-50%) scaleY(0.97); }
+    100%{ transform:translate(-50%,-50%) scaleY(1); opacity:0; }
+  }
+  @keyframes bootCrtOverlayFade{ from{ opacity:1; } to{ opacity:0; visibility:hidden; } }
 
-  .demo-orbit-wrap{ display:grid; grid-template-columns:1fr 1fr; gap:32px; align-items:center; }
-  @media (max-width:860px){ .demo-orbit-wrap{ grid-template-columns:1fr; } }
-  .demo-note{ font-size:12px; color:var(--gold-dim); font-style:italic; margin-top:20px; }
+  #dosBootOverlay{
+    position:fixed; inset:0; z-index:9999; background:#000;
+    display:none; align-items:flex-start; justify-content:flex-start;
+    padding:40px; box-sizing:border-box; cursor:pointer; overflow:hidden;
+    opacity:1; transition:opacity .4s ease;
+  }
+  #dosBootOverlay.visible{ display:flex; }
+  #dosBootOverlay.crt-poweron{ animation: bootCrtPowerOn .55s ease-out both; transform-origin:center center; }
+  @keyframes bootCrtPowerOn{
+    0%{ transform:scaleY(.008); filter:brightness(28); opacity:1; }
+    10%{ transform:scaleY(.02); filter:brightness(20); }
+    20%{ transform:scaleY(.55); filter:brightness(7); }
+    32%{ transform:scaleY(1); filter:brightness(2.6); }
+    45%{ transform:scaleY(1); filter:brightness(1.15); }
+    100%{ transform:scaleY(1); filter:brightness(1); }
+  }
+  #dosBootOverlay.crt-poweroff{ animation: bootCrtPowerOff .55s ease-in forwards; transform-origin:center center; }
+  @keyframes bootCrtPowerOff{
+    0%{ transform:scaleY(1) scaleX(1); filter:brightness(1); opacity:1; }
+    55%{ transform:scaleY(.012) scaleX(1); filter:brightness(5); opacity:1; }
+    78%{ transform:scaleY(.012) scaleX(.02); filter:brightness(9); opacity:1; }
+    100%{ transform:scaleY(.012) scaleX(.002); filter:brightness(0); opacity:0; }
+  }
+  #dosBootOverlay::after{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
+    background:repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 2px, transparent 3px);
+    mix-blend-mode:multiply; opacity:.5;
+  }
+  .boot-dos-inner{ width:100%; max-width:900px; position:relative; z-index:1; font-family:ui-monospace,'Courier New',monospace; }
+  .boot-dos-banner{
+    margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
+    font-size:7.5px; line-height:1.15; color:var(--boot-accent);
+    text-shadow:0 0 10px rgba(200,30,44,.75), 0 0 2px rgba(200,30,44,1);
+    opacity:0; animation: bootDosBannerFlash .5s ease-out forwards;
+  }
+  @media (min-width:700px){ .boot-dos-banner{ font-size:11px; } }
+  @keyframes bootDosBannerFlash{
+    0%{ opacity:0; filter:brightness(3); }
+    60%{ opacity:1; filter:brightness(2.2); }
+    100%{ opacity:1; filter:brightness(1); }
+  }
+  .boot-dos-text{ margin:0; white-space:pre-wrap; word-break:break-word;
+    font-family:'Courier New', ui-monospace, monospace; font-size:14px; line-height:1.55;
+    color:var(--boot-accent); text-shadow:0 0 6px rgba(200,30,44,.55), 0 0 1px rgba(200,30,44,.9); }
+  #dosBootText.typing::after{
+    content:''; display:inline-block; width:8px; height:14px; background:var(--boot-accent);
+    box-shadow:0 0 6px rgba(200,30,44,.7); animation:bootDosCursorBlink 1s steps(1) infinite;
+    vertical-align:-2px; margin-left:1px;
+  }
+  @keyframes bootDosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+  .boot-dos-skip{ position:fixed; bottom:22px; right:28px; font-size:11px; letter-spacing:1.5px;
+    color:var(--boot-accent-dim); text-transform:uppercase; z-index:3; font-family:ui-monospace,'Courier New',monospace; }
 </style>
 </head>
 <body>
-
-<canvas id="stars"></canvas>
-
-<div class="topnav">
-  <div class="navleft">
-    <a href="../index.html" class="mc-brand" title="Zurück zur Spieleauswahl">
-      <img src="bilder/mc_logo.png" alt="MC ORCA Games" onerror="this.style.display='none'">
-      <span>← Spieleauswahl</span>
-    </a>
-    <div class="logo" id="navLogo">AETHERIS<span>.</span></div>
-  </div>
-  <input type="checkbox" id="navToggle" class="nav-toggle-checkbox">
-  <div class="navlinks">
-    <a href="#demo">Demo</a>
-    <a href="#imperium">Imperium</a>
-    <a href="#galaxie">Galaxie</a>
-    <a href="#autopilot">Autopilot</a>
-    <a href="#chronik">Chronik</a>
-    <a href="#roadmap">Roadmap</a>
-  </div>
-  <div class="navctas">
-    <a href="https://drive.google.com/drive/folders/1XKGAJgDgHwoFL4oJBWz7-rC1aNmPryND?usp=sharing" class="navcta" target="_blank" rel="noopener">⇩ Android</a>
-    <a href="game.html" class="navcta">Spielen</a>
-    <label for="navToggle" class="nav-toggle-btn" aria-label="Menü öffnen/schließen">☰</label>
-  </div>
+<div id="bootCrtOverlay">
+  <div id="bootCrtFlash" aria-hidden="true"><div class="boot-crt-line"></div></div>
 </div>
 
-<section class="hero">
-  <div class="hero-inner">
-    <div class="eyebrow">BROWSERBASIERTES IMPERIUM · KEIN DOWNLOAD</div>
-    <div class="hero-logo" id="heroLogo"></div>
-    <div id="heroTitleText">
-      <h1>AETHERIS<span>.</span></h1>
-      <div class="sub">Echoes of an Eternal Empire</div>
-    </div>
-    <div class="mono" style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-dim);margin-top:12px">Ein MC ORCA Games Projekt</div>
-    <p class="pitch">Gründe eine Kolonie, baue eine Flotte auf und handle mit Dunkler Materie —
-      in einer Galaxie, die sich weiterdreht, auch wenn du gerade nicht online bist.</p>
-    <div class="ctas">
-      <a href="game.html" class="btn primary">Jetzt spielen</a>
-      <a href="#galaxie" class="btn">Galaxie ansehen</a>
-      <a href="https://drive.google.com/drive/folders/1XKGAJgDgHwoFL4oJBWz7-rC1aNmPryND?usp=sharing" class="btn" target="_blank" rel="noopener">⇩ Android APK</a>
-    </div>
-    <div class="meta">
-      <span>v1.0 <b>Release</b></span>
-      <span>30 Sternensysteme</span>
-      <span>Auch als Android-APK</span>
-    </div>
-    <div class="giftcode-banner">
-      <span class="gc-text">🎁 <b>Willkommensgeschenk:</b> Code <code>AETHERIS-START</code> in den Einstellungen einlösen</span>
-      <button type="button" class="giftcode-copy" id="giftCodeCopyBtn" data-code="AETHERIS-START">Code kopieren</button>
+<div id="dosBootOverlay" aria-hidden="true">
+  <div class="boot-dos-inner">
+    <pre class="boot-dos-banner" id="dosBootBanner"></pre>
+    <pre class="boot-dos-text" id="dosBootText"></pre>
+  </div>
+  <div class="boot-dos-skip">Klicken oder Taste dr&uuml;cken zum &Uuml;berspringen</div>
+</div>
+
+<div id="siteContent" class="boot-hidden">
+<canvas id="stars"></canvas>
+
+<div class="stream">
+
+  <div class="topline reveal">
+    <a class="back" href="../index.html">Zurueck zum Hub</a>
+    <div class="jump">
+      <a href="#demo">Demo</a><a href="#imperium">Imperium</a><a href="#galaxie">Galaxie</a>
+      <a href="#autopilot">Autopilot</a><a href="#chronik">Chronik</a><a href="#roadmap">Roadmap</a>
     </div>
   </div>
-  <div class="scroll-hint">Scrollen</div>
-</section>
 
-<section class="section reveal" id="demo">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">EIN BLICK INS SPIEL</div>
-      <h2>Kein Screenshot — probier's direkt aus.</h2>
-      <p>Diese Demo läuft live in deinem Browser, mit echten Klicks und tickenden Ressourcen —
-        keine Fotos, kein Fake. So fühlt sich AETHERIS an.</p>
-    </div>
-    <div class="demo-widget">
+  <div class="s-logo reveal"><img src="bilder/logo.png" alt="AETHERIS" onerror="this.style.display='none'"></div>
+  <div class="s-prompt reveal"><span class="p">AETHERIS:\&gt;</span> status --imperium<span class="cur"></span></div>
+  <div class="s-sub reveal">Echoes of an Eternal Empire &middot; Ein MC ORCA Games Projekt</div>
+  <p class="s-pitch reveal">Gruende eine Kolonie, baue eine Flotte auf und handle mit Dunkler Materie —
+    in einer Galaxie, die sich weiterdreht, auch wenn du gerade nicht online bist.</p>
+  <div class="s-meta reveal"><b>v1.0 Release</b><span>30 Sternensysteme</span><span>Auch als Android-APK</span></div>
+  <div class="s-ctas reveal">
+    <a class="glink primary" href="game.html">Jetzt spielen</a>
+    <a class="glink" href="#galaxie">Galaxie ansehen</a>
+    <a class="glink" href="https://drive.google.com/drive/folders/1XKGAJgDgHwoFL4oJBWz7-rC1aNmPryND?usp=sharing" target="_blank" rel="noopener">Android APK</a>
+  </div>
+  <div class="gift reveal">
+    <span>Willkommensgeschenk: Code <code>AETHERIS-START</code> in den Einstellungen einloesen</span>
+    <span class="glink small" id="giftCodeCopyBtn" data-code="AETHERIS-START" role="button">Code kopieren</span>
+  </div>
+
+  <hr class="rule thick">
+
+  <div class="sec reveal" id="demo">
+    <div class="shead"><span class="idx">[ 01 ]</span> Live-Demo<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Diese Demo laeuft live in deinem Browser, mit echten Klicks und tickenden
+      Ressourcen — keine Fotos, kein Fake. So fuehlt sich AETHERIS an.</p>
+
+    <div class="demo">
       <div class="demo-tabs" role="tablist">
-        <button class="demo-tab active" data-tab="uebersicht" type="button">Übersicht</button>
+        <button class="demo-tab active" data-tab="uebersicht" type="button">Uebersicht</button>
         <button class="demo-tab" data-tab="planet" type="button">Planet</button>
         <button class="demo-tab" data-tab="werft" type="button">Werft</button>
         <button class="demo-tab" data-tab="flotte" type="button">Flotte</button>
         <button class="demo-tab" data-tab="galaxie" type="button">Galaxie</button>
       </div>
 
-      <!-- Übersicht -->
       <div class="demo-panel" data-panel="uebersicht">
         <div class="demo-res" id="demoResBar"></div>
-        <div class="demo-overview">
-          <div class="demo-ostat"><div class="n">3</div><div class="l">Kolonien</div></div>
-          <div class="demo-ostat"><div class="n" id="demoFleetCount">4</div><div class="l">Schiffe</div></div>
-          <div class="demo-ostat"><div class="n">30</div><div class="l">Systeme</div></div>
-          <div class="demo-ostat"><div class="n" id="demoQueueCount">0</div><div class="l">Aktive Bauten</div></div>
+        <div class="demo-ov">
+          <span><span class="n">3</span> Kolonien</span>
+          <span><span class="n" id="demoFleetCount">12</span> Schiffe</span>
+          <span><span class="n">30</span> Systeme</span>
+          <span><span class="n" id="demoQueueCount">0</span> Aktive Bauten</span>
         </div>
         <div class="demo-log" id="demoLog"></div>
       </div>
 
-      <!-- Planet -->
       <div class="demo-panel" data-panel="planet" hidden>
         <div class="demo-res" id="demoResBar2"></div>
-        <div class="demo-grid" id="demoPlanetGrid"></div>
+        <div id="demoPlanetGrid"></div>
       </div>
 
-      <!-- Werft -->
       <div class="demo-panel" data-panel="werft" hidden>
         <div class="demo-res" id="demoResBar3"></div>
-        <div class="demo-grid" id="demoWerftGrid"></div>
+        <div id="demoWerftGrid"></div>
       </div>
 
-      <!-- Flotte -->
       <div class="demo-panel" data-panel="flotte" hidden>
         <div class="demo-res" id="demoResBar4"></div>
-        <div class="demo-grid" id="demoFlotteGrid"></div>
+        <div id="demoFlotteGrid"></div>
       </div>
 
-      <!-- Galaxie -->
       <div class="demo-panel" data-panel="galaxie" hidden>
-        <div class="demo-orbit-wrap">
-          <div>
-            <p style="color:#B8AC98;font-size:14px">Klick auf einen Planeten in deinem Heimatsystem —
-              jeder Slot zeigt, ob er dir gehört, frei ist oder schon von einem anderen Imperium
-              beansprucht wurde.</p>
-            <div class="legend" style="margin-top:18px">
-              <div class="row"><span class="dot" style="background:#7FA85A"></span> Eigene Kolonie</div>
-              <div class="row"><span class="dot" style="background:#D4AF37"></span> Heimatwelt</div>
-              <div class="row"><span class="dot" style="background:#C48888"></span> Fremdes Imperium</div>
-              <div class="row"><span class="dot" style="background:#4A3A2A"></span> Frei</div>
-            </div>
-          </div>
-          <div class="mini-orbit" id="demoOrbit"></div>
+        <p style="color:var(--grey);font-size:12px;margin:0 0 8px">Dein Heimatsystem, 7 Planetenslots (golden-angle-verteilt wie im echten Spiel):</p>
+        <div class="slotlist" id="demoSlotlist"></div>
+        <div class="legend2">
+          <div><span class="k" style="color:var(--green)">■</span> Eigene Kolonie</div>
+          <div><span class="k" style="color:var(--gold)">■</span> Heimatwelt</div>
+          <div><span class="k" style="color:#C48888">■</span> Fremdes / Unbekanntes Imperium</div>
+          <div><span class="k" style="color:var(--grey)">■</span> Frei</div>
         </div>
       </div>
     </div>
-    <p class="demo-note">Diese Demo ist eine vereinfachte Nachbildung zur Veranschaulichung —
-      im echten Spiel gibt es weit mehr Gebäude, Schiffstypen und Systeme.</p>
+    <p style="color:var(--grey);font-size:11px;margin-top:10px"># Vereinfachte Nachbildung — im echten Spiel gibt es weit mehr Gebaeude, Schiffstypen und Systeme.</p>
   </div>
-</section>
 
-<section class="section reveal" id="imperium">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">DEIN IMPERIUM</div>
-      <h2>Kolonisieren. Ausbauen. Verteidigen.</h2>
-      <p>Jeder Planet ist ein Rädchen im selben Getriebe — Rohstoffe, Werft, Forschung und Flotte
-        greifen ineinander, egal ob du gerade drei oder dreißig Kolonien hältst.</p>
-    </div>
-    <div class="grid3">
-      <div class="card">
-        <img class="card-bg" src="bilder/icons/navGalaxie/navGalaxie_1.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-        <span class="icon" style="display:none">🌌</span>
-        <div class="card-body">
-          <h3>Sternensysteme</h3>
-          <p>Kolonisiere freie Planeten in 30 benannten Systemen — jeder Typ mit eigenen
-            Rohstoff-Boni, von kargen Gesteinswelten bis zu seltenen Ringwelten.</p>
-        </div>
-      </div>
-      <div class="card">
-        <img class="card-bg" src="bilder/icons/navFlotte/navFlotte_1.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-        <span class="icon" style="display:none">🛰️</span>
-        <div class="card-body">
-          <h3>Flotten &amp; Verteidigung</h3>
-          <p>Baue Kolonieschiffe, Kampfflotten und Verteidigungsanlagen — und wehre
-            Piratenüberfälle im Tiefraumsektor ab, bevor sie deine Kolonie erreichen.</p>
-        </div>
-      </div>
-      <div class="card">
-        <img class="card-bg" src="bilder/monde/natuerlich/natuerlich_1.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-        <span class="icon" style="display:none">🌕</span>
-        <div class="card-body">
-          <h3>Monde &amp; Dunkle Materie</h3>
-          <p>Künstliche Monde fördern Dunkle Materie — die Premium-Währung für den
-            Schwarzmarkt, imperiumsweit geteilt über alle deine Kolonien.</p>
-        </div>
-      </div>
-    </div>
+  <hr class="rule">
+
+  <div class="sec reveal" id="imperium">
+    <div class="shead"><span class="idx">[ 02 ]</span> Dein Imperium<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Kolonisieren. Ausbauen. Verteidigen. Jeder Planet ist ein Raedchen im selben
+      Getriebe — Rohstoffe, Werft, Forschung und Flotte greifen ineinander, egal ob du gerade drei oder dreissig
+      Kolonien haeltst.</p>
+    <ul class="tlist">
+      <li><b>Sternensysteme</b> — Kolonisiere freie Planeten in 30 benannten Systemen, jeder Typ mit eigenen Rohstoff-Boni, von kargen Gesteinswelten bis zu seltenen Ringwelten.</li>
+      <li><b>Flotten &amp; Verteidigung</b> — Baue Kolonieschiffe, Kampfflotten und Verteidigungsanlagen, wehre Piratenueberfaelle im Tiefraumsektor ab.</li>
+      <li><b>Monde &amp; Dunkle Materie</b> — Kuenstliche Monde foerdern Dunkle Materie, die Premium-Waehrung fuer den Schwarzmarkt, imperiumsweit geteilt.</li>
+    </ul>
   </div>
-</section>
 
-<section class="section reveal" id="galaxie">
-  <div class="wrap">
-    <div class="scarcity">
-      <div>
-        <div class="eyebrow">KNAPPHEIT IST ECHT</div>
-        <h2>Die Galaxie gehört nicht dir allein.</h2>
-        <p style="color:#B8AC98;margin-top:16px">
-          Manche Planeten sind schon von anderen Imperien besetzt — deinen eigenen Zweitprofilen,
-          oder von <b style="color:var(--cream)">Unbekannten Imperien</b>, die still im Hintergrund
-          sitzen und jede Woche neu auswürfeln, welche Sektoren sie beanspruchen. Wer zu spät kommt,
-          muss warten oder woanders suchen.
-        </p>
-        <div class="legend">
-          <div class="row"><span class="dot" style="background:#7FA85A"></span> Eigene Kolonie</div>
-          <div class="row"><span class="dot" style="background:#D4AF37"></span> Heimatwelt</div>
-          <div class="row"><span class="dot" style="background:#C48888"></span> Fremdes / Unbekanntes Imperium</div>
-          <div class="row"><span class="dot" style="background:#4A3A2A"></span> Frei — noch zu haben</div>
-        </div>
-      </div>
-      <div class="mini-orbit" id="scarcityOrbit"></div>
-    </div>
+  <hr class="rule">
+
+  <div class="sec reveal" id="galaxie">
+    <div class="shead"><span class="idx">[ 03 ]</span> Die Galaxie gehoert nicht dir allein<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Manche Planeten sind schon von anderen Imperien besetzt — deinen eigenen
+      Zweitprofilen, oder von <b style="color:var(--fg)">Unbekannten Imperien</b>, die still im Hintergrund sitzen und
+      jede Woche neu auswuerfeln, welche Sektoren sie beanspruchen. Wer zu spaet kommt, muss warten oder woanders suchen.</p>
+    <div class="slotlist" id="scarcitySlotlist"></div>
   </div>
-</section>
 
-<section class="section reveal" id="autopilot">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">AUCH OFFLINE AKTIV · IN ENTWICKLUNG</div>
-      <h2>Ein Autopilot, der mitdenken soll.</h2>
-      <p>Geplant: Er wählt Verteidigung nach echter Bedrohungslage, skaliert Einheiten nach
-        Kosten-Nutzen und baut eigenständig weiter — solange du ihn mit Treibstoff versorgst.
-        Diese Funktion befindet sich noch im Aufbau und wird laufend erweitert.</p>
-    </div>
-    <div class="hud">
-      <div class="hud-row">
-        <div class="gauge">
-          <img class="gauge-bg" src="bilder/icons/metal/metal_1.png" onerror="this.style.display='none'">
-          <div class="gauge-body"><div class="lbl">Metall</div><div class="val">48.2k</div><div class="bar"><i style="width:64%"></i></div></div>
-        </div>
-        <div class="gauge">
-          <img class="gauge-bg" src="bilder/icons/crystal/crystal_1.png" onerror="this.style.display='none'">
-          <div class="gauge-body"><div class="lbl">Kristall</div><div class="val">29.6k</div><div class="bar"><i style="width:41%"></i></div></div>
-        </div>
-        <div class="gauge">
-          <img class="gauge-bg" src="bilder/icons/deuterium/deuterium_1.png" onerror="this.style.display='none'">
-          <div class="gauge-body"><div class="lbl">Deuterium</div><div class="val">12.9k</div><div class="bar"><i style="width:22%"></i></div></div>
-        </div>
-        <div class="gauge">
-          <img class="gauge-bg" src="bilder/icons/dunkleMaterie/dunkleMaterie_1.png" onerror="this.style.display='none'">
-          <div class="gauge-body"><div class="lbl">Dunkle Materie</div><div class="val">1.340</div><div class="bar"><i style="width:78%"></i></div></div>
-        </div>
-      </div>
-    </div>
+  <hr class="rule">
+
+  <div class="sec reveal" id="autopilot">
+    <div class="shead"><span class="idx">[ 04 ]</span> Autopilot<span class="fill"></span><span style="font-size:10px;color:var(--red-dim);text-transform:none">in Entwicklung</span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Geplant: Er waehlt Verteidigung nach echter Bedrohungslage, skaliert
+      Einheiten nach Kosten-Nutzen und baut eigenstaendig weiter — solange du ihn mit Treibstoff versorgst.</p>
+    <div class="bar-row">Metall <span class="bar">[████████████░░░░░░░░]</span> 64% &middot; 48.2k</div>
+    <div class="bar-row">Kristall <span class="bar">[████████░░░░░░░░░░░░]</span> 41% &middot; 29.6k</div>
+    <div class="bar-row">Deuterium <span class="bar">[████░░░░░░░░░░░░░░░░]</span> 22% &middot; 12.9k</div>
+    <div class="bar-row">Dunkle Materie <span class="bar">[███████████████░░░░░]</span> 78% &middot; 1.340</div>
   </div>
-</section>
 
-<section class="section reveal">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">SCHWARZMARKT</div>
-      <h2>Dunkle Materie öffnet Türen.</h2>
-      <p>Ein bewusst schlechter Kurs für den Notfall — nicht zum Farmen. Für alles andere:
-        Zeit ist die eigentliche Währung.</p>
+  <hr class="rule">
+
+  <div class="sec reveal">
+    <div class="shead"><span class="idx">[ 05 ]</span> Schwarzmarkt<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Dunkle Materie oeffnet Tueren. Ein bewusst schlechter Kurs fuer den
+      Notfall — nicht zum Farmen. Fuer alles andere: Zeit ist die eigentliche Waehrung.</p>
+    <ul class="tlist">
+      <li><b>Sofortfertigstellung</b></li>
+      <li>Bautempo-Booster</li>
+      <li>Rohstoff-Booster</li>
+      <li>Rohstoffe direkt kaufen</li>
+    </ul>
+  </div>
+
+  <hr class="rule">
+
+  <div class="sec reveal">
+    <div class="shead"><span class="idx">[ 06 ]</span> Vier Voelker, vier Wege<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Jeder Planet kann eine eigene Spezies ansiedeln — mit eigenen Boni fuer
+      Forschung, Werft und Kolonisierungskosten.</p>
+    <div class="dl"><span class="lbl">Menschen</span><span class="fill"></span><span class="val">Handel &amp; Expansion</span></div>
+    <div class="dl"><span class="lbl">Silicae</span><span class="fill"></span><span class="val">Rohstoffe &amp; Verteidigung</span></div>
+    <div class="dl"><span class="lbl">Synthiden</span><span class="fill"></span><span class="val">Werften &amp; Energie</span></div>
+    <div class="dl"><span class="lbl">Solenari</span><span class="fill"></span><span class="val">Artefakte &amp; Vorahnung</span></div>
+  </div>
+
+  <hr class="rule">
+
+  <div class="sec reveal" id="chronik">
+    <div class="shead"><span class="idx">[ 07 ]</span> Aus der Chronik<span class="fill"></span></div>
+    <blockquote class="chron">„Wir nannten uns das Ewige Reich, weil wir glaubten, gebaut zu haben, was nie enden
+      wuerde. Wir hatten unrecht — aber vielleicht auf die einzige Art, die zaehlt: Nichts, das gebaut wird, ist ewig.
+      Nur das, was weitergegeben wird.“
+      <div class="chron-attrib">— Omega-Artefakt, Kapitel 5</div>
+    </blockquote>
+  </div>
+
+  <hr class="rule">
+
+  <div class="sec reveal" id="roadmap">
+    <div class="shead"><span class="idx">[ 08 ]</span> Roadmap<span class="fill"></span></div>
+    <p class="sdesc"><span class="arr">&gt;</span> Alles kostenlos, keine Bezahlinhalte. Diese Liste wird laufend erweitert
+      und ist keine feste Zusage fuer Zeitpunkte — Reihenfolge kann sich aendern.</p>
+
+    <div class="roadmap-block">
+      <span class="rtag now">[ In Arbeit ]</span>
+      <ul class="tlist">
+        <li><b>Dyson-Sphaere</b> — Neues Endgame-Ziel. Bauteile werden auf unterschiedlichen Planetentypen produziert,
+          auf einem kuenstlichen Mond montiert und zur Sonne verschickt.
+          <a class="glink small" href="dyson-vorschau.html" target="_blank" rel="noopener">Vorschau ansehen</a></li>
+      </ul>
     </div>
-    <div class="chiprow">
-      <span class="chip gold">Sofortfertigstellung</span>
-      <span class="chip">Bautempo-Booster</span>
-      <span class="chip">Rohstoff-Booster</span>
-      <span class="chip">Rohstoffe direkt kaufen</span>
+    <div class="roadmap-block">
+      <span class="rtag next">[ Als Naechstes geplant ]</span>
+      <ul class="tlist">
+        <li><b>Lebendige KI-Imperien</b> — 2 bis 10 computergesteuerte Reiche, die im Hintergrund eigenstaendig wachsen, kolonisieren und miteinander in Konflikt geraten.</li>
+        <li><b>Screaming-Sun-Expeditionen</b> — Eine storygetriebene Expeditionslinie in eine schwer erreichbare Sondergalaxie, freigeschaltet ueber die Dyson-Sphaere.</li>
+      </ul>
+    </div>
+    <div class="roadmap-block">
+      <span class="rtag idea">[ Ideen fuer spaeter ]</span>
+      <ul class="tlist">
+        <li>Browser-Benachrichtigungen (z. B. wenn eine Flotte ankommt)</li>
+        <li>Einsteiger-Tutorial fuer neue Kommandanten</li>
+        <li>Zufallsereignisse im All (Piratenueberfaelle, Handelskarawanen)</li>
+        <li>Animierte Kampfberichte statt reinem Text</li>
+        <li>Wachstumsdiagramme fuer die eigene Statistik</li>
+        <li>Visueller Tech-Baum</li>
+        <li>Kosmetische Anpassungen (Farbschemata, Icon-Varianten)</li>
+        <li>Mehrsprachigkeit</li>
+      </ul>
     </div>
   </div>
-</section>
 
-<section class="section reveal">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">LEBENSFORMEN</div>
-      <h2>Vier Völker, vier Wege.</h2>
-      <p>Jeder Planet kann eine eigene Spezies ansiedeln — mit eigenen Boni für
-        Forschung, Werft und Kolonisierungskosten.</p>
-    </div>
-    <div class="species">
-      <div class="sp">
-        <img class="sp-bg" src="bilder/lebensformen/human/human_1.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-        <div class="glyph" style="display:none">👤</div>
-        <div class="sp-body"><div class="name">Menschen</div><div class="desc">Handel &amp; Expansion</div></div>
-      </div>
-      <div class="sp">
-        <img class="sp-bg" src="bilder/lebensformen/rocktal/rocktal_1.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-        <div class="glyph" style="display:none">🪨</div>
-        <div class="sp-body"><div class="name">Silicae</div><div class="desc">Rohstoffe &amp; Verteidigung</div></div>
-      </div>
-      <div class="sp">
-        <img class="sp-bg" src="bilder/lebensformen/mecha/mecha_1.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-        <div class="glyph" style="display:none">🤖</div>
-        <div class="sp-body"><div class="name">Synthiden</div><div class="desc">Werften &amp; Energie</div></div>
-      </div>
-      <div class="sp">
-        <img class="sp-bg" src="bilder/lebensformen/kaelesh/kaelesh_1.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-        <div class="glyph" style="display:none">👁</div>
-        <div class="sp-body"><div class="name">Solenari</div><div class="desc">Artefakte &amp; Vorahnung</div></div>
-      </div>
+  <hr class="rule thick">
+
+  <div class="sec reveal" id="start" style="text-align:center">
+    <div class="shead" style="justify-content:center">Bereit zum Start?</div>
+    <p class="sdesc" style="margin:0 auto 16px"># Dein Imperium wartet auf eine Heimatwelt. Keine Installation, kein Konto bei Dritten — oeffnen und spielen.</p>
+    <div class="s-ctas">
+      <a class="glink primary" href="game.html">Jetzt spielen</a>
+      <a class="glink" href="https://drive.google.com/drive/folders/1XKGAJgDgHwoFL4oJBWz7-rC1aNmPryND?usp=sharing" target="_blank" rel="noopener">Android APK herunterladen</a>
     </div>
   </div>
-</section>
 
-<section class="section reveal" id="chronik">
-  <div class="wrap">
-    <div class="chronicle">
-      <div class="eyebrow">AUS DER CHRONIK</div>
-      <blockquote>„Wir nannten uns das Ewige Reich, weil wir glaubten, gebaut zu haben, was nie
-        enden würde. Wir hatten unrecht — aber vielleicht auf die einzige Art, die zählt:
-        Nichts, das gebaut wird, ist ewig. Nur das, was weitergegeben wird.“</blockquote>
-      <div class="attrib">— Omega-Artefakt, Kapitel 5</div>
-    </div>
+  <div class="s-footer reveal">
+    AETHERIS — Echoes of an Eternal Empire &middot; v1.0 Release &middot; Ein <a href="../index.html">MC ORCA Games</a> Projekt &middot; <a href="impressum.html">Impressum &amp; Datenschutz</a>
   </div>
-</section>
 
-<section class="section reveal" id="roadmap">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">ROADMAP</div>
-      <h2>Was als Nächstes kommt.</h2>
-      <p>Alles kostenlos, keine Bezahlinhalte.</p>
-    </div>
-    <div class="roadmap-cols">
-      <div class="roadmap-col">
-        <div class="roadmap-status"><span class="dot" style="background:#D4AF37"></span> In Arbeit</div>
-        <div class="roadmap-item">
-          <div class="rname">Dyson-Sphäre</div>
-          <div class="rdesc">Neues Endgame-Ziel. Bauteile werden auf unterschiedlichen Planetentypen
-            produziert, auf einem künstlichen Mond montiert und zur Sonne verschickt. Mit eigener
-            3D-Ansicht, in der man den Baufortschritt live sehen kann.</div>
-          <div class="roadmap-dyson-preview">
-            <iframe src="dyson-vorschau.html?mini=1" title="Dyson-Sphäre 3D-Vorschau" loading="lazy"></iframe>
-          </div>
-          <a href="dyson-vorschau.html" target="_blank" rel="noopener" class="mono roadmap-dyson-link">→ Vorschau in groß öffnen</a>
-        </div>
-      </div>
-      <div class="roadmap-col">
-        <div class="roadmap-status"><span class="dot" style="background:#7FA0C4"></span> Als Nächstes geplant</div>
-        <div class="roadmap-item">
-          <div class="rname">Lebendige KI-Imperien</div>
-          <div class="rdesc">2 bis 10 computergesteuerte Reiche, die im Hintergrund eigenständig
-            wachsen, kolonisieren und miteinander in Konflikt geraten, statt einfach nur Planeten
-            zu blockieren.</div>
-        </div>
-        <div class="roadmap-item">
-          <div class="rname">Screaming-Sun-Expeditionen</div>
-          <div class="rdesc">Eine neue, storygetriebene Expeditionslinie in eine besonders schwer
-            erreichbare Sondergalaxie, freigeschaltet über die Dyson-Sphäre.</div>
-        </div>
-      </div>
-      <div class="roadmap-col">
-        <div class="roadmap-status"><span class="dot" style="background:#8A7A6A"></span> Ideen für spätere Updates</div>
-        <ul class="roadmap-idea-list">
-          <li>Browser-Benachrichtigungen (z. B. wenn eine Flotte ankommt)</li>
-          <li>Einsteiger-Tutorial für neue Kommandanten</li>
-          <li>Zufallsereignisse im All (Piratenüberfälle, Handelskarawanen)</li>
-          <li>Animierte Kampfberichte statt reinem Text</li>
-          <li>Wachstumsdiagramme für die eigene Statistik</li>
-          <li>Visueller Tech-Baum</li>
-          <li>Kosmetische Anpassungen (Farbschemata, Icon-Varianten)</li>
-          <li>Mehrsprachigkeit</li>
-        </ul>
-      </div>
-    </div>
-    <div class="roadmap-note">Diese Liste wird laufend erweitert und ist keine feste Zusage für
-      Zeitpunkte — Reihenfolge kann sich ändern.</div>
-  </div>
-</section>
-
-
-<section class="finalcta reveal" id="start">
-  <div class="wrap">
-    <div class="eyebrow" style="justify-content:center">BEREIT ZUM START?</div>
-    <h2>Dein Imperium wartet auf eine Heimatwelt.</h2>
-    <p>Keine Installation, kein Konto bei Dritten — öffnen und spielen.</p>
-    <div class="ctas">
-      <a href="game.html" class="btn primary">Jetzt spielen</a>
-      <a href="https://drive.google.com/drive/folders/1XKGAJgDgHwoFL4oJBWz7-rC1aNmPryND?usp=sharing" class="btn" target="_blank" rel="noopener">⇩ Android APK herunterladen</a>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="wrap">AETHERIS — Echoes of an Eternal Empire · <span class="fver">v1.0 Release</span> · Ein <a href="../index.html" style="color:var(--gold-dim)">MC ORCA Games</a> Projekt · <a href="impressum.html" style="color:var(--gold-dim)">Impressum &amp; Datenschutz</a></div>
-</footer>
+</div>
 
 <script>
-/* ---------- Mobiles Nav-Menü: nach Linkklick automatisch schließen ---------- */
-(function(){
-  const toggle = document.getElementById('navToggle');
-  document.querySelectorAll('.navlinks a').forEach(a => {
-    a.addEventListener('click', () => { toggle.checked = false; });
-  });
-})();
-
-/* ---------- 🎁 Geschenk-Code: Klick kopiert den Code in die Zwischenablage ---------- */
+/* ---------- Geschenk-Code kopieren ---------- */
 (function(){
   const btn = document.getElementById('giftCodeCopyBtn');
   if(!btn) return;
   const originalLabel = btn.textContent;
   btn.addEventListener('click', async () => {
     const code = btn.dataset.code || '';
-    try {
-      await navigator.clipboard.writeText(code);
-    } catch(e) {
-      // Zwischenablage nicht verfügbar (z.B. kein HTTPS/älterer Browser) — Fallback per Textauswahl
+    try { await navigator.clipboard.writeText(code); }
+    catch(e){
       const ta = document.createElement('textarea');
-      ta.value = code; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      ta.value = code; ta.style.position='fixed'; ta.style.opacity='0';
       document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); } catch(e2) {}
+      try{ document.execCommand('copy'); }catch(e2){}
       document.body.removeChild(ta);
     }
-    btn.textContent = 'Kopiert! ✓';
-    setTimeout(() => { btn.textContent = originalLabel; }, 1800);
+    btn.textContent = 'Kopiert!';
+    setTimeout(()=>{ btn.textContent = originalLabel; }, 1800);
   });
 })();
 
-/* ---------- Starfield ---------- */
+/* ---------- Sternenfeld (dezent, rot) ---------- */
 (function(){
   const canvas = document.getElementById('stars');
   const ctx = canvas.getContext('2d');
   let stars = [], w, h;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
   function resize(){
     w = canvas.width = window.innerWidth;
     h = canvas.height = document.documentElement.scrollHeight;
-    const count = Math.min(260, Math.floor((w*h)/9000));
-    stars = Array.from({length:count}, () => ({
-      x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.3+0.2,
-      p: Math.random()*Math.PI*2, s: Math.random()*0.015+0.005
-    }));
+    const count = Math.min(160, Math.floor((w*h)/13000));
+    stars = Array.from({length:count}, () => ({ x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.1+0.2, p:Math.random()*Math.PI*2, s:Math.random()*0.015+0.005 }));
   }
   function draw(t){
     ctx.clearRect(0,0,w,h);
-    ctx.fillStyle = '#EDE4D3';
+    ctx.fillStyle = '#C81E2C';
     stars.forEach(st=>{
-      const tw = reduced ? 0.7 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
-      ctx.globalAlpha = 0.15 + tw*0.55;
+      const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.08 + tw*0.22;
       ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
     });
     ctx.globalAlpha = 1;
     if(!reduced) requestAnimationFrame(draw);
   }
   window.addEventListener('resize', resize);
-  resize();
-  requestAnimationFrame(draw);
+  resize(); requestAnimationFrame(draw);
   if(reduced) draw(0);
 })();
 
-/* ---------- Logo-Fallback (Nav + Hero) ----------
-   Probiert bilder/logo.png, dann logo/aetheris_logo.svg. Lädt eines von beiden, ersetzt es
-   das Bild in Nav UND Hero und blendet im Hero den Text-Schriftzug aus (kein doppeltes Branding).
-   Lädt keines von beiden, bleiben die bestehenden Text-Fallbacks (Nav-Text bzw. Hero-Titel) sichtbar. */
-(function initLogos(){
-  const heroSlot = document.getElementById('heroLogo');
-  const navSlot = document.getElementById('navLogo');
-  const heroText = document.getElementById('heroTitleText');
-  const CANDIDATES = ['bilder/logo.png', 'logo/aetheris_logo.svg'];
-  function apply(src){
-    if(heroSlot){
-      const img = document.createElement('img');
-      img.src = src; img.alt = 'AETHERIS — Echoes of an Eternal Empire';
-      heroSlot.appendChild(img);
-    }
-    if(heroText) heroText.style.display = 'none';
-    if(navSlot){
-      const img2 = document.createElement('img');
-      img2.src = src; img2.alt = 'AETHERIS';
-      navSlot.innerHTML = ''; navSlot.appendChild(img2);
-    }
-  }
-  function tryNext(i){
-    if(i >= CANDIDATES.length) return; // kein Bild gefunden -> Text-Fallbacks bleiben wie sie sind
-    const test = new Image();
-    test.onload = () => apply(CANDIDATES[i]);
-    test.onerror = () => tryNext(i+1);
-    test.src = CANDIDATES[i];
-  }
-  tryNext(0);
-})();
-
-/* ---------- Orbit diagram builder (golden angle, wie im Spiel) ---------- */
-let orbitSunSeq = 0;
-// Gleiche Planetentyp-Keys/Reihenfolge wie PLANET_TYPES im Spiel (erste 7 Slots) —
-// damit die Landingpage dieselben Planetenbilder zeigt wie das eigentliche Galaxie-View.
-const ORBIT_PLANET_KEYS = ["vulkan","wueste","erdaehnlich","gestein","dschungel","ozean","karg","toxisch","eis","gasriese","ringwelt"];
-function buildOrbit(container, opts){
-  opts = opts || {};
-  const slots = opts.slots || 7;
-  const sunType = opts.sunType || 'gelb'; // blau/gelb/rot/weiss/neutron — wie GALAXY_SUN_TYPES im Spiel
-  const sunId = 'sun' + (orbitSunSeq++);
-  const goldenAngle = 137.508;
-  const cx=250, cy=250, innerR=60, outerR=210;
-  const statuses = opts.statuses || Array.from({length:slots}, ()=> 'free');
-  const colors = { owned:'#7FA85A', home:'#D4AF37', foreign:'#C48888', free:'#4A3A2A' };
-  const labels = { owned:'Kolonisiert', home:'Heimatwelt', foreign:'Fremdes / Unbekanntes Imperium', free:'Frei' };
-
-  let svg = `<svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">`;
-  svg += `<defs>
-    <radialGradient id="shine${sunId}" cx="34%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#fff" stop-opacity="0.55"/>
-      <stop offset="35%" stop-color="#fff" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="shadow${sunId}" cx="66%" cy="72%" r="75%">
-      <stop offset="0%" stop-color="#000" stop-opacity="0"/>
-      <stop offset="55%" stop-color="#000" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#000" stop-opacity="0.55"/>
-    </radialGradient>
-  </defs>`;
-  for(let i=0;i<slots;i++){
-    const r = slots>1 ? innerR + i*(outerR-innerR)/(slots-1) : innerR;
-    svg += `<circle class="ring" cx="${cx}" cy="${cy}" r="${r.toFixed(1)}"/>`;
-  }
-  svg += `<circle class="sector" cx="${cx}" cy="${cy}" r="${outerR+22}"/>`;
-  // Echtes Sonnenbild wie im Galaxie-View des Spiels (bilder/sonnen/<typ>/<typ>_1.png),
-  // fällt bei fehlendem Bild automatisch auf die Emoji-Sonne zurück.
-  svg += `<clipPath id="clip${sunId}"><circle cx="${cx}" cy="${cy}" r="16"/></clipPath>`;
-  svg += `<circle cx="${cx}" cy="${cy}" r="16" fill="#D4AF37" opacity="0.85"/>`;
-  svg += `<image id="${sunId}" href="bilder/sonnen/${sunType}/${sunType}_1.png" x="${cx-16}" y="${cy-16}" width="32" height="32" clip-path="url(#clip${sunId})" preserveAspectRatio="xMidYMid slice" onerror="this.setAttribute('display','none')"/>`;
-  svg += `<circle cx="${cx}" cy="${cy}" r="16" fill="url(#shine${sunId})" clip-path="url(#clip${sunId})"/>`;
-
-  svg += `<g class="orbit-group">`;
-  for(let i=0;i<slots;i++){
-    const slot = i+1;
-    const r = slots>1 ? innerR + i*(outerR-innerR)/(slots-1) : innerR;
-    const angleDeg = (slot*goldenAngle)%360 - 90;
-    const angleRad = angleDeg*Math.PI/180;
-    const x = cx + r*Math.cos(angleRad), y = cy + r*Math.sin(angleRad);
-    const status = statuses[i] || 'free';
-    const color = colors[status];
-    const pKey = ORBIT_PLANET_KEYS[i % ORBIT_PLANET_KEYS.length];
-    const nodeId = `${sunId}p${i}`;
-    svg += `<g class="orbit-node" data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}" data-label="${labels[status]}" style="color:${color}" transform="translate(${x.toFixed(1)},${y.toFixed(1)})">
-      <g class="counter-spin">
-        <circle class="core" r="11.5" stroke="${color}" fill="${color}" fill-opacity="0.9"/>
-        <clipPath id="clip${nodeId}"><circle r="11"/></clipPath>
-        <g class="planet-spin">
-          <image href="bilder/planeten/${pKey}/${pKey}_1.png" x="-11" y="-11" width="22" height="22"
-            clip-path="url(#clip${nodeId})" preserveAspectRatio="xMidYMid slice"
-            onerror="this.setAttribute('display','none')"/>
-        </g>
-        <circle class="planet-shade" r="11" fill="url(#shine${sunId})" clip-path="url(#clip${nodeId})"/>
-        <circle class="planet-shade" r="11" fill="url(#shadow${sunId})" clip-path="url(#clip${nodeId})"/>
-        <circle r="15" fill="transparent"/>
-      </g>
-    </g>`;
-  }
-  svg += `</g></svg>`;
-  container.innerHTML = svg;
-
-  // Tooltip
-  const tip = document.createElement('div');
-  tip.className = 'tip';
-  container.style.position = container.style.position || 'relative';
-  container.appendChild(tip);
-
-  container.querySelectorAll('.orbit-node').forEach(node=>{
-    node.addEventListener('mouseenter', (e)=>{
-      const rect = container.getBoundingClientRect();
-      const scale = rect.width/500;
-      const x = parseFloat(node.dataset.x)*scale, y = parseFloat(node.dataset.y)*scale;
-      tip.textContent = node.dataset.label;
-      tip.style.left = x+'px'; tip.style.top = y+'px';
-      tip.classList.add('show');
-    });
-    node.addEventListener('mouseleave', ()=> tip.classList.remove('show'));
-  });
+/* ---------- Planetenslot-Listen (Text statt Orbit-Grafik) ---------- */
+function renderSlotlist(container, statuses){
+  const colors = { owned:'var(--green)', home:'var(--gold)', foreign:'#C48888', free:'var(--grey)' };
+  const labels = { owned:'Eigene Kolonie', home:'Heimatwelt', foreign:'Fremdes / Unbekanntes Imperium', free:'Frei' };
+  container.innerHTML = statuses.map((s,i)=>
+    `<div class="slot">${String(i+1).padStart(2,'0')} &middot; <b style="color:${colors[s]}">${labels[s]}</b></div>`
+  ).join('');
 }
+renderSlotlist(document.getElementById('scarcitySlotlist'), ['foreign','free','foreign','owned','foreign','foreign','home']);
+renderSlotlist(document.getElementById('demoSlotlist'), ['owned','free','foreign','home','free','foreign','free']);
 
-buildOrbit(document.getElementById('scarcityOrbit'), {
-  slots:7, sunType:'neutron', statuses:['foreign','free','foreign','owned','foreign','foreign','home']
-});
-
-/* ---------- Interaktive Demo-Sektion ---------- */
+/* ---------- Interaktive Demo (reiner Text, gleiche Logik wie zuvor) ---------- */
 (function(){
   const demoRoot = document.getElementById('demo');
   if(!demoRoot) return;
 
-  // --- Tabs ---
   const tabs = demoRoot.querySelectorAll('.demo-tab');
   const panels = demoRoot.querySelectorAll('.demo-panel');
   tabs.forEach(tab=>{
@@ -950,57 +544,40 @@ buildOrbit(document.getElementById('scarcityOrbit'), {
       tab.classList.add('active');
       const name = tab.dataset.tab;
       panels.forEach(p=> p.hidden = (p.dataset.panel !== name));
-      if(name === 'galaxie' && !demoRoot._orbitBuilt){
-        buildOrbit(document.getElementById('demoOrbit'), {
-          slots:7, sunType:'gelb', statuses:['owned','free','foreign','home','free','foreign','free']
-        });
-        demoRoot._orbitBuilt = true;
-      }
     });
   });
 
-  // --- Ressourcen (ticken live, wie im echten Spiel) — echte Bildpfade wie im HUD, Emoji als Fallback ---
   const RES_DEFS = [
-    { key:'metal',      img:'bilder/icons/metal/metal_1.png',      ico:'⛏', lbl:'Metall',        start:12400, rate:38 },
-    { key:'crystal',    img:'bilder/icons/crystal/crystal_1.png',  ico:'◆', lbl:'Kristall',       start:6800,  rate:19 },
-    { key:'deuterium',  img:'bilder/icons/deuterium/deuterium_1.png', ico:'⬡', lbl:'Deuterium',  start:2100,  rate:8 },
-    { key:'dm',         img:'bilder/icons/dunkleMaterie/dunkleMaterie_1.png', ico:'✦', lbl:'Dunkle Materie', start:180, rate:0.6 },
+    { key:'metal', lbl:'Metall', start:12400, rate:38 },
+    { key:'crystal', lbl:'Kristall', start:6800, rate:19 },
+    { key:'deuterium', lbl:'Deuterium', start:2100, rate:8 },
+    { key:'dm', lbl:'Dunkle Materie', start:180, rate:0.6 },
   ];
   const res = {};
   RES_DEFS.forEach(r=> res[r.key] = r.start);
-
-  function fmt(n){
-    return Math.floor(n).toLocaleString('de-DE');
-  }
+  function fmt(n){ return Math.floor(n).toLocaleString('de-DE'); }
   function renderResBar(container){
     if(!container) return;
     container.innerHTML = RES_DEFS.map(r=>
-      `<div class="r"><div class="demo-icon"><img src="${r.img}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="fb">${r.ico}</span></div>
-        <div><div class="lbl">${r.lbl}</div>
-        <div class="amt">${fmt(res[r.key])} <span class="rate">+${r.rate}/s</span></div></div></div>`
+      `<div class="dl"><span class="lbl">${r.lbl}</span><span class="fill"></span><span class="val g">${fmt(res[r.key])} <span style="color:var(--gold-dim)">(+${r.rate}/s)</span></span></div>`
     ).join('');
   }
   const resBars = ['demoResBar','demoResBar2','demoResBar3','demoResBar4'].map(id=>document.getElementById(id));
   function renderAllRes(){ resBars.forEach(renderResBar); }
   renderAllRes();
-  setInterval(()=>{
-    RES_DEFS.forEach(r=> res[r.key] += r.rate);
-    renderAllRes();
-  }, 1000);
+  setInterval(()=>{ RES_DEFS.forEach(r=> res[r.key]+=r.rate); renderAllRes(); }, 1000);
 
-  // --- Log (Übersicht-Tab) ---
   const logEl = document.getElementById('demoLog');
   function pushLog(msg){
     if(!logEl) return;
     const now = new Date();
     const t = now.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
     const row = document.createElement('div');
-    row.className = 'row';
-    row.innerHTML = `<span class="t">${t}</span><span>${msg}</span>`;
+    row.innerHTML = `<span class="t">${t}</span>${msg}`;
     logEl.prepend(row);
     while(logEl.children.length > 8) logEl.removeChild(logEl.lastChild);
   }
-  pushLog('Kolonie "Heimatwelt" hat volle Lagerkapazität für Metall erreicht.');
+  pushLog('Kolonie "Heimatwelt" hat volle Lagerkapazitaet fuer Metall erreicht.');
 
   let activeQueueCount = 0;
   const queueCountEl = document.getElementById('demoQueueCount');
@@ -1009,40 +586,38 @@ buildOrbit(document.getElementById('scarcityOrbit'), {
     if(queueCountEl) queueCountEl.textContent = activeQueueCount;
   }
 
-  // --- Generischer Baukachel-Renderer (Planet/Werft/Flotte) — echte Bildpfade, Emoji als Fallback ---
+  function bar(pct, width){
+    width = width || 16;
+    const filled = Math.round(width*pct/100);
+    return '['+'█'.repeat(filled)+'░'.repeat(width-filled)+`] ${Math.round(pct)}%`;
+  }
+
   function makeBuildableGrid(container, items, opts){
     opts = opts || {};
     if(!container) return;
     container.innerHTML = items.map(it => `
-      <div class="demo-tile" data-key="${it.key}">
-        <div class="th">
-          <div class="ihead">
-            <div class="demo-icon"><img src="${it.img}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="fb">${it.icon}</span></div>
-            <h4>${it.name}</h4>
-          </div>
-          <span class="lvl">${opts.countLabel ? it.count : ('Stufe '+it.level)}</span>
+      <div class="dtile" data-key="${it.key}">
+        <div class="dl"><span class="lbl">${it.name}</span><span class="fill"></span><span class="val lvl">${opts.countLabel ? it.count : ('Stufe '+it.level)}</span></div>
+        <div class="dcost">Kosten: ${it.cost.toLocaleString('de-DE')} ${opts.costRes || 'Metall'}</div>
+        <div class="dbtnrow">
+          <span class="glink small dbtn" role="button">${opts.buildLabel || 'Ausbauen'}</span>
+          <span class="dbar mono"></span>
         </div>
-        <div class="cost">Kosten: ${it.cost.toLocaleString('de-DE')} ${opts.costRes || 'Metall'}</div>
-        <button class="demo-btn" type="button">${opts.buildLabel || 'Ausbauen'}</button>
-        <div class="demo-bar"><i></i></div>
-        <div class="qlbl"></div>
       </div>
     `).join('');
 
-    container.querySelectorAll('.demo-tile').forEach(tile=>{
+    container.querySelectorAll('.dtile').forEach(tile=>{
       const key = tile.dataset.key;
       const item = items.find(i=> i.key === key);
-      const btn = tile.querySelector('.demo-btn');
-      const bar = tile.querySelector('.demo-bar i');
-      const qlbl = tile.querySelector('.qlbl');
-      const costEl = tile.querySelector('.cost');
+      const btn = tile.querySelector('.dbtn');
+      const dbar = tile.querySelector('.dbar');
+      const costEl = tile.querySelector('.dcost');
       const lvlEl = tile.querySelector('.lvl');
       let building = false;
 
       btn.addEventListener('click', ()=>{
         if(building) return;
         building = true;
-        btn.disabled = true;
         bumpQueueCount(1);
         const duration = item.buildTime;
         const startedAt = Date.now();
@@ -1050,72 +625,414 @@ buildOrbit(document.getElementById('scarcityOrbit'), {
         const timer = setInterval(()=>{
           const elapsed = (Date.now() - startedAt) / 1000;
           const pct = Math.min(100, (elapsed / duration) * 100);
-          bar.style.width = pct + '%';
           const remaining = Math.max(0, Math.ceil(duration - elapsed));
-          qlbl.textContent = remaining > 0 ? `⏱ Fertig in ${remaining}s` : 'Fertig!';
+          dbar.textContent = bar(pct) + (remaining > 0 ? ` &middot; ${remaining}s` : ' &middot; Fertig!');
           if(pct >= 100){
             clearInterval(timer);
             building = false;
-            btn.disabled = false;
             bumpQueueCount(-1);
             if(opts.countLabel){
-              item.count += 1;
-              lvlEl.textContent = item.count;
+              item.count += 1; lvlEl.textContent = item.count;
               if(opts.onComplete) opts.onComplete(item);
             } else {
-              item.level += 1;
-              item.cost = Math.round(item.cost * 1.35);
+              item.level += 1; item.cost = Math.round(item.cost * 1.35);
               lvlEl.textContent = 'Stufe ' + item.level;
               costEl.textContent = `Kosten: ${item.cost.toLocaleString('de-DE')} ${opts.costRes || 'Metall'}`;
             }
-            setTimeout(()=>{ qlbl.textContent=''; bar.style.width='0%'; }, 2500);
+            setTimeout(()=>{ dbar.textContent=''; }, 2500);
           }
         }, 100);
       });
     });
   }
 
-  // Planet-Tab: Gebäude (echte Keys/Bilder aus BUILDINGS, bilder/gebaeude/<key>/<key>_1.png)
   makeBuildableGrid(document.getElementById('demoPlanetGrid'), [
-    { key:'metalMine',     icon:'⛏', name:'Metallmine',     img:'bilder/gebaeude/metalMine/metalMine_1.png',         level:8, cost:4200,  buildTime:6 },
-    { key:'solarPlant',    icon:'⚡', name:'Solarkraftwerk', img:'bilder/gebaeude/solarPlant/solarPlant_1.png',       level:5, cost:2600,  buildTime:5 },
-    { key:'metalStorage',  icon:'▣', name:'Metallspeicher', img:'bilder/gebaeude/metalStorage/metalStorage_1.png',   level:3, cost:1800,  buildTime:4 },
-    { key:'naniteFactory', icon:'⚙️', name:'Nanitenfabrik',  img:'bilder/gebaeude/naniteFactory/naniteFactory_1.png', level:1, cost:9000,  buildTime:9 },
+    { key:'metalMine', name:'Metallmine', level:8, cost:4200, buildTime:6 },
+    { key:'solarPlant', name:'Solarkraftwerk', level:5, cost:2600, buildTime:5 },
+    { key:'metalStorage', name:'Metallspeicher', level:3, cost:1800, buildTime:4 },
+    { key:'naniteFactory', name:'Nanitenfabrik', level:1, cost:9000, buildTime:9 },
   ], { costRes:'Metall', logVerb:'Baue aus' });
 
-  // Werft-Tab: Werft-Ausbau + Verteidigung (bilder/gebaeude/ bzw. bilder/verteidigung/<key>/<key>_1.png)
   makeBuildableGrid(document.getElementById('demoWerftGrid'), [
-    { key:'shipyard',       icon:'🏗', name:'Werft',          img:'bilder/gebaeude/shipyard/shipyard_1.png',           level:4, cost:3100, buildTime:6 },
-    { key:'shield',         icon:'🛡', name:'Schildkuppel',   img:'bilder/verteidigung/shield/shield_1.png',           level:2, cost:5200, buildTime:8 },
-    { key:'rocketLauncher', icon:'🚨', name:'Raketenwerfer',  img:'bilder/verteidigung/rocketLauncher/rocketLauncher_1.png', level:6, cost:2400, buildTime:5 },
+    { key:'shipyard', name:'Werft', level:4, cost:3100, buildTime:6 },
+    { key:'shield', name:'Schildkuppel', level:2, cost:5200, buildTime:8 },
+    { key:'rocketLauncher', name:'Raketenwerfer', level:6, cost:2400, buildTime:5 },
   ], { costRes:'Metall', logVerb:'Werft-Ausbau gestartet' });
 
-  // Flotte-Tab: Schiffe bauen (Zähler statt Stufe, bilder/schiffe/<key>/<key>_1.png)
   const fleetCountEl = document.getElementById('demoFleetCount');
   makeBuildableGrid(document.getElementById('demoFlotteGrid'), [
-    { key:'colonyShip', icon:'🛸', name:'Kolonieschiff',     img:'bilder/schiffe/colonyShip/colonyShip_1.png', count:1, cost:6000, buildTime:7 },
-    { key:'lightFighter', icon:'✈️', name:'Leichter Jäger',  img:'bilder/schiffe/lightFighter/lightFighter_1.png', count:6, cost:1400, buildTime:3 },
-    { key:'cruiser',    icon:'🛰️', name:'Kreuzer',          img:'bilder/schiffe/cruiser/cruiser_1.png', count:2, cost:4800, buildTime:6 },
-    { key:'smallCargo', icon:'🚀', name:'Kleiner Transporter', img:'bilder/schiffe/smallCargo/smallCargo_1.png', count:3, cost:2200, buildTime:4 },
+    { key:'colonyShip', name:'Kolonieschiff', count:1, cost:6000, buildTime:7 },
+    { key:'lightFighter', name:'Leichter Jaeger', count:6, cost:1400, buildTime:3 },
+    { key:'cruiser', name:'Kreuzer', count:2, cost:4800, buildTime:6 },
+    { key:'smallCargo', name:'Kleiner Transporter', count:3, cost:2200, buildTime:4 },
   ], {
     countLabel:true, costRes:'Metall', logVerb:'Schiff in Auftrag gegeben',
     onComplete:(it)=>{
-      const total = [1,6,2,3].reduce((a,b)=>a+b,0); // Basiswerte, nur zur groben Anzeige
       if(fleetCountEl) fleetCountEl.textContent = parseInt(fleetCountEl.textContent||'0',10) + 1;
       pushLog(`${it.name} fertiggestellt.`);
     }
   });
 })();
 
-
 /* ---------- Scroll reveal ---------- */
 (function(){
   const io = new IntersectionObserver((entries)=>{
     entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
-  }, { threshold:0.12 });
+  }, { threshold:0.08 });
   document.querySelectorAll('.reveal').forEach(el=> io.observe(el));
 })();
 </script>
 
+</div><!-- /siteContent -->
+<script>
+const BOOT_BANNER = ` __  __   ____    ___  ____    ____     _   
+|  \\/  | / ___|  / _ \\|  _ \\  / ___|   / \\  
+| |\\/| || |      | | || |_) || |      / _ \\ 
+| |  | || |___   | |_||  _ < | |___  / ___ \\
+|_|  |_| \\____|  \\___/|_| \\_\\ \\____|/_/   \\_\\
+
+  ____     _    __  __  _____  ____     ___  ____  
+ / ___|   / \\  |  \\/  || ____|/ ___|   / _ \\/ ___| 
+| |  _   / _ \\ | |\\/| ||  _|  \\___ \\   | | |\\___ \\ 
+| |_| | / ___ \\| |  | || |___  ___) |  | |_| ___) |
+ \\____|/_/   \\_\\|_|  |_||_____||____/   \\___/|____/ `;
+
+/* ==========================================================================
+   AB HIER SEITENANPASSUNG (AETHERIS-Landingpage) — BIOS-Name, OS-Name und
+   Kontextdaten. Diese Seite hat keinen eigenen Spielstand (kein
+   localStorage) — die Werte unten sind Katalog-Metadaten, 1:1 aus dem
+   Seiteninhalt selbst (Sternensysteme-Zahl, die vier spielbaren Spezies).
+   ========================================================================== */
+const OS_NAME = "AETHERIS-OS";
+const BIOS_LINE = "AETHERIS BIOS v1.0";
+const COPYRIGHT_LINE = "(C) 2026 MC ORCA Games.";
+
+function getBootContext(){
+  return {
+    greeting: 'Kommandant',
+    systems: 30,
+    species: 4,
+    darkMatterUse: 'Premium-Ressource fuer Ausbau & Dyson-Sphaere',
+  };
+}
+
+function generateBootLines(){
+  const ctx = getBootContext();
+  return [
+    BIOS_LINE,
+    COPYRIGHT_LINE,
+    "",
+    "CPU .................................. ORCA-9800X @ 4.7 GHz",
+    "RAM-Test .............................. 65536 MB OK",
+    "Netzwerkschnittstelle ................. bereit",
+    "",
+    { progress: "Pruefe Dateisystem-Integritaet", ms: 3400 },
+    { progress: "Initialisiere galaktisches Kolonie-Register", ms: 3400 },
+    { progress: "Kalibriere Sternenkarten", ms: 3200 },
+    "",
+    `Lade ${OS_NAME} Kernel...`,
+    "  [ OK ] BOOTLDR.SYS          Bootloader initialisiert",
+    "  [ OK ] KOLONIE.SYS          Kolonieverwaltung",
+    "  [ OK ] FLOTTE.SYS           Flottensteuerung",
+    "  [ OK ] WERFT.SYS            Werftproduktion",
+    "  [ OK ] FORSCHUNG.SYS        Forschungsbaum",
+    "  [ OK ] DUNKLEMATERIE.SYS    Premium-Ressource",
+    "  [ OK ] SPEZIES.SYS          Vier spielbare Voelker",
+    "",
+    { progress: "Synchronisiere Sternensysteme", ms: 3400 },
+    { progress: "Baue Flottenregister auf", ms: 3400 },
+    { progress: "Lade Spezies-Datenbank", ms: 3200 },
+    { progress: "Pruefe Lizenzserver", ms: 2600 },
+    "",
+    "Reichs-Uebersicht:",
+    `  Sternensysteme .......................... ${ctx.systems}`,
+    `  Spielbare Spezies ........................ ${ctx.species}`,
+    `  Dunkle Materie ........................... ${ctx.darkMatterUse}`,
+    "",
+    `${OS_NAME} BEREIT.`,
+    "",
+    `Willkommen, ${ctx.greeting}. Dein Reich erwartet dich.`
+  ];
+}
+
+function renderProgressLine(label, pct, width=24){
+  const filled = Math.max(0, Math.min(width, Math.round(width*pct/100)));
+  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
+  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
+}
+
+let bootAudioCtx = null;
+function bootTone(freq, dur, type='square', vol=0.05){
+  try{
+    bootAudioCtx = bootAudioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const o = bootAudioCtx.createOscillator(), g = bootAudioCtx.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = vol;
+    o.connect(g); g.connect(bootAudioCtx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, bootAudioCtx.currentTime+dur);
+    o.stop(bootAudioCtx.currentTime+dur+0.02);
+  }catch(err){}
+}
+const BootSound = {
+  postBeep: ()=> bootTone(900, 0.15, 'square', 0.06),
+  tone: bootTone,
+  diskAccess: ()=> bootTone(220+Math.random()*40, 0.03, 'square', 0.03),
+  modemHandshake: ()=> bootTone(1400, 0.25, 'sawtooth', 0.03),
+  buildOk: ()=> { bootTone(660,0.12); setTimeout(()=>bootTone(880,0.18),120); },
+};
+
+let dosBootToken = 0;
+function playDosBootSequence(){
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById('dosBootOverlay');
+    const textEl = document.getElementById('dosBootText');
+    const bannerEl = document.getElementById('dosBootBanner');
+    if(!overlay || !textEl){ resolve(); return; }
+    const BOOT_LINES = generateBootLines();
+    const myToken = ++dosBootToken;
+    const totalCharBudgetMs = 90000;
+    const totalChars = BOOT_LINES.reduce((n,l)=> n + (typeof l==='string' ? Math.max(l.length,1):0), 0);
+    const perCharMs = Math.min(28, Math.max(9, totalCharBudgetMs/Math.max(totalChars,1)));
+    const interLineMs = 450;
+    const finalHoldMs = 3500;
+    const bannerRevealMs = 500;
+
+    textEl.textContent = '';
+    textEl.classList.add('typing');
+    if(bannerEl){
+      bannerEl.textContent = BOOT_BANNER;
+      bannerEl.style.animation = 'none'; void bannerEl.offsetWidth; bannerEl.style.animation = '';
+    }
+    overlay.classList.remove('fading','crt-poweroff');
+    overlay.classList.add('visible');
+    overlay.classList.remove('crt-poweron'); void overlay.offsetWidth; overlay.classList.add('crt-poweron');
+    try{ BootSound.postBeep(); }catch(err){}
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    let finished = false, timeoutIds = [];
+    const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds=[]; };
+    let renderedLines = [];
+    const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); overlay.scrollTop = overlay.scrollHeight; };
+
+    const finishNow = ()=>{
+      if(finished || myToken!==dosBootToken) return;
+      finished = true; clearAllTimers();
+      textEl.textContent = BOOT_LINES.map(l=> typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
+      overlay.scrollTop = overlay.scrollHeight;
+      overlay.classList.remove('crt-poweron'); overlay.classList.add('crt-poweroff');
+      textEl.classList.remove('typing');
+      document.body.style.overflow = prevOverflow;
+      setTimeout(()=>{
+        if(myToken!==dosBootToken) return;
+        overlay.classList.remove('visible','fading','crt-poweroff');
+        overlay.removeEventListener('click', skipHandler);
+        document.removeEventListener('keydown', skipHandler);
+        resolve();
+      }, 550);
+    };
+    const skipHandler = ()=> finishNow();
+    overlay.addEventListener('click', skipHandler);
+    document.addEventListener('keydown', skipHandler);
+
+    let lineIndex = 0, blipCounter = 0;
+    const keyBlip = ()=>{ blipCounter++; if(blipCounter%3===0){ try{ BootSound.tone(760+Math.random()*260,0.02,'square',0.045); }catch(err){} } };
+    const okBlip = ()=>{ try{ BootSound.tone(1180,0.05,'square',0.05); }catch(err){} };
+    const readyChord = ()=>{ try{ BootSound.buildOk(); }catch(err){} };
+
+    const processLine = ()=>{
+      if(myToken!==dosBootToken) return;
+      if(lineIndex >= BOOT_LINES.length){ timeoutIds.push(setTimeout(finishNow, finalHoldMs)); return; }
+      const entry = BOOT_LINES[lineIndex];
+      if(typeof entry === 'string') typeStringLine(entry);
+      else if(entry && entry.progress) runProgressLine(entry);
+    };
+
+    const typeStringLine = (line)=>{
+      if(line.length === 0){
+        renderedLines[lineIndex] = ''; redraw(); lineIndex++;
+        timeoutIds.push(setTimeout(processLine, interLineMs/2));
+        return;
+      }
+      let charIndex = 0;
+      const step = ()=>{
+        if(myToken!==dosBootToken) return;
+        charIndex++;
+        renderedLines[lineIndex] = line.slice(0, charIndex);
+        redraw();
+        if(charIndex < line.length){ keyBlip(); timeoutIds.push(setTimeout(step, perCharMs)); }
+        else{
+          const trimmed = line.trim();
+          if(trimmed.startsWith('[ OK ]')) okBlip();
+          else if(trimmed === `${OS_NAME} BEREIT.`) readyChord();
+          lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs));
+        }
+      };
+      step();
+    };
+
+    const runProgressLine = (entry)=>{
+      try{ BootSound.diskAccess(); }catch(err){}
+      const steps = 22, stepMs = Math.max(30, entry.ms/steps);
+      let step = 0;
+      renderedLines[lineIndex] = renderProgressLine(entry.progress, 0); redraw();
+      const tick = ()=>{
+        if(myToken!==dosBootToken) return;
+        step++;
+        const pct = Math.min(100, Math.round(step/steps*100));
+        renderedLines[lineIndex] = renderProgressLine(entry.progress, pct); redraw();
+        if(step%4===0){ try{ BootSound.tone(500+pct*4,0.02,'square',0.03); }catch(err){} }
+        if(step < steps) timeoutIds.push(setTimeout(tick, stepMs));
+        else{ lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs)); }
+      };
+      tick();
+    };
+
+    timeoutIds.push(setTimeout(processLine, bannerRevealMs));
+  });
+}
+
+/* Seiteneinstieg: CRT-Poweron-Flash -> direkt voller DOS-Bootstream -> danach
+   erst wird der eigentliche Seiteninhalt sichtbar. Kein Klick/Start-Button
+   dazwischen (anders als in den Spielen selbst) — die Bootstream IST hier
+   der komplette Ladevorgang der Seite. */
+function bootIntoSite(){
+  document.documentElement.classList.add('boot-locked');
+  setTimeout(async ()=>{
+    const crt = document.getElementById('bootCrtOverlay');
+    if(crt) crt.style.display = 'none';
+    await playDosBootSequence();
+    document.documentElement.classList.remove('boot-locked');
+    const site = document.getElementById('siteContent');
+    if(site) site.classList.remove('boot-hidden');
+    /* Sicherheits-Fallback: das bestehende Scroll-Reveal (.reveal +
+       IntersectionObserver) beobachtet Elemente ggf. schon, waehrend
+       #siteContent noch display:none war. Direkt nach dem Sichtbarwerden
+       pruefen wir zusaetzlich von Hand, was gerade im Viewport liegt, und
+       blenden das sofort ein, statt uns allein auf den Observer zu
+       verlassen. */
+    requestAnimationFrame(()=>{
+      document.querySelectorAll('.reveal').forEach(el=>{
+        const r = el.getBoundingClientRect();
+        if(r.top < window.innerHeight && r.bottom > 0) el.classList.add('in');
+      });
+    });
+  }, 900);
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', bootIntoSite);
+}else{
+  bootIntoSite();
+}
+
+</script>
+
+<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): eigenstaendiges Konto-Widget, 6-stelliger E-Mail-Code
+     statt Magic-Link (funktioniert auch aus einer APK-WebView heraus, kein Browser-Redirect
+     noetig). Gleiche Supabase-Zugangsdaten wie in den anderen Spielen -> eine Anmeldung gilt
+     ueberall auf dieser Domain, weil die Session im localStorage der Domain liegt. -->
+<div id="cloudAccountBar" style="position:fixed;top:14px;right:14px;z-index:99999;font-family:system-ui,-apple-system,sans-serif;font-size:12px;">
+  <button id="cloudAccountToggle" style="background:rgba(15,15,20,0.85);color:#eee;border:1px solid #555;padding:7px 14px;border-radius:18px;cursor:pointer;backdrop-filter:blur(4px);">☁ Konto</button>
+  <div id="cloudAccountPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:250px;background:#16161a;border:1px solid #444;border-radius:10px;padding:12px;box-shadow:0 10px 26px rgba(0,0,0,0.5);color:#ddd;">
+    <div id="cloudStepEmail">
+      <div style="line-height:1.5;color:#aaa;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+      <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;">
+      <button id="cloudSendCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Code senden</button>
+    </div>
+    <div id="cloudStepCode" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Code aus der E-Mail eingeben:</div>
+      <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;letter-spacing:3px;text-align:center;">
+      <button id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Bestätigen</button>
+    </div>
+    <div id="cloudStepIn" style="display:none;">
+      <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
+    </div>
+    <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+
+  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.style.color = isErr ? '#e37b7b' : '#8fd18f'; }
+  function render(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
+    var emailEl = document.getElementById('cloudUserEmail');
+    if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+  }
+
+  toggle.addEventListener('click', function(){ panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
+  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.style.display = 'none'; });
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data.session;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      var wasLoggedOut = !window.__cloudUser;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      render();
+      if(wasLoggedOut && window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+    });
+
+    document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+      var email = document.getElementById('cloudEmailInput').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+      var code = document.getElementById('cloudCodeInput').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+
+    document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      render();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+  render();
+})();
+</script>
 </body>
 </html>
