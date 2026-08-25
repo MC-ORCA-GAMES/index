@@ -16894,8 +16894,24 @@ window.__cloudSyncOnLogin = async function(){
     // die auf diesem Geraet noch nie lokal existiert haben.
     var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
     if(sel.error) throw sel.error;
+    // BUGFIX (kritisch, Ursache fuer stilles Ueberschreiben eines laufenden Spiels): hier stand
+    // vorher fest verdrahtet storageGet('deepanchor_save') -- das ist aber NUR der Save-Key des
+    // Standardprofils ("main"). Wenn man in einem ANDEREN Profil (z.B. "traumana") mitten im
+    // Spiel war, existiert lokal kein 'deepanchor_save', sondern 'deepanchor_save__<profilId>'.
+    // localHasData wurde dadurch faelschlich false, der Code dachte "kein lokaler Stand" und hat
+    // OHNE Nachfrage den Cloud-Stand ueber den laufenden lokalen Stand geladen + reload()t.
+    // Fix: alle bekannten lokalen Save-Keys pruefen (Hauptprofil + alle Profile aus der Liste),
+    // nicht nur den des Standardprofils.
     var localHasData = false;
-    try{ await storageGet('deepanchor_save'); localHasData = true; }catch(e){}
+    try{
+      var __localKeys = await __deepAnchorCollectKeys();
+      for(var __i=0; __i<__localKeys.length && !localHasData; __i++){
+        try{
+          var __r = await storageGet(__localKeys[__i]);
+          if(__r && __r.value){ localHasData = true; }
+        }catch(e){}
+      }
+    }catch(e){}
     if(!sel.data || sel.data.length === 0){
       if(localHasData){ window.__cloudSyncLocked = false; await __deepAnchorPushAllLocal(); }
       return;

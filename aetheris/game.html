@@ -17385,8 +17385,20 @@ window.__cloudSyncOnLogin = async function(){
     // Henne-Ei-Problem bei mehreren Profilen auf einem frischen Geraet.
     var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'aetheris_%');
     if(sel.error) throw sel.error;
+    // BUGFIX (kritisch, Ursache fuer stilles Ueberschreiben eines laufenden Spiels): hier stand
+    // vorher fest verdrahtet localStorage.getItem('aetheris_save_v1') -- das ist aber NUR der
+    // Save-Key des Standardprofils ("profil1"). War man in einem ANDEREN Profil mitten im Spiel,
+    // existiert lokal kein 'aetheris_save_v1', sondern 'aetheris_save_v1__<profilId>'.
+    // localHasData wurde dadurch faelschlich false, der Code dachte "kein lokaler Stand" und hat
+    // OHNE Nachfrage den Cloud-Stand ueber den laufenden lokalen Stand geladen + reload()t.
+    // Fix: alle bekannten lokalen Save-Keys pruefen (Standardprofil + alle Profile aus der Liste).
     var localHasData = false;
-    try{ localHasData = localStorage.getItem('aetheris_save_v1') !== null; }catch(e){}
+    try{
+      var __localKeys = __aetherisCollectKeys();
+      for(var __i=0; __i<__localKeys.length && !localHasData; __i++){
+        try{ if(localStorage.getItem(__localKeys[__i]) !== null) localHasData = true; }catch(e){}
+      }
+    }catch(e){}
     if(!sel.data || sel.data.length === 0){
       if(localHasData){ window.__cloudSyncLocked = false; await __aetherisPushAllLocal(); }
       return;
