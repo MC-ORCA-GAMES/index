@@ -3312,6 +3312,9 @@ if (!window.storage) {
   var __origDelete = window.storage.delete.bind(window.storage);
   window.storage.set = async function(key, value, shared){
     var res = await __origSet(key, value, shared);
+    // NEU (Sync-Hinweis-Banner): eigener, nicht mit der Cloud synchronisierter Zeitstempel,
+    // damit der Login-Konflikt-Dialog anzeigen kann, welcher Stand (Geraet vs. Cloud) neuer ist.
+    try{ localStorage.setItem('pots_localts', String(Date.now())); }catch(e){}
     // NEU (Bugfix Race-Condition): Waehrend der initialen Sync-Entscheidung nach dem Login
     // laeuft (siehe __cloudSyncOnLogin unten), wird jeder Cloud-Upload blockiert -- sonst
     // koennte ein Spiel-Save waehrend der offenen Abfrage den echten Cloud-Stand ueberschreiben.
@@ -3346,15 +3349,59 @@ window.__cloudSyncOnLogin = async function(){
   // unterdruecktes confirm() wird ungewollt der lokale Stand hochgeladen und ueberschreibt den
   // Cloud-Stand eines anderen Geraets. Eigener Dialog statt confirm(), garantiert sichtbar, da
   // normales DOM-Element statt Browser-natives Popup (wie bei Aetheris/Astrion/Deep Anchor).
-  function __cloudCustomConfirm(message, okLabel, cancelLabel){
+  // NEU (Sync-Hinweis-Banner): wandelt einen Zeitstempel (ms seit Epoch) in eine kurze,
+  // relative deutsche Beschreibung um -- fuer den Vergleichs-Badge im Konflikt-Dialog.
+  function __relTime(ms){
+    if(ms == null || isNaN(ms)) return 'unbekannt';
+    var diff = Date.now() - ms;
+    if(diff < 0) diff = 0;
+    var s = Math.floor(diff/1000);
+    if(s < 60) return 'gerade eben';
+    var m = Math.floor(s/60);
+    if(m < 60) return 'vor ' + m + ' Min';
+    var h = Math.floor(m/60);
+    if(h < 24) return 'vor ' + h + ' Std';
+    var d = Math.floor(h/24);
+    return 'vor ' + d + ' Tag' + (d===1?'':'en');
+  }
+  // NEU (Sync-Hinweis-Banner): badges = {localTs, cloudTs} (beides ms seit Epoch oder null).
+  // Zeigt zwei Chips "Dieses Geraet" / "Cloud" mit relativer Zeit, der neuere wird farblich
+  // hervorgehoben ("NEUER"-Marke) -- damit man auf einen Blick sieht, welcher Stand aktueller
+  // ist, statt blind raten zu muessen.
+  function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
     return new Promise(function(resolve){
       var overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
       var box = document.createElement('div');
-      box.style.cssText = 'background:#181022;border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:18px;max-width:360px;width:100%;box-sizing:border-box;font-family:inherit;';
+      box.style.cssText = 'background:#181022;border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:18px;max-width:380px;width:100%;box-sizing:border-box;font-family:inherit;';
       var text = document.createElement('div');
-      text.style.cssText = 'color:#eee;font-size:13px;line-height:1.5;white-space:pre-line;margin-bottom:14px;';
+      text.style.cssText = 'color:#eee;font-size:13px;line-height:1.5;white-space:pre-line;margin-bottom:12px;';
       text.textContent = message;
+      box.appendChild(text);
+
+      if(badges){
+        var localer = (badges.localTs != null && (badges.cloudTs == null || badges.localTs > badges.cloudTs));
+        var cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
+        var badgeRow = document.createElement('div');
+        badgeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
+        function makeBadge(icon, label, ts, isNewer){
+          var b = document.createElement('div');
+          b.style.cssText = 'flex:1;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.4;'
+            + (isNewer ? 'background:rgba(120,180,255,0.14);border:1px solid rgba(120,180,255,0.65);' : 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.18);');
+          var top = document.createElement('div');
+          top.style.cssText = 'color:#ccc;font-weight:bold;';
+          top.textContent = icon + ' ' + label;
+          var time = document.createElement('div');
+          time.style.cssText = 'color:' + (isNewer ? '#a9cdff' : '#999') + ';margin-top:3px;';
+          time.textContent = __relTime(ts) + (isNewer ? ' · NEUER' : '');
+          b.appendChild(top); b.appendChild(time);
+          return b;
+        }
+        badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer));
+        badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer));
+        box.appendChild(badgeRow);
+      }
+
       var btnRow = document.createElement('div');
       btnRow.style.cssText = 'display:flex;gap:8px;';
       var okBtn = document.createElement('button');
@@ -3366,7 +3413,7 @@ window.__cloudSyncOnLogin = async function(){
       okBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(true); });
       cancelBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(false); });
       btnRow.appendChild(okBtn); btnRow.appendChild(cancelBtn);
-      box.appendChild(text); box.appendChild(btnRow);
+      box.appendChild(btnRow);
       overlay.appendChild(box);
       document.body.appendChild(overlay);
     });
@@ -3376,7 +3423,7 @@ window.__cloudSyncOnLogin = async function(){
   // kein Upload mehr moeglich, bis wir die Entscheidung getroffen haben (finally unten).
   window.__cloudSyncLocked = true;
   try{
-    var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'pots:%');
+    var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).like('key', 'pots:%');
     if(sel.error) throw sel.error;
     var localList = await window.storage.list('', false);
     var localHasData = localList && localList.keys && localList.keys.length > 0;
@@ -3417,7 +3464,16 @@ window.__cloudSyncOnLogin = async function(){
       return;
     }
     if(localHasData){
-      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Path of the Stars.', 'Cloud laden', 'Geraet behalten');
+      // NEU (Sync-Hinweis-Banner): lokalen Zeitstempel (eigener, nicht-synchronisierter Key)
+      // und juengsten Cloud-Zeitstempel (Max ueber alle betroffenen Zeilen) ermitteln.
+      var __localTsRaw = null;
+      try{ __localTsRaw = localStorage.getItem('pots_localts'); }catch(e){}
+      var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
+      var __cloudTs = null;
+      sel.data.forEach(function(row){
+        if(row.updated_at){ var t = new Date(row.updated_at).getTime(); if(!__cloudTs || t > __cloudTs) __cloudTs = t; }
+      });
+      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Path of the Stars.', 'Cloud laden', 'Geraet behalten', { localTs: __localTs, cloudTs: __cloudTs });
       if(useCloud){
         for(var j=0;j<sel.data.length;j++){
           var row = sel.data[j];
