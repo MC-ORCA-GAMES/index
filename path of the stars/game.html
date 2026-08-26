@@ -2028,10 +2028,6 @@
 </style>
 </head>
 <body>
-<!-- TEMP-DEBUG (wieder entfernen sobald der Cloud-Sync-Bug gefunden ist): mobile Konsole,
-     zeigt console.log/warn/error + Netzwerk-Requests direkt auf dem Handy als Overlay an. -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 <!-- v0_0243: eigenes Vektor-Icon-Set im Comic-Stil statt bunter Emoji (auf
      manchen Plattformen/Browsern - v.a. Android - rendern ⚔★⚙♟🛒 etc. als
      farbige Emoji-Glyphen, die mit der Neon-Noir-Goldton-Palette brechen).
@@ -3339,6 +3335,11 @@ if (!window.storage) {
 
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Bugfix Doppel-Trigger): getSession() und onAuthStateChange koennen beide gleichzeitig
+  // __cloudSyncOnLogin() ausloesen (z.B. direkt beim Laden, wenn schon eine Session besteht).
+  // Ohne Schutz koennten dadurch zwei Dialoge gleichzeitig entstehen. Einfache Reentrancy-Sperre.
+  if(window.__cloudSyncBusy) return;
+  window.__cloudSyncBusy = true;
   // NEU (Bugfix Auto-Sync): natives confirm() wird auf manchen Android-Browsern lautlos
   // unterdrueckt, wenn es aus einem async-Callback (nach Login) kommt statt direkt aus einem
   // Klick -- der Spieler sieht dann NIE die Abfrage, und je nach Browser-Default fuer ein
@@ -3440,6 +3441,7 @@ window.__cloudSyncOnLogin = async function(){
     // hat, hier in jedem Fall entsperren -- sonst wuerde nach einem Fehler NIE WIEDER in
     // die Cloud gespeichert.
     window.__cloudSyncLocked = false;
+    window.__cloudSyncBusy = false;
   }
 };
 
@@ -19781,6 +19783,7 @@ window.addEventListener('load', initGame);
   // NEU (Bugfix Race-Condition): siehe window.storage.set-Wrapper weiter oben im Script sowie
   // __cloudSyncOnLogin weiter unten.
   window.__cloudSyncLocked = false;
+  window.__cloudSyncBusy = false;
   var pendingEmail = '';
   var uiState = 'email';
 

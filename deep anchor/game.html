@@ -3232,10 +3232,6 @@ html.ui-theme-dos input[type="number"]{
 </style>
 </head>
 <body>
-<!-- TEMP-DEBUG (wieder entfernen sobald der Cloud-Sync-Bug gefunden ist): mobile Konsole,
-     zeigt console.log/warn/error + Netzwerk-Requests direkt auf dem Handy als Overlay an. -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 
 <!-- NEU (TODO-UI-THEMES): unsichtbare SVG-Filterdefinitionen fürs Darstellungs-Test-Feature (siehe
      CSS-Kommentar bei #crtOverlay und applyUITheme() im Script). Zwei Filter: #cgaPosterizeFilter
@@ -16729,6 +16725,7 @@ init();
   window.__cloudUser = null;
   // NEU (Bugfix Race-Condition): siehe __cloudUpsert / __cloudSyncOnLogin weiter unten.
   window.__cloudSyncLocked = false;
+  window.__cloudSyncBusy = false;
   var pendingEmail = '';
   var uiState = 'email';
 
@@ -16803,7 +16800,15 @@ init();
     // Der Button ist ein bewusster Klick des Spielers, daher direkt überschreiben.
     document.getElementById('cloudManualSyncBtn').addEventListener('click', async function(){
       if(!window.__cloudUser || !window.__cloudSupabase){ setStatus('Nicht eingeloggt.', true); return; }
+      // NEU (Bugfix Doppel-Trigger): falls gerade schon ein automatischer Login-Sync laeuft
+      // (z.B. Seite ist noch am Laden), nicht gleichzeitig noch einen manuellen Sync starten.
+      if(window.__cloudSyncBusy){ setStatus('Sync laeuft bereits — bitte kurz warten.', true); return; }
+      window.__cloudSyncBusy = true;
       setStatus('Synchronisiere …', false);
+      // NEU (Bugfix Race-Condition, analog zu __cloudSyncOnLogin): auch hier laeuft zwischen dem
+      // SELECT und dem lokalen Schreiben Zeit, in der ein zeitgleicher Autosave im Hintergrund
+      // sonst ungebremst pushen koennte. Gleiche Sperre wie beim Login-Sync.
+      window.__cloudSyncLocked = true;
       try{
         var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
         if(sel.error) throw sel.error;
@@ -16817,6 +16822,9 @@ init();
       }catch(err){
         setStatus('Sync fehlgeschlagen: ' + err.message, true);
         console.warn('Manueller Cloud-Sync fehlgeschlagen:', err);
+      }finally{
+        window.__cloudSyncLocked = false;
+        window.__cloudSyncBusy = false;
       }
     });
   }
@@ -16883,6 +16891,11 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel){
 }
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Bugfix Doppel-Trigger): getSession() und onAuthStateChange koennen beide gleichzeitig
+  // __cloudSyncOnLogin() ausloesen (z.B. direkt beim Laden, wenn schon eine Session besteht).
+  // Ohne Schutz koennten dadurch zwei Dialoge gleichzeitig entstehen. Einfache Reentrancy-Sperre.
+  if(window.__cloudSyncBusy) return;
+  window.__cloudSyncBusy = true;
   // NEU (Bugfix Race-Condition): Sperre setzen, BEVOR der erste await laeuft -- dazwischen
   // kann kein anderer Code mehr laufen (JS ist single-threaded), also ist ab hier garantiert
   // kein Upload mehr moeglich, bis wir die Entscheidung getroffen haben (finally unten).
@@ -16955,6 +16968,7 @@ window.__cloudSyncOnLogin = async function(){
     // hat, hier in jedem Fall entsperren -- sonst wuerde nach einem Fehler NIE WIEDER in
     // die Cloud gespeichert.
     window.__cloudSyncLocked = false;
+    window.__cloudSyncBusy = false;
   }
 };
 </script>

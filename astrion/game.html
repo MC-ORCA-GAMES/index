@@ -4437,10 +4437,6 @@ v0.00.1
 </style>
 </head>
 <body>
-<!-- TEMP-DEBUG (wieder entfernen sobald der Cloud-Sync-Bug gefunden ist): mobile Konsole,
-     zeigt console.log/warn/error + Netzwerk-Requests direkt auf dem Handy als Overlay an. -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 <div id="app">
 
   <!-- SOUND-GATE (neu, vor dem Titelbildschirm) -->
@@ -14389,6 +14385,7 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
   window.__cloudUser = null;
   // NEU (Bugfix Race-Condition): siehe __cloudUpsert / __cloudSyncOnLogin weiter unten.
   window.__cloudSyncLocked = false;
+  window.__cloudSyncBusy = false;
   var pendingEmail = '';
   var uiState = 'email';
 
@@ -14542,6 +14539,11 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel){
 }
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Bugfix Doppel-Trigger): getSession() und onAuthStateChange koennen beide gleichzeitig
+  // __cloudSyncOnLogin() ausloesen (z.B. direkt beim Laden, wenn schon eine Session besteht).
+  // Ohne Schutz koennten dadurch zwei Dialoge gleichzeitig entstehen. Einfache Reentrancy-Sperre.
+  if(window.__cloudSyncBusy) return;
+  window.__cloudSyncBusy = true;
   // NEU (Bugfix Race-Condition): Sperre setzen, BEVOR der erste await laeuft -- dazwischen
   // kann kein anderer Code mehr laufen (JS ist single-threaded), also ist ab hier garantiert
   // kein Upload mehr moeglich, bis wir die Entscheidung getroffen haben (finally unten).
@@ -14577,6 +14579,7 @@ window.__cloudSyncOnLogin = async function(){
     // hat, hier in jedem Fall entsperren -- sonst wuerde nach einem Fehler NIE WIEDER in
     // die Cloud gespeichert.
     window.__cloudSyncLocked = false;
+    window.__cloudSyncBusy = false;
   }
 };
 </script>
