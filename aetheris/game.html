@@ -16955,8 +16955,12 @@ document.getElementById("settingsSheet").addEventListener("click", (e) => {
 // "Zurück zum Titelbildschirm" wieder eingeblendet, damit ein normales Öffnen aus dem laufenden
 // Spiel (tabSettings) wieder wie gewohnt aussieht.
 new MutationObserver(() => {
-  if (!document.getElementById("settingsOverlay").classList.contains("open")) {
-    document.getElementById("settingsOverlay").classList.remove("overTitle");
+  const settingsOverlayEl = document.getElementById("settingsOverlay");
+  // WICHTIG: nur eingreifen, wenn "overTitle" tatsächlich noch gesetzt ist. classList.remove()
+  // loest IMMER eine weitere Class-Attribut-Aenderung aus (auch wenn die Klasse schon fehlt) -
+  // ohne diese Bedingung feuert der Observer sich damit endlos selbst und friert den Tab ein.
+  if (!settingsOverlayEl.classList.contains("open") && settingsOverlayEl.classList.contains("overTitle")) {
+    settingsOverlayEl.classList.remove("overTitle");
     document.getElementById("backToTitleBtn").style.display = "";
   }
 }).observe(document.getElementById("settingsOverlay"), { attributes:true, attributeFilter:["class"] });
