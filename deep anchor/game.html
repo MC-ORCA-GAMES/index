@@ -16916,6 +16916,26 @@ window.__cloudSyncOnLogin = async function(){
       if(localHasData){ window.__cloudSyncLocked = false; await __deepAnchorPushAllLocal(); }
       return;
     }
+    // NEU (Bugfix wiederholter Dialog): vor dem Fragen pruefen, ob lokal und Cloud inhaltlich
+    // WIRKLICH unterschiedlich sind -- vorher wurde nur "existiert beides" geprueft, nicht "sind
+    // sie gleich". Das fuehrte dazu, dass nach "Cloud laden" + reload sofort wieder ein (unnoetiger)
+    // zweiter Dialog kam, obwohl lokal in diesem Moment exakt dem Cloud-Stand entspricht.
+    var __cloudMap = {};
+    sel.data.forEach(function(row){ __cloudMap[row.key] = row.value; });
+    var __allKeys = Object.keys(__cloudMap).slice();
+    __localKeys.forEach(function(k){ if(__allKeys.indexOf(k) === -1) __allKeys.push(k); });
+    var __identical = true;
+    for(var __k=0; __k<__allKeys.length; __k++){
+      var __key = __allKeys[__k];
+      var __cloudVal = __cloudMap.hasOwnProperty(__key) ? __cloudMap[__key] : null;
+      var __localVal = null;
+      try{ var __lr = await storageGet(__key); __localVal = (__lr && __lr.value != null) ? __lr.value : null; }catch(e){}
+      if(__cloudVal !== __localVal){ __identical = false; break; }
+    }
+    if(__identical){
+      // Schon synchron -- nichts zu tun, kein Dialog noetig.
+      return;
+    }
     if(localHasData){
       var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende (inkl. Profile) fuer Deep Anchor.', 'Cloud laden', 'Geraet behalten');
       if(useCloud){

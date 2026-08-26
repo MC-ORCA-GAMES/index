@@ -3339,6 +3339,37 @@ if (!window.storage) {
 
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Bugfix Auto-Sync): natives confirm() wird auf manchen Android-Browsern lautlos
+  // unterdrueckt, wenn es aus einem async-Callback (nach Login) kommt statt direkt aus einem
+  // Klick -- der Spieler sieht dann NIE die Abfrage, und je nach Browser-Default fuer ein
+  // unterdruecktes confirm() wird ungewollt der lokale Stand hochgeladen und ueberschreibt den
+  // Cloud-Stand eines anderen Geraets. Eigener Dialog statt confirm(), garantiert sichtbar, da
+  // normales DOM-Element statt Browser-natives Popup (wie bei Aetheris/Astrion/Deep Anchor).
+  function __cloudCustomConfirm(message, okLabel, cancelLabel){
+    return new Promise(function(resolve){
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+      var box = document.createElement('div');
+      box.style.cssText = 'background:#181022;border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:18px;max-width:360px;width:100%;box-sizing:border-box;font-family:inherit;';
+      var text = document.createElement('div');
+      text.style.cssText = 'color:#eee;font-size:13px;line-height:1.5;white-space:pre-line;margin-bottom:14px;';
+      text.textContent = message;
+      var btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;gap:8px;';
+      var okBtn = document.createElement('button');
+      okBtn.textContent = okLabel;
+      okBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #eee;background:#eee;color:#181022;font-weight:bold;font-size:12.5px;cursor:pointer;';
+      var cancelBtn = document.createElement('button');
+      cancelBtn.textContent = cancelLabel;
+      cancelBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;font-size:12.5px;cursor:pointer;';
+      okBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(true); });
+      cancelBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(false); });
+      btnRow.appendChild(okBtn); btnRow.appendChild(cancelBtn);
+      box.appendChild(text); box.appendChild(btnRow);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    });
+  }
   // NEU (Bugfix Race-Condition): Sperre setzen, BEVOR der erste await laeuft -- dazwischen
   // kann kein anderer Code mehr laufen (JS ist single-threaded), also ist ab hier garantiert
   // kein Upload mehr moeglich, bis wir die Entscheidung getroffen haben (finally unten).
@@ -3361,11 +3392,31 @@ window.__cloudSyncOnLogin = async function(){
       }
     }
     if(!sel.data || sel.data.length === 0){
-      if(localHasData) await pushAllLocal();
+      if(localHasData){ window.__cloudSyncLocked = false; await pushAllLocal(); }
+      return;
+    }
+    // NEU (Bugfix wiederholter Dialog): vor dem Fragen pruefen, ob lokal und Cloud inhaltlich
+    // WIRKLICH unterschiedlich sind -- vorher wurde nur "existiert beides" geprueft, nicht "sind
+    // sie gleich". Das fuehrte dazu, dass nach "Cloud laden" + reload sofort wieder ein (unnoetiger)
+    // zweiter Dialog kam, obwohl lokal in diesem Moment exakt dem Cloud-Stand entspricht.
+    var __cloudMap = {};
+    sel.data.forEach(function(row){ __cloudMap[row.key.replace(/^pots:/, '')] = row.value; });
+    var __allKeys = Object.keys(__cloudMap).slice();
+    if(localList && localList.keys){ localList.keys.forEach(function(k){ if(__allKeys.indexOf(k) === -1) __allKeys.push(k); }); }
+    var __identical = true;
+    for(var __k=0; __k<__allKeys.length; __k++){
+      var __key = __allKeys[__k];
+      var __cloudVal = __cloudMap.hasOwnProperty(__key) ? __cloudMap[__key] : null;
+      var __localVal = null;
+      try{ var __lr = await window.storage.get(__key, false); __localVal = (__lr && __lr.value != null) ? __lr.value : null; }catch(e){}
+      if(__cloudVal !== __localVal){ __identical = false; break; }
+    }
+    if(__identical){
+      // Schon synchron -- nichts zu tun, kein Dialog noetig.
       return;
     }
     if(localHasData){
-      var useCloud = confirm('Es gibt sowohl einen lokalen als auch einen Cloud-Spielstand fuer Path of the Stars.\n\nOK = Cloud-Stand laden (ueberschreibt diesen Geraete-Stand)\nAbbrechen = diesen Geraete-Stand behalten und in die Cloud hochladen');
+      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Path of the Stars.', 'Cloud laden', 'Geraet behalten');
       if(useCloud){
         for(var j=0;j<sel.data.length;j++){
           var row = sel.data[j];
@@ -3373,6 +3424,7 @@ window.__cloudSyncOnLogin = async function(){
         }
         location.reload();
       } else {
+        window.__cloudSyncLocked = false;
         await pushAllLocal();
       }
     } else {

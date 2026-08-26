@@ -14556,6 +14556,13 @@ window.__cloudSyncOnLogin = async function(){
       if(localRaw){ window.__cloudSyncLocked = false; await window.__cloudUpsert('astrion_save', localRaw); }
       return;
     }
+    // NEU (Bugfix wiederholter Dialog): vor dem Fragen pruefen, ob lokal und Cloud inhaltlich
+    // WIRKLICH unterschiedlich sind -- vorher wurde nur "existiert beides" geprueft, nicht "sind
+    // sie gleich". Das fuehrte dazu, dass nach "Cloud laden" + reload sofort wieder ein (unnoetiger)
+    // zweiter Dialog kam, obwohl lokal in diesem Moment exakt dem Cloud-Stand entspricht.
+    if(localRaw === cloudRow.value){
+      return;
+    }
     if(localRaw){
       var useCloud = await __cloudCustomConfirm('Es gibt sowohl einen lokalen als auch einen Cloud-Spielstand fuer Astrion.', 'Cloud laden', 'Geraet behalten');
       if(useCloud){ localStorage.setItem('astrion_save', cloudRow.value); location.reload(); }
