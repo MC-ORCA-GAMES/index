@@ -14458,16 +14458,28 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
       setStatus('Ausgeloggt.', false);
     });
 
-    // NEU (manuelle Sync-Buttons): explizite Downloads/Uploads OHNE Rueckfrage -- bewusster
-    // Klick des Spielers, daher direkt ausfuehren statt ueber confirm()/__cloudCustomConfirm.
+    // NEU (Bugfix "keine Warnung beim Ueberschreiben"): Download/Upload sind zwar explizite,
+    // richtungsklare Klicks -- aber wenn dabei der jeweils NEUERE Stand ueberschrieben wuerde,
+    // warnt jetzt trotzdem ein kurzer Bestaetigungs-Dialog mit Zeit-Badges, statt stillschweigend
+    // etwas Aktuelleres zu verwerfen.
     document.getElementById('cloudDownloadBtn').addEventListener('click', async function(){
       if(!window.__cloudUser || !window.__cloudSupabase){ setStatus('Nicht eingeloggt.', true); return; }
-      setStatus('Lade Cloud-Stand …', false);
+      setStatus('Prüfe …', false);
       try{
-        var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).eq('key','astrion_save');
+        var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).eq('key','astrion_save');
         if(sel.error) throw sel.error;
         var cloudRow = (sel.data && sel.data[0]) || null;
         if(!cloudRow){ setStatus('Kein Cloud-Stand gefunden — nichts zu laden.', true); return; }
+        var localRaw0 = null;
+        try{ localRaw0 = localStorage.getItem('astrion_save'); }catch(e){}
+        var __localTs = null;
+        try{ var r0 = localStorage.getItem('astrion_localts'); __localTs = r0 ? parseInt(r0,10) : null; }catch(e){}
+        var __cloudTs = cloudRow.updated_at ? new Date(cloudRow.updated_at).getTime() : null;
+        if(localRaw0 && localRaw0 !== cloudRow.value && __localTs && __cloudTs && __localTs > __cloudTs){
+          var proceed = await __cloudCustomConfirm('Dein lokaler Stand ist neuer als der Cloud-Stand, den du gerade laden willst. Wirklich laden und lokalen Stand verwerfen?', 'Trotzdem laden', 'Abbrechen', { localTs: __localTs, cloudTs: __cloudTs });
+          if(!proceed){ setStatus('Abgebrochen.', false); return; }
+        }
+        setStatus('Lade Cloud-Stand …', false);
         localStorage.setItem('astrion_save', cloudRow.value);
         setStatus('Geladen! Lade neu …', false);
         setTimeout(function(){ location.reload(); }, 400);
@@ -14481,6 +14493,17 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
       var localRaw = null;
       try{ localRaw = localStorage.getItem('astrion_save'); }catch(e){}
       if(!localRaw){ setStatus('Kein lokaler Spielstand vorhanden.', true); return; }
+      try{
+        var sel2 = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).eq('key','astrion_save');
+        var cloudRow2 = (sel2 && sel2.data && sel2.data[0]) || null;
+        var __localTs2 = null;
+        try{ var r2 = localStorage.getItem('astrion_localts'); __localTs2 = r2 ? parseInt(r2,10) : null; }catch(e){}
+        var __cloudTs2 = (cloudRow2 && cloudRow2.updated_at) ? new Date(cloudRow2.updated_at).getTime() : null;
+        if(cloudRow2 && cloudRow2.value !== localRaw && __cloudTs2 && __localTs2 && __cloudTs2 > __localTs2){
+          var proceed2 = await __cloudCustomConfirm('Der Cloud-Stand ist neuer als dein lokaler Stand. Wirklich hochladen und Cloud-Stand ueberschreiben?', 'Trotzdem hochladen', 'Abbrechen', { localTs: __localTs2, cloudTs: __cloudTs2 });
+          if(!proceed2){ setStatus('Abgebrochen.', false); return; }
+        }
+      }catch(e){ /* Vergleich optional -- falls er fehlschlaegt, normal weiter hochladen */ }
       setStatus('Lade hoch …', false);
       try{
         await window.__cloudUpsert('astrion_save', localRaw);

@@ -16799,30 +16799,81 @@ init();
       setStatus('Ausgeloggt.', false);
     });
 
-    // NEU (manueller Sync-Button): erzwingt den Cloud-Stand OHNE Rückfrage — im Gegensatz zu
-    // __cloudSyncOnLogin (der bei bereits vorhandenen lokalen Daten erst per confirm() nachfragt).
-    // Der Button ist ein bewusster Klick des Spielers, daher direkt überschreiben.
+    // NEU (Bugfix "kein Vergleich beim manuellen Sync"): frueher hat dieser Button den
+    // Cloud-Stand IMMER ungefragt ueber den lokalen geladen -- das war der eigentliche Bug,
+    // den der Spieler gemeldet hat ("laedt direkt ohne Rueckfrage/Test"). Jetzt genau wie beim
+    // Login-Sync: erst vergleichen (inhaltlich UND per Zeitstempel), dann -- falls es ueberhaupt
+    // einen Unterschied gibt -- den Konflikt-Dialog mit Zeit-Badges zeigen und den Spieler
+    // entscheiden lassen, statt blind zu ueberschreiben.
     document.getElementById('cloudManualSyncBtn').addEventListener('click', async function(){
       if(!window.__cloudUser || !window.__cloudSupabase){ setStatus('Nicht eingeloggt.', true); return; }
       // NEU (Bugfix Doppel-Trigger): falls gerade schon ein automatischer Login-Sync laeuft
       // (z.B. Seite ist noch am Laden), nicht gleichzeitig noch einen manuellen Sync starten.
       if(window.__cloudSyncBusy){ setStatus('Sync laeuft bereits — bitte kurz warten.', true); return; }
       window.__cloudSyncBusy = true;
-      setStatus('Synchronisiere …', false);
+      setStatus('Vergleiche …', false);
       // NEU (Bugfix Race-Condition, analog zu __cloudSyncOnLogin): auch hier laeuft zwischen dem
       // SELECT und dem lokalen Schreiben Zeit, in der ein zeitgleicher Autosave im Hintergrund
       // sonst ungebremst pushen koennte. Gleiche Sperre wie beim Login-Sync.
       window.__cloudSyncLocked = true;
       try{
-        var sel = await window.__cloudSupabase.from('saves').select('key,value').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
+        var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
         if(sel.error) throw sel.error;
+        var __localKeys = await __deepAnchorCollectKeys();
+        var localHasData = false;
+        for(var __i=0; __i<__localKeys.length && !localHasData; __i++){
+          try{ var __r0 = await storageGet(__localKeys[__i]); if(__r0 && __r0.value){ localHasData = true; } }catch(e){}
+        }
         if(!sel.data || sel.data.length === 0){
-          setStatus('Keine Cloud-Daten gefunden — nichts zu laden.', true);
+          // Kein Cloud-Stand vorhanden -> nichts zu laden, aber lokalen Stand hochladen falls da.
+          window.__cloudSyncLocked = false;
+          if(localHasData){ await __deepAnchorPushAllLocal(); setStatus('Kein Cloud-Stand gefunden — lokaler Stand hochgeladen.', false); }
+          else{ setStatus('Weder lokal noch in der Cloud ein Spielstand gefunden.', true); }
           return;
         }
-        for(var i=0;i<sel.data.length;i++){ await storageSet(sel.data[i].key, sel.data[i].value); }
-        setStatus('Synchronisiert! Lade neu …', false);
-        setTimeout(function(){ location.reload(); }, 400);
+        // Inhaltlicher Vergleich, wie beim Login-Sync -- nur bei echtem Unterschied ueberhaupt fragen.
+        var __cloudMap = {};
+        sel.data.forEach(function(row){ __cloudMap[row.key] = row.value; });
+        var __allKeys = Object.keys(__cloudMap).slice();
+        __localKeys.forEach(function(k){ if(__allKeys.indexOf(k) === -1) __allKeys.push(k); });
+        var __identical = true;
+        for(var __k=0; __k<__allKeys.length; __k++){
+          var __key = __allKeys[__k];
+          var __cloudVal = __cloudMap.hasOwnProperty(__key) ? __cloudMap[__key] : null;
+          var __localVal = null;
+          try{ var __lr = await storageGet(__key); __localVal = (__lr && __lr.value != null) ? __lr.value : null; }catch(e){}
+          if(__cloudVal !== __localVal){ __identical = false; break; }
+        }
+        if(__identical){
+          window.__cloudSyncLocked = false;
+          setStatus('Bereits synchron — kein Unterschied gefunden.', false);
+          return;
+        }
+        if(!localHasData){
+          for(var i=0;i<sel.data.length;i++){ await storageSet(sel.data[i].key, sel.data[i].value); }
+          setStatus('Cloud-Stand geladen! Lade neu …', false);
+          setTimeout(function(){ location.reload(); }, 400);
+          return;
+        }
+        // Es gibt einen echten Unterschied UND lokale Daten -> Zeit-Badges zeigen und fragen,
+        // statt (wie vorher) einfach den Cloud-Stand drueberzubuegeln.
+        var __localTsRaw = null;
+        try{ __localTsRaw = localStorage.getItem('deepanchor_localts'); }catch(e){}
+        var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
+        var __cloudTs = null;
+        sel.data.forEach(function(row){
+          if(row.updated_at){ var t = new Date(row.updated_at).getTime(); if(!__cloudTs || t > __cloudTs) __cloudTs = t; }
+        });
+        var useCloud = await __cloudCustomConfirm('Lokaler Stand und Cloud-Stand unterscheiden sich. Was moechtest du behalten?', 'Cloud laden', 'Gerät hochladen', { localTs: __localTs, cloudTs: __cloudTs });
+        if(useCloud){
+          for(var j=0;j<sel.data.length;j++){ await storageSet(sel.data[j].key, sel.data[j].value); }
+          setStatus('Synchronisiert! Lade neu …', false);
+          setTimeout(function(){ location.reload(); }, 400);
+        } else {
+          window.__cloudSyncLocked = false;
+          await __deepAnchorPushAllLocal();
+          setStatus('Gerät-Stand in die Cloud hochgeladen.', false);
+        }
       }catch(err){
         setStatus('Sync fehlgeschlagen: ' + err.message, true);
         console.warn('Manueller Cloud-Sync fehlgeschlagen:', err);

@@ -3336,6 +3336,96 @@ if (!window.storage) {
   };
 })();
 
+// NEU (Sync-Hinweis-Banner): wandelt einen Zeitstempel (ms seit Epoch) in eine kurze,
+// relative deutsche Beschreibung um -- fuer den Vergleichs-Badge im Konflikt-Dialog.
+// Auf Modul-Ebene (statt wie vorher nur innerhalb __cloudSyncOnLogin), damit der neue
+// manuelle Sync-Button unten sie ebenfalls nutzen kann.
+function __relTime(ms){
+  if(ms == null || isNaN(ms)) return 'unbekannt';
+  var diff = Date.now() - ms;
+  if(diff < 0) diff = 0;
+  var s = Math.floor(diff/1000);
+  if(s < 60) return 'gerade eben';
+  var m = Math.floor(s/60);
+  if(m < 60) return 'vor ' + m + ' Min';
+  var h = Math.floor(m/60);
+  if(h < 24) return 'vor ' + h + ' Std';
+  var d = Math.floor(h/24);
+  return 'vor ' + d + ' Tag' + (d===1?'':'en');
+}
+// NEU (Sync-Hinweis-Banner): badges = {localTs, cloudTs} (beides ms seit Epoch oder null).
+// Zeigt zwei Chips "Dieses Geraet" / "Cloud" mit relativer Zeit, der neuere wird farblich
+// hervorgehoben ("NEUER"-Marke) -- damit man auf einen Blick sieht, welcher Stand aktueller
+// ist, statt blind raten zu muessen.
+function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
+  return new Promise(function(resolve){
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#181022;border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:18px;max-width:380px;width:100%;box-sizing:border-box;font-family:inherit;';
+    var text = document.createElement('div');
+    text.style.cssText = 'color:#eee;font-size:13px;line-height:1.5;white-space:pre-line;margin-bottom:12px;';
+    text.textContent = message;
+    box.appendChild(text);
+
+    if(badges){
+      var localer = (badges.localTs != null && (badges.cloudTs == null || badges.localTs > badges.cloudTs));
+      var cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
+      var badgeRow = document.createElement('div');
+      badgeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
+      function makeBadge(icon, label, ts, isNewer){
+        var b = document.createElement('div');
+        b.style.cssText = 'flex:1;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.4;'
+          + (isNewer ? 'background:rgba(120,180,255,0.14);border:1px solid rgba(120,180,255,0.65);' : 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.18);');
+        var top = document.createElement('div');
+        top.style.cssText = 'color:#ccc;font-weight:bold;';
+        top.textContent = icon + ' ' + label;
+        var time = document.createElement('div');
+        time.style.cssText = 'color:' + (isNewer ? '#a9cdff' : '#999') + ';margin-top:3px;';
+        time.textContent = __relTime(ts) + (isNewer ? ' · NEUER' : '');
+        b.appendChild(top); b.appendChild(time);
+        return b;
+      }
+      badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer));
+      badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer));
+      box.appendChild(badgeRow);
+    }
+
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;';
+    var okBtn = document.createElement('button');
+    okBtn.textContent = okLabel;
+    okBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #eee;background:#eee;color:#181022;font-weight:bold;font-size:12.5px;cursor:pointer;';
+    var cancelBtn = document.createElement('button');
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;font-size:12.5px;cursor:pointer;';
+    okBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(true); });
+    cancelBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(false); });
+    btnRow.appendChild(okBtn); btnRow.appendChild(cancelBtn);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+  });
+}
+// NEU: Cloud-Zeilen (key,value,updated_at) fuer dieses Spiel abholen -- geteilt zwischen
+// __cloudSyncOnLogin und dem manuellen Sync-Button, damit beide dieselbe Logik nutzen.
+async function __potsFetchCloudRows(){
+  var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).like('key', 'pots:%');
+  if(sel.error) throw sel.error;
+  return sel.data || [];
+}
+async function __potsPushAllLocal(localList){
+  for(var i=0;i<localList.keys.length;i++){
+    var k = localList.keys[i];
+    try{
+      var r = await window.storage.get(k, false);
+      await window.__cloudSupabase.from('saves').upsert(
+        { user_id: window.__cloudUser.id, key: 'pots:' + k, value: r.value, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,key' }
+      );
+    }catch(e){}
+  }
+}
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
   // NEU (Bugfix Doppel-Trigger): getSession() und onAuthStateChange koennen beide gleichzeitig
@@ -3349,96 +3439,15 @@ window.__cloudSyncOnLogin = async function(){
   // unterdruecktes confirm() wird ungewollt der lokale Stand hochgeladen und ueberschreibt den
   // Cloud-Stand eines anderen Geraets. Eigener Dialog statt confirm(), garantiert sichtbar, da
   // normales DOM-Element statt Browser-natives Popup (wie bei Aetheris/Astrion/Deep Anchor).
-  // NEU (Sync-Hinweis-Banner): wandelt einen Zeitstempel (ms seit Epoch) in eine kurze,
-  // relative deutsche Beschreibung um -- fuer den Vergleichs-Badge im Konflikt-Dialog.
-  function __relTime(ms){
-    if(ms == null || isNaN(ms)) return 'unbekannt';
-    var diff = Date.now() - ms;
-    if(diff < 0) diff = 0;
-    var s = Math.floor(diff/1000);
-    if(s < 60) return 'gerade eben';
-    var m = Math.floor(s/60);
-    if(m < 60) return 'vor ' + m + ' Min';
-    var h = Math.floor(m/60);
-    if(h < 24) return 'vor ' + h + ' Std';
-    var d = Math.floor(h/24);
-    return 'vor ' + d + ' Tag' + (d===1?'':'en');
-  }
-  // NEU (Sync-Hinweis-Banner): badges = {localTs, cloudTs} (beides ms seit Epoch oder null).
-  // Zeigt zwei Chips "Dieses Geraet" / "Cloud" mit relativer Zeit, der neuere wird farblich
-  // hervorgehoben ("NEUER"-Marke) -- damit man auf einen Blick sieht, welcher Stand aktueller
-  // ist, statt blind raten zu muessen.
-  function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
-    return new Promise(function(resolve){
-      var overlay = document.createElement('div');
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-      var box = document.createElement('div');
-      box.style.cssText = 'background:#181022;border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:18px;max-width:380px;width:100%;box-sizing:border-box;font-family:inherit;';
-      var text = document.createElement('div');
-      text.style.cssText = 'color:#eee;font-size:13px;line-height:1.5;white-space:pre-line;margin-bottom:12px;';
-      text.textContent = message;
-      box.appendChild(text);
-
-      if(badges){
-        var localer = (badges.localTs != null && (badges.cloudTs == null || badges.localTs > badges.cloudTs));
-        var cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
-        var badgeRow = document.createElement('div');
-        badgeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
-        function makeBadge(icon, label, ts, isNewer){
-          var b = document.createElement('div');
-          b.style.cssText = 'flex:1;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.4;'
-            + (isNewer ? 'background:rgba(120,180,255,0.14);border:1px solid rgba(120,180,255,0.65);' : 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.18);');
-          var top = document.createElement('div');
-          top.style.cssText = 'color:#ccc;font-weight:bold;';
-          top.textContent = icon + ' ' + label;
-          var time = document.createElement('div');
-          time.style.cssText = 'color:' + (isNewer ? '#a9cdff' : '#999') + ';margin-top:3px;';
-          time.textContent = __relTime(ts) + (isNewer ? ' · NEUER' : '');
-          b.appendChild(top); b.appendChild(time);
-          return b;
-        }
-        badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer));
-        badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer));
-        box.appendChild(badgeRow);
-      }
-
-      var btnRow = document.createElement('div');
-      btnRow.style.cssText = 'display:flex;gap:8px;';
-      var okBtn = document.createElement('button');
-      okBtn.textContent = okLabel;
-      okBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #eee;background:#eee;color:#181022;font-weight:bold;font-size:12.5px;cursor:pointer;';
-      var cancelBtn = document.createElement('button');
-      cancelBtn.textContent = cancelLabel;
-      cancelBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;font-size:12.5px;cursor:pointer;';
-      okBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(true); });
-      cancelBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(false); });
-      btnRow.appendChild(okBtn); btnRow.appendChild(cancelBtn);
-      box.appendChild(btnRow);
-      overlay.appendChild(box);
-      document.body.appendChild(overlay);
-    });
-  }
   // NEU (Bugfix Race-Condition): Sperre setzen, BEVOR der erste await laeuft -- dazwischen
   // kann kein anderer Code mehr laufen (JS ist single-threaded), also ist ab hier garantiert
   // kein Upload mehr moeglich, bis wir die Entscheidung getroffen haben (finally unten).
   window.__cloudSyncLocked = true;
   try{
-    var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).like('key', 'pots:%');
-    if(sel.error) throw sel.error;
+    var sel = await __potsFetchCloudRows();
     var localList = await window.storage.list('', false);
     var localHasData = localList && localList.keys && localList.keys.length > 0;
-    async function pushAllLocal(){
-      for(var i=0;i<localList.keys.length;i++){
-        var k = localList.keys[i];
-        try{
-          var r = await window.storage.get(k, false);
-          await window.__cloudSupabase.from('saves').upsert(
-            { user_id: window.__cloudUser.id, key: 'pots:' + k, value: r.value, updated_at: new Date().toISOString() },
-            { onConflict: 'user_id,key' }
-          );
-        }catch(e){}
-      }
-    }
+    async function pushAllLocal(){ await __potsPushAllLocal(localList); }
     if(!sel.data || sel.data.length === 0){
       if(localHasData){ window.__cloudSyncLocked = false; await pushAllLocal(); }
       return;
@@ -19819,6 +19828,7 @@ window.addEventListener('load', initGame);
     </div>
     <div id="cloudStepIn" style="display:none;">
       <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
+      <button id="cloudManualSyncBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">⟳ Jetzt synchronisieren</button>
       <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
     </div>
     <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
@@ -19907,6 +19917,74 @@ window.addEventListener('load', initGame);
       uiState = 'email';
       render();
       setStatus('Ausgeloggt.', false);
+    });
+
+    // NEU (manueller Sync-Button): vergleicht erst (inhaltlich UND per Zeitstempel), zeigt bei
+    // echtem Unterschied den Konflikt-Dialog mit Zeit-Badges und laesst den Spieler entscheiden --
+    // genau wie bei Aetheris/Deep Anchor, statt blind zu ueberschreiben.
+    document.getElementById('cloudManualSyncBtn').addEventListener('click', async function(){
+      if(!window.__cloudUser || !window.__cloudSupabase){ setStatus('Nicht eingeloggt.', true); return; }
+      if(window.__cloudSyncBusy){ setStatus('Sync laeuft bereits — bitte kurz warten.', true); return; }
+      window.__cloudSyncBusy = true;
+      setStatus('Vergleiche …', false);
+      window.__cloudSyncLocked = true;
+      try{
+        var sel = await __potsFetchCloudRows();
+        var localList = await window.storage.list('', false);
+        var localHasData = localList && localList.keys && localList.keys.length > 0;
+        if(!sel || sel.length === 0){
+          window.__cloudSyncLocked = false;
+          if(localHasData){ await __potsPushAllLocal(localList); setStatus('Kein Cloud-Stand gefunden — lokaler Stand hochgeladen.', false); }
+          else{ setStatus('Weder lokal noch in der Cloud ein Spielstand gefunden.', true); }
+          return;
+        }
+        var __cloudMap = {};
+        sel.forEach(function(row){ __cloudMap[row.key.replace(/^pots:/, '')] = row.value; });
+        var __allKeys = Object.keys(__cloudMap).slice();
+        if(localList && localList.keys){ localList.keys.forEach(function(k){ if(__allKeys.indexOf(k) === -1) __allKeys.push(k); }); }
+        var __identical = true;
+        for(var __k=0; __k<__allKeys.length; __k++){
+          var __key = __allKeys[__k];
+          var __cloudVal = __cloudMap.hasOwnProperty(__key) ? __cloudMap[__key] : null;
+          var __localVal = null;
+          try{ var __lr = await window.storage.get(__key, false); __localVal = (__lr && __lr.value != null) ? __lr.value : null; }catch(e){}
+          if(__cloudVal !== __localVal){ __identical = false; break; }
+        }
+        if(__identical){
+          window.__cloudSyncLocked = false;
+          setStatus('Bereits synchron — kein Unterschied gefunden.', false);
+          return;
+        }
+        if(!localHasData){
+          for(var j=0;j<sel.length;j++){ await window.storage.set(sel[j].key.replace(/^pots:/, ''), sel[j].value, false); }
+          setStatus('Cloud-Stand geladen! Lade neu …', false);
+          setTimeout(function(){ location.reload(); }, 400);
+          return;
+        }
+        var __localTsRaw = null;
+        try{ __localTsRaw = localStorage.getItem('pots_localts'); }catch(e){}
+        var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
+        var __cloudTs = null;
+        sel.forEach(function(row){
+          if(row.updated_at){ var t = new Date(row.updated_at).getTime(); if(!__cloudTs || t > __cloudTs) __cloudTs = t; }
+        });
+        var useCloud = await __cloudCustomConfirm('Lokaler Stand und Cloud-Stand unterscheiden sich. Was moechtest du behalten?', 'Cloud laden', 'Gerät hochladen', { localTs: __localTs, cloudTs: __cloudTs });
+        if(useCloud){
+          for(var m=0;m<sel.length;m++){ await window.storage.set(sel[m].key.replace(/^pots:/, ''), sel[m].value, false); }
+          setStatus('Synchronisiert! Lade neu …', false);
+          setTimeout(function(){ location.reload(); }, 400);
+        } else {
+          window.__cloudSyncLocked = false;
+          await __potsPushAllLocal(localList);
+          setStatus('Gerät-Stand in die Cloud hochgeladen.', false);
+        }
+      }catch(err){
+        setStatus('Sync fehlgeschlagen: ' + err.message, true);
+        console.warn('Manueller Cloud-Sync fehlgeschlagen:', err);
+      }finally{
+        window.__cloudSyncLocked = false;
+        window.__cloudSyncBusy = false;
+      }
     });
   }
   render();
