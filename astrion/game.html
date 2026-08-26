@@ -4,7 +4,23 @@
  ASTRION — Karten aus den Tiefen des Alls
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
-v0.06.101
+v0.06.102
+- Fix: Manuelle Cloud-Buttons ("Cloud-Stand laden" / "Diesen Stand hochladen")
+  warnten bisher NUR, wenn BEIDE Zeitstempel (lokal + Cloud) bekannt waren und
+  lokal nachweislich neuer war. Fehlte einer der beiden Zeitstempel (z.B. auf
+  Geräten mit einem Spielstand von vor Einführung von astrion_localts), griff
+  die Warnung nie — es wurde beim Download bzw. Upload stillschweigend
+  überschrieben. Jetzt wird bei jedem inhaltlichen Unterschied gewarnt, außer
+  es ist zweifelsfrei bekannt, dass die Zielseite (Cloud beim Laden, lokal
+  beim Hochladen) älter/gleich ist.
+- Fix: Sowohl die manuellen Download-Buttons als auch der automatische
+  Login-Sync setzten beim Übernehmen des Cloud-Stands `astrion_save` neu,
+  aber NIE `astrion_localts` — der lokale Zeitstempel blieb dadurch dauerhaft
+  veraltet und verfälschte jeden folgenden Zeit-Vergleich. Wird jetzt beim
+  Cloud-Download mit aktualisiert (aus `updated_at` der Cloud-Zeile, sonst
+  `Date.now()` als Fallback).
+
+v0.06.102
 - Wochen-Rotations-Banner (`#titleWeekBanner`) auf dem Titelbildschirm neu
   positioniert — war bisher unabhängig vom Logo mit festem `bottom:120px`
   gesetzt und landete dadurch tief unten, fast auf Höhe des Start-Buttons
@@ -4488,7 +4504,7 @@ v0.00.1
       <button class="btn-primary" id="startBtn">Berühren zum Start</button>
       <div class="loading-txt" id="loadingTxt"></div>
     </div>
-    <div class="version-badge" id="versionBadge">v0.06.101</div>
+    <div class="version-badge" id="versionBadge">v0.06.102</div>
   </div>
 
   <!-- HUB -->
@@ -4953,7 +4969,7 @@ v0.00.1
 
 <script>
 "use strict";
-const VERSION = "v0.06.101";
+const VERSION = "v0.06.102";
 
 /* Debug-Werkzeuge im Karten-Detail-Modal (Raster ein/aus + Zonen bearbeiten).
    Auf true setzen, um beim Nachjustieren von RACE_LAYOUT/RACE_ART_BOX wieder
@@ -14475,12 +14491,23 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
         var __localTs = null;
         try{ var r0 = localStorage.getItem('astrion_localts'); __localTs = r0 ? parseInt(r0,10) : null; }catch(e){}
         var __cloudTs = cloudRow.updated_at ? new Date(cloudRow.updated_at).getTime() : null;
-        if(localRaw0 && localRaw0 !== cloudRow.value && __localTs && __cloudTs && __localTs > __cloudTs){
-          var proceed = await __cloudCustomConfirm('Dein lokaler Stand ist neuer als der Cloud-Stand, den du gerade laden willst. Wirklich laden und lokalen Stand verwerfen?', 'Trotzdem laden', 'Abbrechen', { localTs: __localTs, cloudTs: __cloudTs });
+        // NEU (Bugfix "keine Warnung trotz Unterschied"): vorher wurde nur gewarnt, wenn BEIDE
+        // Zeitstempel bekannt waren UND lokal nachweislich neuer war -- fehlte einer der beiden
+        // (z.B. auf einem Geraet, dessen lokaler Stand vor Einfuehrung von astrion_localts
+        // entstand), griff die Bedingung nie und es wurde stillschweigend ueberschrieben. Jetzt:
+        // bei jedem inhaltlichen Unterschied warnen; nur wenn wir SICHER wissen, dass Cloud
+        // neuer/gleich ist, wird die Warnung uebersprungen.
+        var __localNewerOrUnknown = !__localTs || !__cloudTs || __localTs > __cloudTs;
+        if(localRaw0 && localRaw0 !== cloudRow.value && __localNewerOrUnknown){
+          var proceed = await __cloudCustomConfirm('Dein lokaler Stand unterscheidet sich vom Cloud-Stand, den du gerade laden willst. Wirklich laden und lokalen Stand verwerfen?', 'Trotzdem laden', 'Abbrechen', { localTs: __localTs, cloudTs: __cloudTs });
           if(!proceed){ setStatus('Abgebrochen.', false); return; }
         }
         setStatus('Lade Cloud-Stand …', false);
         localStorage.setItem('astrion_save', cloudRow.value);
+        // NEU (Bugfix "veralteter localts nach Download"): ohne dies blieb astrion_localts auf
+        // dem Stand vor dem Download stehen, wodurch der naechste Vergleich (z.B. beim naechsten
+        // Login-Sync) mit einem falschen/veralteten lokalen Zeitstempel arbeitete.
+        try{ localStorage.setItem('astrion_localts', String(__cloudTs || Date.now())); }catch(e3){}
         setStatus('Geladen! Lade neu …', false);
         setTimeout(function(){ location.reload(); }, 400);
       }catch(err){
@@ -14499,8 +14526,11 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
         var __localTs2 = null;
         try{ var r2 = localStorage.getItem('astrion_localts'); __localTs2 = r2 ? parseInt(r2,10) : null; }catch(e){}
         var __cloudTs2 = (cloudRow2 && cloudRow2.updated_at) ? new Date(cloudRow2.updated_at).getTime() : null;
-        if(cloudRow2 && cloudRow2.value !== localRaw && __cloudTs2 && __localTs2 && __cloudTs2 > __localTs2){
-          var proceed2 = await __cloudCustomConfirm('Der Cloud-Stand ist neuer als dein lokaler Stand. Wirklich hochladen und Cloud-Stand ueberschreiben?', 'Trotzdem hochladen', 'Abbrechen', { localTs: __localTs2, cloudTs: __cloudTs2 });
+        // NEU (Bugfix "keine Warnung trotz Unterschied"): siehe Download-Handler -- bei
+        // unbekanntem Zeitstempel vorsichtshalber warnen statt stillschweigend zu ueberschreiben.
+        var __cloudNewerOrUnknown = !__cloudTs2 || !__localTs2 || __cloudTs2 > __localTs2;
+        if(cloudRow2 && cloudRow2.value !== localRaw && __cloudNewerOrUnknown){
+          var proceed2 = await __cloudCustomConfirm('Der Cloud-Stand unterscheidet sich von deinem lokalen Stand. Wirklich hochladen und Cloud-Stand ueberschreiben?', 'Trotzdem hochladen', 'Abbrechen', { localTs: __localTs2, cloudTs: __cloudTs2 });
           if(!proceed2){ setStatus('Abgebrochen.', false); return; }
         }
       }catch(e){ /* Vergleich optional -- falls er fehlschlaegt, normal weiter hochladen */ }
@@ -14642,10 +14672,16 @@ window.__cloudSyncOnLogin = async function(){
       var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
       var __cloudTs = cloudRow.updated_at ? new Date(cloudRow.updated_at).getTime() : null;
       var useCloud = await __cloudCustomConfirm('Es gibt sowohl einen lokalen als auch einen Cloud-Spielstand fuer Astrion.', 'Cloud laden', 'Geraet behalten', { localTs: __localTs, cloudTs: __cloudTs });
-      if(useCloud){ localStorage.setItem('astrion_save', cloudRow.value); location.reload(); }
+      if(useCloud){
+        localStorage.setItem('astrion_save', cloudRow.value);
+        // NEU (Bugfix "veralteter localts nach Download"): siehe manuelle Download-Buttons.
+        try{ localStorage.setItem('astrion_localts', String(__cloudTs || Date.now())); }catch(e4){}
+        location.reload();
+      }
       else{ window.__cloudSyncLocked = false; await window.__cloudUpsert('astrion_save', localRaw); }
     } else {
       localStorage.setItem('astrion_save', cloudRow.value);
+      try{ localStorage.setItem('astrion_localts', String(cloudRow.updated_at ? new Date(cloudRow.updated_at).getTime() : Date.now())); }catch(e5){}
       location.reload();
     }
   }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
