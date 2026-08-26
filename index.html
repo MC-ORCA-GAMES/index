@@ -131,7 +131,14 @@
   .deepanchor{ --pc:var(--daorange); --pc-dim:var(--daorange-dim); }
 
   /* ---------- Sync-Status-Uebersicht ---------- */
-  .syncbox{ margin:0 0 30px; }
+  /* NEU (TODO-SYNCBOX-NUR-EINGELOGGT, Nutzerwunsch: "das Sync-Dingend auf der Main-Index-Seite
+     ausblenden, wenn man nicht eingeloggt ist, erst anzeigen wenn man eingeloggt ist"): standardmäßig
+     versteckt, unabhängig vom .reveal-Scroll-Einblendeffekt (der nur opacity/transform steuert,
+     kein display) — wird erst per JS sichtbar geschaltet, sobald refreshAll() unten einen echten
+     Login feststellt (siehe .syncbox.loggedIn). Ohne Login bleibt die ganze Box weg, kein
+     "nicht eingeloggt"-Platzhalter mehr nötig. */
+  .syncbox{ margin:0 0 30px; display:none; }
+  .syncbox.loggedIn{ display:block; }
   .syncbox .ghead{
     display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
     font-size:13.5px; letter-spacing:0.5px; color:var(--fg); text-transform:uppercase; font-weight:700;
@@ -965,14 +972,25 @@ if(document.readyState === 'loading'){
   async function refreshAll(){
     var supabaseClient = window.__cloudSupabase;
     var hintEl = document.getElementById('syncStatusHint');
+    var boxEl = document.querySelector('.syncbox');
     if(!supabaseClient){
       if(hintEl) hintEl.textContent = 'Cloud nicht verfügbar';
+      if(boxEl) boxEl.classList.remove('loggedIn');
       for(var i=0;i<GAMES.length;i++){ await refreshGame(GAMES[i], null, null); }
       return;
     }
     var res = await supabaseClient.auth.getSession();
     var user = (res && res.data && res.data.session) ? res.data.session.user : null;
-    if(hintEl) hintEl.textContent = user ? ('eingeloggt als ' + user.email) : 'nicht eingeloggt — oben rechts anmelden';
+    // GEÄNDERT (TODO-SYNCBOX-NUR-EINGELOGGT, Nutzerwunsch: "das Sync-Dingend ausblenden, wenn man
+    // nicht eingeloggt ist, erst anzeigen, wenn man eingeloggt ist"): die ganze Box (siehe CSS
+    // .syncbox{display:none} / .syncbox.loggedIn{display:block}) bleibt jetzt komplett weg, statt
+    // nur der Hinweistext "nicht eingeloggt — oben rechts anmelden" — sie war ohne Login ohnehin
+    // nutzlos (nichts zum Vergleichen). .in zusätzlich zu .loggedIn, weil der bestehende
+    // Scroll-Reveal-Effekt (siehe IntersectionObserver oben) ein display:none-Element nie als
+    // sichtbar registriert und die Box sonst dauerhaft bei opacity:0 hängen bliebe.
+    if(boxEl) boxEl.classList.toggle('loggedIn', !!user);
+    if(user && boxEl) boxEl.classList.add('in');
+    if(hintEl) hintEl.textContent = user ? ('eingeloggt als ' + user.email) : 'nicht eingeloggt';
     for(var j=0;j<GAMES.length;j++){ await refreshGame(GAMES[j], supabaseClient, user); }
   }
 
