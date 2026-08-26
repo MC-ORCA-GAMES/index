@@ -14913,6 +14913,15 @@ document.getElementById('btnSettings').addEventListener('click', ()=>{
   document.getElementById('settingsModal').classList.add('active');
   Sound.click();
 });
+// NEU (TODO-EINSTELLUNGEN-BUTTON-STARTSEITE): öffnet die Einstellungen automatisch, wenn von der
+// Landingpage (index.html) über den neuen "Einstellungen"-Button im Footer verlinkt wurde
+// (?openSettings=1). Gleiches Muster wie der bestehende ?cloudsync=1-Parameter weiter unten im
+// Cloud-Sync-Script, nur ohne direkten Scroll zur Konto-Sektion.
+try{
+  if(new URLSearchParams(location.search).get('openSettings') === '1'){
+    document.getElementById('settingsModal').classList.add('active');
+  }
+}catch(e){}
 document.getElementById('closeSettingsModal').addEventListener('click', ()=>{
   document.getElementById('settingsModal').classList.remove('active');
   Sound.click();
