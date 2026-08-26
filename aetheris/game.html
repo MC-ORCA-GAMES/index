@@ -3,6 +3,17 @@
 ============================================================
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v1.1.1
+- NEU (TODO-EINSTELLUNGEN-STARTSEITE, Nutzer-Feedback: "auf jedem Spiel bis auf Deep Anchor ist
+  auf der Startseite kein Kopf für die echte Einstellung im Spiel, so dass man vor den Saves auch
+  in die Einstellungen kommt"): neuer "⚙ Einstellungen"-Knopf im Menü des Titelbildschirms öffnet
+  jetzt das echte Einstellungen-Sheet (#settingsOverlay, bisher nur über das Mehr-Menü im
+  laufenden Spiel erreichbar) mit der vollständigen ☁ Konto & Cloud-Sync-Sektion, Backup/Import,
+  Geschenkcode etc. "Zurück zum Titelbildschirm" wird dabei ausgeblendet (würde sonst über
+  saveGame() einen noch gar nicht initialisierten Spielzustand speichern). Technisch: neue Klasse
+  .overTitle hebt das Sheet bei Bedarf über den Titelbildschirm (z-index 35 vs. 100).
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.1.0" auf "v1.1.1" erhöht.
+
 v1.1.0
 - Neu (Versions-Zähler statt/zusätzlich zu updated_at, Recherche zu Cloud-Save-Konflikten):
   neue `version`-Spalte in der `saves`-Tabelle, lokal `aetheris_localver`. Wird bei jedem
@@ -373,6 +384,11 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
   .collapsible-list details summary { outline:none; }
   .collapsible-list details[open] summary .ap-details-arrow { transform:rotate(90deg); }
   .more-menu-overlay.open { display:block; }
+  /* NEU (TODO-EINSTELLUNGEN-STARTSEITE): .more-menu-overlay liegt normal bei z-index:35, weit
+     unter dem Titelbildschirm (#titleScreen, z-index:100) — wird das Einstellungen-Sheet vom
+     Titelbildschirm aus geöffnet (siehe startSettingsBtn), bekommt es diese Klasse zusätzlich,
+     damit es sichtbar über dem Titelbildschirm liegt statt dahinter zu verschwinden. */
+  .more-menu-overlay.overTitle{ z-index:150; }
   .more-menu-sheet {
     position:absolute; left:0; right:0; bottom:0; max-width:var(--app-max-width); margin:0 auto;
     background:rgba(22,16,16,0.42);backdrop-filter:blur(4px) saturate(1.2);-webkit-backdrop-filter:blur(4px) saturate(1.2); border-top:1px solid rgba(212,175,55,0.3);
@@ -1236,7 +1252,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
     <canvas class="warp-canvas" id="warpGate"></canvas>
     <div class="game-logo" id="logoGate"></div>
     <div class="tap-hint" id="startGateBtn">Berühren zum Start</div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.0</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.1</div>
   </div>
 
   <!-- MC ORCA GAMES OS — DOS-Bootstream-Overlay, läuft beim Spielstart (siehe beginGame()) -->
@@ -1255,6 +1271,12 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <button class="menu-btn" id="profileManageBtn" style="font-size:11px">Profil: <span id="profileManageBtnName">…</span></button>
       <button class="menu-btn primary" id="continueBtn" style="display:none">Spiel fortsetzen</button>
       <button class="menu-btn" id="newGameBtn">Neues Spiel</button>
+      <!-- NEU (TODO-EINSTELLUNGEN-STARTSEITE, Nutzer-Feedback: "auf jedem Spiel bis auf Deep
+           Anchor ist auf der Startseite kein Kopf für die echte Einstellung im Spiel, so dass man
+           vor den Saves auch in die Einstellungen kommt"): öffnet das echte, sonst nur über das
+           Mehr-Menü im laufenden Spiel erreichbare Einstellungen-Sheet (#settingsOverlay) direkt
+           vom Titelbildschirm aus — dort liegt die eigentliche ☁ Konto & Cloud-Sync-Sektion. -->
+      <button class="menu-btn" id="startSettingsBtn" style="font-size:11px">⚙ Einstellungen</button>
     </div>
     <div class="save-info" id="saveInfo"></div>
     <button id="titleMusicToggleBtn" title="Musik-Einstellungen" style="position:absolute;bottom:38px;right:14px;width:32px;height:32px;border-radius:50%;background:rgba(22,16,16,0.42);backdrop-filter:blur(4px) saturate(1.2);-webkit-backdrop-filter:blur(4px) saturate(1.2);border:1px solid rgba(212,175,55,0.35);color:#EDE4D3;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:6"><span style="filter:grayscale(1) brightness(0) invert(21%) sepia(89%) saturate(7466%) hue-rotate(357deg) brightness(90%) contrast(119%)">🎵</span></button>
@@ -1262,7 +1284,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <button class="menu-btn" id="titleMusicBtn" style="font-size:11px;width:100%">🎵 Musik</button>
       <input type="range" class="music-volume-input" id="titleMusicVolume" min="0" max="1" step="0.05" style="width:130px;margin-top:8px;accent-color:#D4AF37;display:block">
     </div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.0</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.1</div>
   </div>
   <div class="header">
     <div class="title-row">
@@ -16907,6 +16929,15 @@ document.getElementById("tabSettings").addEventListener("click", () => {
   document.getElementById("moreMenuOverlay").classList.remove("open");
   document.getElementById("settingsOverlay").classList.add("open");
 });
+// NEU (TODO-EINSTELLUNGEN-STARTSEITE): öffnet dasselbe #settingsOverlay direkt vom
+// Titelbildschirm aus, bevor ein Spiel gestartet/geladen wurde. .overTitle hebt den z-index nur
+// für diesen Aufruf über den Titelbildschirm (siehe CSS). "Zurück zum Titelbildschirm" im Sheet
+// wird dabei ausgeblendet — würde sonst über saveGame() einen möglicherweise noch gar nicht
+// initialisierten Spielzustand speichern und einen bestehenden Spielstand überschreiben.
+document.getElementById("startSettingsBtn").addEventListener("click", () => {
+  document.getElementById("settingsOverlay").classList.add("open", "overTitle");
+  document.getElementById("backToTitleBtn").style.display = "none";
+});
 document.getElementById("settingsCloseBtn").addEventListener("click", () => {
   document.getElementById("settingsOverlay").classList.remove("open");
 });
@@ -16918,6 +16949,17 @@ document.getElementById("settingsSheet").addEventListener("click", (e) => {
     document.getElementById("settingsOverlay").classList.remove("open");
   }
 });
+// NEU (TODO-EINSTELLUNGEN-STARTSEITE): unabhängig davon, WIE das Sheet geschlossen wird (✕-Knopf,
+// Klick auf den abgedunkelten Hintergrund, oder Klick auf einen der Aktions-Buttons im Sheet
+// selbst — alle drei obigen Handler entfernen "open"), .overTitle wird immer mit entfernt und
+// "Zurück zum Titelbildschirm" wieder eingeblendet, damit ein normales Öffnen aus dem laufenden
+// Spiel (tabSettings) wieder wie gewohnt aussieht.
+new MutationObserver(() => {
+  if (!document.getElementById("settingsOverlay").classList.contains("open")) {
+    document.getElementById("settingsOverlay").classList.remove("overTitle");
+    document.getElementById("backToTitleBtn").style.display = "";
+  }
+}).observe(document.getElementById("settingsOverlay"), { attributes:true, attributeFilter:["class"] });
 
 document.getElementById("tabStart").addEventListener("click", () => { currentView = "start"; sfx.click(); render(); });
 document.getElementById("tabPlanet").addEventListener("click", () => { currentView = "planet"; sfx.click(); render(); });

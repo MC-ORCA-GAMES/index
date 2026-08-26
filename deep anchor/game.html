@@ -1,6 +1,22 @@
 <!--
 CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
 
+v4-78 (deep_anchor_4_6_37.html)
+- GEÄNDERT (TODO-HUD-KOMPAKT, Nutzer-Feedback: "lässt sich nicht scrollen und scrollen wollte ich
+  auch nicht, sind Daten die auf einen Blick sichtbar sein sollten" + drei konkrete Kürzungen):
+  Header-HUD deutlich verschlankt, um ohne horizontales Scrollen (siehe TODO-HEADER-MOBIL-
+  VERSCHLANKEN) komplett auf einen Blick sichtbar zu bleiben.
+  1) Reputation-Kachel komplett aus dem Header entfernt ("steht im Normalfall eh immer auf 100") —
+     Wert bleibt weiterhin im Statistiken-Tab (#statsRep) einsehbar.
+  2) Sonnenaktivität: Emoji-Icon, Label und Phasenname+Prozentzahl raus, stattdessen nur noch ein
+     Trendpfeil (▲ steigend / ▼ fallend, Farbe = Phase). Volle Details (Phase, %) jetzt im
+     title-Tooltip der Kachel statt fest im Header.
+  3) Konto-Status: Label "Konto" und ausgeschriebener Text ("Eingeloggt"/"Nicht eingeloggt") raus,
+     stattdessen nur noch das Wolken-Symbol selbst — voll & grün eingeloggt, gedimmt nicht
+     eingeloggt. Ausgeschriebener Status jetzt im title-Tooltip.
+  Neue CSS-Klasse .hud-item-compact (kein Label-Zeilenumbruch mehr, deutlich schmaler als die
+  78px min-width der normalen Kacheln) für beide umgebauten Kacheln.
+
 v4-77 (deep_anchor_4_6_36.html)
 - NEU (Versions-Zähler statt/zusätzlich zu updated_at, Recherche zu Cloud-Save-Konflikten):
   neue `version`-Spalte in der `saves`-Tabelle, lokal `deepanchor_localver`. Wird bei jedem
@@ -2367,6 +2383,45 @@ body{
 .hud-item .val{ font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700; color:var(--text); }
 .hud-item .val.money{ color:var(--green); }
 .hud-item .val.rep{ color:var(--cyan); }
+/* NEU (TODO-HUD-KOMPAKT): Variante für HUD-Kacheln ohne Label (Sonnenaktivität-Pfeil,
+   Konto-Wolke) — kein flex-direction:column-Stapel mehr nötig, da nur noch ein Zeichen drinsteht;
+   deutlich schmaler als die 78px min-width der normalen Kacheln, spart auf dem schmalen mobilen
+   Header (siehe TODO-HEADER-MOBIL-VERSCHLANKEN oben) enorm viel Platz. */
+.hud-item-compact{
+  min-width:0; align-items:center; justify-content:center; padding:4px 8px;
+}
+.hud-item-compact .val{ font-size:17px; line-height:1; }
+/* NEU (TODO-HEADER-MOBIL-VERSCHLANKEN, Nutzerwunsch: "der obere Bereich müsste stark
+   verschlankt werden, bei einem mobilen Spielbereich wäre das für einen festen Header viel zu
+   viel"): auf schmalen Bildschirmen wickelten sich die 9 HUD-Kacheln bisher in 3 gestapelte
+   Zeilen + eine 4. Zeile für Tempo-Regler/Einstellungen — macht den sticky-Header auf dem Handy
+   unnötig hoch und frisst wertvollen Spielplatz. Jetzt: eine einzige, horizontal scrollbare
+   Zeile (kein Zeilenumbruch mehr) mit kleineren Kacheln/Schrift, Tempo-Regler + Einstellungen
+   bleiben als kompakte zweite Zeile daneben statt darunter. Gleicher Breakpoint wie .layout oben,
+   damit Header und Spielbereich beim selben Zeilenumbruch gemeinsam ins Mobil-Layout wechseln. */
+@media (max-width: 900px){
+  .hdr{ padding:6px 10px; }
+  .hdr-inner{ gap:6px; justify-content:flex-start; }
+  .hud{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    gap:2px;
+    width:100%;
+    order:1;
+  }
+  .hud::-webkit-scrollbar{ display:none; }
+  .hud-item{
+    flex:0 0 auto;
+    padding:3px 8px;
+    min-width:0;
+  }
+  .hud-item .lbl{ font-size:7.5px; letter-spacing:0.8px; }
+  .hud-item .val{ font-size:12px; }
+  .speed-ctrl{ order:2; }
+  .hdr-inner > #btnSettings{ order:3; padding:6px 9px; font-size:11px; }
+}
 .btn{
   font-family:'JetBrains Mono', monospace;
   background: var(--panel2);
@@ -3329,10 +3384,11 @@ html.ui-theme-dos input[type="number"]{
       <button class="btn ghost" id="profileManageBtn" style="justify-content:center;">Firma verwalten</button>
       <button class="btn primary" id="btnNewGame" style="justify-content:center;">Neues Spiel</button>
       <button class="btn" id="btnContinueGame" style="justify-content:center;">Fortsetzen</button>
-      <!-- NEU (TODO-PATCH-NOTES): kompakter Button zeigt die aktuelle Versionsnummer (GAME_VERSION,
-           per JS in #patchNotesVersionLabel eingesetzt) + Hinweis "Patch Notes", oeffnet das
-           patchNotesModal mit handgepflegten Kurz-Zusammenfassungen (PATCH_NOTES-Konstante,
-           GETRENNT vom ausfuehrlichen CHANGELOG-Kommentarblock am Dateianfang). -->
+      <!-- NEU (TODO-EINSTELLUNGEN-BUTTON-STARTSEITE): öffnet dasselbe Einstellungen-Modal wie im
+           laufenden Spiel (settingsModal, jetzt außerhalb von #gameRoot platziert und dadurch
+           auch hier auf dem Startbildschirm nutzbar) — Konto/Cloud-Sync, Sound, Darstellung
+           und Backup lassen sich so schon vor dem eigentlichen Spielstart einsehen/ändern. -->
+      <button class="btn ghost" id="btnStartSettings" style="justify-content:center;">Einstellungen</button>
       <button class="btn ghost" id="btnPatchNotes" style="justify-content:center; font-size:10.5px; padding:8px 10px; opacity:.75;"><span id="patchNotesVersionLabel"></span> · Patch Notes</button>
     </div>
     <input type="file" id="fileInputStart" class="file-inp" accept="application/json">
@@ -3506,6 +3562,120 @@ html.ui-theme-dos input[type="number"]{
   <div class="dos-boot-skip">Klicken zum Überspringen</div>
 </div>
 
+<div class="modal-bg" id="settingsModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="mhead"><span>Einstellungen</span><button class="btn small ghost" id="closeSettingsModal">✕</button></div>
+    <div class="mbody">
+      <!-- NEU (TODO-CLOUD-LOGIN-UMBAU, Nutzerwunsch: Login nicht mehr als schwebende Leiste über
+           dem Spiel, sondern fest in die Einstellungen integriert): ehemals eigenständiges,
+           position:fixed schwebendes Konto-Widget (#cloudAccountBar) — jetzt als erste Sektion
+           hier im Einstellungen-Modal verankert. IDs unverändert übernommen, das zugehörige
+           Supabase-Script weiter unten im Body funktioniert dadurch unverändert weiter. -->
+      <div class="settings-row" id="cloudAccountSection" style="padding-bottom:14px; border-bottom:1px solid var(--border);">
+        <label class="lbl" style="display:block; margin-bottom:8px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">☁ Konto &amp; Cloud-Sync</label>
+        <div id="cloudStepEmail">
+          <div class="small-muted" style="line-height:1.5;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+          <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" class="btn" style="width:100%;box-sizing:border-box;margin-top:8px;text-align:left;">
+          <button class="btn" id="cloudSendCodeBtn" style="width:100%;margin-top:8px;">Code senden</button>
+        </div>
+        <div id="cloudStepCode" style="display:none;">
+          <div class="small-muted" style="line-height:1.5;">Code aus der E-Mail eingeben:</div>
+          <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" class="btn" style="width:100%;box-sizing:border-box;margin-top:8px;letter-spacing:3px;text-align:center;">
+          <button class="btn" id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;">Bestätigen</button>
+        </div>
+        <div id="cloudStepIn" style="display:none;">
+          <div class="small-muted" style="line-height:1.5;">Eingeloggt als <b id="cloudUserEmail" style="color:var(--fg,#eee);">—</b></div>
+          <button class="btn" id="cloudManualSyncBtn" style="width:100%;margin-top:8px;">⟳ Jetzt synchronisieren</button>
+          <button class="btn" id="cloudSignOutBtn" style="width:100%;margin-top:8px;">Ausloggen</button>
+        </div>
+        <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
+      </div>
+
+      <div class="settings-row" style="margin-top:14px;">
+        <button class="btn" id="btnHelp" style="width:100%;">Hilfe — Auftrag → Bauplan Spickzettel</button>
+      </div>
+
+      <div class="settings-row" style="margin-top:10px;">
+        <button class="btn" id="btnTutorialReplay" style="width:100%;">Einführungs-Tour erneut ansehen</button>
+      </div>
+
+      <div class="settings-row" style="margin-top:14px;">
+        <button class="btn" id="btnMute" style="width:100%;">Soundeffekte an</button>
+      </div>
+
+      <div class="settings-row" style="margin-top:10px;">
+        <button class="btn" id="btnMusicMute" style="width:100%;">Musik an</button>
+      </div>
+
+      <div class="settings-row" style="margin-top:14px;">
+        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Musiklautstärke</label>
+        <input type="range" id="musicVolumeSlider" min="0" max="100" value="35" style="width:100%;">
+      </div>
+
+      <div class="settings-row" style="margin-top:14px;">
+        <button class="btn" id="btnVideoSoundMute" style="width:100%;">Video-Sound an</button>
+      </div>
+
+      <div class="settings-row" style="margin-top:10px;">
+        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Video-Lautstärke</label>
+        <input type="range" id="videoVolumeSlider" min="0" max="100" value="80" style="width:100%;">
+      </div>
+
+      <div class="settings-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Darstellung (experimentell) — Farbschema</label>
+        <select id="uiColorSelect" class="btn" style="width:100%; text-align:left;">
+          <option value="standard">Standard (deine Akzentfarbe)</option>
+          <option value="crt-green">Grün-Phosphor</option>
+          <option value="crt-amber">Amber-Phosphor</option>
+          <option value="mono">S/W</option>
+          <option value="cga">CGA/EGA (reduzierte Farbpalette)</option>
+          <option value="cga-hard">CGA/EGA — Hart (nur 3 Stufen je Kanal)</option>
+          <option value="cga-soft">CGA/EGA — Weich (mehr Farbnuancen)</option>
+          <option value="nasa-blue">NASA Mission Control — Blau</option>
+          <option value="nasa-cyan">NASA Deep Space Network — Cyan</option>
+          <option value="nasa-red">NASA Shuttle-Alarm — Rot</option>
+        </select>
+      </div>
+      <div class="settings-row" style="margin-top:10px;">
+        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Darstellung (experimentell) — Monitor-Muster</label>
+        <select id="uiPatternSelect" class="btn" style="width:100%; text-align:left;">
+          <option value="none">Kein Muster</option>
+          <option value="classic">Alter Monitor — Classic</option>
+          <option value="strong">Alter Monitor — Stark</option>
+          <option value="grille">Alter Monitor — Streifenmaske</option>
+          <option value="vhs">VHS/Composite-Video</option>
+          <option value="interlace">Interlace-Kamm — Stark</option>
+          <option value="interlace-soft">Interlace-Kamm — Subtil</option>
+          <option value="noise">Rauschen/Flimmern</option>
+          <option value="barrel">Röhren-Wölbung</option>
+        </select>
+        <div class="small-muted" style="margin-top:6px; font-size:10.5px;">Farbschema und Muster lassen sich frei kombinieren — beides ist rein optisch und hat keinen Einfluss auf den Spielstand.</div>
+      </div>
+      <div class="settings-row" style="margin-top:10px;">
+        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Darstellung (experimentell) — UI-Stil</label>
+        <select id="uiStyleSelect" class="btn" style="width:100%; text-align:left;">
+          <option value="modern">Modern (Standard)</option>
+          <option value="dos">DOS-Konsole (Blockgrafik-Rahmen)</option>
+        </select>
+        <div class="small-muted" style="margin-top:6px; font-size:10.5px;">Rahmt Fenster, Panels und Buttons mit klassischen Blockgrafik-Zeichen ein, wie bei einer alten Textmodus-Konsole — passt zum Röhren-Boot-Effekt und lässt sich ebenfalls frei mit Farbschema und Muster kombinieren.</div>
+      </div>
+
+      <div class="settings-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+        <span class="small-muted" id="autosaveStatus">Auto-Speicherung aktiv</span>
+      </div>
+
+      <div class="settings-row" style="margin-top:10px; display:flex; gap:8px;">
+        <button class="btn" id="btnSave" style="flex:1;">Export</button>
+        <button class="btn" id="btnLoad" style="flex:1;">Import</button>
+      </div>
+
+      <div class="settings-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+        <button class="btn danger" id="btnBackToStart" style="width:100%; justify-content:center;">↩ Zurück zur Startseite</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="gameRoot" style="display:none;">
 <div class="hdr">
 <div class="hdr-inner">
@@ -3513,7 +3683,6 @@ html.ui-theme-dos input[type="number"]{
     <div class="hud-item"><span class="lbl">Datum</span><span class="val" id="hudDate">1. Jan 2026</span></div>
     <div class="hud-item"><span class="lbl">Firmenzeit</span><span class="val" id="hudDay">Tag 1</span></div>
     <div class="hud-item"><span class="lbl">Guthaben</span><span class="val money" id="hudMoney">€0</span></div>
-    <div class="hud-item"><span class="lbl">Reputation</span><span class="val rep" id="hudRep">0</span></div>
     <div class="hud-item"><span class="lbl">Forschungspunkte</span><span class="val" id="hudScience" style="color:#c17bff;">0</span></div>
     <div class="hud-item"><span class="lbl">Einnahmen/Tag</span><span class="val good" id="hudIncome">€0</span></div>
     <!-- NEU (TODO-ZUFALLSEREIGNISSE): nur sichtbar (display gesetzt in renderHud()), solange
@@ -3522,13 +3691,23 @@ html.ui-theme-dos input[type="number"]{
     <div class="hud-item" id="hudMarketEventWrap" style="display:none;"><span class="lbl">Markt</span><span class="val" id="hudMarketEvent">–</span></div>
     <!-- NEU (TODO-SONNENZYKLUS): immer sichtbar (im Gegensatz zu hudMarketEventWrap), da der
          Sonnenzyklus permanent läuft und nicht nur bei einem befristeten Effekt — zeigt die
-         aktuelle Phase, damit man sich auf ein nahendes Maximum einstellen kann. -->
-    <div class="hud-item" id="hudSolarWrap"><span class="lbl">Sonnenaktivität</span><span class="val" id="hudSolarActivity">–</span></div>
+         aktuelle Phase, damit man sich auf ein nahendes Maximum einstellen kann.
+         GEÄNDERT (TODO-HUD-KOMPAKT, Nutzerwunsch: "Icon weg und Schrift weg, stattdessen ein
+         Pfeil — zunehmend nach oben, abnehmend nach unten, das schafft enorm viel Platz"): statt
+         Emoji-Icon + Label + Phasenname + Prozentzahl steht hier jetzt nur noch ein Trendpfeil
+         (▲ steigend / ▼ fallend), Farbe zeigt weiter die Phase (siehe solarActivityPhaseInfo()).
+         Alle Details (Phase, Prozentwert) wandern ins title-Tooltip. -->
+    <div class="hud-item hud-item-compact" id="hudSolarWrap"><span class="val" id="hudSolarActivity">–</span></div>
     <!-- NEU (TODO-CLOUD-LOGIN-UMBAU): kompakter Status-Punkt im HUD, damit man auch ohne die
          Einstellungen zu öffnen auf einen Blick sieht, ob man eingeloggt ist. Klick öffnet direkt
-         die Einstellungen (dort liegt jetzt das eigentliche Login, siehe #cloudAccountSection). -->
-    <div class="hud-item" id="cloudAccountStatus" style="cursor:pointer;" title="Konto &amp; Cloud-Sync öffnen">
-      <span class="lbl">Konto</span><span class="val" id="cloudAccountStatusVal">☁ Nicht eingeloggt</span>
+         die Einstellungen (dort liegt jetzt das eigentliche Login, siehe #cloudAccountSection).
+         GEÄNDERT (TODO-HUD-KOMPAKT, Nutzerwunsch: "bei eingeloggt (Konto) hättste ne Wolke machen
+         können"): statt Label "Konto" + Text "Eingeloggt"/"Nicht eingeloggt" steht hier jetzt nur
+         noch ein Wolken-Symbol, das per Farbe/Deckkraft den Login-Status zeigt (siehe
+         __cloudSyncOnLogin/uiState-Handling weiter unten) — Status im Detail steht im
+         title-Tooltip. -->
+    <div class="hud-item hud-item-compact" id="cloudAccountStatus" style="cursor:pointer;" title="Nicht eingeloggt — Konto &amp; Cloud-Sync öffnen">
+      <span class="val" id="cloudAccountStatusVal">☁</span>
     </div>
   </div>
   <div class="speed-ctrl" id="speedCtrl" role="group" aria-label="Pause &amp; Geschwindigkeit">
@@ -4169,120 +4348,6 @@ html.ui-theme-dos input[type="number"]{
       <div style="display:flex; gap:8px; margin-top:16px;">
         <button class="btn" id="promptModalCancel" style="flex:1; justify-content:center;">Abbrechen</button>
         <button class="btn primary" id="promptModalOk" style="flex:1; justify-content:center;">Speichern</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal-bg" id="settingsModal">
-  <div class="modal" style="max-width:420px;">
-    <div class="mhead"><span>Einstellungen</span><button class="btn small ghost" id="closeSettingsModal">✕</button></div>
-    <div class="mbody">
-      <!-- NEU (TODO-CLOUD-LOGIN-UMBAU, Nutzerwunsch: Login nicht mehr als schwebende Leiste über
-           dem Spiel, sondern fest in die Einstellungen integriert): ehemals eigenständiges,
-           position:fixed schwebendes Konto-Widget (#cloudAccountBar) — jetzt als erste Sektion
-           hier im Einstellungen-Modal verankert. IDs unverändert übernommen, das zugehörige
-           Supabase-Script weiter unten im Body funktioniert dadurch unverändert weiter. -->
-      <div class="settings-row" id="cloudAccountSection" style="padding-bottom:14px; border-bottom:1px solid var(--border);">
-        <label class="lbl" style="display:block; margin-bottom:8px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">☁ Konto &amp; Cloud-Sync</label>
-        <div id="cloudStepEmail">
-          <div class="small-muted" style="line-height:1.5;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
-          <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" class="btn" style="width:100%;box-sizing:border-box;margin-top:8px;text-align:left;">
-          <button class="btn" id="cloudSendCodeBtn" style="width:100%;margin-top:8px;">Code senden</button>
-        </div>
-        <div id="cloudStepCode" style="display:none;">
-          <div class="small-muted" style="line-height:1.5;">Code aus der E-Mail eingeben:</div>
-          <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" class="btn" style="width:100%;box-sizing:border-box;margin-top:8px;letter-spacing:3px;text-align:center;">
-          <button class="btn" id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;">Bestätigen</button>
-        </div>
-        <div id="cloudStepIn" style="display:none;">
-          <div class="small-muted" style="line-height:1.5;">Eingeloggt als <b id="cloudUserEmail" style="color:var(--fg,#eee);">—</b></div>
-          <button class="btn" id="cloudManualSyncBtn" style="width:100%;margin-top:8px;">⟳ Jetzt synchronisieren</button>
-          <button class="btn" id="cloudSignOutBtn" style="width:100%;margin-top:8px;">Ausloggen</button>
-        </div>
-        <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
-      </div>
-
-      <div class="settings-row" style="margin-top:14px;">
-        <button class="btn" id="btnHelp" style="width:100%;">Hilfe — Auftrag → Bauplan Spickzettel</button>
-      </div>
-
-      <div class="settings-row" style="margin-top:10px;">
-        <button class="btn" id="btnTutorialReplay" style="width:100%;">Einführungs-Tour erneut ansehen</button>
-      </div>
-
-      <div class="settings-row" style="margin-top:14px;">
-        <button class="btn" id="btnMute" style="width:100%;">Soundeffekte an</button>
-      </div>
-
-      <div class="settings-row" style="margin-top:10px;">
-        <button class="btn" id="btnMusicMute" style="width:100%;">Musik an</button>
-      </div>
-
-      <div class="settings-row" style="margin-top:14px;">
-        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Musiklautstärke</label>
-        <input type="range" id="musicVolumeSlider" min="0" max="100" value="35" style="width:100%;">
-      </div>
-
-      <div class="settings-row" style="margin-top:14px;">
-        <button class="btn" id="btnVideoSoundMute" style="width:100%;">Video-Sound an</button>
-      </div>
-
-      <div class="settings-row" style="margin-top:10px;">
-        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Video-Lautstärke</label>
-        <input type="range" id="videoVolumeSlider" min="0" max="100" value="80" style="width:100%;">
-      </div>
-
-      <div class="settings-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
-        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Darstellung (experimentell) — Farbschema</label>
-        <select id="uiColorSelect" class="btn" style="width:100%; text-align:left;">
-          <option value="standard">Standard (deine Akzentfarbe)</option>
-          <option value="crt-green">Grün-Phosphor</option>
-          <option value="crt-amber">Amber-Phosphor</option>
-          <option value="mono">S/W</option>
-          <option value="cga">CGA/EGA (reduzierte Farbpalette)</option>
-          <option value="cga-hard">CGA/EGA — Hart (nur 3 Stufen je Kanal)</option>
-          <option value="cga-soft">CGA/EGA — Weich (mehr Farbnuancen)</option>
-          <option value="nasa-blue">NASA Mission Control — Blau</option>
-          <option value="nasa-cyan">NASA Deep Space Network — Cyan</option>
-          <option value="nasa-red">NASA Shuttle-Alarm — Rot</option>
-        </select>
-      </div>
-      <div class="settings-row" style="margin-top:10px;">
-        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Darstellung (experimentell) — Monitor-Muster</label>
-        <select id="uiPatternSelect" class="btn" style="width:100%; text-align:left;">
-          <option value="none">Kein Muster</option>
-          <option value="classic">Alter Monitor — Classic</option>
-          <option value="strong">Alter Monitor — Stark</option>
-          <option value="grille">Alter Monitor — Streifenmaske</option>
-          <option value="vhs">VHS/Composite-Video</option>
-          <option value="interlace">Interlace-Kamm — Stark</option>
-          <option value="interlace-soft">Interlace-Kamm — Subtil</option>
-          <option value="noise">Rauschen/Flimmern</option>
-          <option value="barrel">Röhren-Wölbung</option>
-        </select>
-        <div class="small-muted" style="margin-top:6px; font-size:10.5px;">Farbschema und Muster lassen sich frei kombinieren — beides ist rein optisch und hat keinen Einfluss auf den Spielstand.</div>
-      </div>
-      <div class="settings-row" style="margin-top:10px;">
-        <label class="lbl" style="display:block; margin-bottom:6px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">Darstellung (experimentell) — UI-Stil</label>
-        <select id="uiStyleSelect" class="btn" style="width:100%; text-align:left;">
-          <option value="modern">Modern (Standard)</option>
-          <option value="dos">DOS-Konsole (Blockgrafik-Rahmen)</option>
-        </select>
-        <div class="small-muted" style="margin-top:6px; font-size:10.5px;">Rahmt Fenster, Panels und Buttons mit klassischen Blockgrafik-Zeichen ein, wie bei einer alten Textmodus-Konsole — passt zum Röhren-Boot-Effekt und lässt sich ebenfalls frei mit Farbschema und Muster kombinieren.</div>
-      </div>
-
-      <div class="settings-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
-        <span class="small-muted" id="autosaveStatus">Auto-Speicherung aktiv</span>
-      </div>
-
-      <div class="settings-row" style="margin-top:10px; display:flex; gap:8px;">
-        <button class="btn" id="btnSave" style="flex:1;">Export</button>
-        <button class="btn" id="btnLoad" style="flex:1;">Import</button>
-      </div>
-
-      <div class="settings-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
-        <button class="btn danger" id="btnBackToStart" style="width:100%; justify-content:center;">↩ Zurück zur Startseite</button>
       </div>
     </div>
   </div>
@@ -13970,7 +14035,9 @@ function renderHud(){
   hudDayEl.textContent = formatCompanyDate(state.day);
   hudDayEl.title = `Tag ${state.day} seit Firmengründung`;
   document.getElementById('hudMoney').textContent = fmtMoney(state.money);
-  document.getElementById('hudRep').textContent = Math.round(state.reputation);
+  // GEÄNDERT (TODO-HUD-KOMPAKT, Nutzerwunsch: "Reputation komplett raus, weil der im Normalfall
+  // eh immer auf 100 steht"): keine eigene HUD-Kachel mehr für Reputation in Deep Anchor — der
+  // Wert bleibt weiterhin im Statistiken-Tab sichtbar (siehe #statsRep), nur nicht mehr im Header.
   document.getElementById('hudScience').textContent = Math.round(state.sciencePoints).toLocaleString('de-DE');
   const income = state.orbitSats.reduce((sum,s)=>{
     if(!s.assignedContract) return sum;
@@ -14031,9 +14098,16 @@ function renderHud(){
   if(solarWrap && solarVal){
     const level = solarActivityLevel(state);
     const info = solarActivityPhaseInfo(level);
-    solarVal.textContent = `${info.icon} ${info.label} (${Math.round(level*100)}%)`;
+    // GEÄNDERT (TODO-HUD-KOMPAKT, Nutzerwunsch: "Icon weg und Schrift weg, stattdessen ein
+    // Pfeil — zunehmend nach oben, abnehmend nach unten"): statt Emoji+Label+Prozentzahl nur noch
+    // ein Trendpfeil. Steigend/fallend wird über den Vergleich zum Vortages-Level ermittelt (im
+    // Maximum/Minimum selbst — Level ändert sich dort kaum — bleibt der zuletzt gültige Trend
+    // stehen, sichtbarer Sprung ist ohnehin nicht zu erwarten).
+    const prevLevel = solarActivityLevel(Object.assign({}, state, { day: state.day - 1 }));
+    const rising = level >= prevLevel;
+    solarVal.textContent = rising ? '▲' : '▼';
     solarVal.style.color = info.color;
-    solarWrap.title = `Position im ~11-Jahres-Sonnenzyklus. Nahe Maximum werden Sonnenstürme deutlich häufiger und stärker (bis G5), nahe Minimum sind sie selten.`;
+    solarWrap.title = `${info.icon} ${info.label} (${Math.round(level*100)}%) — Position im ~11-Jahres-Sonnenzyklus. Nahe Maximum werden Sonnenstürme deutlich häufiger und stärker (bis G5), nahe Minimum sind sie selten.`;
   }
 }
 
@@ -14909,9 +14983,24 @@ document.querySelectorAll('.speed-btn[data-speed]').forEach(btn=>{
     Sound.click();
   });
 });
-document.getElementById('btnSettings').addEventListener('click', ()=>{
+// NEU (TODO-EINSTELLUNGEN-BUTTON-STARTSEITE): openSettingsModal() zentralisiert das Öffnen des
+// Modals für alle drei Aufrufer (In-Game-Button #btnSettings, neuer Start-Menü-Button
+// #btnStartSettings, sowie der ?openSettings=1-Link von der Landingpage). Die Zeile
+// "↩ Zurück zur Startseite" ergibt nur Sinn, wenn tatsächlich ein Spiel läuft (#gameRoot
+// sichtbar) — auf dem Startbildschirm gibt es nichts, wozu man "zurückkehren" könnte, daher wird
+// die Zeile in dem Fall ausgeblendet statt sie funktionslos anzuzeigen.
+function openSettingsModal(){
+  const inGame = document.getElementById('gameRoot').style.display !== 'none';
+  const backRow = document.getElementById('btnBackToStart').closest('.settings-row');
+  if(backRow) backRow.style.display = inGame ? '' : 'none';
   document.getElementById('settingsModal').classList.add('active');
+}
+document.getElementById('btnSettings').addEventListener('click', ()=>{
+  openSettingsModal();
   Sound.click();
+});
+document.getElementById('btnStartSettings').addEventListener('click', ()=>{
+  openSettingsModal();
 });
 // NEU (TODO-EINSTELLUNGEN-BUTTON-STARTSEITE): öffnet die Einstellungen automatisch, wenn von der
 // Landingpage (index.html) über den neuen "Einstellungen"-Button im Footer verlinkt wurde
@@ -14919,7 +15008,7 @@ document.getElementById('btnSettings').addEventListener('click', ()=>{
 // Cloud-Sync-Script, nur ohne direkten Scroll zur Konto-Sektion.
 try{
   if(new URLSearchParams(location.search).get('openSettings') === '1'){
-    document.getElementById('settingsModal').classList.add('active');
+    openSettingsModal();
   }
 }catch(e){}
 document.getElementById('closeSettingsModal').addEventListener('click', ()=>{
@@ -15427,7 +15516,7 @@ document.getElementById('fileInput').addEventListener('change', (e)=>{
 /* ============================== VERSION / PATCH NOTES ============================== */
 // NEU (TODO-PATCH-NOTES): GAME_VERSION wird auf dem Startbildschirm im Patch-Notes-Button
 // angezeigt (siehe init()). Bei jeder neuen Version hier hochzaehlen.
-const GAME_VERSION = 'v4-77';
+const GAME_VERSION = 'v4-78';
 // NAMENSKONVENTION (ab v4-5): kein "-fix"-Suffix mehr, da nicht jede Version ein Bugfix ist —
 // fortlaufend v4-1, v4-2, v4-3, … Aeltere Versionsnummern (v4-fix1 bis v4-fix4, v3.9-fix-Reihe)
 // behalten im CHANGELOG-Kommentarblock oben ihre historische Bezeichnung, nur ab hier gilt das
@@ -16778,8 +16867,16 @@ init();
     stepEmail.style.display = uiState === 'email' ? '' : 'none';
     stepCode.style.display = uiState === 'code' ? '' : 'none';
     stepIn.style.display = uiState === 'in' ? '' : 'none';
-    if(hudStatusVal) hudStatusVal.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Nicht eingeloggt';
-    if(hudStatusVal) hudStatusVal.style.color = uiState === 'in' ? 'var(--good,#7ee787)' : '';
+    // GEÄNDERT (TODO-HUD-KOMPAKT, Nutzerwunsch: "bei eingeloggt (Konto) hättste ne Wolke machen
+    // können"): statt Label "Konto" + ausgeschriebenem Status nur noch das Wolken-Symbol selbst,
+    // das per Farbe/Deckkraft zeigt ob eingeloggt — voll & grün wenn eingeloggt, gedimmt wenn
+    // nicht. Der ausgeschriebene Status steht weiterhin im title-Tooltip der Kachel.
+    if(hudStatusVal){
+      hudStatusVal.textContent = '☁';
+      hudStatusVal.style.color = uiState === 'in' ? 'var(--good,#7ee787)' : '';
+      hudStatusVal.style.opacity = uiState === 'in' ? '1' : '0.4';
+    }
+    if(hudStatus) hudStatus.title = (uiState === 'in' ? 'Eingeloggt' : 'Nicht eingeloggt') + ' — Konto & Cloud-Sync öffnen';
     var emailEl = document.getElementById('cloudUserEmail');
     if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
   }

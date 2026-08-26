@@ -587,6 +587,11 @@
     transition:top 0.22s ease, height 0.22s ease, max-height 0.22s ease, border-radius 0.22s ease;
   }
   .panel.show{display:block;}
+  /* NEU (TODO-EINSTELLUNGEN-STARTSEITE): .panel liegt normal bei z-index:35, weit unter dem
+     Startbildschirm (#startScreen, z-index:200) — wird panelAudio vom Startbildschirm aus
+     geöffnet (siehe startCloudSyncBtn), bekommt es diese Klasse zusätzlich, damit es sichtbar
+     über dem Startbildschirm liegt statt dahinter zu verschwinden. */
+  .panel.overStart{ z-index:250; }
   /* Vollbild-Modus: Fenster füllt den gesamten Bereich zwischen Topbar und
      Tableiste aus, statt als kleines Bottom-Sheet zu schweben. Wird über den
      ⛶-Knopf im Fenstertitel umgeschaltet (gilt für alle Fenster gemeinsam
@@ -2206,6 +2211,14 @@
       <button id="startSoundToggle">● Ton An</button>
       <button id="startThemeBtn">◈ UI-Farben</button>
       <button id="startPatchNotesBtn">✎ Patch Notes</button>
+      <!-- NEU (TODO-EINSTELLUNGEN-STARTSEITE, Nutzerwunsch: "auf jedem Spiel bis auf Deep Anchor
+           ist auf der Startseite kein Zugang zu den echten Einstellungen im Spiel, sodass man
+           schon vor dem ersten Speicherstand in die Einstellungen kommt"): öffnet das komplette,
+           echte Einstellungen-Panel (panelAudio, sonst nur über das Menü im laufenden Spiel
+           erreichbar) direkt vom Startbildschirm aus — dort liegt die eigentliche ☁ Konto &
+           Cloud-Sync-Sektion, dieselbe wie im laufenden Spiel (siehe #cloudAccountSection), samt
+           Sicherung/Export/Import. Ergänzt die drei schnellen Schalter oben, ersetzt sie nicht. -->
+      <button id="startCloudSyncBtn">☁ Konto &amp; Cloud-Sync</button>
     </div>
   </div>
 </div>
@@ -2750,7 +2763,7 @@
 
 /* Zentrale Versionsnummer — bei jeder inhaltlichen Änderung hochzählen
    und einen passenden CHANGELOG-Eintrag weiter unten ergänzen. */
-const GAME_VERSION = 'v0_0250';
+const GAME_VERSION = 'v0_0251';
 console.log(`[Path of the Stars] Version ${GAME_VERSION} geladen.`);
 
 /* ===========================================================================
@@ -3692,6 +3705,9 @@ let combatEnabled = true;
 const META_KEY = 'meta:progress';
 let introCompleted = false;
 let introMode = false; /* true während das Intro-Szenario "Drifting Worlds" läuft */
+// NEU (TODO-EINSTELLUNGEN-STARTSEITE): true, während panelAudio vom Startbildschirm aus (statt
+// vom laufenden Spiel aus) geöffnet ist — steuert, wohin der Schließen-Knopf führt.
+let settingsOpenedFromStart = false;
 async function loadMetaProgress(){
   try{
     const res = await window.storage.get(META_KEY, false);
@@ -15643,7 +15659,17 @@ tabButtons.forEach(b=>b.addEventListener('click', ()=>{
   openTab(b.dataset.tab);
   document.getElementById('tabMenuOverlay').classList.remove('show'); // v0_0232
 }));
-document.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click', ()=>openTab('map')));
+document.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click', ()=>{
+  // NEU (TODO-EINSTELLUNGEN-STARTSEITE): wurde panelAudio vom Startbildschirm aus geöffnet, führt
+  // Schließen zurück zum Startbildschirm (der im Hintergrund die ganze Zeit sichtbar blieb) statt
+  // zur Kartenansicht, die vor dem eigentlichen Spielstart nicht initialisiert ist.
+  if(settingsOpenedFromStart){
+    settingsOpenedFromStart = false;
+    panels.audio.classList.remove('show', 'overStart');
+    return;
+  }
+  openTab('map');
+}));
 document.getElementById('menuToggleBtn').addEventListener('click', ()=>{
   playSfx('click');
   document.getElementById('tabMenuOverlay').classList.toggle('show');
@@ -18438,6 +18464,7 @@ function hideStartScreen(){
    beliebig weiterwachsen.
    ========================================================================= */
 const CHANGELOG = [
+  { version:'v0_0251', title:'Echte Einstellungen (Konto & Cloud-Sync) jetzt auch vom Startbildschirm aus erreichbar', desc:'Nutzer-Feedback: "auf jedem Spiel bis auf Deep Anchor ist auf der Startseite kein Zugang zu den echten Einstellungen im Spiel, sodass man schon vor dem ersten Speicherstand in die Einstellungen kommt". Neuer Knopf "☁ Konto & Cloud-Sync" im Einstellungen-Overlay des Startbildschirms öffnet jetzt direkt das echte Einstellungen-Panel (panelAudio) mit der vollständigen ☁ Konto & Cloud-Sync-Sektion, UI-Farben und Sicherung/Export/Import — bisher war von der Startseite aus nur eine abgespeckte Version (Ton/Farben/Patch Notes ohne Konto-Login) erreichbar, das echte Panel steckte fest im Menü des laufenden Spiels. Technisch: .panel liegt normal unter dem Startbildschirm (z-index 35 vs. 200), neue Klasse .overStart hebt es bei Bedarf darüber; Schließen führt dank neuem settingsOpenedFromStart-Merker zurück zum Startbildschirm statt zur noch nicht initialisierten Kartenansicht.' },
   { version:'v0_0219', title:'Warp-Streifen verkleinert (waren zu groß/wuchtig)', desc:'Der neue Warp-Streifen-Effekt aus v0_0218 wirkte auf der Karte deutlich zu groß und wuchtig. Blasenradius um das Schiff von 150 auf 70 verkleinert, Streifenzahl von 46 auf 34 reduziert, Schweiflänge, Geschwindigkeit, Linienbreite und Deckkraft allesamt spürbar heruntergedreht - der Effekt bleibt derselbe (Streifen ziehen entgegen der Flugrichtung am Schiff vorbei), fällt jetzt aber deutlich dezenter/kleiner aus.' },
   { version:'v0_0218', title:'Sprungeffekt komplett vereinfacht: Warp-Streifen statt Tor-Bild', desc:'Weder der kleine Ring (v0_0214/15) noch das gekippte Tor-Bild mit Kartenabdunklung (v0_0217) trafen den gewünschten Look. Jetzt: kein Tor-Bild mehr, keine Kartenabdunklung, keine Kippsimulation - stattdessen eine "Blase" aus Lichtstreifen um das Schiff, die entgegen der tatsächlichen Flugrichtung an ihm vorbeizieht (klassischer Warp-Look, die Linien rauschen aus Flugrichtung kommend nach hinten vorbei). Läuft konstant für die komplette Reisedauer, weiterhin ohne jede Bedienungssperre und ohne Wrack-/Konvoi-Icons zu verdecken (unverändert Teil des normalen Zeichen-Loops in drawGalaxy()).' },
   { version:'v0_0217', title:'Sprungeffekt: Karte beim Ein-/Ausflug ausblenden statt flachem Ring', desc:'Der kleine, um das Schiff rotierende Sternentor-Ring aus v0_0214/v0_0215 sah auf der flachen Draufsicht der Galaxiekarte kaputt aus (ein 3D-Ring, flach von oben draufgeklebt). Ersetzt durch: beim Rein- und Ausflug (erste/letzte ~8% des Reisefortschritts) wird die Karte jetzt kurz komplett abgedunkelt und durch ein bildschirmfüllendes, gekipptes Tor-Bild ersetzt - die Y-Stauchung des Bildes simuliert einen Kameraschwenk von "frontal durchs Tor blickend" zurück zur normalen Draufsicht, statt eines seltsam flachen Rings. Das dezente Tunnel-Ambiente (Vignette + Lichtstreifen) während der restlichen, ruhigen Reisephase bleibt wie in v0_0216 unverändert - dort war es schon in Ordnung.' },
@@ -19122,6 +19149,18 @@ async function setupStartScreen(){
   });
   settingsOverlay.addEventListener('click', (e)=>{
     if(e.target.id==='startSettingsOverlay') settingsOverlay.classList.remove('show');
+  });
+
+  // NEU (TODO-EINSTELLUNGEN-STARTSEITE): öffnet das echte panelAudio (Cloud-Sync/Konto,
+  // Sicherung/Export/Import, UI-Farben, Sound) direkt über dem Startbildschirm — .overStart
+  // hebt den z-index nur für diesen Aufruf an (siehe CSS), settingsOpenedFromStart sorgt dafür,
+  // dass der Schließen-Knopf zurück zum Startbildschirm statt zur (noch nicht initialisierten)
+  // Kartenansicht führt.
+  document.getElementById('startCloudSyncBtn').addEventListener('click', ()=>{
+    settingsOverlay.classList.remove('show');
+    settingsOpenedFromStart = true;
+    panels.audio.classList.add('overStart');
+    openTab('audio');
   });
 
   // v0_0237: "Spiel laden" lädt eine exportierte Speicherdatei direkt vom

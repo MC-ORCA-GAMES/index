@@ -4,6 +4,19 @@
  ASTRION — Karten aus den Tiefen des Alls
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v0.06.104
+- NEU (TODO-EINSTELLUNGEN-STARTSEITE, Nutzer-Feedback: "auf jedem Spiel bis auf Deep Anchor ist
+  auf der Startseite kein Kopf für die echte Einstellung im Spiel, so dass man vor den Saves auch
+  in die Einstellungen kommt"): neuer "⚙ Einstellungen"-Knopf direkt unter "Berühren zum Start"
+  auf dem Titelbildschirm öffnet jetzt den echten Einstellungen-Screen (#screen-settings, bisher
+  nur über den Hub nach dem eigentlichen Spielstart erreichbar) mit der vollständigen ☁ Konto &
+  Cloud-Sync-Sektion, Backup/Geschenkcode/Schwierigkeitsgrad. Läuft über dasselbe
+  ensureStateLoaded() wie der normale Spielstart (liest nur einen vorhandenen Spielstand,
+  schreibt nichts neu) — kein zusätzlicher Boot-Sequenz-Trigger, kein Hub-Rendering nötig. Der
+  Zurück-Knopf des Einstellungen-Screens führt in diesem Fall zurück zum Titelbildschirm statt
+  zum Hub (dataset.back wird dafür kurzzeitig von "hub" auf "title" umgebogen, goSettings im Hub
+  setzt es beim nächsten regulären Öffnen automatisch zurück).
+
 v0.06.103
 - Die zwei getrennten Cloud-Buttons ("Cloud-Stand laden" / "Diesen Stand
   hochladen") wurden durch einen einzigen "⟳ Jetzt synchronisieren"-Button
@@ -4517,6 +4530,14 @@ v0.00.1
     </div>
     <div class="title-menu-box">
       <button class="btn-primary" id="startBtn">Berühren zum Start</button>
+      <!-- NEU (TODO-EINSTELLUNGEN-STARTSEITE, Nutzerwunsch: "auf jedem Spiel bis auf Deep Anchor
+           ist auf der Startseite kein Kopf für die echte Einstellung im Spiel, sodass man vor
+           den Saves auch in die Einstellungen kommt"): öffnet den echten Einstellungen-Screen
+           (#screen-settings, sonst nur über den Hub erreichbar) direkt vom Titelbildschirm aus —
+           dort liegt die eigentliche ☁ Konto & Cloud-Sync-Sektion. ensureStateLoaded() lädt dafür
+           nur den vorhandenen Spielstand in den Speicher (liest, schreibt nichts neu), exakt wie
+           beim normalen Spielstart über #startBtn. -->
+      <button class="btn-primary" id="startSettingsBtn" style="margin-top:10px; background:transparent; border:1px solid rgba(255,255,255,0.3);">⚙ Einstellungen</button>
       <div class="loading-txt" id="loadingTxt"></div>
     </div>
     <div class="version-badge" id="versionBadge">v0.06.103</div>
@@ -5011,7 +5032,7 @@ v0.00.1
 
 <script>
 "use strict";
-const VERSION = "v0.06.103";
+const VERSION = "v0.06.104";
 
 /* Debug-Werkzeuge im Karten-Detail-Modal (Raster ein/aus + Zonen bearbeiten).
    Auf true setzen, um beim Nachjustieren von RACE_LAYOUT/RACE_ART_BOX wieder
@@ -8012,7 +8033,14 @@ document.getElementById('goAlbum').addEventListener('click', ()=>switchScreen('a
 document.getElementById('goTrade').addEventListener('click', ()=>switchScreen('trade'));
 document.getElementById('goBattle').addEventListener('click', ()=>switchScreen('battlehub'));
 document.getElementById('goDecks').addEventListener('click', ()=>switchScreen('deckselect'));
-document.getElementById('goSettings').addEventListener('click', ()=>switchScreen('settings'));
+document.getElementById('goSettings').addEventListener('click', ()=>{
+  // NEU (TODO-EINSTELLUNGEN-STARTSEITE): setzt den Zurück-Knopf des Einstellungen-Screens wieder
+  // auf "hub" zurück, falls startSettingsBtn ihn zuvor (beim Aufruf vom Titelbildschirm) auf
+  // "title" umgebogen hatte — normales Öffnen aus dem Hub soll wieder normal zum Hub zurückführen.
+  const settingsBackBtn = document.querySelector('#screen-settings [data-back]');
+  if(settingsBackBtn) settingsBackBtn.dataset.back = 'hub';
+  switchScreen('settings');
+});
 document.getElementById('goAcademy').addEventListener('click', ()=>switchScreen('academy'));
 document.getElementById('goTournament').addEventListener('click', ()=>switchScreen('tournament'));
 document.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click', ()=>switchScreen(b.dataset.back)));
@@ -14409,6 +14437,20 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
   startGameplayMusic(); // wechselt von Titelsong auf die gemischte Gameplay-OST-Playlist, wie bei AETHERIS
   const resumed = tryRestoreBattle(); // v0.06.39: pausiertes Gefecht hat Vorrang vor dem normalen Hub-Start
   if(!resumed) switchScreen('hub');
+});
+
+// NEU (TODO-EINSTELLUNGEN-STARTSEITE): öffnet #screen-settings direkt vom Titelbildschirm aus,
+// ohne die eigentliche Boot-Sequenz/den Hub-Start auszulösen. Der Zurück-Knopf des
+// Einstellungen-Screens zeigt normalerweise "hub" (data-back="hub", siehe generischer
+// [data-back]-Handler weiter oben) — wird von hier geöffnet, biegen wir dataset.back kurzzeitig
+// auf "title" um, damit "Zurück" wieder zum Titelbildschirm statt zum (bei Erstaufruf ggf. noch
+// gar nicht initialisierten) Hub führt. goSettings im Hub setzt es beim nächsten regulären
+// Öffnen automatisch zurück auf "hub".
+document.getElementById('startSettingsBtn').addEventListener('click', async ()=>{
+  await ensureStateLoaded();
+  const settingsBackBtn = document.querySelector('#screen-settings [data-back]');
+  if(settingsBackBtn) settingsBackBtn.dataset.back = 'title';
+  switchScreen('settings');
 });
 
 </script>
