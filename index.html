@@ -130,6 +130,45 @@
   .astrion{ --pc:var(--astviolet); --pc-dim:var(--astviolet-dim); }
   .deepanchor{ --pc:var(--daorange); --pc-dim:var(--daorange-dim); }
 
+  /* ---------- Sync-Status-Uebersicht ---------- */
+  .syncbox{ margin:0 0 30px; }
+  .syncbox .ghead{
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+    font-size:13.5px; letter-spacing:0.5px; color:var(--fg); text-transform:uppercase; font-weight:700;
+  }
+  .syncbox .ghead .idx{ color:var(--red-faint); }
+  .syncbox .ghead .fill{ flex:1; border-bottom:1px dotted var(--red-faint); height:0; align-self:center; min-width:24px; }
+  .syncbox .ghead .ver{ color:var(--red-dim); font-weight:400; font-size:11px; text-transform:none; letter-spacing:0; }
+  .syncbox .gsub{ color:var(--red-faint); font-size:11.5px; margin:4px 0 14px; }
+
+  .sync-rows{ display:flex; flex-direction:column; gap:8px; }
+  .sync-row{
+    display:grid; grid-template-columns:170px 84px 84px 1fr auto;
+    align-items:center; gap:10px; font-size:12px; color:var(--fg);
+    padding:8px 10px; border:1px solid var(--red-faint); border-radius:4px;
+  }
+  .sync-row .sr-name{ color:var(--pc); font-weight:700; letter-spacing:0.5px; text-transform:uppercase; font-size:11.5px; }
+  .sync-row .sr-local,.sync-row .sr-cloud{ color:var(--red-dim); font-size:11px; }
+  .sync-row .sr-status{ font-size:11.5px; }
+  .sync-row .sr-btn{
+    font-size:11px; letter-spacing:0.3px; text-transform:uppercase; text-decoration:none; cursor:pointer;
+    color:var(--pc); border-bottom:1px solid transparent; white-space:nowrap;
+  }
+  .sync-row .sr-btn:hover{ border-bottom-color:var(--pc); }
+
+  @media (max-width:560px){
+    .sync-row{
+      grid-template-columns:1fr 1fr;
+      grid-template-areas:"name status" "local cloud" "btn btn";
+      row-gap:5px;
+    }
+    .sync-row .sr-name{ grid-area:name; }
+    .sync-row .sr-status{ grid-area:status; text-align:right; }
+    .sync-row .sr-local{ grid-area:local; }
+    .sync-row .sr-cloud{ grid-area:cloud; text-align:right; }
+    .sync-row .sr-btn{ grid-area:btn; text-align:center; margin-top:2px; }
+  }
+
   .s-footer{ margin-top:36px; font-size:11px; color:var(--red-faint); text-align:center; }
   .s-footer a{ color:var(--red-dim); text-decoration:underline; text-underline-offset:2px; }
   .s-footer a:hover{ color:var(--red); }
@@ -304,6 +343,43 @@
   <div class="s-lede reveal">Browserbasierte Weltraumspiele. Kein Download, kein Konto bei Dritten — einfach oeffnen und spielen.</div>
 
   <hr class="s-rule thick">
+
+  <div class="syncbox reveal">
+    <div class="ghead"><span class="idx">[ ⟳ ]</span> SYNC-STATUS.SYS<span class="fill"></span><span class="ver" id="syncStatusHint">wird geprüft …</span></div>
+    <div class="gsub"># Lokaler Spielstand vs. Cloud, pro Spiel. Bei Unterschied: Button oeffnet das Spiel + Cloud-Panel dort.</div>
+    <div class="sync-rows">
+      <div class="sync-row aetheris" data-game="aetheris">
+        <span class="sr-name">Aetheris</span>
+        <span class="sr-local">lokal —</span>
+        <span class="sr-cloud">cloud —</span>
+        <span class="sr-status">wird geprüft …</span>
+        <a class="sr-btn" href="aetheris/game.html?cloudsync=1">Synchronisieren →</a>
+      </div>
+      <div class="sync-row pots" data-game="pots">
+        <span class="sr-name">Path of the Stars</span>
+        <span class="sr-local">lokal —</span>
+        <span class="sr-cloud">cloud —</span>
+        <span class="sr-status">wird geprüft …</span>
+        <a class="sr-btn" href="path%20of%20the%20stars/game.html?cloudsync=1">Synchronisieren →</a>
+      </div>
+      <div class="sync-row astrion" data-game="astrion">
+        <span class="sr-name">Astrion</span>
+        <span class="sr-local">lokal —</span>
+        <span class="sr-cloud">cloud —</span>
+        <span class="sr-status">wird geprüft …</span>
+        <a class="sr-btn" href="astrion/game.html?cloudsync=1">Synchronisieren →</a>
+      </div>
+      <div class="sync-row deepanchor" data-game="deepanchor">
+        <span class="sr-name">Deep Anchor</span>
+        <span class="sr-local">lokal —</span>
+        <span class="sr-cloud">cloud —</span>
+        <span class="sr-status">wird geprüft …</span>
+        <a class="sr-btn" href="deep%20anchor/game.html?cloudsync=1">Synchronisieren →</a>
+      </div>
+    </div>
+  </div>
+
+  <hr class="s-rule">
 
   <div class="game aetheris reveal">
     <div class="ghead"><span class="idx">[ 01 ]</span> AETHERIS.EXE<span class="fill"></span><span class="ver">v1.0 · Release</span></div>
@@ -807,6 +883,125 @@ if(document.readyState === 'loading'){
     });
   }
   render();
+})();
+</script>
+
+<!-- NEU (Sync-Status-Uebersicht): eigenstaendiges Script, ruehrt die Cloud-Konto-Logik oben
+     NICHT an -- nutzt nur window.__cloudSupabase (von dort gesetzt) und fragt selbst per
+     getSession() + eigenem onAuthStateChange-Listener den Login-Status ab (Supabase erlaubt
+     mehrere Listener parallel). Zeigt pro Spiel lokalen vs. Cloud-Versionszaehler
+     (<spiel>_localver / DB-Spalte version, siehe Cloud-Sync-Update) und verlinkt bei Bedarf
+     ins jeweilige Spiel mit ?cloudsync=1 (oeffnet dort automatisch das Cloud-Panel, siehe
+     Patch in game.html). Kein eigener Push/Pull hier -- die eigentliche Sync-Aktion bleibt
+     bewusst beim getesteten "Jetzt synchronisieren"-Button im jeweiligen Spiel. -->
+<script>
+(function(){
+  'use strict';
+
+  var GAMES = [
+    { id:'aetheris',   localverKey:'aetheris_localver',   cloudFilter:{ type:'like', pattern:'aetheris_%' } },
+    { id:'pots',        localverKey:'pots_localver',        cloudFilter:{ type:'like', pattern:'pots:%' } },
+    { id:'astrion',      localverKey:'astrion_localver',      cloudFilter:{ type:'eq',   pattern:'astrion_save' } },
+    { id:'deepanchor', localverKey:'deepanchor_localver', cloudFilter:{ type:'like', pattern:'deepanchor_%' } }
+  ];
+
+  function getLocalVersion(key){
+    try{ var v = localStorage.getItem(key); return v != null ? parseInt(v, 10) : null; }catch(e){ return null; }
+  }
+
+  function rowEl(id){ return document.querySelector('.sync-row[data-game="' + id + '"]'); }
+
+  function setText(id, cls, text){
+    var el = rowEl(id);
+    if(!el) return;
+    var t = el.querySelector('.' + cls);
+    if(t) t.textContent = text;
+  }
+
+  function renderStatus(id, localVer, cloudVer, cloudKnown){
+    var el = rowEl(id);
+    if(!el) return;
+    var s = el.querySelector('.sr-status');
+    if(!s) return;
+    if(!cloudKnown){
+      s.textContent = 'nicht eingeloggt';
+      s.style.color = 'var(--red-faint)';
+    } else if(localVer == null && cloudVer == null){
+      s.textContent = 'keine Daten';
+      s.style.color = 'var(--red-faint)';
+    } else if(cloudVer == null){
+      s.textContent = 'nur lokal, noch nie hochgeladen';
+      s.style.color = 'var(--red-dim)';
+    } else if(localVer == null){
+      s.textContent = '⬇ nur Cloud, lokal leer';
+      s.style.color = 'var(--pc)';
+    } else if(localVer === cloudVer){
+      s.textContent = '✓ synchron';
+      s.style.color = '#7fbf7f';
+    } else if(localVer > cloudVer){
+      s.textContent = '⬆ lokal neuer (v' + localVer + ' > v' + cloudVer + ')';
+      s.style.color = 'var(--pc)';
+    } else {
+      s.textContent = '⬇ Cloud neuer (v' + cloudVer + ' > v' + localVer + ')';
+      s.style.color = 'var(--pc)';
+    }
+  }
+
+  async function refreshGame(game, supabaseClient, user){
+    var localVer = getLocalVersion(game.localverKey);
+    setText(game.id, 'sr-local', localVer != null ? ('lokal v' + localVer) : 'lokal —');
+
+    if(!user){
+      setText(game.id, 'sr-cloud', 'cloud —');
+      renderStatus(game.id, localVer, null, false);
+      return;
+    }
+    try{
+      var q = supabaseClient.from('saves').select('version,updated_at').eq('user_id', user.id);
+      q = game.cloudFilter.type === 'like' ? q.like('key', game.cloudFilter.pattern) : q.eq('key', game.cloudFilter.pattern);
+      var sel = await q;
+      if(sel.error) throw sel.error;
+      var rows = sel.data || [];
+      var cloudVer = null;
+      rows.forEach(function(row){
+        if(row.version != null){ if(cloudVer == null || row.version > cloudVer) cloudVer = row.version; }
+      });
+      var hasCloudRows = rows.length > 0;
+      setText(game.id, 'sr-cloud', hasCloudRows ? ('cloud v' + (cloudVer != null ? cloudVer : 0)) : 'cloud —');
+      renderStatus(game.id, localVer, hasCloudRows ? (cloudVer != null ? cloudVer : 0) : null, true);
+    }catch(err){
+      setText(game.id, 'sr-cloud', 'Fehler');
+      renderStatus(game.id, localVer, null, false);
+      console.warn('Sync-Status: Cloud-Abfrage fehlgeschlagen fuer', game.id, err);
+    }
+  }
+
+  async function refreshAll(){
+    var supabaseClient = window.__cloudSupabase;
+    var hintEl = document.getElementById('syncStatusHint');
+    if(!supabaseClient){
+      if(hintEl) hintEl.textContent = 'Cloud nicht verfügbar';
+      for(var i=0;i<GAMES.length;i++){ await refreshGame(GAMES[i], null, null); }
+      return;
+    }
+    var res = await supabaseClient.auth.getSession();
+    var user = (res && res.data && res.data.session) ? res.data.session.user : null;
+    if(hintEl) hintEl.textContent = user ? ('eingeloggt als ' + user.email) : 'nicht eingeloggt — oben rechts anmelden';
+    for(var j=0;j<GAMES.length;j++){ await refreshGame(GAMES[j], supabaseClient, user); }
+  }
+
+  function boot(){
+    refreshAll();
+    if(window.__cloudSupabase){
+      window.__cloudSupabase.auth.onAuthStateChange(function(){ refreshAll(); });
+    }
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();
 </script>
 </body>

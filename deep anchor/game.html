@@ -16777,6 +16777,10 @@ init();
       uiState = window.__cloudUser ? 'in' : 'email';
       render();
       if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+      // NEU: Auto-Open Cloud-Panel, wenn von der Sync-Uebersicht (Portal-Index) verlinkt.
+      try{
+        if(new URLSearchParams(location.search).get('cloudsync') === '1'){ panel.style.display = 'block'; }
+      }catch(e){}
     });
     supabaseClient.auth.onAuthStateChange(function(event, session){
       var wasLoggedOut = !window.__cloudUser;
