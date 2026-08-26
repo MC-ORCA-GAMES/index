@@ -2723,7 +2723,7 @@
 
 /* Zentrale Versionsnummer — bei jeder inhaltlichen Änderung hochzählen
    und einen passenden CHANGELOG-Eintrag weiter unten ergänzen. */
-const GAME_VERSION = 'v0_0249';
+const GAME_VERSION = 'v0_0250';
 console.log(`[Path of the Stars] Version ${GAME_VERSION} geladen.`);
 
 /* ===========================================================================
@@ -3315,12 +3315,21 @@ if (!window.storage) {
     // NEU (Sync-Hinweis-Banner): eigener, nicht mit der Cloud synchronisierter Zeitstempel,
     // damit der Login-Konflikt-Dialog anzeigen kann, welcher Stand (Geraet vs. Cloud) neuer ist.
     try{ localStorage.setItem('pots_localts', String(Date.now())); }catch(e){}
+    // NEU (Versions-Zaehler statt/zusaetzlich zu Zeitstempel): eliminiert Uhr-Drift-Probleme
+    // zwischen Geraeten beim Erkennen, welcher Stand neuer ist. Wird bei jedem lokalen
+    // Speichern hochgezaehlt und beim naechsten Cloud-Schreiben mitgeschickt.
+    var __potsVer = 0;
+    try{
+      var __pvRaw = localStorage.getItem('pots_localver');
+      __potsVer = (__pvRaw ? parseInt(__pvRaw,10) : 0) + 1;
+      localStorage.setItem('pots_localver', String(__potsVer));
+    }catch(e2c){}
     // NEU (Bugfix Race-Condition): Waehrend der initialen Sync-Entscheidung nach dem Login
     // laeuft (siehe __cloudSyncOnLogin unten), wird jeder Cloud-Upload blockiert -- sonst
     // koennte ein Spiel-Save waehrend der offenen Abfrage den echten Cloud-Stand ueberschreiben.
     if(window.__cloudUser && window.__cloudSupabase && !window.__cloudSyncLocked){
       window.__cloudSupabase.from('saves').upsert(
-        { user_id: window.__cloudUser.id, key: 'pots:' + key, value: value, updated_at: new Date().toISOString() },
+        { user_id: window.__cloudUser.id, key: 'pots:' + key, value: value, updated_at: new Date().toISOString(), version: __potsVer },
         { onConflict: 'user_id,key' }
       ).then(function(r){ if(r.error) console.warn('Cloud-Speichern fehlgeschlagen fuer', key, r.error.message); });
     }
@@ -3369,11 +3378,23 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
     box.appendChild(text);
 
     if(badges){
-      var localer = (badges.localTs != null && (badges.cloudTs == null || badges.localTs > badges.cloudTs));
-      var cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
+      // NEU (Versions-Zaehler statt/zusaetzlich zu Zeitstempel): wenn fuer beide Seiten ein
+      // Versions-Zaehler bekannt ist und sie sich unterscheiden, entscheidet der Zaehler ueber
+      // "neuer" -- unabhaengig von (evtl. falsch eingestellten) Geraete-Uhren. Nur ohne
+      // Versions-Vergleich (z.B. alte Cloud-Zeile ohne Versionsfeld) faellt es auf den
+      // Zeitstempel-Vergleich zurueck.
+      var __haveVer = (badges.localVer != null && badges.cloudVer != null);
+      var localer, cloudNewer;
+      if(__haveVer && badges.localVer !== badges.cloudVer){
+        localer = badges.localVer > badges.cloudVer;
+        cloudNewer = badges.cloudVer > badges.localVer;
+      } else {
+        localer = (badges.localTs != null && (badges.cloudTs == null || badges.localTs > badges.cloudTs));
+        cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
+      }
       var badgeRow = document.createElement('div');
       badgeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
-      function makeBadge(icon, label, ts, isNewer){
+      function makeBadge(icon, label, ts, isNewer, ver){
         var b = document.createElement('div');
         b.style.cssText = 'flex:1;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.4;'
           + (isNewer ? 'background:rgba(120,180,255,0.14);border:1px solid rgba(120,180,255,0.65);' : 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.18);');
@@ -3382,12 +3403,12 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
         top.textContent = icon + ' ' + label;
         var time = document.createElement('div');
         time.style.cssText = 'color:' + (isNewer ? '#a9cdff' : '#999') + ';margin-top:3px;';
-        time.textContent = __relTime(ts) + (isNewer ? ' · NEUER' : '');
+        time.textContent = __relTime(ts) + (ver != null ? ' · v' + ver : '') + (isNewer ? ' · NEUER' : '');
         b.appendChild(top); b.appendChild(time);
         return b;
       }
-      badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer));
-      badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer));
+      badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer, badges.localVer));
+      badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer, badges.cloudVer));
       box.appendChild(badgeRow);
     }
 
@@ -3410,17 +3431,19 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
 // NEU: Cloud-Zeilen (key,value,updated_at) fuer dieses Spiel abholen -- geteilt zwischen
 // __cloudSyncOnLogin und dem manuellen Sync-Button, damit beide dieselbe Logik nutzen.
 async function __potsFetchCloudRows(){
-  var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).like('key', 'pots:%');
+  var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at,version').eq('user_id', window.__cloudUser.id).like('key', 'pots:%');
   if(sel.error) throw sel.error;
   return sel.data || [];
 }
 async function __potsPushAllLocal(localList){
+  var __ver = 0;
+  try{ var __vRaw = localStorage.getItem('pots_localver'); __ver = __vRaw ? parseInt(__vRaw,10) : 0; }catch(e){}
   for(var i=0;i<localList.keys.length;i++){
     var k = localList.keys[i];
     try{
       var r = await window.storage.get(k, false);
       await window.__cloudSupabase.from('saves').upsert(
-        { user_id: window.__cloudUser.id, key: 'pots:' + k, value: r.value, updated_at: new Date().toISOString() },
+        { user_id: window.__cloudUser.id, key: 'pots:' + k, value: r.value, updated_at: new Date().toISOString(), version: __ver },
         { onConflict: 'user_id,key' }
       );
     }catch(e){}
@@ -3478,16 +3501,23 @@ window.__cloudSyncOnLogin = async function(){
       var __localTsRaw = null;
       try{ __localTsRaw = localStorage.getItem('pots_localts'); }catch(e){}
       var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
-      var __cloudTs = null;
+      var __cloudTs = null, __cloudVer = null;
       sel.data.forEach(function(row){
         if(row.updated_at){ var t = new Date(row.updated_at).getTime(); if(!__cloudTs || t > __cloudTs) __cloudTs = t; }
+        if(row.version != null){ if(__cloudVer == null || row.version > __cloudVer) __cloudVer = row.version; }
       });
-      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Path of the Stars.', 'Cloud laden', 'Geraet behalten', { localTs: __localTs, cloudTs: __cloudTs });
+      var __localVerRaw = null;
+      try{ __localVerRaw = localStorage.getItem('pots_localver'); }catch(e){}
+      var __localVer = __localVerRaw != null ? parseInt(__localVerRaw, 10) : null;
+      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Path of the Stars.', 'Cloud laden', 'Geraet behalten', { localTs: __localTs, cloudTs: __cloudTs, localVer: __localVer, cloudVer: __cloudVer });
       if(useCloud){
         for(var j=0;j<sel.data.length;j++){
           var row = sel.data[j];
           await window.storage.set(row.key.replace(/^pots:/, ''), row.value, false);
         }
+        // NEU (Versions-Zaehler): Generation des Geraets an die Cloud angleichen, statt sie
+        // durch die window.storage.set()-Aufrufe oben unkontrolliert weiterzaehlen zu lassen.
+        try{ localStorage.setItem('pots_localver', String(__cloudVer || 0)); }catch(everr1){}
         location.reload();
       } else {
         window.__cloudSyncLocked = false;
@@ -3498,6 +3528,11 @@ window.__cloudSyncOnLogin = async function(){
         var row2 = sel.data[m];
         await window.storage.set(row2.key.replace(/^pots:/, ''), row2.value, false);
       }
+      try{
+        var __cv1 = null;
+        sel.data.forEach(function(row){ if(row.version != null){ if(__cv1 == null || row.version > __cv1) __cv1 = row.version; } });
+        localStorage.setItem('pots_localver', String(__cv1 || 0));
+      }catch(everr2){}
       location.reload();
     }
   }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
@@ -18578,6 +18613,7 @@ const CHANGELOG = [
   { version:'v0_0247', title:'Boot-Sequenz auf Rot umgestellt, Copyright-Jahr korrigiert, Entwicklertools entfernt', desc:'Drei Aenderungen auf Zuruf: (1) Boot-Akzentfarbe (--boot-accent/--boot-accent-dim inkl. der zugehoerigen Text-Glow-Werte fuer Banner, Bootstream-Text und Blink-Cursor) von Amber (#e8b64a) auf Rot (#ff2a2a) umgestellt, betrifft CRT-Poweron-Overlay und DOS-Bootstream gleichermassen. (2) Copyright-Zeile im Impressum/Splash von \"(C) 2087 MC ORCA Games.\" auf \"(C) 2026 MC ORCA Games.\" korrigiert. (3) Der komplette, seit v0_0213 sauber mit DEVTOOLS:START/DEVTOOLS:END-Markern gekapselte Entwicklertools-Block (Toggle-Button, Panel mit allen Test-Buttons fuer Credits, Teleport, Erfolge, Kampfeinsatz-Simulation usw., zugehoerige CSS- und HTML-Abschnitte) vollstaendig entfernt - keine Spuren im Markup, keine Funktionsreferenzen mehr im Code.' },
   { version:'v0_0248', title:'\"Spiel beenden\" entfernt (funktionierte in der Android-App nicht), mehrere Fenster fuer Handy-Querformat angepasst', desc:'Zwei Aenderungen auf Zuruf: (1) Der \"Spiel beenden\"-Button im Startbildschirm-Menue ist entfernt (Button, Klick-Handler window.close() samt Fallback-Hinweis, ungenutzte CSS-Regel) - in der Android-App gibt es keinen schliessbaren Browser-Tab, der Button tat dort nichts. (2) Mehrere Overlay-Fenster hatten keine Hoehenbegrenzung/kein internes Scrollen (u.a. Piratenueberfall/Notruf/Signal/Wrack/Wurmloch/Konvoi-Ereignis, Kampf-Overlay, Ergebnis-Popup, Story-Konstrukt/Uebergabe-Screens, alte Schwierigkeits-Karte, Start-Einstellungen) - auf kurzen Bildschirmen (Handy im Querformat) konnten sie dadurch ueber den sichtbaren Bereich hinausragen, sodass z.B. Buttons am unteren Rand nicht erreichbar waren. Alle betroffenen Karten haben jetzt max-height:88vh (Kampf-Karte 92vh) mit overflow-y:auto, zusaetzlich die dazugehoerigen Overlay-Hintergruende als Sicherheitsnetz. Das Kampf-Fenster (feste 16:9-Gefechtsbuehne, seit Langem als Problemfall bekannt) bekommt auf Viewports unter 560px Hoehe zusaetzlich ein flacheres Buehnen-Seitenverhaeltnis sowie kompakteres Logbuch/Buttons/Titel, damit es dort gar nicht erst so weit ueberlaeuft.' },
   { version:'v0_0249', title:'1.0-Vorbereitung: toter Kampfeinsatz-Code entfernt, Story-Hooks ins Logbuch, eigener Bestaetigungs-Dialog statt Browser-Popup', desc:'Drei Aufraeumarbeiten auf dem Weg zu 1.0: (1) Das komplette \"Kampfeinsatz\"-System (Missions-Datenmodell, launchCombatMission(), postMessage-Handshake mit einer separaten, noch gar nicht existierenden Kampf-Simulator-Datei, Watcher, Badge) war seit der Entfernung des Dev-Tools-Panels in v0_0247 komplett unerreichbar (keine Job-Tafel-Anbindung existierte je) - der gesamte tote Code (JS-Block, HTML-Badge, CSS) ist jetzt entfernt. (2) fireIntroStoryHook() (7 Aufrufstellen an wichtigen Story-Momenten: Szenariostart, Ankunft, Fund, Anomalie-Aufloesung, Konstrukt-Kontakt, Etappen-Bereitschaft, Szenario-Abschluss) schrieb den Erzaehltext bisher nur in die Browser-Konsole - der Spieler sah nie etwas davon. Jetzt landet der Text als echter Logbuch-Eintrag, dafuer eine neue Logbuch-Kategorie \"Story\" (lila, \u270e-Icon, eigener Filter-Chip). Die TODO(Story-KI)-Anbindung fuer spaeter bleibt unveraendert vorbereitet. (3) Die zwei verbliebenen window.confirm()-Aufrufe (\"Neues Spiel starten?\", \"Drifting Worlds starten?\") - native Browser-Dialoge, die den Neon-Noir-Look brachen und in der Android-App wie ein Fremdkoerper wirkten - sind durch einen neuen spielinternen Bestaetigungs-Dialog (showConfirmDialog(), gleiches Promise-Muster wie showDifficultyPicker()) ersetzt: eigene Karte mit Titel/Text/zwei Buttons, roter Warn-Button bei destruktiven Aktionen (Spielstand-Verlust), sonst normale Akzentfarbe, aufloesbar per Klick auf einen Button oder auf den Hintergrund.' },
+  { version:'v0_0250', title:'Cloud-Save: Versions-Zaehler statt/zusaetzlich zu Zeitstempel', desc:'Neue version-Spalte in der saves-Tabelle, lokal pots_localver. Wird bei jedem Speichern (window.storage.set-Override) hochgezaehlt und beim Cloud-Schreiben mitgeschickt. Der Konflikt-Dialog (manueller Sync-Button + Login-Sync) entscheidet ueber neuer bevorzugt per Versions-Zaehler, sobald fuer beide Seiten ein Wert bekannt ist - eliminiert Uhr-Drift-Probleme zwischen Geraeten. Zeitstempel bleiben als Fallback fuer alte Cloud-Zeilen ohne Versionsfeld.' },
 ];
 
 /* =========================================================================
@@ -19957,6 +19993,11 @@ window.addEventListener('load', initGame);
         }
         if(!localHasData){
           for(var j=0;j<sel.length;j++){ await window.storage.set(sel[j].key.replace(/^pots:/, ''), sel[j].value, false); }
+          try{
+            var __cv0 = null;
+            sel.forEach(function(row){ if(row.version != null){ if(__cv0 == null || row.version > __cv0) __cv0 = row.version; } });
+            localStorage.setItem('pots_localver', String(__cv0 || 0));
+          }catch(everr0){}
           setStatus('Cloud-Stand geladen! Lade neu …', false);
           setTimeout(function(){ location.reload(); }, 400);
           return;
@@ -19964,13 +20005,18 @@ window.addEventListener('load', initGame);
         var __localTsRaw = null;
         try{ __localTsRaw = localStorage.getItem('pots_localts'); }catch(e){}
         var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
-        var __cloudTs = null;
+        var __cloudTs = null, __cloudVer = null;
         sel.forEach(function(row){
           if(row.updated_at){ var t = new Date(row.updated_at).getTime(); if(!__cloudTs || t > __cloudTs) __cloudTs = t; }
+          if(row.version != null){ if(__cloudVer == null || row.version > __cloudVer) __cloudVer = row.version; }
         });
-        var useCloud = await __cloudCustomConfirm('Lokaler Stand und Cloud-Stand unterscheiden sich. Was moechtest du behalten?', 'Cloud laden', 'Gerät hochladen', { localTs: __localTs, cloudTs: __cloudTs });
+        var __localVerRaw = null;
+        try{ __localVerRaw = localStorage.getItem('pots_localver'); }catch(e){}
+        var __localVer = __localVerRaw != null ? parseInt(__localVerRaw, 10) : null;
+        var useCloud = await __cloudCustomConfirm('Lokaler Stand und Cloud-Stand unterscheiden sich. Was moechtest du behalten?', 'Cloud laden', 'Gerät hochladen', { localTs: __localTs, cloudTs: __cloudTs, localVer: __localVer, cloudVer: __cloudVer });
         if(useCloud){
           for(var m=0;m<sel.length;m++){ await window.storage.set(sel[m].key.replace(/^pots:/, ''), sel[m].value, false); }
+          try{ localStorage.setItem('pots_localver', String(__cloudVer || 0)); }catch(everr1){}
           setStatus('Synchronisiert! Lade neu …', false);
           setTimeout(function(){ location.reload(); }, 400);
         } else {

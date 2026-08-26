@@ -1,6 +1,14 @@
 <!--
 CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
 
+v4-77 (deep_anchor_4_6_36.html)
+- NEU (Versions-Zähler statt/zusätzlich zu updated_at, Recherche zu Cloud-Save-Konflikten):
+  neue `version`-Spalte in der `saves`-Tabelle, lokal `deepanchor_localver`. Wird bei jedem
+  storageSet() hochgezählt und beim Cloud-Schreiben mitgeschickt. Der Konflikt-Dialog
+  (manueller Sync-Button + Login-Sync) entscheidet über "neuer" bevorzugt per Versions-Zähler,
+  sobald für beide Seiten ein Wert bekannt ist — eliminiert Uhr-Drift-Probleme zwischen
+  Geräten. Zeitstempel bleiben als Fallback für alte Cloud-Zeilen ohne Versionsfeld.
+
 v4-76 (deep_anchor_4_6_35.html)
 - NEU (TODO-LOGBUCH-ERWEITERT, Nutzer-Feedback: "das wäre eher Meilensteine, ein echtes Logbuch
   registriert doch eigentlich alles -- Forschung, jeden Start und und und" + "ne Jahreszusammen-
@@ -15379,7 +15387,7 @@ document.getElementById('fileInput').addEventListener('change', (e)=>{
 /* ============================== VERSION / PATCH NOTES ============================== */
 // NEU (TODO-PATCH-NOTES): GAME_VERSION wird auf dem Startbildschirm im Patch-Notes-Button
 // angezeigt (siehe init()). Bei jeder neuen Version hier hochzaehlen.
-const GAME_VERSION = 'v4-61';
+const GAME_VERSION = 'v4-77';
 // NAMENSKONVENTION (ab v4-5): kein "-fix"-Suffix mehr, da nicht jede Version ein Bugfix ist —
 // fortlaufend v4-1, v4-2, v4-3, … Aeltere Versionsnummern (v4-fix1 bis v4-fix4, v3.9-fix-Reihe)
 // behalten im CHANGELOG-Kommentarblock oben ihre historische Bezeichnung, nur ab hier gilt das
@@ -15522,6 +15530,13 @@ async function storageSet(key, value){
   // vom STORAGE_MODE), damit der Konflikt-Dialog beim Login anzeigen kann, welcher Stand --
   // Geraet oder Cloud -- aktueller ist. Eigener, nicht mit der Cloud synchronisierter Key.
   try{ localStorage.setItem('deepanchor_localts', String(Date.now())); }catch(e){}
+  // NEU (Versions-Zaehler statt/zusaetzlich zu Zeitstempel): eliminiert Uhr-Drift-Probleme
+  // zwischen Geraeten beim Erkennen, welcher Stand neuer ist. Wird bei jedem lokalen Speichern
+  // hochgezaehlt und beim naechsten Cloud-Schreiben mitgeschickt (siehe __cloudUpsert unten).
+  try{
+    var __dav = localStorage.getItem('deepanchor_localver');
+    localStorage.setItem('deepanchor_localver', String((__dav ? parseInt(__dav,10) : 0) + 1));
+  }catch(e2c){}
   if(window.__cloudUser && window.__cloudSupabase){ window.__cloudUpsert(key, value); }
   return result;
 }
@@ -16817,7 +16832,7 @@ init();
       // sonst ungebremst pushen koennte. Gleiche Sperre wie beim Login-Sync.
       window.__cloudSyncLocked = true;
       try{
-        var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
+        var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at,version').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
         if(sel.error) throw sel.error;
         var __localKeys = await __deepAnchorCollectKeys();
         var localHasData = false;
@@ -16851,6 +16866,11 @@ init();
         }
         if(!localHasData){
           for(var i=0;i<sel.data.length;i++){ await storageSet(sel.data[i].key, sel.data[i].value); }
+          try{
+            var __cv0 = null;
+            sel.data.forEach(function(row){ if(row.version != null){ if(__cv0 == null || row.version > __cv0) __cv0 = row.version; } });
+            localStorage.setItem('deepanchor_localver', String(__cv0 || 0));
+          }catch(everr0){}
           setStatus('Cloud-Stand geladen! Lade neu …', false);
           setTimeout(function(){ location.reload(); }, 400);
           return;
@@ -16860,13 +16880,20 @@ init();
         var __localTsRaw = null;
         try{ __localTsRaw = localStorage.getItem('deepanchor_localts'); }catch(e){}
         var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
-        var __cloudTs = null;
+        var __cloudTs = null, __cloudVer = null;
         sel.data.forEach(function(row){
           if(row.updated_at){ var t = new Date(row.updated_at).getTime(); if(!__cloudTs || t > __cloudTs) __cloudTs = t; }
+          if(row.version != null){ if(__cloudVer == null || row.version > __cloudVer) __cloudVer = row.version; }
         });
-        var useCloud = await __cloudCustomConfirm('Lokaler Stand und Cloud-Stand unterscheiden sich. Was moechtest du behalten?', 'Cloud laden', 'Gerät hochladen', { localTs: __localTs, cloudTs: __cloudTs });
+        var __localVerRaw = null;
+        try{ __localVerRaw = localStorage.getItem('deepanchor_localver'); }catch(e){}
+        var __localVer = __localVerRaw != null ? parseInt(__localVerRaw, 10) : null;
+        var useCloud = await __cloudCustomConfirm('Lokaler Stand und Cloud-Stand unterscheiden sich. Was moechtest du behalten?', 'Cloud laden', 'Gerät hochladen', { localTs: __localTs, cloudTs: __cloudTs, localVer: __localVer, cloudVer: __cloudVer });
         if(useCloud){
           for(var j=0;j<sel.data.length;j++){ await storageSet(sel.data[j].key, sel.data[j].value); }
+          // NEU (Versions-Zaehler): Generation des Geraets an die Cloud angleichen, statt sie
+          // durch die storageSet()-Aufrufe oben unkontrolliert weiterzaehlen zu lassen.
+          try{ localStorage.setItem('deepanchor_localver', String(__cloudVer || 0)); }catch(everr){}
           setStatus('Synchronisiert! Lade neu …', false);
           setTimeout(function(){ location.reload(); }, 400);
         } else {
@@ -16895,8 +16922,13 @@ window.__cloudUpsert = async function(key, value){
   // Schreibpfade (u.a. der direkte Aufruf aus storageSet() bei jedem normalen Spiel-Save),
   // daher reicht die Sperre hier allein aus.
   if(window.__cloudSyncLocked) return;
+  // NEU (Versions-Zaehler statt/zusaetzlich zu updated_at): siehe Recherche zu Cloud-Save-
+  // Konflikten -- ein monotoner Zaehler pro Geraet ist unabhaengig von (evtl. falsch
+  // eingestellten) Geraete-Uhren. deepanchor_localver wird bei jedem storageSet() hochgezaehlt.
+  var __ver = 0;
+  try{ var __vRaw = localStorage.getItem('deepanchor_localver'); __ver = __vRaw ? parseInt(__vRaw,10) : 0; }catch(e){}
   var res = await window.__cloudSupabase.from('saves').upsert(
-    { user_id: window.__cloudUser.id, key: key, value: value, updated_at: new Date().toISOString() },
+    { user_id: window.__cloudUser.id, key: key, value: value, updated_at: new Date().toISOString(), version: __ver },
     { onConflict: 'user_id,key' }
   );
   if(res.error) console.warn('Cloud-Speichern fehlgeschlagen fuer', key, res.error.message);
@@ -16950,11 +16982,23 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
     box.appendChild(text);
 
     if(badges){
-      var localer = (badges.localTs != null && (badges.cloudTs == null || badges.localTs > badges.cloudTs));
-      var cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
+      // NEU (Versions-Zaehler statt/zusaetzlich zu Zeitstempel): wenn fuer beide Seiten ein
+      // Versions-Zaehler bekannt ist und sie sich unterscheiden, entscheidet der Zaehler ueber
+      // "neuer" -- unabhaengig von (evtl. falsch eingestellten) Geraete-Uhren. Nur ohne
+      // Versions-Vergleich (z.B. alte Cloud-Zeile ohne Versionsfeld) faellt es auf den
+      // Zeitstempel-Vergleich zurueck.
+      var __haveVer = (badges.localVer != null && badges.cloudVer != null);
+      var localer, cloudNewer;
+      if(__haveVer && badges.localVer !== badges.cloudVer){
+        localer = badges.localVer > badges.cloudVer;
+        cloudNewer = badges.cloudVer > badges.localVer;
+      } else {
+        localer = (badges.localTs != null && (badges.cloudTs == null || badges.localTs > badges.cloudTs));
+        cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
+      }
       var badgeRow = document.createElement('div');
       badgeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
-      function makeBadge(icon, label, ts, isNewer){
+      function makeBadge(icon, label, ts, isNewer, ver){
         var b = document.createElement('div');
         b.style.cssText = 'flex:1;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.4;'
           + (isNewer ? 'background:rgba(90,200,120,0.12);border:1px solid rgba(90,200,120,0.55);' : 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.18);');
@@ -16963,12 +17007,12 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
         top.textContent = icon + ' ' + label;
         var time = document.createElement('div');
         time.style.cssText = 'color:' + (isNewer ? '#8fe0a8' : '#999') + ';margin-top:3px;';
-        time.textContent = __relTime(ts) + (isNewer ? ' · NEUER' : '');
+        time.textContent = __relTime(ts) + (ver != null ? ' · v' + ver : '') + (isNewer ? ' · NEUER' : '');
         b.appendChild(top); b.appendChild(time);
         return b;
       }
-      badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer));
-      badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer));
+      badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer, badges.localVer));
+      badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer, badges.cloudVer));
       box.appendChild(badgeRow);
     }
 
@@ -17004,7 +17048,7 @@ window.__cloudSyncOnLogin = async function(){
     // profilspezifischen Save-Keys noch gar nicht kennen kann -- Henne-Ei-Problem) holen wir
     // per LIKE einfach ALLES, was mit "deepanchor_" beginnt. So werden auch Profile erkannt,
     // die auf diesem Geraet noch nie lokal existiert haben.
-    var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
+    var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at,version').eq('user_id', window.__cloudUser.id).like('key', 'deepanchor_%');
     if(sel.error) throw sel.error;
     // BUGFIX (kritisch, Ursache fuer stilles Ueberschreiben eines laufenden Spiels): hier stand
     // vorher fest verdrahtet storageGet('deepanchor_save') -- das ist aber NUR der Save-Key des
@@ -17055,13 +17099,18 @@ window.__cloudSyncOnLogin = async function(){
       var __localTsRaw = null;
       try{ __localTsRaw = localStorage.getItem('deepanchor_localts'); }catch(e){}
       var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
-      var __cloudTs = null;
+      var __cloudTs = null, __cloudVer = null;
       sel.data.forEach(function(row){
         if(row.updated_at){ var t = new Date(row.updated_at).getTime(); if(!__cloudTs || t > __cloudTs) __cloudTs = t; }
+        if(row.version != null){ if(__cloudVer == null || row.version > __cloudVer) __cloudVer = row.version; }
       });
-      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende (inkl. Profile) fuer Deep Anchor.', 'Cloud laden', 'Geraet behalten', { localTs: __localTs, cloudTs: __cloudTs });
+      var __localVerRaw = null;
+      try{ __localVerRaw = localStorage.getItem('deepanchor_localver'); }catch(e){}
+      var __localVer = __localVerRaw != null ? parseInt(__localVerRaw, 10) : null;
+      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende (inkl. Profile) fuer Deep Anchor.', 'Cloud laden', 'Geraet behalten', { localTs: __localTs, cloudTs: __cloudTs, localVer: __localVer, cloudVer: __cloudVer });
       if(useCloud){
         for(var i=0;i<sel.data.length;i++){ await storageSet(sel.data[i].key, sel.data[i].value); }
+        try{ localStorage.setItem('deepanchor_localver', String(__cloudVer || 0)); }catch(everr1){}
         location.reload();
       } else {
         window.__cloudSyncLocked = false;
@@ -17069,6 +17118,11 @@ window.__cloudSyncOnLogin = async function(){
       }
     } else {
       for(var j=0;j<sel.data.length;j++){ await storageSet(sel.data[j].key, sel.data[j].value); }
+      try{
+        var __cv1 = null;
+        sel.data.forEach(function(row){ if(row.version != null){ if(__cv1 == null || row.version > __cv1) __cv1 = row.version; } });
+        localStorage.setItem('deepanchor_localver', String(__cv1 || 0));
+      }catch(everr2){}
       location.reload();
     }
   }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }

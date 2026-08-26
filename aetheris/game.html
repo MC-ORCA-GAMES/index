@@ -3,6 +3,15 @@
 ============================================================
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v1.1.0
+- Neu (Versions-Zähler statt/zusätzlich zu updated_at, Recherche zu Cloud-Save-Konflikten):
+  neue `version`-Spalte in der `saves`-Tabelle, lokal `aetheris_localver`. Wird bei jedem
+  saveGame() hochgezählt und beim Cloud-Schreiben mitgeschickt. Der Konflikt-Dialog
+  (manueller Sync-Button + Login-Sync) entscheidet über "neuer" bevorzugt per Versions-Zähler,
+  sobald für beide Seiten ein Wert bekannt ist — eliminiert Uhr-Drift-Probleme zwischen
+  Geräten. Zeitstempel bleiben als Fallback für alte Cloud-Zeilen ohne Versionsfeld.
+- Anzeige auf Vorstart-/Titelbildschirm von "v1.0.9" auf "v1.1.0" erhöht.
+
 v1.0.9
 - Copyright-Zeile im Boot-Log von "(C) 2087" auf "(C) 2026" korrigiert (war ein Zukunfts-Lore-Detail
   aus dem gemeinsamen Boot-Template, sollte hier aber das echte Jahr zeigen).
@@ -1227,7 +1236,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
     <canvas class="warp-canvas" id="warpGate"></canvas>
     <div class="game-logo" id="logoGate"></div>
     <div class="tap-hint" id="startGateBtn">Berühren zum Start</div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.9</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.0</div>
   </div>
 
   <!-- MC ORCA GAMES OS — DOS-Bootstream-Overlay, läuft beim Spielstart (siehe beginGame()) -->
@@ -1253,7 +1262,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <button class="menu-btn" id="titleMusicBtn" style="font-size:11px;width:100%">🎵 Musik</button>
       <input type="range" class="music-volume-input" id="titleMusicVolume" min="0" max="1" step="0.05" style="width:130px;margin-top:8px;accent-color:#D4AF37;display:block">
     </div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.0.9</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.0</div>
   </div>
   <div class="header">
     <div class="title-row">
@@ -5642,6 +5651,13 @@ function saveGame() {
     // NEU (Sync-Hinweis-Banner): eigener, nicht mit der Cloud synchronisierter Zeitstempel,
     // damit der Login-Konflikt-Dialog anzeigen kann, welcher Stand (Geraet vs. Cloud) neuer ist.
     try{ localStorage.setItem('aetheris_localts', String(lastSavedAt)); }catch(e2){}
+    // NEU (Versions-Zaehler statt/zusaetzlich zu Zeitstempel): eliminiert Uhr-Drift-Probleme
+    // zwischen Geraeten beim Erkennen, welcher Stand neuer ist. Wird bei jedem lokalen Speichern
+    // hochgezaehlt und beim naechsten Cloud-Schreiben mitgeschickt (siehe __cloudUpsert unten).
+    try{
+      var __aev = localStorage.getItem('aetheris_localver');
+      localStorage.setItem('aetheris_localver', String((__aev ? parseInt(__aev,10) : 0) + 1));
+    }catch(e2c){}
   } catch(e) { /* Speicher voll oder blockiert — Spiel läuft trotzdem weiter */ }
 }
 
@@ -17300,7 +17316,7 @@ window.addEventListener("resize", () => { if (currentView === "dyson") positionD
       // sonst ungebremst pushen koennte. Gleiche Sperre wie beim Login-Sync.
       window.__cloudSyncLocked = true;
       try{
-        var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).like('key', 'aetheris_%');
+        var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at,version').eq('user_id', window.__cloudUser.id).like('key', 'aetheris_%');
         if(sel.error) throw sel.error;
         var __localKeys = __aetherisCollectKeys();
         var localHasData = false;
@@ -17332,6 +17348,11 @@ window.addEventListener("resize", () => { if (currentView === "dyson") positionD
         }
         if(!localHasData){
           sel.data.forEach(function(row){ localStorage.setItem(row.key, row.value); });
+          try{
+            var __cv0 = null;
+            sel.data.forEach(function(row){ if(row.version != null){ if(__cv0 == null || row.version > __cv0) __cv0 = row.version; } });
+            localStorage.setItem('aetheris_localver', String(__cv0 || 0));
+          }catch(everr0){}
           setStatus('Cloud-Stand geladen! Lade neu …', false);
           setTimeout(function(){ location.reload(); }, 400);
           return;
@@ -17339,13 +17360,18 @@ window.addEventListener("resize", () => { if (currentView === "dyson") positionD
         var __localTsRaw = null;
         try{ __localTsRaw = localStorage.getItem('aetheris_localts'); }catch(e){}
         var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
-        var __cloudTs = null;
+        var __cloudTs = null, __cloudVer = null;
         sel.data.forEach(function(row){
           if(row.updated_at){ var t = new Date(row.updated_at).getTime(); if(!__cloudTs || t > __cloudTs) __cloudTs = t; }
+          if(row.version != null){ if(__cloudVer == null || row.version > __cloudVer) __cloudVer = row.version; }
         });
-        var useCloud = await __cloudCustomConfirm('Lokaler Stand und Cloud-Stand unterscheiden sich. Was moechtest du behalten?', 'Cloud laden', 'Gerät hochladen', { localTs: __localTs, cloudTs: __cloudTs });
+        var __localVerRaw = null;
+        try{ __localVerRaw = localStorage.getItem('aetheris_localver'); }catch(e){}
+        var __localVer = __localVerRaw != null ? parseInt(__localVerRaw, 10) : null;
+        var useCloud = await __cloudCustomConfirm('Lokaler Stand und Cloud-Stand unterscheiden sich. Was moechtest du behalten?', 'Cloud laden', 'Gerät hochladen', { localTs: __localTs, cloudTs: __cloudTs, localVer: __localVer, cloudVer: __cloudVer });
         if(useCloud){
           sel.data.forEach(function(row){ localStorage.setItem(row.key, row.value); });
+          try{ localStorage.setItem('aetheris_localver', String(__cloudVer || 0)); }catch(everr1){}
           setStatus('Synchronisiert! Lade neu …', false);
           setTimeout(function(){ location.reload(); }, 400);
         } else {
@@ -17388,8 +17414,13 @@ window.__cloudUpsert = async function(key, value){
   // Schreibpfade (Autosave-Timer, direkte Spiel-Speicherpfade), daher reicht die
   // Sperre hier allein aus.
   if(window.__cloudSyncLocked) return;
+  // NEU (Versions-Zaehler statt/zusaetzlich zu updated_at): siehe Recherche zu Cloud-Save-
+  // Konflikten -- ein monotoner Zaehler pro Geraet ist unabhaengig von (evtl. falsch
+  // eingestellten) Geraete-Uhren. aetheris_localver wird bei jedem saveGame() hochgezaehlt.
+  var __ver = 0;
+  try{ var __vRaw = localStorage.getItem('aetheris_localver'); __ver = __vRaw ? parseInt(__vRaw,10) : 0; }catch(e){}
   var res = await window.__cloudSupabase.from('saves').upsert(
-    { user_id: window.__cloudUser.id, key: key, value: value, updated_at: new Date().toISOString() },
+    { user_id: window.__cloudUser.id, key: key, value: value, updated_at: new Date().toISOString(), version: __ver },
     { onConflict: 'user_id,key' }
   );
   if(res.error) console.warn('Cloud-Speichern fehlgeschlagen fuer', key, res.error.message);
@@ -17438,11 +17469,23 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
     box.appendChild(text);
 
     if(badges){
-      var localer = (badges.localTs != null && (badges.cloudTs == null || badges.localTs > badges.cloudTs));
-      var cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
+      // NEU (Versions-Zaehler statt/zusaetzlich zu Zeitstempel): wenn fuer beide Seiten ein
+      // Versions-Zaehler bekannt ist und sie sich unterscheiden, entscheidet der Zaehler ueber
+      // "neuer" -- unabhaengig von (evtl. falsch eingestellten) Geraete-Uhren. Nur ohne
+      // Versions-Vergleich (z.B. alte Cloud-Zeile ohne Versionsfeld) faellt es auf den
+      // Zeitstempel-Vergleich zurueck.
+      var __haveVer = (badges.localVer != null && badges.cloudVer != null);
+      var localer, cloudNewer;
+      if(__haveVer && badges.localVer !== badges.cloudVer){
+        localer = badges.localVer > badges.cloudVer;
+        cloudNewer = badges.cloudVer > badges.localVer;
+      } else {
+        localer = (badges.localTs != null && (badges.cloudTs == null || badges.localTs > badges.cloudTs));
+        cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
+      }
       var badgeRow = document.createElement('div');
       badgeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
-      function makeBadge(icon, label, ts, isNewer){
+      function makeBadge(icon, label, ts, isNewer, ver){
         var b = document.createElement('div');
         b.style.cssText = 'flex:1;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.4;'
           + (isNewer ? 'background:rgba(212,175,55,0.14);border:1px solid rgba(212,175,55,0.7);' : 'background:rgba(255,255,255,0.05);border:1px solid rgba(212,175,55,0.2);');
@@ -17451,12 +17494,12 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
         top.textContent = icon + ' ' + label;
         var time = document.createElement('div');
         time.style.cssText = 'color:' + (isNewer ? '#f0d878' : '#a89060') + ';margin-top:3px;';
-        time.textContent = __relTime(ts) + (isNewer ? ' · NEUER' : '');
+        time.textContent = __relTime(ts) + (ver != null ? ' · v' + ver : '') + (isNewer ? ' · NEUER' : '');
         b.appendChild(top); b.appendChild(time);
         return b;
       }
-      badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer));
-      badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer));
+      badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer, badges.localVer));
+      badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer, badges.cloudVer));
       box.appendChild(badgeRow);
     }
 
@@ -17490,7 +17533,7 @@ window.__cloudSyncOnLogin = async function(){
   try{
     // NEU (Bugfix): LIKE statt fester Key-Liste, siehe Kommentar bei Deep Anchor -- gleiches
     // Henne-Ei-Problem bei mehreren Profilen auf einem frischen Geraet.
-    var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at').eq('user_id', window.__cloudUser.id).like('key', 'aetheris_%');
+    var sel = await window.__cloudSupabase.from('saves').select('key,value,updated_at,version').eq('user_id', window.__cloudUser.id).like('key', 'aetheris_%');
     if(sel.error) throw sel.error;
     // BUGFIX (kritisch, Ursache fuer stilles Ueberschreiben eines laufenden Spiels): hier stand
     // vorher fest verdrahtet localStorage.getItem('aetheris_save_v1') -- das ist aber NUR der
@@ -17536,13 +17579,18 @@ window.__cloudSyncOnLogin = async function(){
       var __localTsRaw = null;
       try{ __localTsRaw = localStorage.getItem('aetheris_localts'); }catch(e){}
       var __localTs = __localTsRaw ? parseInt(__localTsRaw, 10) : null;
-      var __cloudTs = null;
+      var __cloudTs = null, __cloudVer = null;
       sel.data.forEach(function(row){
         if(row.updated_at){ var t = new Date(row.updated_at).getTime(); if(!__cloudTs || t > __cloudTs) __cloudTs = t; }
+        if(row.version != null){ if(__cloudVer == null || row.version > __cloudVer) __cloudVer = row.version; }
       });
-      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Aetheris (inkl. Profile).', 'Cloud laden', 'Geraet behalten', { localTs: __localTs, cloudTs: __cloudTs });
+      var __localVerRaw = null;
+      try{ __localVerRaw = localStorage.getItem('aetheris_localver'); }catch(e){}
+      var __localVer = __localVerRaw != null ? parseInt(__localVerRaw, 10) : null;
+      var useCloud = await __cloudCustomConfirm('Es gibt sowohl lokale als auch Cloud-Spielstaende fuer Aetheris (inkl. Profile).', 'Cloud laden', 'Geraet behalten', { localTs: __localTs, cloudTs: __cloudTs, localVer: __localVer, cloudVer: __cloudVer });
       if(useCloud){
         sel.data.forEach(function(row){ localStorage.setItem(row.key, row.value); });
+        try{ localStorage.setItem('aetheris_localver', String(__cloudVer || 0)); }catch(everr2){}
         location.reload();
       } else {
         window.__cloudSyncLocked = false;
@@ -17550,6 +17598,11 @@ window.__cloudSyncOnLogin = async function(){
       }
     } else {
       sel.data.forEach(function(row){ localStorage.setItem(row.key, row.value); });
+      try{
+        var __cv1 = null;
+        sel.data.forEach(function(row){ if(row.version != null){ if(__cv1 == null || row.version > __cv1) __cv1 = row.version; } });
+        localStorage.setItem('aetheris_localver', String(__cv1 || 0));
+      }catch(everr3){}
       location.reload();
     }
   }catch(err){ console.warn('Cloud-Sync fehlgeschlagen:', err.message); }
