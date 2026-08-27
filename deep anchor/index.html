@@ -1,19 +1,16 @@
 <!--
   DEEP ANCHOR — Landingpage
-  Datei-Version: v1.3
+  Datei-Version: v2.0 (Redesign)
   Changelog:
-    v1.3 – Copyright-Jahr im Boot-Log auf 2026 aktualisiert (statt 2087);
-           ASCII-Banner zweizeilig umgebaut: "MC ORCA" oben, "GAMES OS"
-           darunter (identisch in allen 5 Dateien).
-    v1.2 – Kompletter Strukturumbau zur alten Konsolenansicht: alle Fotos/
-           Artworks entfernt (nur noch das DEEP-ANCHOR-Logo bleibt), reiner
-           scrollender Terminal-Textfluss mit ASCII-Trennlinien statt
-           Karten-/Stufen-Grid, Dot-Leader-Statuszeilen. Orange bleibt Deep
-           Anchors eigene Akzentfarbe.
-    v1.1 – MC ORCA GAMES OS Boot-Sequenz ergänzt (Terminal-Look, Schritt 1):
-           CRT-Poweron + DOS-Bootstream laufen jetzt direkt beim Öffnen der
-           Seite, vor der eigentlichen Landingpage.
-    v1.0 – Basiszustand der Landingpage vor Boot-Sequenz.
+    v2.0 – Komplettes Redesign: Terminal-/DOS-Boot-Look entfernt (kein Monospace,
+           keine ASCII-Banner, keine CRT-Flash-/Boot-Sequenz beim Laden). Seite
+           folgt jetzt dem gleichen modernen Hub-Design wie die Haupt-index.html,
+           aetheris/index.html und astrion/index.html (Inter/Space Grotesk,
+           dunkles Space-Theme, Orange-Akzent für Deep Anchor, Karten statt
+           Text-Terminal). Cloud-Konto-Login (Supabase) und alle Links/IDs
+           (inkl. game.html?openSettings=1) funktional unverändert übernommen.
+           game.html unverändert.
+    v1.3 – (alt) Terminal-Look-Historie siehe Git-Verlauf.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -24,296 +21,256 @@
 <meta name="description" content="DEEP ANCHOR: Baue Satelliten, spanne ein Orbital-Netzwerk auf und expandiere vom Sonnensystem bis zu fremden Galaxien — ein Browser-Sim ohne Installation.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
-
   :root{
-    --bg:#050505; --fg:#C4C0BA; --line:#2A2A24;
-    --red:#C81E2C; --red-dim:#7A3438;
-    --orange:#FF6A2B; --orange-dim:#A0603A;
-    --grey:#6E6A62;
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+    --accent:#FF6A2B; --accent-dim:rgba(255,106,43,0.14); --accent-soft:#C98A63;
+    --green:#7FBF7F; --warn:#e3a87b;
   }
   *{ box-sizing:border-box; }
-  html,body{ scrollbar-width:none; -ms-overflow-style:none; }
-  html::-webkit-scrollbar,body::-webkit-scrollbar{ display:none; }
   html{ scroll-behavior:smooth; }
   body{
     margin:0; background:var(--bg); color:var(--fg);
-    font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:14px; line-height:1.75;
-    -webkit-font-smoothing:antialiased;
+    font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
-  a{ color:inherit; }
-  ::selection{ background:var(--orange); color:#050505; }
-  :focus-visible{ outline:1px solid var(--orange); outline-offset:2px; }
+  h1,h2,h3, .display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--accent); color:#0a0b12; }
+  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; } }
 
-  #stars{ position:fixed; inset:0; z-index:0; opacity:0.2; pointer-events:none; }
-  .stream{ position:relative; z-index:2; max-width:760px; margin:0 auto; padding:26px 20px 70px; }
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.5; pointer-events:none; }
+  .wrap{ position:relative; z-index:2; max-width:1080px; margin:0 auto; padding:0 24px; }
 
-  .topline{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:22px; font-size:12px; }
-  .topline .back{ color:var(--red-dim); text-decoration:none; }
-  .topline .back::before{ content:"[ "; opacity:.6; } .topline .back::after{ content:" ]"; opacity:.6; }
-  .topline .back:hover{ color:var(--red); }
-  .topline .jump{ display:flex; gap:14px; flex-wrap:wrap; }
-  .topline .jump a{ color:var(--orange-dim); text-decoration:none; font-size:11.5px; }
-  .topline .jump a:hover{ color:var(--orange); text-decoration:underline; text-underline-offset:2px; }
+  /* ---------- nav ---------- */
+  .nav{ position:sticky; top:0; z-index:30; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .nav-left{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .nav-back{ font-size:13px; color:var(--fg-dim); white-space:nowrap; transition:color .15s; }
+  .nav-back:hover{ color:var(--fg); }
+  .nav-brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; color:var(--accent); white-space:nowrap; }
+  .nav-brand .mark{ width:22px; height:22px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px var(--accent-dim); flex-shrink:0; }
+  .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); transition:.15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
 
-  .s-logo{ display:flex; justify-content:center; margin:8px 0 16px; }
-  .s-logo img{ height:60px; width:auto; }
-  .s-prompt{ color:var(--red-dim); font-size:12.5px; text-align:center; margin-bottom:4px; }
-  .s-prompt .p{ color:var(--red); }
-  .s-prompt .cur{ display:inline-block; width:7px; height:12px; background:var(--red); margin-left:3px; animation:blink 1s steps(1) infinite; vertical-align:-1px; }
-  @keyframes blink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
-  .s-sub{ text-align:center; color:var(--orange-dim); font-size:11px; letter-spacing:1px; text-transform:uppercase; margin-bottom:20px; }
-  .s-pitch{ text-align:center; color:var(--fg); font-size:13.5px; max-width:560px; margin:0 auto 8px; }
-  .s-meta{ text-align:center; color:var(--red-dim); font-size:11.5px; margin:10px 0 20px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
-  .s-meta b{ color:var(--orange); font-weight:600; }
-  .s-ctas{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-bottom:8px; }
+  /* ---------- hero ---------- */
+  .hero{ padding:64px 0 48px; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent-soft); margin-bottom:18px; }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  .hero-logo{ height:56px; margin-bottom:20px; }
+  .hero-logo.hidden{ display:none; }
+  .hero h1{ font-size:clamp(32px,5.6vw,52px); line-height:1.06; font-weight:700; letter-spacing:-0.01em; margin:0 0 18px; max-width:640px; }
+  .hero h1 .accent{ background:linear-gradient(100deg, var(--accent), #FFB088 50%, var(--accent)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .hero p.pitch{ font-size:16.5px; line-height:1.65; color:var(--fg-dim); max-width:520px; margin:0 0 28px; }
+  .hero-meta{ display:flex; gap:30px; flex-wrap:wrap; margin-bottom:30px; }
+  .hero-meta .m{ display:flex; flex-direction:column; gap:3px; }
+  .hero-meta .m .k{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--fg-faint); }
+  .hero-meta .m .v{ font-family:'Space Grotesk'; font-size:16px; font-weight:600; color:var(--accent); }
+  .hero-ctas{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:22px; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; font-family:'Space Grotesk'; font-weight:600; font-size:14px; padding:12px 22px; border-radius:10px; transition:.15s; }
+  .btn-primary{ background:var(--accent); color:#0a0b12; }
+  .btn-primary:hover{ transform:translateY(-1px); filter:brightness(1.08); box-shadow:0 8px 24px var(--accent-dim); }
+  .btn-ghost{ border:1px solid var(--line); color:var(--fg); }
+  .btn-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
 
-  hr.rule{ border:none; border-top:1px dashed var(--line); margin:34px 0; }
-  hr.rule.thick{ border-top:1px solid var(--line); }
+  /* ---------- sections ---------- */
+  .sec{ padding:56px 0; border-top:1px solid var(--line); }
+  .sec-head{ margin-bottom:22px; }
+  .sec-kicker{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  .sec h2{ font-size:clamp(21px,2.8vw,28px); font-weight:700; margin:0 0 10px; letter-spacing:-0.01em; }
+  .sec-lead{ font-size:14.5px; line-height:1.7; color:var(--fg-dim); max-width:600px; }
 
-  .sec{ margin-bottom:6px; }
-  .sec .shead{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:13px; letter-spacing:0.5px; text-transform:uppercase; color:var(--orange); font-weight:700; margin-bottom:4px; }
-  .sec .shead .idx{ color:var(--red-dim); }
-  .sec .shead .fill{ flex:1; border-bottom:1px dotted var(--line); height:0; align-self:center; min-width:16px; }
-  .sec .sdesc{ color:var(--fg); font-size:13px; max-width:600px; margin-bottom:14px; }
-  .sec .sdesc .arr{ color:var(--orange); }
+  ul.flist{ list-style:none; margin:20px 0 0; padding:0; display:flex; flex-direction:column; gap:16px; }
+  ul.flist li{ font-size:14.5px; line-height:1.65; color:var(--fg-dim); padding-left:20px; position:relative; }
+  ul.flist li::before{ content:"—"; position:absolute; left:0; color:var(--accent); }
+  ul.flist li b{ color:var(--fg); font-weight:600; }
 
-  ul.tlist{ list-style:none; margin:0 0 16px; padding:0; }
-  ul.tlist li{ margin-bottom:9px; font-size:13px; padding-left:14px; position:relative; }
-  ul.tlist li::before{ content:"›"; position:absolute; left:0; color:var(--orange-dim); }
-  ul.tlist li b{ color:var(--orange); font-weight:600; }
+  /* ---------- card / panel ---------- */
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:22px; }
 
-  .dl{ display:flex; align-items:baseline; gap:6px; font-size:12.5px; margin-bottom:5px; max-width:560px; }
-  .dl .lbl{ white-space:nowrap; color:var(--fg); }
-  .dl .fill{ flex:1; border-bottom:1px dotted var(--line); height:0; }
-  .dl .val{ white-space:nowrap; color:var(--orange); }
+  /* ---------- stage list (Expansionsstufen) ---------- */
+  .stagelist{ display:flex; flex-direction:column; margin-top:20px; }
+  .stage-row{ display:flex; align-items:baseline; gap:14px; font-size:13.5px; padding:14px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .stage-row:first-child{ border-top:none; }
+  .stage-row .num{ font-family:'Space Grotesk'; font-weight:700; color:var(--accent); font-size:12px; letter-spacing:0.06em; white-space:nowrap; min-width:66px; }
+  .stage-row .name{ font-weight:600; color:var(--fg); white-space:nowrap; }
+  .stage-row .fill{ flex:1; border-bottom:1px dotted var(--line); height:0; }
+  .stage-row .desc{ color:var(--fg-faint); font-size:12.5px; white-space:nowrap; }
 
-  .stagelist{ display:flex; flex-direction:column; gap:4px; margin-bottom:16px; max-width:560px; }
-  .stagelist .sr{ display:flex; align-items:baseline; gap:8px; font-size:12.5px; }
-  .stagelist .sr .num{ color:var(--red-dim); white-space:nowrap; }
-  .stagelist .sr .fill{ flex:1; border-bottom:1px dotted var(--line); height:0; }
-  .stagelist .sr .desc{ color:var(--grey); font-size:11px; white-space:nowrap; }
+  /* ---------- chronik ---------- */
+  blockquote.chron{ margin:20px 0 0; padding:20px 24px; border-left:3px solid var(--accent); background:var(--panel); border-radius:0 14px 14px 0; font-size:15px; line-height:1.7; color:var(--fg); font-style:italic; }
+  .chron-attrib{ font-size:12px; color:var(--fg-faint); margin-top:10px; font-style:normal; }
 
-  blockquote.chron{ margin:0; padding:16px 0; border-top:1px dashed var(--line); border-bottom:1px dashed var(--line); font-size:13.5px; color:#D8CBB8; max-width:600px; }
-  .chron-attrib{ font-size:11px; color:var(--orange-dim); margin-top:8px; }
+  /* ---------- final cta ---------- */
+  .final{ text-align:center; }
+  .final h2{ font-size:clamp(24px,3.4vw,32px); }
+  .final p{ max-width:480px; margin:0 auto 26px; }
+  .final .hero-ctas{ justify-content:center; }
 
-  .glink{
-    font-size:12px; letter-spacing:0.5px; text-transform:uppercase; text-decoration:none; cursor:pointer;
-    color:var(--orange); border-bottom:1px solid transparent; transition:border-color .15s;
-    background:none; border-top:none; border-left:none; border-right:none; font-family:inherit; padding:0;
-  }
-  .glink::before{ content:"[ "; opacity:.55; } .glink::after{ content:" ]"; opacity:.55; }
-  .glink:hover{ border-bottom-color:var(--orange); }
-  .glink.primary{ color:#050505; background:var(--orange); padding:6px 9px; }
-  .glink.primary::before,.glink.primary::after{ opacity:.7; }
-  .glink.primary:hover{ filter:brightness(1.1); }
+  /* ---------- footer ---------- */
+  footer{ border-top:1px solid var(--line); padding:36px 0 56px; }
+  .foot-inner{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; font-size:12.5px; color:var(--fg-faint); }
+  .foot-inner a{ transition:color .15s; }
+  .foot-inner a:hover{ color:var(--fg); }
+  .foot-links{ display:flex; gap:16px; flex-wrap:wrap; }
+  .foot-links .sep{ color:var(--line); }
 
-  .s-footer{ margin-top:36px; font-size:11px; color:var(--red-dim); text-align:center; }
-  .s-footer a{ color:var(--red-dim); text-decoration:underline; text-underline-offset:2px; }
-  .s-footer a:hover{ color:var(--red); }
-
-  .reveal{ opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease; }
+  .reveal{ opacity:0; transform:translateY(16px); transition:opacity .55s ease, transform .55s ease; }
   .reveal.in{ opacity:1; transform:none; }
-  @media (prefers-reduced-motion:reduce){ .reveal{ transition:none; opacity:1; transform:none; } }
 
-/* ============================================================================
-     MC ORCA GAMES OS — BOOT-SEQUENZ (Terminal-Look, Schritt 1)
-     Eigene Variablen (--boot-*), damit die bestehenden Theme-Farben der Seite
-     unangetastet bleiben. Akzentfarbe ist bewusst FEST ROT auf allen 5 Seiten
-     der Website (Markenfarbe, aus dem bestehenden CSS: der "ENTDECKEN"-Button
-     der Path-of-the-Stars-Kachel im Haupt-Index, --potsred).
-     ============================================================================ */
-  :root{
-    --boot-accent:#C81E2C; --boot-accent-dim:#9C5A57; --boot-bg:#050505;
-  }
-  html.boot-locked, html.boot-locked body{ overflow:hidden; height:100%; }
-  #siteContent.boot-hidden{ display:none; }
+  /* ---------- account widget (wie Hub/Aetheris/Astrion) ---------- */
+  .acct-wrap{ position:relative; }
+  .acct-panel{ display:none; position:absolute; top:calc(100% + 10px); right:0; width:256px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; box-shadow:0 20px 48px rgba(0,0,0,0.45); z-index:40; }
+  .acct-panel.open{ display:block; }
+  .acct-panel .lbl{ font-size:12px; line-height:1.55; color:var(--fg-dim); margin-bottom:10px; }
+  .acct-panel input{ width:100%; box-sizing:border-box; padding:9px 11px; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; color:var(--fg); font-family:'Inter'; font-size:13.5px; }
+  .acct-panel input:focus{ outline:none; border-color:var(--fg-faint); }
+  .acct-panel input#cloudCodeInput{ letter-spacing:4px; text-align:center; }
+  .acct-btn{ width:100%; margin-top:9px; padding:9px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg); font-family:'Inter'; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; }
+  .acct-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .acct-status{ display:block; margin-top:9px; font-size:11px; line-height:1.5; }
+  #cloudUserName{ color:var(--fg); font-weight:600; }
+  .acct-whoami{ display:flex; align-items:center; gap:9px; }
+  .acct-avatar{ font-size:19px; line-height:1; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; }
+  .acct-avatar img{ width:19px; height:19px; object-fit:cover; border-radius:50%; display:block; }
+  .acct-panel a.acct-btn{ display:block; box-sizing:border-box; text-align:center; text-decoration:none; }
 
-  #bootCrtOverlay{
-    position:fixed; inset:0; z-index:9998; display:flex; align-items:center; justify-content:center;
-    background:#000; overflow:hidden;
-  }
-  #bootCrtFlash{
-    position:absolute; inset:0; z-index:2; background:#000; pointer-events:none; overflow:hidden;
-    animation: bootCrtOverlayFade 0.25s linear 0.6s forwards;
-  }
-  .boot-crt-line{
-    position:absolute; left:50%; top:50%; width:100%; height:3px;
-    background:linear-gradient(90deg, transparent, #dff6ff 15%, #ffffff 50%, #dff6ff 85%, transparent);
-    box-shadow:0 0 20px 4px rgba(180,230,255,.9), 0 0 60px 14px rgba(120,200,255,.5);
-    transform:translate(-50%,-50%) scaleY(0.002); opacity:0;
-    animation: bootCrtBootLine 0.42s cubic-bezier(.2,.85,.3,1) 0.2s forwards;
-  }
-  @keyframes bootCrtBootLine{
-    0%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:0; }
-    15%{ opacity:1; }
-    40%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:1; }
-    78%{ transform:translate(-50%,-50%) scaleY(1.08); opacity:1; }
-    92%{ transform:translate(-50%,-50%) scaleY(0.97); }
-    100%{ transform:translate(-50%,-50%) scaleY(1); opacity:0; }
-  }
-  @keyframes bootCrtOverlayFade{ from{ opacity:1; } to{ opacity:0; visibility:hidden; } }
+  html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
+  ::-webkit-scrollbar{ width:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
 
-  #dosBootOverlay{
-    position:fixed; inset:0; z-index:9999; background:#000;
-    display:none; align-items:flex-start; justify-content:flex-start;
-    padding:40px; box-sizing:border-box; cursor:pointer; overflow:hidden;
-    opacity:1; transition:opacity .4s ease;
-  }
-  #dosBootOverlay.visible{ display:flex; }
-  #dosBootOverlay.crt-poweron{ animation: bootCrtPowerOn .55s ease-out both; transform-origin:center center; }
-  @keyframes bootCrtPowerOn{
-    0%{ transform:scaleY(.008); filter:brightness(28); opacity:1; }
-    10%{ transform:scaleY(.02); filter:brightness(20); }
-    20%{ transform:scaleY(.55); filter:brightness(7); }
-    32%{ transform:scaleY(1); filter:brightness(2.6); }
-    45%{ transform:scaleY(1); filter:brightness(1.15); }
-    100%{ transform:scaleY(1); filter:brightness(1); }
-  }
-  #dosBootOverlay.crt-poweroff{ animation: bootCrtPowerOff .55s ease-in forwards; transform-origin:center center; }
-  @keyframes bootCrtPowerOff{
-    0%{ transform:scaleY(1) scaleX(1); filter:brightness(1); opacity:1; }
-    55%{ transform:scaleY(.012) scaleX(1); filter:brightness(5); opacity:1; }
-    78%{ transform:scaleY(.012) scaleX(.02); filter:brightness(9); opacity:1; }
-    100%{ transform:scaleY(.012) scaleX(.002); filter:brightness(0); opacity:0; }
-  }
-  #dosBootOverlay::after{
-    content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
-    background:repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 2px, transparent 3px);
-    mix-blend-mode:multiply; opacity:.5;
-  }
-  .boot-dos-inner{ width:100%; max-width:900px; position:relative; z-index:1; font-family:ui-monospace,'Courier New',monospace; }
-  .boot-dos-banner{
-    margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
-    font-size:7.5px; line-height:1.15; color:var(--boot-accent);
-    text-shadow:0 0 10px rgba(200,30,44,.75), 0 0 2px rgba(200,30,44,1);
-    opacity:0; animation: bootDosBannerFlash .5s ease-out forwards;
-  }
-  @media (min-width:700px){ .boot-dos-banner{ font-size:11px; } }
-  @keyframes bootDosBannerFlash{
-    0%{ opacity:0; filter:brightness(3); }
-    60%{ opacity:1; filter:brightness(2.2); }
-    100%{ opacity:1; filter:brightness(1); }
-  }
-  .boot-dos-text{ margin:0; white-space:pre-wrap; word-break:break-word;
-    font-family:'Courier New', ui-monospace, monospace; font-size:14px; line-height:1.55;
-    color:var(--boot-accent); text-shadow:0 0 6px rgba(200,30,44,.55), 0 0 1px rgba(200,30,44,.9); }
-  #dosBootText.typing::after{
-    content:''; display:inline-block; width:8px; height:14px; background:var(--boot-accent);
-    box-shadow:0 0 6px rgba(200,30,44,.7); animation:bootDosCursorBlink 1s steps(1) infinite;
-    vertical-align:-2px; margin-left:1px;
-  }
-  @keyframes bootDosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
-  .boot-dos-skip{ position:fixed; bottom:22px; right:28px; font-size:11px; letter-spacing:1.5px;
-    color:var(--boot-accent-dim); text-transform:uppercase; z-index:3; font-family:ui-monospace,'Courier New',monospace; }
+  @media (max-width:640px){ .stage-row .fill{ display:none; } }
 </style>
 </head>
 <body>
-<div id="bootCrtOverlay">
-  <div id="bootCrtFlash" aria-hidden="true"><div class="boot-crt-line"></div></div>
-</div>
 
-<div id="dosBootOverlay" aria-hidden="true">
-  <div class="boot-dos-inner">
-    <pre class="boot-dos-banner" id="dosBootBanner"></pre>
-    <pre class="boot-dos-text" id="dosBootText"></pre>
-  </div>
-  <div class="boot-dos-skip">Klicken oder Taste dr&uuml;cken zum &Uuml;berspringen</div>
-</div>
-
-<div id="siteContent" class="boot-hidden">
 <canvas id="stars"></canvas>
 
-<div class="stream">
-
-  <div class="topline reveal">
-    <a class="back" href="../index.html">Zurueck zum Hub</a>
-    <div class="jump">
-      <a href="#produktion">Produktion</a><a href="#expansion">Expansion</a><a href="#auftraege">Auftraege</a>
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      <a class="nav-back" href="../index.html">← Hub</a>
+      <span class="nav-brand"><span class="mark"></span> DEEP ANCHOR</span>
+    </div>
+    <div class="acct-wrap" id="cloudAccountBar">
+      <button class="nav-cta" id="cloudAccountToggle" type="button">☁ Konto</button>
+      <div class="acct-panel" id="cloudAccountPanel">
+        <div id="cloudStepEmail">
+          <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+          <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
+          <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+        </div>
+        <div id="cloudStepCode" style="display:none;">
+          <div class="lbl">Code aus der E-Mail eingeben:</div>
+          <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
+          <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
+        </div>
+        <div id="cloudStepIn" style="display:none;">
+          <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
+          <a class="acct-btn" id="cloudProfileLink" href="../profil.html">Profil bearbeiten →</a>
+          <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
+        </div>
+        <span class="acct-status" id="cloudStatusMsg"></span>
+      </div>
     </div>
   </div>
+</nav>
 
-  <div class="s-logo reveal"><img src="art/bilder/logo.png" alt="DEEP ANCHOR" onerror="this.style.display='none'"></div>
-  <div class="s-prompt reveal"><span class="p">ANCHOR:\&gt;</span> status --netzwerk<span class="cur"></span></div>
-  <div class="s-sub reveal">Satelliten-Simulation &middot; Ein MC ORCA Games Projekt</div>
-  <p class="s-pitch reveal">Baue Satelliten vom ersten Chassis bis zur fertigen Konstellation, halte dein
-    Orbital-Netzwerk am Laufen — und expandiere von der Erdumlaufbahn bis in fremde Sonnensysteme und Galaxien.</p>
-  <div class="s-meta reveal"><b>Browserbasiert</b><span>Kein Konto noetig</span><span>Autosave im Browser</span></div>
-  <div class="s-ctas reveal">
-    <a class="glink primary" href="game.html">Jetzt spielen</a>
-    <a class="glink" href="#expansion">Expansion ansehen</a>
-  </div>
+<div class="wrap">
 
-  <hr class="rule thick">
+  <section class="hero">
+    <img class="hero-logo" src="art/bilder/logo.png" alt="" onerror="this.classList.add('hidden')">
+    <div class="eyebrow"><span class="dot"></span> Deep Anchor · Open Beta</div>
+    <h1>Baue dein <span class="accent">Orbital-Netzwerk</span></h1>
+    <p class="pitch">Baue Satelliten vom ersten Chassis bis zur fertigen Konstellation, halte dein
+      Orbital-Netzwerk am Laufen — und expandiere von der Erdumlaufbahn bis in fremde Sonnensysteme und Galaxien.</p>
+    <div class="hero-meta">
+      <div class="m"><span class="k">Plattform</span><span class="v">Browserbasiert</span></div>
+      <div class="m"><span class="k">Zugang</span><span class="v">Kein Konto nötig</span></div>
+      <div class="m"><span class="k">Fortschritt</span><span class="v">Autosave im Browser</span></div>
+    </div>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="game.html">Jetzt spielen</a>
+      <a class="btn btn-ghost" href="#expansion">Expansion ansehen</a>
+    </div>
+  </section>
 
-  <div class="sec reveal" id="produktion">
-    <div class="shead"><span class="idx">[ 01 ]</span> Vom Chassis bis zur Konstellation<span class="fill"></span></div>
-    <p class="sdesc"><span class="arr">&gt;</span> Jeder Satellit beginnt am Fliessband und endet als Teil deines Netzwerks
-      — dazwischen liegen Konfiguration, Start und laufende Wartung.</p>
-    <ul class="tlist">
-      <li><b>Satellitenbau</b> — Waehle ein Chassis, konfiguriere die Nutzlast und schicke deine Satelliten von der Fertigung ueber den Hangar in den Orbit.</li>
+  <section class="sec reveal" id="produktion">
+    <div class="sec-head">
+      <div class="sec-kicker">01 · Vom Chassis bis zur Konstellation</div>
+      <h2>Fertigung, Start, Wartung</h2>
+      <p class="sec-lead">Jeder Satellit beginnt am Fließband und endet als Teil deines Netzwerks — dazwischen liegen Konfiguration, Start und laufende Wartung.</p>
+    </div>
+    <ul class="flist">
+      <li><b>Satellitenbau</b> — Wähle ein Chassis, konfiguriere die Nutzlast und schicke deine Satelliten von der Fertigung über den Hangar in den Orbit.</li>
       <li><b>Orbital-Netzwerk</b> — Verwalte deine gesamte Flotte auf einen Blick: Status, Zustand und Position jedes Satelliten, live auf der Karte.</li>
       <li><b>Wartung &amp; Forschung</b> — Halte deine Satelliten in Schuss und investiere in Forschung, um dein Netzwerk auszubauen und effizienter zu machen.</li>
     </ul>
-  </div>
+  </section>
 
-  <hr class="rule">
-
-  <div class="sec reveal" id="expansion">
-    <div class="shead"><span class="idx">[ 02 ]</span> Die Erdumlaufbahn ist nur der Anfang<span class="fill"></span></div>
-    <p class="sdesc"><span class="arr">&gt;</span> Von der ersten Sonde im eigenen Sonnensystem bis zum Sprung in fremde
-      Galaxien — jede Stufe eroeffnet neue Ziele.</p>
-    <div class="stagelist">
-      <div class="sr"><span class="num">STUFE 01</span><span>Sonnensystem</span><span class="fill"></span><span class="desc">Sonden &amp; Mars-Terraforming</span></div>
-      <div class="sr"><span class="num">STUFE 02</span><span>Stellarnachbarschaft</span><span class="fill"></span><span class="desc">bis ~14 Lichtjahre</span></div>
-      <div class="sr"><span class="num">STUFE 03</span><span>Kolonien &amp; Erstkontakt</span><span class="fill"></span><span class="desc">interstellare Ziele</span></div>
-      <div class="sr"><span class="num">STUFE 04</span><span>Galaxien-Hub</span><span class="fill"></span><span class="desc">intergalaktische Sprungziele</span></div>
+  <section class="sec reveal" id="expansion">
+    <div class="sec-head">
+      <div class="sec-kicker">02 · Expansionsstufen</div>
+      <h2>Die Erdumlaufbahn ist nur der Anfang</h2>
+      <p class="sec-lead">Von der ersten Sonde im eigenen Sonnensystem bis zum Sprung in fremde Galaxien — jede Stufe eröffnet neue Ziele.</p>
     </div>
-  </div>
+    <div class="card">
+      <div class="stagelist">
+        <div class="stage-row"><span class="num">Stufe 01</span><span class="name">Sonnensystem</span><span class="fill"></span><span class="desc">Sonden &amp; Mars-Terraforming</span></div>
+        <div class="stage-row"><span class="num">Stufe 02</span><span class="name">Stellarnachbarschaft</span><span class="fill"></span><span class="desc">bis ~14 Lichtjahre</span></div>
+        <div class="stage-row"><span class="num">Stufe 03</span><span class="name">Kolonien &amp; Erstkontakt</span><span class="fill"></span><span class="desc">interstellare Ziele</span></div>
+        <div class="stage-row"><span class="num">Stufe 04</span><span class="name">Galaxien-Hub</span><span class="fill"></span><span class="desc">intergalaktische Sprungziele</span></div>
+      </div>
+    </div>
+  </section>
 
-  <hr class="rule">
-
-  <div class="sec reveal" id="auftraege">
-    <div class="shead"><span class="idx">[ 03 ]</span> Auftraege finanzieren deine Expansion<span class="fill"></span></div>
-    <p class="sdesc"><span class="arr">&gt;</span> Jeder Vertrag bringt Einnahmen, die direkt wieder in neue Satelliten,
-      Forschung und Missionen fliessen.</p>
-    <ul class="tlist">
-      <li><b>Laufende Auftraege</b></li>
-      <li>Reputation</li>
-      <li>Einnahmen pro Tag</li>
-      <li>Autosave</li>
-      <li>Export &amp; Import als Backup</li>
+  <section class="sec reveal" id="auftraege">
+    <div class="sec-head">
+      <div class="sec-kicker">03 · Aufträge finanzieren deine Expansion</div>
+      <h2>Verträge, die sich auszahlen</h2>
+      <p class="sec-lead">Jeder Vertrag bringt Einnahmen, die direkt wieder in neue Satelliten, Forschung und Missionen fließen.</p>
+    </div>
+    <ul class="flist">
+      <li><b>Laufende Aufträge</b></li>
+      <li><b>Reputation</b></li>
+      <li><b>Einnahmen pro Tag</b></li>
+      <li><b>Autosave</b></li>
+      <li><b>Export &amp; Import</b> als Backup</li>
     </ul>
-  </div>
+  </section>
 
-  <hr class="rule">
-
-  <div class="sec reveal" id="chronik">
-    <div class="shead"><span class="idx">[ 04 ]</span> Missionsprotokoll<span class="fill"></span></div>
+  <section class="sec reveal" id="chronik">
+    <div class="sec-head">
+      <div class="sec-kicker">04 · Missionsprotokoll</div>
+    </div>
     <blockquote class="chron">„Jeder Satellit ist ein Anker im Dunkel — und jeder Anker bringt uns einen
       Schritt weiter von zuhause weg.“
       <div class="chron-attrib">— Betriebslog, Deep Anchor Kontrollzentrum</div>
     </blockquote>
-  </div>
+  </section>
 
-  <hr class="rule thick">
+  <section class="sec reveal final" id="start">
+    <h2>Bereit zum Start?</h2>
+    <p class="sec-lead" style="margin:0 auto 26px">Dein erster Satellit wartet auf Fertigung. Keine Installation, kein Konto bei Dritten — öffnen und loslegen.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="game.html">Jetzt spielen</a>
+    </div>
+  </section>
 
-  <div class="sec reveal" id="start" style="text-align:center">
-    <div class="shead" style="justify-content:center">Bereit zum Start?</div>
-    <p class="sdesc" style="margin:0 auto 16px"># Dein erster Satellit wartet auf Fertigung. Keine Installation, kein Konto bei Dritten — oeffnen und loslegen.</p>
-    <div class="s-ctas"><a class="glink primary" href="game.html">Jetzt spielen</a></div>
-  </div>
-
-  <div class="s-footer reveal">
-    DEEP ANCHOR &middot; Ein <a href="../index.html">MC ORCA Games</a> Projekt &middot; <a href="game.html">Spielen</a> &middot; <a href="game.html?openSettings=1">Einstellungen</a> &middot; <a href="impressum.html">Impressum &amp; Datenschutz</a>
-  </div>
+  <footer>
+    <div class="foot-inner">
+      <div>DEEP ANCHOR — Satelliten-Simulation · Ein <a href="../index.html">MC ORCA Games</a> Projekt</div>
+      <div class="foot-links"><a href="game.html?openSettings=1">Einstellungen</a><span class="sep">·</span><a href="impressum.html">Impressum &amp; Datenschutz</a></div>
+    </div>
+  </footer>
 
 </div>
 
 <script>
-/* ---------- Sternenfeld (dezent, rot) ---------- */
+/* ---------- Sternenfeld ---------- */
 (function(){
   const canvas = document.getElementById('stars');
   const ctx = canvas.getContext('2d');
@@ -327,7 +284,7 @@
   }
   function draw(t){
     ctx.clearRect(0,0,w,h);
-    ctx.fillStyle = '#C81E2C';
+    ctx.fillStyle = '#E9E7E2';
     stars.forEach(st=>{
       const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
       ctx.globalAlpha = 0.08 + tw*0.22;
@@ -350,272 +307,6 @@
 })();
 </script>
 
-</div><!-- /siteContent -->
-<script>
-const BOOT_BANNER = ` __  __   ____    ___  ____    ____     _   
-|  \\/  | / ___|  / _ \\|  _ \\  / ___|   / \\  
-| |\\/| || |      | | || |_) || |      / _ \\ 
-| |  | || |___   | |_||  _ < | |___  / ___ \\
-|_|  |_| \\____|  \\___/|_| \\_\\ \\____|/_/   \\_\\
-
-  ____     _    __  __  _____  ____     ___  ____  
- / ___|   / \\  |  \\/  || ____|/ ___|   / _ \\/ ___| 
-| |  _   / _ \\ | |\\/| ||  _|  \\___ \\   | | |\\___ \\ 
-| |_| | / ___ \\| |  | || |___  ___) |  | |_| ___) |
- \\____|/_/   \\_\\|_|  |_||_____||____/   \\___/|____/ `;
-
-/* ==========================================================================
-   AB HIER SEITENANPASSUNG (DEEP ANCHOR-Landingpage) — BIOS-Name, OS-Name
-   und Kontextdaten. Kein eigener Spielstand auf dieser Seite — Werte unten
-   sind Katalog-Metadaten, 1:1 aus dem Seiteninhalt (Expansionsstufen).
-   ========================================================================== */
-const OS_NAME = "ANCHOR-OS";
-const BIOS_LINE = "DEEP ANCHOR BIOS v1.0";
-const COPYRIGHT_LINE = "(C) 2026 MC ORCA Games.";
-
-function getBootContext(){
-  return {
-    greeting: 'Ingenieur',
-    scope: 'Erdumlaufbahn bis Galaxien-Hub',
-    stage1: 'Sonnensystem, Sonden & Mars-Terraforming',
-    stage4: 'Galaxien-Hub, intergalaktische Sprungziele',
-  };
-}
-
-function generateBootLines(){
-  const ctx = getBootContext();
-  return [
-    BIOS_LINE,
-    COPYRIGHT_LINE,
-    "",
-    "CPU .................................. ORCA-9800X @ 4.7 GHz",
-    "RAM-Test .............................. 65536 MB OK",
-    "Netzwerkschnittstelle ................. bereit",
-    "",
-    { progress: "Pruefe Dateisystem-Integritaet", ms: 3400 },
-    { progress: "Initialisiere Orbital-Netzwerk", ms: 3400 },
-    { progress: "Kalibriere Werft-Systeme", ms: 3200 },
-    "",
-    `Lade ${OS_NAME} Kernel...`,
-    "  [ OK ] BOOTLDR.SYS          Bootloader initialisiert",
-    "  [ OK ] CHASSIS.SYS          Satellitenbau",
-    "  [ OK ] ORBIT.SYS            Orbital-Netzwerk",
-    "  [ OK ] WERFT.SYS            Orbitalwerft",
-    "  [ OK ] FORSCHUNG.SYS        Forschungsbaum",
-    "  [ OK ] VERTRAEGE.SYS        Auftragsverwaltung",
-    "",
-    { progress: "Baue Expansionsstufen auf", ms: 3400 },
-    { progress: "Synchronisiere Orbit-Register", ms: 3400 },
-    { progress: "Lade Vertragsboerse", ms: 3200 },
-    { progress: "Pruefe Lizenzserver", ms: 2600 },
-    "",
-    "Netzwerk-Uebersicht:",
-    `  Expansionsreichweite ...................... ${ctx.scope}`,
-    `  Stufe 01 ................................... ${ctx.stage1}`,
-    `  Stufe 04 ................................... ${ctx.stage4}`,
-    "",
-    `${OS_NAME} BEREIT.`,
-    "",
-    `Willkommen, ${ctx.greeting}. Bereit fuer den ersten Start.`
-  ];
-}
-
-function renderProgressLine(label, pct, width=24){
-  const filled = Math.max(0, Math.min(width, Math.round(width*pct/100)));
-  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
-  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
-}
-
-let bootAudioCtx = null;
-function bootTone(freq, dur, type='square', vol=0.05){
-  try{
-    bootAudioCtx = bootAudioCtx || new (window.AudioContext||window.webkitAudioContext)();
-    const o = bootAudioCtx.createOscillator(), g = bootAudioCtx.createGain();
-    o.type = type; o.frequency.value = freq; g.gain.value = vol;
-    o.connect(g); g.connect(bootAudioCtx.destination);
-    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, bootAudioCtx.currentTime+dur);
-    o.stop(bootAudioCtx.currentTime+dur+0.02);
-  }catch(err){}
-}
-const BootSound = {
-  postBeep: ()=> bootTone(900, 0.15, 'square', 0.06),
-  tone: bootTone,
-  diskAccess: ()=> bootTone(220+Math.random()*40, 0.03, 'square', 0.03),
-  modemHandshake: ()=> bootTone(1400, 0.25, 'sawtooth', 0.03),
-  buildOk: ()=> { bootTone(660,0.12); setTimeout(()=>bootTone(880,0.18),120); },
-};
-
-let dosBootToken = 0;
-function playDosBootSequence(){
-  return new Promise((resolve)=>{
-    const overlay = document.getElementById('dosBootOverlay');
-    const textEl = document.getElementById('dosBootText');
-    const bannerEl = document.getElementById('dosBootBanner');
-    if(!overlay || !textEl){ resolve(); return; }
-    const BOOT_LINES = generateBootLines();
-    const myToken = ++dosBootToken;
-    const totalCharBudgetMs = 90000;
-    const totalChars = BOOT_LINES.reduce((n,l)=> n + (typeof l==='string' ? Math.max(l.length,1):0), 0);
-    const perCharMs = Math.min(28, Math.max(9, totalCharBudgetMs/Math.max(totalChars,1)));
-    const interLineMs = 450;
-    const finalHoldMs = 3500;
-    const bannerRevealMs = 500;
-
-    textEl.textContent = '';
-    textEl.classList.add('typing');
-    if(bannerEl){
-      bannerEl.textContent = BOOT_BANNER;
-      bannerEl.style.animation = 'none'; void bannerEl.offsetWidth; bannerEl.style.animation = '';
-    }
-    overlay.classList.remove('fading','crt-poweroff');
-    overlay.classList.add('visible');
-    overlay.classList.remove('crt-poweron'); void overlay.offsetWidth; overlay.classList.add('crt-poweron');
-    try{ BootSound.postBeep(); }catch(err){}
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    let finished = false, timeoutIds = [];
-    const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds=[]; };
-    let renderedLines = [];
-    const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); overlay.scrollTop = overlay.scrollHeight; };
-
-    const finishNow = ()=>{
-      if(finished || myToken!==dosBootToken) return;
-      finished = true; clearAllTimers();
-      textEl.textContent = BOOT_LINES.map(l=> typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
-      overlay.scrollTop = overlay.scrollHeight;
-      overlay.classList.remove('crt-poweron'); overlay.classList.add('crt-poweroff');
-      textEl.classList.remove('typing');
-      document.body.style.overflow = prevOverflow;
-      setTimeout(()=>{
-        if(myToken!==dosBootToken) return;
-        overlay.classList.remove('visible','fading','crt-poweroff');
-        overlay.removeEventListener('click', skipHandler);
-        document.removeEventListener('keydown', skipHandler);
-        resolve();
-      }, 550);
-    };
-    const skipHandler = ()=> finishNow();
-    overlay.addEventListener('click', skipHandler);
-    document.addEventListener('keydown', skipHandler);
-
-    let lineIndex = 0, blipCounter = 0;
-    const keyBlip = ()=>{ blipCounter++; if(blipCounter%3===0){ try{ BootSound.tone(760+Math.random()*260,0.02,'square',0.045); }catch(err){} } };
-    const okBlip = ()=>{ try{ BootSound.tone(1180,0.05,'square',0.05); }catch(err){} };
-    const readyChord = ()=>{ try{ BootSound.buildOk(); }catch(err){} };
-
-    const processLine = ()=>{
-      if(myToken!==dosBootToken) return;
-      if(lineIndex >= BOOT_LINES.length){ timeoutIds.push(setTimeout(finishNow, finalHoldMs)); return; }
-      const entry = BOOT_LINES[lineIndex];
-      if(typeof entry === 'string') typeStringLine(entry);
-      else if(entry && entry.progress) runProgressLine(entry);
-    };
-
-    const typeStringLine = (line)=>{
-      if(line.length === 0){
-        renderedLines[lineIndex] = ''; redraw(); lineIndex++;
-        timeoutIds.push(setTimeout(processLine, interLineMs/2));
-        return;
-      }
-      let charIndex = 0;
-      const step = ()=>{
-        if(myToken!==dosBootToken) return;
-        charIndex++;
-        renderedLines[lineIndex] = line.slice(0, charIndex);
-        redraw();
-        if(charIndex < line.length){ keyBlip(); timeoutIds.push(setTimeout(step, perCharMs)); }
-        else{
-          const trimmed = line.trim();
-          if(trimmed.startsWith('[ OK ]')) okBlip();
-          else if(trimmed === `${OS_NAME} BEREIT.`) readyChord();
-          lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs));
-        }
-      };
-      step();
-    };
-
-    const runProgressLine = (entry)=>{
-      try{ BootSound.diskAccess(); }catch(err){}
-      const steps = 22, stepMs = Math.max(30, entry.ms/steps);
-      let step = 0;
-      renderedLines[lineIndex] = renderProgressLine(entry.progress, 0); redraw();
-      const tick = ()=>{
-        if(myToken!==dosBootToken) return;
-        step++;
-        const pct = Math.min(100, Math.round(step/steps*100));
-        renderedLines[lineIndex] = renderProgressLine(entry.progress, pct); redraw();
-        if(step%4===0){ try{ BootSound.tone(500+pct*4,0.02,'square',0.03); }catch(err){} }
-        if(step < steps) timeoutIds.push(setTimeout(tick, stepMs));
-        else{ lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs)); }
-      };
-      tick();
-    };
-
-    timeoutIds.push(setTimeout(processLine, bannerRevealMs));
-  });
-}
-
-/* Seiteneinstieg: CRT-Poweron-Flash -> direkt voller DOS-Bootstream -> danach
-   erst wird der eigentliche Seiteninhalt sichtbar. Kein Klick/Start-Button
-   dazwischen (anders als in den Spielen selbst) — die Bootstream IST hier
-   der komplette Ladevorgang der Seite. */
-function bootIntoSite(){
-  document.documentElement.classList.add('boot-locked');
-  setTimeout(async ()=>{
-    const crt = document.getElementById('bootCrtOverlay');
-    if(crt) crt.style.display = 'none';
-    await playDosBootSequence();
-    document.documentElement.classList.remove('boot-locked');
-    const site = document.getElementById('siteContent');
-    if(site) site.classList.remove('boot-hidden');
-    /* Sicherheits-Fallback: das bestehende Scroll-Reveal (.reveal +
-       IntersectionObserver) beobachtet Elemente ggf. schon, waehrend
-       #siteContent noch display:none war. Direkt nach dem Sichtbarwerden
-       pruefen wir zusaetzlich von Hand, was gerade im Viewport liegt, und
-       blenden das sofort ein, statt uns allein auf den Observer zu
-       verlassen. */
-    requestAnimationFrame(()=>{
-      document.querySelectorAll('.reveal').forEach(el=>{
-        const r = el.getBoundingClientRect();
-        if(r.top < window.innerHeight && r.bottom > 0) el.classList.add('in');
-      });
-    });
-  }, 900);
-}
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', bootIntoSite);
-}else{
-  bootIntoSite();
-}
-
-</script>
-
-<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): eigenstaendiges Konto-Widget, 6-stelliger E-Mail-Code
-     statt Magic-Link (funktioniert auch aus einer APK-WebView heraus, kein Browser-Redirect
-     noetig). Gleiche Supabase-Zugangsdaten wie in den anderen Spielen -> eine Anmeldung gilt
-     ueberall auf dieser Domain, weil die Session im localStorage der Domain liegt. -->
-<div id="cloudAccountBar" style="position:fixed;top:14px;right:14px;z-index:99999;font-family:system-ui,-apple-system,sans-serif;font-size:12px;">
-  <button id="cloudAccountToggle" style="background:rgba(15,15,20,0.85);color:#eee;border:1px solid #555;padding:7px 14px;border-radius:18px;cursor:pointer;backdrop-filter:blur(4px);">☁ Konto</button>
-  <div id="cloudAccountPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:250px;background:#16161a;border:1px solid #444;border-radius:10px;padding:12px;box-shadow:0 10px 26px rgba(0,0,0,0.5);color:#ddd;">
-    <div id="cloudStepEmail">
-      <div style="line-height:1.5;color:#aaa;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
-      <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;">
-      <button id="cloudSendCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Code senden</button>
-    </div>
-    <div id="cloudStepCode" style="display:none;">
-      <div style="line-height:1.5;color:#aaa;">Code aus der E-Mail eingeben:</div>
-      <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;letter-spacing:3px;text-align:center;">
-      <button id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Bestätigen</button>
-    </div>
-    <div id="cloudStepIn" style="display:none;">
-      <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
-      <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
-    </div>
-    <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
@@ -627,6 +318,7 @@ if(document.readyState === 'loading'){
     : null;
   var supabaseClient = window.__cloudSupabase;
   window.__cloudUser = null;
+  window.__cloudProfile = null;
   var pendingEmail = '';
   var uiState = 'email';
 
@@ -642,13 +334,36 @@ if(document.readyState === 'loading'){
     stepEmail.style.display = uiState === 'email' ? '' : 'none';
     stepCode.style.display = uiState === 'code' ? '' : 'none';
     stepIn.style.display = uiState === 'in' ? '' : 'none';
-    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
-    var emailEl = document.getElementById('cloudUserEmail');
-    if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+    var profileName = window.__cloudProfile && window.__cloudProfile.username;
+    toggle.textContent = uiState === 'in' ? ('☁ ' + (profileName || 'Eingeloggt')) : '☁ Konto';
+    var avatarEl = document.getElementById('cloudUserAvatar');
+    var nameEl = document.getElementById('cloudUserName');
+    if(avatarEl){
+      var __av = (window.__cloudProfile && window.__cloudProfile.avatar) || '🚀';
+      if(/\.(png|jpg|jpeg|webp|gif)$/i.test(__av)){
+        avatarEl.innerHTML = '';
+        var __img = document.createElement('img');
+        __img.src = __av; __img.alt = '';
+        avatarEl.appendChild(__img);
+      } else {
+        avatarEl.textContent = __av;
+      }
+    }
+    if(nameEl) nameEl.textContent = profileName || (window.__cloudUser ? window.__cloudUser.email : '—');
+  }
+  async function loadProfile(){
+    window.__cloudProfile = null;
+    if(supabaseClient && window.__cloudUser){
+      try{
+        var res = await supabaseClient.from('profiles').select('username,avatar,bio').eq('user_id', window.__cloudUser.id).maybeSingle();
+        if(!res.error && res.data) window.__cloudProfile = res.data;
+      }catch(e){ console.warn('Profil konnte nicht geladen werden', e); }
+    }
+    render();
   }
 
-  toggle.addEventListener('click', function(){ panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
-  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.style.display = 'none'; });
+  toggle.addEventListener('click', function(){ panel.classList.toggle('open'); });
+  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.classList.remove('open'); });
 
   if(!supabaseClient){
     setStatus('Cloud-Konto noch nicht eingerichtet.', true);
@@ -657,14 +372,14 @@ if(document.readyState === 'loading'){
       var session = res.data.session;
       window.__cloudUser = session ? session.user : null;
       uiState = window.__cloudUser ? 'in' : 'email';
-      render();
+      loadProfile();
       if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
     });
     supabaseClient.auth.onAuthStateChange(function(event, session){
       var wasLoggedOut = !window.__cloudUser;
       window.__cloudUser = session ? session.user : null;
       uiState = window.__cloudUser ? 'in' : 'email';
-      render();
+      loadProfile();
       if(wasLoggedOut && window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
     });
 

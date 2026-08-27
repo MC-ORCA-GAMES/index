@@ -1,802 +1,564 @@
 <!--
-  MC ORCA GAMES — Haupt-Index (Hub)
-  Datei-Version: v1.9
+  MC ORCA GAMES — Haupt-Index (Hub, Terminal-Look-Redesign)
+  Datei-Version: v1.1
   Changelog:
-    v1.9 – Logo im Willkommen-Screen deutlich vergroessert (min. 200% ggue.
-           vorher, jetzt 260-460px Hoehe je nach Viewport). Overlay bekommt
-           vorsichtshalber overflow-y:auto, falls das grosse Logo auf
-           kleinen Bildschirmen zusammen mit Titel/Button nicht mehr
-           komplett ohne Scrollen reinpasst.
-    v1.8 – Willkommen-Screen: Text-Banner "MC ORCA / GAMES OS" ersetzt durch
-           das echte Studio-Logo (bilder/logo.png, gleiche Datei wie im
-           Hub-Kopf), gross dargestellt mit rotem Glow-Effekt.
-    v1.7 – ASCII-Pixel-Banner im Willkommen-Screen (Slash/Backslash-Blockschrift)
-           war bei jeder Groesse leicht "verwaschen/verschoben", da diagonale
-           Striche bei kleinen Schriftgroessen nicht sauber aufs Pixelraster
-           passen. Ersetzt durch normalen fett gesetzten Terminal-Text
-           "MC ORCA / GAMES OS" mit Rot-Glow — optisch fast identisch, aber
-           immer scharf gerendert.
-    v1.6 – Fix: ASCII-Banner im Willkommen-Screen wirkte bei 6px/9px
-           Schriftgroesse leicht "verschoben" (Rundungsfehler bei zu
-           kleiner Monospace-Darstellung). Auf dieselbe Groesse wie das
-           echte Boot-Banner (7.5px/11px) angeglichen.
-    v1.5 – Willkommen-Vorstufe vor der Boot-Sequenz ergaenzt: ruhiger
-           Terminal-Screen ("MC ORCA GAMES HUB" + Klick-Button "Systeme
-           starten") wird jetzt SOFORT beim Laden gezeigt, komplett ohne
-           Animation/Sound. Der CRT-Poweron-Flash + DOS-Bootstream startet
-           erst nach Klick (oder Enter/Leertaste) auf den Button, damit
-           Besucher nicht direkt vom Boot-Effekt "erschlagen" werden.
-    v1.4 – Copyright-Jahr im Boot-Log auf 2026 aktualisiert (statt 2087);
-           ASCII-Banner zweizeilig umgebaut: "MC ORCA" oben, "GAMES OS"
-           darunter (identisch in allen 5 Dateien).
-    v1.3 – Kompletter Strukturumbau zur alten Konsolenansicht: keine Fotos/
-           Artwork/Gradients mehr (nur noch das MC-ORCA-Logo und die 4
-           Spiel-Wortmarken-Logos), reiner scrollender Terminal-Textfluss mit
-           ASCII-Trennlinien statt Karten-Grid, Dot-Leader-Statuszeilen,
-           Klammer-Links "[ Text ]". Spielfarben pro Eintrag erhalten.
-    v1.2 – Sichtbarer Seiteninhalt auf Terminal-Look umgestellt: Portal-Karten
-           als ASCII-Terminal-Fenster (Titelleiste, Dot-Leader-Statuszeilen,
-           Klammer-Buttons), Monospace-Typografie, rote OS-Chrome-Farbe mit
-           CRT-Scanlines, Sternenfeld rot statt creme. Einzelne Spielfarben
-           (Gold/Rot/Violett/Orange) pro Kachel bleiben erhalten.
-    v1.1 – MC ORCA GAMES OS Boot-Sequenz ergänzt (Terminal-Look, Schritt 1):
-           CRT-Poweron + DOS-Bootstream laufen jetzt direkt beim Öffnen der
-           Seite, vor der eigentlichen Hub-Übersicht.
-    v1.0 – Basiszustand (Hub-Übersicht der 4 Spiele) vor Boot-Sequenz.
+    v1.1 – Sternenkarte (Konstellation): Astrion und Path of the Stars
+           vertauscht, damit Astrion konsistent zu Sync-Liste, Spiele-Kacheln
+           und Footer an vierter statt dritter Stelle steht.
+    v1.0 – Basiszustand (Terminal-Look-Redesign mit Sternenkarte/Konstellation).
 -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MC ORCA Games — Sternenprojekte</title>
-<meta name="description" content="MC ORCA Games: Zwei browserbasierte Weltraumspiele ohne Download — AETHERIS — Echoes of an Eternal Empire und PATH OF THE STARS — Drifting Worlds.">
+<title>MC ORCA Games — Vier Weltraumspiele, ein Orbit</title>
+<meta name="description" content="MC ORCA Games: Aetheris, Path of the Stars, Astrion und Deep Anchor — browserbasierte Weltraumspiele ohne Download.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
-
   :root{
-    --bg:#050505;
-    --fg:#C9B9B9;
-    --red:#C81E2C; --red-dim:#7A3438; --red-faint:#3A2224;
-    --gold:#D4AF37; --gold-dim:#8A7A4A;
-    --astviolet:#B23AFF; --astviolet-dim:#7A5A9A;
-    --daorange:#FF6A2B; --daorange-dim:#A05A38;
+    --bg:#0a0b12;
+    --bg-alt:#12141f;
+    --panel:#151726;
+    --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2;
+    --fg-dim:#8b8fa3;
+    --fg-faint:#565a6e;
+
+    --gold:#D4AF37;
+    --gold-dim:rgba(212,175,55,0.14);
+    --red:#D6303F;
+    --red-dim:rgba(214,48,63,0.14);
+    --violet:#B23AFF;
+    --violet-dim:rgba(178,58,255,0.14);
+    --orange:#FF6A2B;
+    --orange-dim:rgba(255,106,43,0.14);
   }
+
   *{ box-sizing:border-box; }
-  html,body{ scrollbar-width:none; -ms-overflow-style:none; }
-  html::-webkit-scrollbar,body::-webkit-scrollbar{ display:none; }
+  html{ scroll-behavior:smooth; }
   body{
-    margin:0; background:var(--bg); color:var(--fg);
-    font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:14px; line-height:1.7;
+    margin:0;
+    background:var(--bg);
+    color:var(--fg);
+    font-family:'Inter',ui-sans-serif,system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
   }
-  a{ color:inherit; }
-  ::selection{ background:var(--red); color:#050505; }
-  :focus-visible{ outline:1px solid var(--red); outline-offset:2px; }
+  h1,h2,h3, .display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--gold); color:#0a0b12; }
+  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+  img{ max-width:100%; display:block; }
 
-  #stars{ position:fixed; inset:0; z-index:0; opacity:0.25; pointer-events:none; }
-
-  .stream{ position:relative; z-index:2; max-width:820px; margin:0 auto; padding:36px 20px 60px; }
-
-  .s-logo{ display:flex; justify-content:center; margin-bottom:18px; }
-  .s-logo img{ height:64px; width:auto; filter:grayscale(0.15); }
-
-  .s-prompt{ color:var(--red-dim); font-size:12.5px; margin-bottom:4px; }
-  .s-prompt .p{ color:var(--red); }
-  .s-prompt .cur{
-    display:inline-block; width:7px; height:12px; background:var(--red); margin-left:3px;
-    animation:sblink 1s steps(1) infinite; vertical-align:-1px;
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; }
   }
-  @keyframes sblink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
 
-  .s-title{ font-size:clamp(18px,3vw,26px); font-weight:700; letter-spacing:0.5px; color:var(--red); text-transform:uppercase; margin:10px 0 6px; }
-  .s-title .w{ color:var(--fg); }
-  .s-lede{ color:var(--red-dim); font-size:13px; margin-bottom:8px; }
-  .s-lede::before{ content:"# "; color:var(--red-faint); }
+  /* ---------- starfield ---------- */
+  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
 
-  .s-rule{ border:none; border-top:1px dashed var(--red-faint); margin:26px 0; }
-  .s-rule.thick{ border-top:1px solid var(--red-faint); }
+  /* ---------- shell ---------- */
+  .wrap{ position:relative; z-index:2; max-width:1080px; margin:0 auto; padding:0 24px; }
 
-  .game{ margin:0 0 30px; }
-  .game .ghead{
-    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
-    font-size:13.5px; letter-spacing:0.5px; color:var(--pc); text-transform:uppercase; font-weight:700;
+  /* ---------- nav ---------- */
+  .nav{
+    position:sticky; top:0; z-index:10;
+    background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75));
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
   }
-  .game .ghead .idx{ color:var(--red-faint); }
-  .game .ghead .fill{ flex:1; border-bottom:1px dotted var(--red-faint); height:0; align-self:center; min-width:24px; }
-  .game .ghead .ver{ color:var(--red-dim); font-weight:400; font-size:11.5px; }
-  .game .gsub{ color:var(--pc-dim); font-size:11.5px; letter-spacing:0.5px; margin:4px 0 12px; text-transform:uppercase; }
-  .game .glogo{ margin:2px 0 12px; }
-  .game .glogo img{ height:34px; width:auto; }
-  .game .gpitch{ color:var(--fg); font-size:13.5px; max-width:620px; margin-bottom:14px; }
-  .game .gpitch .arr{ color:var(--pc); }
-  .game .gmeta{ display:flex; flex-direction:column; gap:2px; font-size:12px; color:var(--red-dim); max-width:420px; margin-bottom:16px; }
-  .game .gmeta .row{ display:flex; justify-content:space-between; gap:10px; }
-  .game .gmeta .row .v{ color:var(--pc); }
-  .game .gctas{ display:flex; gap:14px; flex-wrap:wrap; }
-  .glink{
-    font-size:12px; letter-spacing:0.5px; text-transform:uppercase; text-decoration:none; cursor:pointer;
-    color:var(--pc); border-bottom:1px solid transparent; transition:border-color .15s, opacity .15s;
+  .nav-inner{
+    max-width:1080px; margin:0 auto; padding:16px 24px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
   }
-  .glink::before{ content:"[ "; opacity:.55; }
-  .glink::after{ content:" ]"; opacity:.55; }
-  .glink:hover{ border-bottom-color:var(--pc); }
-  .glink.primary{ color:var(--bg); background:var(--pc); padding:5px 8px; }
-  .glink.primary::before,.glink.primary::after{ opacity:.7; }
-  .glink.primary:hover{ filter:brightness(1.12); }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; }
+  .brand .mark{
+    width:26px; height:26px; border-radius:50%;
+    background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--gold));
+    box-shadow:0 0 16px rgba(212,175,55,0.35);
+    flex-shrink:0;
+  }
+  .brand .mark img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .brand .mark img.hidden{ display:none; }
+  .nav-cta{
+    font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px;
+    border:1px solid var(--line); color:var(--fg-dim);
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- hero ---------- */
+  .hero{ padding:96px 0 64px; position:relative; }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--fg-dim); margin-bottom:22px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); box-shadow:0 0 8px var(--gold); }
+  .hero h1{
+    font-size:clamp(36px,6vw,64px); line-height:1.04; font-weight:700; letter-spacing:-0.01em;
+    margin:0 0 22px; max-width:820px;
+  }
+  .hero h1 .accent{
+    background:linear-gradient(100deg, var(--gold), var(--red) 34%, var(--violet) 66%, var(--orange));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .hero p{ font-size:17px; line-height:1.65; color:var(--fg-dim); max-width:520px; margin:0 0 34px; }
+  .hero-ctas{ display:flex; gap:14px; flex-wrap:wrap; }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'Space Grotesk'; font-weight:600; font-size:14.5px;
+    padding:13px 24px; border-radius:10px; transition:transform .15s, box-shadow .15s, background .15s, border-color .15s;
+  }
+  .btn-primary{ background:var(--fg); color:var(--bg); }
+  .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 8px 24px rgba(255,255,255,0.12); }
+  .btn-ghost{ border:1px solid var(--line); color:var(--fg); }
+  .btn-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+
+  /* ---------- constellation ---------- */
+  .constellation{ padding:20px 0 88px; position:relative; }
+  .constellation-head{ text-align:center; margin-bottom:8px; }
+  .constellation-head .kicker{ font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-faint); }
+  .constellation-head h2{ font-size:clamp(22px,3.4vw,30px); font-weight:600; margin:8px 0 0; }
+  .const-svg{ width:100%; height:auto; margin-top:36px; overflow:visible; }
+  .const-line{ stroke:var(--line); stroke-width:1; fill:none; }
+  .const-node-halo{ opacity:0.35; transition:opacity .2s, r .2s; }
+  .const-node{ cursor:pointer; }
+  .const-node circle.core{ transition:r .2s, filter .2s; }
+  .const-node:hover .core{ filter:brightness(1.3); }
+  .const-node:hover .const-node-halo{ opacity:0.6; }
+  .const-label{ font-family:'Space Grotesk'; font-size:12px; font-weight:600; fill:var(--fg-dim); letter-spacing:0.02em; transition:fill .2s; }
+  .const-node:hover .const-label{ fill:var(--fg); }
+
+  /* ---------- section rule ---------- */
+  .rule{ border:none; border-top:1px solid var(--line); margin:0; }
+
+  /* ---------- game entries ---------- */
+  .games{ padding:20px 0 40px; }
+  .game{
+    padding:64px 0; border-top:1px solid var(--line);
+    display:grid; grid-template-columns:1.1fr 1fr; gap:48px; align-items:center;
+  }
+  .game:first-child{ border-top:none; }
+  .game.reverse .g-visual{ order:2; }
+  .g-eyebrow{
+    display:flex; align-items:center; gap:10px;
+    font-family:'Space Grotesk'; font-size:12.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--pc); margin-bottom:14px;
+  }
+  .g-eyebrow .ver{ color:var(--fg-faint); font-weight:500; text-transform:none; letter-spacing:0; }
+  .g-title{ font-size:clamp(24px,3.2vw,34px); font-weight:700; margin:0 0 6px; letter-spacing:-0.01em; }
+  .g-sub{ font-size:14px; color:var(--fg-dim); margin:0 0 18px; }
+  .g-pitch{ font-size:15.5px; line-height:1.7; color:var(--fg); max-width:480px; margin:0 0 26px; }
+  .g-meta{ display:flex; gap:28px; flex-wrap:wrap; margin-bottom:28px; }
+  .g-meta .m{ display:flex; flex-direction:column; gap:3px; }
+  .g-meta .m .k{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--fg-faint); }
+  .g-meta .m .v{ font-family:'Space Grotesk'; font-size:15px; font-weight:600; color:var(--fg); }
+  .g-ctas{ display:flex; gap:12px; flex-wrap:wrap; }
+  .g-btn{
+    font-family:'Space Grotesk'; font-size:13.5px; font-weight:600; padding:11px 20px; border-radius:9px;
+    transition:transform .15s, filter .15s, border-color .15s, background .15s;
+  }
+  .g-btn.primary{ background:var(--pc); color:#0a0b12; }
+  .g-btn.primary:hover{ transform:translateY(-1px); filter:brightness(1.08); }
+  .g-btn.secondary{ border:1px solid var(--line); color:var(--fg-dim); }
+  .g-btn.secondary:hover{ border-color:var(--pc); color:var(--fg); }
+
+  .g-visual{
+    aspect-ratio:1/1; border-radius:20px; position:relative; overflow:hidden;
+    background:radial-gradient(circle at 32% 28%, var(--pc-dim), transparent 60%), var(--panel);
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .g-visual .wordmark{
+    font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.04em;
+    color:var(--pc); text-align:center; padding:0 20px;
+    text-shadow:0 0 30px var(--pc-dim);
+  }
+  .g-visual .ring{
+    position:absolute; border:1px solid var(--pc); border-radius:50%; opacity:0.18;
+  }
+  .g-visual .ring.r1{ width:60%; height:60%; }
+  .g-visual .ring.r2{ width:85%; height:85%; opacity:0.1; }
 
   .aetheris{ --pc:var(--gold); --pc-dim:var(--gold-dim); }
   .pots{ --pc:var(--red); --pc-dim:var(--red-dim); }
-  .astrion{ --pc:var(--astviolet); --pc-dim:var(--astviolet-dim); }
-  .deepanchor{ --pc:var(--daorange); --pc-dim:var(--daorange-dim); }
+  .astrion{ --pc:var(--violet); --pc-dim:var(--violet-dim); }
+  .deepanchor{ --pc:var(--orange); --pc-dim:var(--orange-dim); }
 
-  /* ---------- Sync-Status-Uebersicht ---------- */
-  /* NEU (TODO-SYNCBOX-NUR-EINGELOGGT, Nutzerwunsch: "das Sync-Dingend auf der Main-Index-Seite
-     ausblenden, wenn man nicht eingeloggt ist, erst anzeigen wenn man eingeloggt ist"): standardmäßig
-     versteckt, unabhängig vom .reveal-Scroll-Einblendeffekt (der nur opacity/transform steuert,
-     kein display) — wird erst per JS sichtbar geschaltet, sobald refreshAll() unten einen echten
-     Login feststellt (siehe .syncbox.loggedIn). Ohne Login bleibt die ganze Box weg, kein
-     "nicht eingeloggt"-Platzhalter mehr nötig. */
-  .syncbox{ margin:0 0 30px; display:none; }
+  /* ---------- footer ---------- */
+  footer{ border-top:1px solid var(--line); padding:40px 0 56px; }
+  .foot-inner{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+  .foot-brand{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--fg-dim); }
+  .foot-links{ display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--fg-faint); }
+  .foot-links a{ transition:color .15s; }
+  .foot-links a:hover{ color:var(--fg); }
+  .foot-links .sep{ color:var(--line); }
+
+  /* ---------- reveal ---------- */
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  @media (max-width:760px){
+    .game{ grid-template-columns:1fr; gap:28px; }
+    .game.reverse .g-visual{ order:0; }
+    .g-visual{ aspect-ratio:16/9; }
+    .nav-cta{ padding:8px 13px; font-size:12.5px; }
+  }
+
+  /* ---------- scrollbar ---------- */
+  html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:#3a3d4d; }
+
+  /* ---------- logo image inside g-visual ---------- */
+  .g-visual .glogo-img{ max-width:64%; max-height:52%; object-fit:contain; position:relative; z-index:1; filter:drop-shadow(0 0 22px var(--pc-dim)); }
+  .g-visual .glogo-img.hidden{ display:none; }
+
+  /* ---------- account widget ---------- */
+  .acct-wrap{ position:relative; }
+  .acct-panel{
+    display:none; position:absolute; top:calc(100% + 10px); right:0; width:264px;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px;
+    box-shadow:0 20px 48px rgba(0,0,0,0.45); z-index:20;
+  }
+  .acct-panel.open{ display:block; }
+  .acct-panel .lbl{ font-size:12.5px; line-height:1.55; color:var(--fg-dim); margin-bottom:10px; }
+  .acct-panel input{
+    width:100%; box-sizing:border-box; padding:9px 11px; background:var(--bg-alt);
+    border:1px solid var(--line); border-radius:8px; color:var(--fg); font-family:'Inter'; font-size:13.5px;
+  }
+  .acct-panel input:focus{ outline:none; border-color:var(--fg-faint); }
+  .acct-panel input#cloudCodeInput{ letter-spacing:4px; text-align:center; }
+  .acct-btn{
+    width:100%; margin-top:9px; padding:9px; border-radius:8px; border:1px solid var(--line);
+    background:transparent; color:var(--fg); font-family:'Inter'; font-size:13px; font-weight:600; cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .acct-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .acct-status{ display:block; margin-top:9px; font-size:11.5px; line-height:1.5; }
+  .acct-status.ok{ color:#7fbf7f; }
+  .acct-status.err{ color:#e37b7b; }
+  #cloudUserName{ color:var(--fg); font-weight:600; }
+  .acct-whoami{ display:flex; align-items:center; gap:9px; }
+  .acct-avatar{ font-size:19px; line-height:1; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; }
+  .acct-avatar img{ width:19px; height:19px; object-fit:cover; border-radius:50%; display:block; }
+  .acct-panel a.acct-btn{ display:block; box-sizing:border-box; text-align:center; text-decoration:none; }
+
+  /* ---------- sync box ---------- */
+  .syncbox{ display:none; margin:0 0 56px; padding:22px 24px; border:1px solid var(--line); border-radius:16px; background:var(--panel); }
   .syncbox.loggedIn{ display:block; }
-  .syncbox .ghead{
-    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
-    font-size:13.5px; letter-spacing:0.5px; color:var(--fg); text-transform:uppercase; font-weight:700;
-  }
-  .syncbox .ghead .idx{ color:var(--red-faint); }
-  .syncbox .ghead .fill{ flex:1; border-bottom:1px dotted var(--red-faint); height:0; align-self:center; min-width:24px; }
-  .syncbox .ghead .ver{ color:var(--red-dim); font-weight:400; font-size:11px; text-transform:none; letter-spacing:0; }
-  .syncbox .gsub{ color:var(--red-faint); font-size:11.5px; margin:4px 0 14px; }
-
-  .sync-rows{ display:flex; flex-direction:column; gap:8px; }
-  .sync-row{
-    display:grid; grid-template-columns:170px 1fr auto;
-    align-items:center; gap:10px; font-size:12px; color:var(--fg);
-    padding:8px 10px; border:1px solid var(--red-faint); border-radius:4px;
-  }
-  .sync-row .sr-name{ color:var(--pc); font-weight:700; letter-spacing:0.5px; text-transform:uppercase; font-size:11.5px; overflow-wrap:anywhere; }
-  .sync-row .sr-status{ font-size:11.5px; cursor:help; }
-  .sync-row .sr-btn{
-    font-size:11px; letter-spacing:0.3px; text-transform:uppercase; text-decoration:none; cursor:pointer;
-    color:var(--pc); border-bottom:1px solid transparent; white-space:nowrap;
-  }
-  .sync-row .sr-btn:hover{ border-bottom-color:var(--pc); }
-
-  @media (max-width:560px){
-    .sync-row{
-      grid-template-columns:1fr 1fr;
-      grid-template-areas:"name status" "btn btn";
-      row-gap:5px;
-    }
-    .sync-row .sr-name{ grid-area:name; }
-    .sync-row .sr-status{ grid-area:status; text-align:right; }
-    .sync-row .sr-btn{ grid-area:btn; text-align:center; margin-top:2px; }
-  }
-
-  .s-footer{ margin-top:36px; font-size:11px; color:var(--red-faint); text-align:center; }
-  .s-footer a{ color:var(--red-dim); text-decoration:underline; text-underline-offset:2px; }
-  .s-footer a:hover{ color:var(--red); }
-  .s-footer .sep{ margin:0 6px; }
-
-  .reveal{ opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease; }
-  .reveal.in{ opacity:1; transform:none; }
-  @media (prefers-reduced-motion:reduce){ .reveal{ transition:none; opacity:1; transform:none; } }
-
-/* ============================================================================
-     MC ORCA GAMES OS — BOOT-SEQUENZ (Terminal-Look, Schritt 1)
-     Eigene Variablen (--boot-*), damit die bestehenden Theme-Farben der Seite
-     unangetastet bleiben. Akzentfarbe ist bewusst FEST ROT auf allen 5 Seiten
-     der Website (Markenfarbe, aus dem bestehenden CSS: der "ENTDECKEN"-Button
-     der Path-of-the-Stars-Kachel im Haupt-Index, --potsred).
-     ============================================================================ */
-  :root{
-    --boot-accent:#C81E2C; --boot-accent-dim:#9C5A57; --boot-bg:#050505;
-  }
-  html.boot-locked, html.boot-locked body{ overflow:hidden; height:100%; }
-  #siteContent.boot-hidden{ display:none; }
-
-  #bootCrtOverlay{
-    position:fixed; inset:0; z-index:9998; display:none; align-items:center; justify-content:center;
-    background:#000; overflow:hidden;
-  }
-  #bootCrtOverlay.active{ display:flex; }
-  #bootCrtFlash{
-    position:absolute; inset:0; z-index:2; background:#000; pointer-events:none; overflow:hidden;
-    animation: bootCrtOverlayFade 0.25s linear 0.6s forwards;
-  }
-  .boot-crt-line{
-    position:absolute; left:50%; top:50%; width:100%; height:3px;
-    background:linear-gradient(90deg, transparent, #dff6ff 15%, #ffffff 50%, #dff6ff 85%, transparent);
-    box-shadow:0 0 20px 4px rgba(180,230,255,.9), 0 0 60px 14px rgba(120,200,255,.5);
-    transform:translate(-50%,-50%) scaleY(0.002); opacity:0;
-    animation: bootCrtBootLine 0.42s cubic-bezier(.2,.85,.3,1) 0.2s forwards;
-  }
-  @keyframes bootCrtBootLine{
-    0%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:0; }
-    15%{ opacity:1; }
-    40%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:1; }
-    78%{ transform:translate(-50%,-50%) scaleY(1.08); opacity:1; }
-    92%{ transform:translate(-50%,-50%) scaleY(0.97); }
-    100%{ transform:translate(-50%,-50%) scaleY(1); opacity:0; }
-  }
-  @keyframes bootCrtOverlayFade{ from{ opacity:1; } to{ opacity:0; visibility:hidden; } }
-
-  #dosBootOverlay{
-    position:fixed; inset:0; z-index:9999; background:#000;
-    display:none; align-items:flex-start; justify-content:flex-start;
-    padding:40px; box-sizing:border-box; cursor:pointer; overflow:hidden;
-    opacity:1; transition:opacity .4s ease;
-  }
-  #dosBootOverlay.visible{ display:flex; }
-  #dosBootOverlay.crt-poweron{ animation: bootCrtPowerOn .55s ease-out both; transform-origin:center center; }
-  @keyframes bootCrtPowerOn{
-    0%{ transform:scaleY(.008); filter:brightness(28); opacity:1; }
-    10%{ transform:scaleY(.02); filter:brightness(20); }
-    20%{ transform:scaleY(.55); filter:brightness(7); }
-    32%{ transform:scaleY(1); filter:brightness(2.6); }
-    45%{ transform:scaleY(1); filter:brightness(1.15); }
-    100%{ transform:scaleY(1); filter:brightness(1); }
-  }
-  #dosBootOverlay.crt-poweroff{ animation: bootCrtPowerOff .55s ease-in forwards; transform-origin:center center; }
-  @keyframes bootCrtPowerOff{
-    0%{ transform:scaleY(1) scaleX(1); filter:brightness(1); opacity:1; }
-    55%{ transform:scaleY(.012) scaleX(1); filter:brightness(5); opacity:1; }
-    78%{ transform:scaleY(.012) scaleX(.02); filter:brightness(9); opacity:1; }
-    100%{ transform:scaleY(.012) scaleX(.002); filter:brightness(0); opacity:0; }
-  }
-  #dosBootOverlay::after{
-    content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
-    background:repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 2px, transparent 3px);
-    mix-blend-mode:multiply; opacity:.5;
-  }
-  .boot-dos-inner{ width:100%; max-width:900px; position:relative; z-index:1; font-family:ui-monospace,'Courier New',monospace; }
-  .boot-dos-banner{
-    margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
-    font-size:7.5px; line-height:1.15; color:var(--boot-accent);
-    text-shadow:0 0 10px rgba(200,30,44,.75), 0 0 2px rgba(200,30,44,1);
-    opacity:0; animation: bootDosBannerFlash .5s ease-out forwards;
-  }
-  @media (min-width:700px){ .boot-dos-banner{ font-size:11px; } }
-  @keyframes bootDosBannerFlash{
-    0%{ opacity:0; filter:brightness(3); }
-    60%{ opacity:1; filter:brightness(2.2); }
-    100%{ opacity:1; filter:brightness(1); }
-  }
-  .boot-dos-text{ margin:0; white-space:pre-wrap; word-break:break-word;
-    font-family:'Courier New', ui-monospace, monospace; font-size:14px; line-height:1.55;
-    color:var(--boot-accent); text-shadow:0 0 6px rgba(200,30,44,.55), 0 0 1px rgba(200,30,44,.9); }
-  #dosBootText.typing::after{
-    content:''; display:inline-block; width:8px; height:14px; background:var(--boot-accent);
-    box-shadow:0 0 6px rgba(200,30,44,.7); animation:bootDosCursorBlink 1s steps(1) infinite;
-    vertical-align:-2px; margin-left:1px;
-  }
-  @keyframes bootDosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
-  .boot-dos-skip{ position:fixed; bottom:22px; right:28px; font-size:11px; letter-spacing:1.5px;
-    color:var(--boot-accent-dim); text-transform:uppercase; z-index:3; font-family:ui-monospace,'Courier New',monospace; }
-
-  /* ---------- Willkommen-Vorstufe (vor Boot-Sequenz, ganz ruhig) ---------- */
-  #bootWelcomeOverlay{
-    position:fixed; inset:0; z-index:9999; background:var(--boot-bg);
-    display:flex; align-items:center; justify-content:center; flex-direction:column;
-    text-align:center; padding:28px; box-sizing:border-box; overflow-y:auto;
-    font-family:ui-monospace,'Courier New',monospace;
-    opacity:1; transition:opacity .4s ease;
-  }
-  #bootWelcomeOverlay.hidden{ opacity:0; pointer-events:none; }
-  .boot-welcome-banner{
-    margin:0 0 22px; display:flex; justify-content:center;
-  }
-  .boot-welcome-banner img{
-    height:clamp(260px,42vw,460px); width:auto;
-    filter:drop-shadow(0 0 18px rgba(200,30,44,.55)) drop-shadow(0 0 4px rgba(200,30,44,.8));
-  }
-  .boot-welcome-prompt{ font-size:12px; color:var(--boot-accent-dim); margin:0 0 14px; letter-spacing:.5px; }
-  .boot-welcome-prompt .p{ color:var(--boot-accent); }
-  .boot-welcome-title{
-    font-size:clamp(19px,4vw,30px); letter-spacing:1.5px; color:var(--boot-accent);
-    text-transform:uppercase; margin:0 0 12px; font-weight:700;
-    text-shadow:0 0 10px rgba(200,30,44,.55), 0 0 2px rgba(200,30,44,.9);
-  }
-  .boot-welcome-sub{ font-size:12.5px; color:var(--boot-accent-dim); margin:0 0 36px; letter-spacing:.3px; max-width:420px; }
-  .boot-welcome-btn{
-    font-family:inherit; font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
-    background:transparent; color:var(--boot-accent); border:1px solid var(--boot-accent-dim);
-    padding:13px 28px; cursor:pointer; transition:background .15s, color .15s, box-shadow .15s;
-  }
-  .boot-welcome-btn:hover, .boot-welcome-btn:focus-visible{
-    background:var(--boot-accent); color:#050505; box-shadow:0 0 18px rgba(200,30,44,.6); outline:none;
-  }
-  .boot-welcome-btn::before{ content:"[ "; opacity:.6; }
-  .boot-welcome-btn::after{ content:" ]"; opacity:.6; }
-  .boot-welcome-hint{ margin-top:18px; font-size:10px; color:var(--boot-accent-dim); opacity:.55; letter-spacing:.4px; }
+  .syncbox-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+  .syncbox-head .t{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; }
+  .syncbox-head .hint{ font-size:12px; color:var(--fg-faint); }
+  .sync-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0; border-top:1px solid var(--line); font-size:13.5px; flex-wrap:wrap; }
+  .sync-row:first-of-type{ border-top:none; }
+  .sync-row .sr-dot{ width:8px; height:8px; border-radius:50%; background:var(--pc); box-shadow:0 0 8px var(--pc-dim); display:inline-block; margin-right:9px; flex-shrink:0; vertical-align:middle; }
+  .sync-row .sr-name{ font-weight:600; min-width:110px; display:inline-flex; align-items:center; }
+  .sync-row .sr-status{ color:var(--fg-dim); flex:1; }
+  .sync-row .sr-btn{ font-size:12.5px; font-weight:600; color:var(--fg); border-bottom:1px solid var(--line); }
+  .sync-row .sr-btn:hover{ border-bottom-color:var(--fg); }
 </style>
 </head>
 <body>
-<div id="bootWelcomeOverlay">
-  <div class="boot-welcome-banner"><img src="bilder/logo.png" alt="MC ORCA GAMES" onerror="this.parentElement.style.display='none'"></div>
-  <div class="boot-welcome-prompt"><span class="p">C:\ORCA\HUB&gt;</span> standby</div>
-  <div class="boot-welcome-title">Willkommen auf MC ORCA GAMES HUB</div>
-  <div class="boot-welcome-sub">Terminal im Standby. Vier Weltraumspiele warten auf deine Verbindung.</div>
-  <button type="button" class="boot-welcome-btn" id="bootStartBtn">Systeme starten</button>
-  <div class="boot-welcome-hint">Boot-Sequenz mit Sound &middot; ca. 60&ndash;90&nbsp;Sek. &middot; jederzeit &uuml;berspringbar</div>
-</div>
 
-<div id="bootCrtOverlay">
-  <div id="bootCrtFlash" aria-hidden="true"><div class="boot-crt-line"></div></div>
-</div>
-
-<div id="dosBootOverlay" aria-hidden="true">
-  <div class="boot-dos-inner">
-    <pre class="boot-dos-banner" id="dosBootBanner"></pre>
-    <pre class="boot-dos-text" id="dosBootText"></pre>
-  </div>
-  <div class="boot-dos-skip">Klicken oder Taste dr&uuml;cken zum &Uuml;berspringen</div>
-</div>
-
-<div id="siteContent" class="boot-hidden">
 <canvas id="stars"></canvas>
 
-<div class="stream">
-
-  <div class="s-logo reveal">
-    <img src="bilder/logo.png" alt="MC ORCA GAMES" onerror="this.style.display='none'">
-  </div>
-
-  <div class="s-prompt reveal"><span class="p">C:\ORCA\HUB&gt;</span> whoami --games<span class="cur"></span></div>
-  <div class="s-title reveal">MC <span class="w">ORCA</span> GAMES</div>
-  <div class="s-lede reveal">Browserbasierte Weltraumspiele. Kein Download, kein Konto bei Dritten — einfach oeffnen und spielen.</div>
-
-  <hr class="s-rule thick">
-
-  <div class="syncbox reveal">
-    <div class="ghead"><span class="idx">[ ⟳ ]</span> SYNC-STATUS.SYS<span class="fill"></span><span class="ver" id="syncStatusHint">wird geprüft …</span></div>
-    <div class="gsub"># Lokaler Spielstand vs. Cloud, pro Spiel. Bei Unterschied: Button oeffnet das Spiel + Cloud-Panel dort.</div>
-    <div class="sync-rows">
-      <div class="sync-row aetheris" data-game="aetheris">
-        <span class="sr-name">Aetheris</span>
-        <span class="sr-status">wird geprüft …</span>
-        <a class="sr-btn" href="aetheris/game.html?cloudsync=1">Synchronisieren →</a>
-      </div>
-      <div class="sync-row pots" data-game="pots">
-        <span class="sr-name">Path of the Stars</span>
-        <span class="sr-status">wird geprüft …</span>
-        <a class="sr-btn" href="path%20of%20the%20stars/game.html?cloudsync=1">Synchronisieren →</a>
-      </div>
-      <div class="sync-row astrion" data-game="astrion">
-        <span class="sr-name">Astrion</span>
-        <span class="sr-status">wird geprüft …</span>
-        <a class="sr-btn" href="astrion/game.html?cloudsync=1">Synchronisieren →</a>
-      </div>
-      <div class="sync-row deepanchor" data-game="deepanchor">
-        <span class="sr-name">Deep Anchor</span>
-        <span class="sr-status">wird geprüft …</span>
-        <a class="sr-btn" href="deep%20anchor/game.html?cloudsync=1">Synchronisieren →</a>
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand"><span class="mark"><img src="bilder/logo.png" alt="" onerror="this.classList.add('hidden')"></span> MC ORCA GAMES</div>
+    <div style="display:flex; align-items:center; gap:10px;">
+    <a class="nav-cta" href="raenge.html">🏆 Ränge</a>
+    <div class="acct-wrap" id="cloudAccountBar">
+      <button class="nav-cta" id="cloudAccountToggle" type="button">☁ Konto</button>
+      <div class="acct-panel" id="cloudAccountPanel">
+        <div id="cloudStepEmail">
+          <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+          <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
+          <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+        </div>
+        <div id="cloudStepCode" style="display:none;">
+          <div class="lbl">Code aus der E-Mail eingeben:</div>
+          <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
+          <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
+        </div>
+        <div id="cloudStepIn" style="display:none;">
+          <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
+          <a class="acct-btn" id="cloudProfileLink" href="profil.html">Profil bearbeiten →</a>
+          <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
+        </div>
+        <span class="acct-status" id="cloudStatusMsg"></span>
       </div>
     </div>
-  </div>
-
-  <hr class="s-rule">
-
-  <div class="game aetheris reveal">
-    <div class="ghead"><span class="idx">[ 01 ]</span> AETHERIS.EXE<span class="fill"></span><span class="ver">v1.0 · Release</span></div>
-    <div class="gsub">Weltraum-Imperium</div>
-    <div class="glogo"><img src="aetheris/bilder/logo.png" alt="AETHERIS" onerror="this.parentElement.style.display='none'"></div>
-    <p class="gpitch"><span class="arr">&gt;</span> Gruende eine Kolonie, baue eine Flotte auf und handle mit Dunkler Materie —
-      in einer Galaxie, die sich weiterdreht, auch wenn du gerade nicht online bist.</p>
-    <div class="gmeta">
-      <div class="row"><span>Sternensysteme</span><span class="v">30</span></div>
-      <div class="row"><span>Spielbare Spezies</span><span class="v">4</span></div>
-    </div>
-    <div class="gctas">
-      <a class="glink primary" href="aetheris/index.html">Entdecken</a>
-      <a class="glink" href="aetheris/game.html">Direkt spielen</a>
     </div>
   </div>
+</nav>
 
-  <hr class="s-rule">
+<div class="wrap">
 
-  <div class="game pots reveal">
-    <div class="ghead"><span class="idx">[ 02 ]</span> PATH_OF_THE_STARS.EXE<span class="fill"></span><span class="ver">v0.0243 · Open Beta</span></div>
-    <div class="gsub">Generationenschiff-Saga</div>
-    <div class="glogo"><img src="path%20of%20the%20stars/bilder/logo.png" alt="PATH OF THE STARS" onerror="this.parentElement.style.display='none'"></div>
-    <p class="gpitch"><span class="arr">&gt;</span> Die Sonne stirbt. Die Erde flieht — handle zwischen den Sternen und verfolge
-      ein uraltes Signal, waehrend an Bord nur Jahre vergehen und draussen Jahrtausende verstreichen.</p>
-    <div class="gmeta">
-      <div class="row"><span>Fraktionen</span><span class="v">4 + Piraten</span></div>
-      <div class="row"><span>Zeitverhaeltnis</span><span class="v">Bordzeit ≠ Aussenzeit</span></div>
+  <section class="hero">
+    <div class="eyebrow"><span class="dot"></span> Vier Spiele · Ein Studio</div>
+    <h1>Weltraumspiele, die <span class="accent">im Browser</span> zuhause sind.</h1>
+    <p>Kein Download nötig — einfach öffnen und spielen. Ein optionales Konto
+       synchronisiert deinen Spielstand über alle vier Spiele hinweg.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#games">Spiele entdecken</a>
+      <a class="btn btn-ghost" href="#" id="heroLoginBtn">Anmelden</a>
     </div>
-    <div class="gctas">
-      <a class="glink primary" href="path%20of%20the%20stars/index.html">Entdecken</a>
-      <a class="glink" href="path%20of%20the%20stars/game.html">Direkt spielen</a>
+  </section>
+
+  <section class="constellation reveal" id="games">
+    <div class="constellation-head">
+      <div class="kicker">Die Sternenkarte</div>
+      <h2>Vier Welten, ein Orbit</h2>
+    </div>
+    <svg class="const-svg" viewBox="0 0 900 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sternenkarte der vier MC ORCA Spiele">
+      <path class="const-line" d="M 110 190 L 330 90 L 570 150 L 800 70"></path>
+
+      <a href="aetheris/index.html">
+        <g class="const-node" transform="translate(110,190)">
+          <circle class="const-node-halo" r="26" fill="var(--gold)"></circle>
+          <circle class="core" r="7" fill="var(--gold)"></circle>
+          <text class="const-label" x="0" y="42" text-anchor="middle">AETHERIS</text>
+        </g>
+      </a>
+
+      <a href="deep%20anchor/index.html">
+        <g class="const-node" transform="translate(330,90)">
+          <circle class="const-node-halo" r="26" fill="var(--orange)"></circle>
+          <circle class="core" r="7" fill="var(--orange)"></circle>
+          <text class="const-label" x="0" y="-20" text-anchor="middle">DEEP ANCHOR</text>
+        </g>
+      </a>
+
+      <a href="path%20of%20the%20stars/index.html">
+        <g class="const-node" transform="translate(570,150)">
+          <circle class="const-node-halo" r="26" fill="var(--red)"></circle>
+          <circle class="core" r="7" fill="var(--red)"></circle>
+          <text class="const-label" x="0" y="42" text-anchor="middle">PATH OF THE STARS</text>
+        </g>
+      </a>
+
+      <a href="astrion/index.html">
+        <g class="const-node" transform="translate(800,70)">
+          <circle class="const-node-halo" r="26" fill="var(--violet)"></circle>
+          <circle class="core" r="7" fill="var(--violet)"></circle>
+          <text class="const-label" x="0" y="-20" text-anchor="middle">ASTRION</text>
+        </g>
+      </a>
+    </svg>
+  </section>
+
+  <div class="syncbox reveal" id="syncStatusBox">
+    <div class="syncbox-head">
+      <span class="t">Spielstand-Sync</span>
+      <span class="hint" id="syncStatusHint">nicht eingeloggt</span>
+    </div>
+    <div class="sync-row aetheris" data-game="aetheris">
+      <span class="sr-name"><span class="sr-dot"></span>Aetheris</span>
+      <span class="sr-status">wird geprüft …</span>
+      <a class="sr-btn" href="aetheris/game.html?cloudsync=1">Synchronisieren →</a>
+    </div>
+    <div class="sync-row deepanchor" data-game="deepanchor">
+      <span class="sr-name"><span class="sr-dot"></span>Deep Anchor</span>
+      <span class="sr-status">wird geprüft …</span>
+      <a class="sr-btn" href="deep%20anchor/game.html?cloudsync=1">Synchronisieren →</a>
+    </div>
+    <div class="sync-row pots" data-game="pots">
+      <span class="sr-name"><span class="sr-dot"></span>Path of the Stars</span>
+      <span class="sr-status">wird geprüft …</span>
+      <a class="sr-btn" href="path%20of%20the%20stars/game.html?cloudsync=1">Synchronisieren →</a>
+    </div>
+    <div class="sync-row astrion" data-game="astrion">
+      <span class="sr-name"><span class="sr-dot"></span>Astrion</span>
+      <span class="sr-status">wird geprüft …</span>
+      <a class="sr-btn" href="astrion/game.html?cloudsync=1">Synchronisieren →</a>
     </div>
   </div>
 
-  <hr class="s-rule">
+  <section class="games">
 
-  <div class="game astrion reveal">
-    <div class="ghead"><span class="idx">[ 03 ]</span> ASTRION.EXE<span class="fill"></span><span class="ver">Open Beta</span></div>
-    <div class="gsub">Sammelkarten-Universum</div>
-    <div class="glogo"><img src="astrion/art/logo.png" alt="ASTRION" onerror="this.parentElement.style.display='none'"></div>
-    <p class="gpitch"><span class="arr">&gt;</span> Oeffne Booster, sammle Karten aus vier Voelkern und tritt in der Sternen-Akademie
-      an — ein entspanntes Sammelkartenspiel, das nebenbei Deutsch und Mathe uebt.</p>
-    <div class="gmeta">
-      <div class="row"><span>Karten in Serie "Erwachen der Sterne"</span><span class="v">80</span></div>
-      <div class="row"><span>Voelker</span><span class="v">4</span></div>
+    <div class="game aetheris reveal">
+      <div class="g-copy">
+        <div class="g-eyebrow">Aetheris <span class="ver">· v1.0 Release</span></div>
+        <h3 class="g-title">Weltraum-Imperium</h3>
+        <p class="g-sub">Gründe eine Kolonie. Baue eine Flotte auf. Handle mit Dunkler Materie.</p>
+        <p class="g-pitch">Eine Galaxie, die sich weiterdreht, auch wenn du gerade nicht online bist —
+           baue dein Imperium in deinem eigenen Tempo aus.</p>
+        <div class="g-meta">
+          <div class="m"><span class="k">Sternensysteme</span><span class="v">30</span></div>
+          <div class="m"><span class="k">Spielbare Spezies</span><span class="v">4</span></div>
+        </div>
+        <div class="g-ctas">
+          <a class="g-btn primary" href="aetheris/index.html">Entdecken</a>
+          <a class="g-btn secondary" href="aetheris/game.html">Direkt spielen</a>
+        </div>
+      </div>
+      <div class="g-visual"><span class="ring r1"></span><span class="ring r2"></span><img class="glogo-img" src="aetheris/bilder/logo.png" alt="AETHERIS" onerror="this.classList.add('hidden')" onload="this.nextElementSibling.style.display='none'"><span class="wordmark">AETHERIS</span></div>
     </div>
-    <div class="gctas">
-      <a class="glink primary" href="astrion/index.html">Entdecken</a>
-      <a class="glink" href="astrion/game.html">Direkt spielen</a>
+
+    <div class="game deepanchor reverse reveal">
+      <div class="g-copy">
+        <div class="g-eyebrow">Deep Anchor <span class="ver">· Open Beta</span></div>
+        <h3 class="g-title">Satelliten-Simulation</h3>
+        <p class="g-sub">Baue Satelliten vom ersten Chassis bis zur fertigen Konstellation.</p>
+        <p class="g-pitch">Expandiere von der Erdumlaufbahn bis in fremde Sonnensysteme und Galaxien.</p>
+        <div class="g-meta">
+          <div class="m"><span class="k">Reichweite</span><span class="v">Sonnensystem → Galaxien-Hub</span></div>
+        </div>
+        <div class="g-ctas">
+          <a class="g-btn primary" href="deep%20anchor/index.html">Entdecken</a>
+          <a class="g-btn secondary" href="deep%20anchor/game.html">Direkt spielen</a>
+        </div>
+      </div>
+      <div class="g-visual"><span class="ring r1"></span><span class="ring r2"></span><img class="glogo-img" src="deep%20anchor/art/bilder/logo.png" alt="DEEP ANCHOR" onerror="this.classList.add('hidden')" onload="this.nextElementSibling.style.display='none'"><span class="wordmark">DEEP ANCHOR</span></div>
     </div>
-  </div>
 
-  <hr class="s-rule">
-
-  <div class="game deepanchor reveal">
-    <div class="ghead"><span class="idx">[ 04 ]</span> ANCHOR.EXE<span class="fill"></span><span class="ver">Open Beta</span></div>
-    <div class="gsub">Satelliten-Simulation</div>
-    <div class="glogo"><img src="deep%20anchor/art/bilder/logo.png" alt="DEEP ANCHOR" onerror="this.parentElement.style.display='none'"></div>
-    <p class="gpitch"><span class="arr">&gt;</span> Baue Satelliten vom ersten Chassis bis zur fertigen Konstellation und
-      expandiere von der Erdumlaufbahn bis in fremde Sonnensysteme und Galaxien.</p>
-    <div class="gmeta">
-      <div class="row"><span>Reichweite</span><span class="v">Sonnensystem → Galaxien-Hub</span></div>
+    <div class="game pots reveal">
+      <div class="g-copy">
+        <div class="g-eyebrow">Path of the Stars <span class="ver">· v0.0243 Open Beta</span></div>
+        <h3 class="g-title">Generationenschiff-Saga</h3>
+        <p class="g-sub">Die Sonne stirbt. Die Erde flieht.</p>
+        <p class="g-pitch">Handle zwischen den Sternen und verfolge ein uraltes Signal — während an Bord
+           nur Jahre vergehen und draußen Jahrtausende verstreichen.</p>
+        <div class="g-meta">
+          <div class="m"><span class="k">Fraktionen</span><span class="v">4 + Piraten</span></div>
+          <div class="m"><span class="k">Zeitverhältnis</span><span class="v">Bordzeit ≠ Außenzeit</span></div>
+        </div>
+        <div class="g-ctas">
+          <a class="g-btn primary" href="path%20of%20the%20stars/index.html">Entdecken</a>
+          <a class="g-btn secondary" href="path%20of%20the%20stars/game.html">Direkt spielen</a>
+        </div>
+      </div>
+      <div class="g-visual"><span class="ring r1"></span><span class="ring r2"></span><img class="glogo-img" src="path%20of%20the%20stars/bilder/logo.png" alt="PATH OF THE STARS" onerror="this.classList.add('hidden')" onload="this.nextElementSibling.style.display='none'"><span class="wordmark">PATH OF<br>THE STARS</span></div>
     </div>
-    <div class="gctas">
-      <a class="glink primary" href="deep%20anchor/index.html">Entdecken</a>
-      <a class="glink" href="deep%20anchor/game.html">Direkt spielen</a>
+
+    <div class="game astrion reverse reveal">
+      <div class="g-copy">
+        <div class="g-eyebrow">Astrion <span class="ver">· Open Beta</span></div>
+        <h3 class="g-title">Sammelkarten-Universum</h3>
+        <p class="g-sub">Öffne Booster. Sammle Karten aus vier Völkern.</p>
+        <p class="g-pitch">Tritt in der Sternen-Akademie an — ein entspanntes Sammelkartenspiel, das
+           nebenbei Deutsch und Mathe übt.</p>
+        <div class="g-meta">
+          <div class="m"><span class="k">Karten in „Erwachen der Sterne“</span><span class="v">80</span></div>
+          <div class="m"><span class="k">Völker</span><span class="v">4</span></div>
+        </div>
+        <div class="g-ctas">
+          <a class="g-btn primary" href="astrion/index.html">Entdecken</a>
+          <a class="g-btn secondary" href="astrion/game.html">Direkt spielen</a>
+        </div>
+      </div>
+      <div class="g-visual"><span class="ring r1"></span><span class="ring r2"></span><img class="glogo-img" src="astrion/art/logo.png" alt="ASTRION" onerror="this.classList.add('hidden')" onload="this.nextElementSibling.style.display='none'"><span class="wordmark">ASTRION</span></div>
     </div>
-  </div>
 
-  <hr class="s-rule thick">
-
-  <div class="s-footer reveal">
-    MC ORCA Games — Indie-Solo-Projekte
-    <br>
-    <a href="aetheris/impressum.html">AETHERIS</a><span class="sep">·</span><a href="path%20of%20the%20stars/impressum.html">Path of the Stars</a><span class="sep">·</span><a href="astrion/impressum.html">Astrion</a><span class="sep">·</span><a href="deep%20anchor/impressum.html">Deep Anchor</a>
-    <span class="sep">|</span> Impressum &amp; Datenschutz
-  </div>
+  </section>
 
 </div>
 
+<footer>
+  <div class="wrap foot-inner">
+    <div class="foot-brand">MC ORCA Games — Indie-Solo-Projekte</div>
+    <div class="foot-links">
+      <a href="aetheris/impressum.html">Aetheris</a><span class="sep">·</span>
+      <a href="deep%20anchor/impressum.html">Deep Anchor</a><span class="sep">·</span>
+      <a href="path%20of%20the%20stars/impressum.html">Path of the Stars</a><span class="sep">·</span>
+      <a href="astrion/impressum.html">Astrion</a>
+      <span class="sep">|</span> Impressum &amp; Datenschutz
+    </div>
+  </div>
+</footer>
+
 <script>
-/* ---------- Sternenfeld (sehr dezent, rot) ---------- */
-(function(){
-  const canvas = document.getElementById('stars');
-  const ctx = canvas.getContext('2d');
-  let stars = [], w, h;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function resize(){
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = document.documentElement.scrollHeight;
-    const count = Math.min(140, Math.floor((w*h)/14000));
-    stars = Array.from({length:count}, () => ({
-      x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.1+0.2,
-      p: Math.random()*Math.PI*2, s: Math.random()*0.015+0.005
-    }));
-  }
-  function draw(t){
-    ctx.clearRect(0,0,w,h);
-    ctx.fillStyle = '#C81E2C';
-    stars.forEach(st=>{
-      const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
-      ctx.globalAlpha = 0.08 + tw*0.22;
-      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
-    });
-    ctx.globalAlpha = 1;
-    if(!reduced) requestAnimationFrame(draw);
-  }
-  window.addEventListener('resize', resize);
-  resize();
-  requestAnimationFrame(draw);
-  if(reduced) draw(0);
-})();
+  // starfield
+  (function(){
+    var canvas = document.getElementById('stars');
+    var ctx = canvas.getContext('2d');
+    var stars = [];
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ---------- Scroll reveal ---------- */
-(function(){
-  const io = new IntersectionObserver((entries)=>{
-    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
-  }, { threshold:0.08 });
-  document.querySelectorAll('.reveal').forEach(el=> io.observe(el));
-})();
-</script>
-
-</div><!-- /siteContent -->
-<script>
-const BOOT_BANNER = ` __  __   ____    ___  ____    ____     _   
-|  \\/  | / ___|  / _ \\|  _ \\  / ___|   / \\  
-| |\\/| || |      | | || |_) || |      / _ \\ 
-| |  | || |___   | |_||  _ < | |___  / ___ \\
-|_|  |_| \\____|  \\___/|_| \\_\\ \\____|/_/   \\_\\
-
-  ____     _    __  __  _____  ____     ___  ____  
- / ___|   / \\  |  \\/  || ____|/ ___|   / _ \\/ ___| 
-| |  _   / _ \\ | |\\/| ||  _|  \\___ \\   | | |\\___ \\ 
-| |_| | / ___ \\| |  | || |___  ___) |  | |_| ___) |
- \\____|/_/   \\_\\|_|  |_||_____||____/   \\___/|____/ `;
-
-/* ==========================================================================
-   AB HIER SEITENANPASSUNG (Haupt-Index / Hub) — BIOS-Name, OS-Name und die
-   Kontextdaten der Hub-Seite. Da diese Seite keinen eigenen Spielstand hat,
-   sind das reine Katalog-Metadaten, die 1:1 aus den Portal-Kacheln auf
-   dieser Seite stammen (Sternensysteme, Fraktionen, Völker, Reichweite).
-   ========================================================================== */
-const OS_NAME = "HUB-OS";
-const BIOS_LINE = "MC ORCA GAMES BIOS v1.1";
-const COPYRIGHT_LINE = "(C) 2026 MC ORCA Games.";
-
-function getBootContext(){
-  return {
-    greeting: 'Kommandant',
-    gameCount: 4,
-    aetherisSystems: 30,
-    potsFactions: '4 + Piraten',
-    astrionPeoples: 4,
-    deepAnchorScope: 'Sonnensystem -> Galaxien-Hub',
-  };
-}
-
-function generateBootLines(){
-  const ctx = getBootContext();
-  return [
-    BIOS_LINE,
-    COPYRIGHT_LINE,
-    "",
-    "CPU .................................. ORCA-9800X @ 4.7 GHz",
-    "RAM-Test .............................. 65536 MB OK",
-    "Netzwerkschnittstelle ................. bereit",
-    "",
-    { progress: "Pruefe Dateisystem-Integritaet", ms: 3400 },
-    { progress: "Synchronisiere Portal-Register", ms: 3400 },
-    { progress: "Baue Sternenkarten-Register auf", ms: 3200 },
-    "",
-    `Lade ${OS_NAME} Kernel...`,
-    "  [ OK ] BOOTLDR.SYS          Bootloader initialisiert",
-    "  [ OK ] PORTAL.SYS           Portal-Schnittstelle geladen",
-    "  [ OK ] STARFIELD.SYS        Sternenfeld-Renderer",
-    "  [ OK ] AUDIO.SYS            Terminal-Sound-Modul",
-    "  [ OK ] AETHERIS.SYS         Weltraum-Imperium",
-    "  [ OK ] POTS.SYS             Generationenschiff-Saga",
-    "  [ OK ] ASTRION.SYS          Sammelkartenspiel",
-    "  [ OK ] ANCHOR.SYS           Satelliten-Simulation",
-    "",
-    { progress: "Verbinde Portale", ms: 3400 },
-    { progress: "Kalibriere Netzwerkverbindung zu vier Universen", ms: 3400 },
-    { progress: "Lade Katalog-Metadaten", ms: 3200 },
-    { progress: "Pruefe Lizenzserver", ms: 2600 },
-    "",
-    "Katalog-Uebersicht:",
-    `  Verfuegbare Spiele ..................... ${ctx.gameCount}`,
-    `  AETHERIS - Sternensysteme .............. ${ctx.aetherisSystems}`,
-    `  PATH OF THE STARS - Fraktionen ......... ${ctx.potsFactions}`,
-    `  ASTRION - Voelker ....................... ${ctx.astrionPeoples}`,
-    `  DEEP ANCHOR - Reichweite ................ ${ctx.deepAnchorScope}`,
-    "",
-    `${OS_NAME} BEREIT.`,
-    "",
-    `Willkommen, ${ctx.greeting}. Waehle dein Universum.`
-  ];
-}
-
-function renderProgressLine(label, pct, width=24){
-  const filled = Math.max(0, Math.min(width, Math.round(width*pct/100)));
-  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
-  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
-}
-
-let bootAudioCtx = null;
-function bootTone(freq, dur, type='square', vol=0.05){
-  try{
-    bootAudioCtx = bootAudioCtx || new (window.AudioContext||window.webkitAudioContext)();
-    const o = bootAudioCtx.createOscillator(), g = bootAudioCtx.createGain();
-    o.type = type; o.frequency.value = freq; g.gain.value = vol;
-    o.connect(g); g.connect(bootAudioCtx.destination);
-    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, bootAudioCtx.currentTime+dur);
-    o.stop(bootAudioCtx.currentTime+dur+0.02);
-  }catch(err){}
-}
-const BootSound = {
-  postBeep: ()=> bootTone(900, 0.15, 'square', 0.06),
-  tone: bootTone,
-  diskAccess: ()=> bootTone(220+Math.random()*40, 0.03, 'square', 0.03),
-  modemHandshake: ()=> bootTone(1400, 0.25, 'sawtooth', 0.03),
-  buildOk: ()=> { bootTone(660,0.12); setTimeout(()=>bootTone(880,0.18),120); },
-};
-
-let dosBootToken = 0;
-function playDosBootSequence(){
-  return new Promise((resolve)=>{
-    const overlay = document.getElementById('dosBootOverlay');
-    const textEl = document.getElementById('dosBootText');
-    const bannerEl = document.getElementById('dosBootBanner');
-    if(!overlay || !textEl){ resolve(); return; }
-    const BOOT_LINES = generateBootLines();
-    const myToken = ++dosBootToken;
-    const totalCharBudgetMs = 90000;
-    const totalChars = BOOT_LINES.reduce((n,l)=> n + (typeof l==='string' ? Math.max(l.length,1):0), 0);
-    const perCharMs = Math.min(28, Math.max(9, totalCharBudgetMs/Math.max(totalChars,1)));
-    const interLineMs = 450;
-    const finalHoldMs = 3500;
-    const bannerRevealMs = 500;
-
-    textEl.textContent = '';
-    textEl.classList.add('typing');
-    if(bannerEl){
-      bannerEl.textContent = BOOT_BANNER;
-      bannerEl.style.animation = 'none'; void bannerEl.offsetWidth; bannerEl.style.animation = '';
-    }
-    overlay.classList.remove('fading','crt-poweroff');
-    overlay.classList.add('visible');
-    overlay.classList.remove('crt-poweron'); void overlay.offsetWidth; overlay.classList.add('crt-poweron');
-    try{ BootSound.postBeep(); }catch(err){}
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    let finished = false, timeoutIds = [];
-    const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds=[]; };
-    let renderedLines = [];
-    const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); overlay.scrollTop = overlay.scrollHeight; };
-
-    const finishNow = ()=>{
-      if(finished || myToken!==dosBootToken) return;
-      finished = true; clearAllTimers();
-      textEl.textContent = BOOT_LINES.map(l=> typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
-      overlay.scrollTop = overlay.scrollHeight;
-      overlay.classList.remove('crt-poweron'); overlay.classList.add('crt-poweroff');
-      textEl.classList.remove('typing');
-      document.body.style.overflow = prevOverflow;
-      setTimeout(()=>{
-        if(myToken!==dosBootToken) return;
-        overlay.classList.remove('visible','fading','crt-poweroff');
-        overlay.removeEventListener('click', skipHandler);
-        document.removeEventListener('keydown', skipHandler);
-        resolve();
-      }, 550);
-    };
-    const skipHandler = ()=> finishNow();
-    overlay.addEventListener('click', skipHandler);
-    document.addEventListener('keydown', skipHandler);
-
-    let lineIndex = 0, blipCounter = 0;
-    const keyBlip = ()=>{ blipCounter++; if(blipCounter%3===0){ try{ BootSound.tone(760+Math.random()*260,0.02,'square',0.045); }catch(err){} } };
-    const okBlip = ()=>{ try{ BootSound.tone(1180,0.05,'square',0.05); }catch(err){} };
-    const readyChord = ()=>{ try{ BootSound.buildOk(); }catch(err){} };
-
-    const processLine = ()=>{
-      if(myToken!==dosBootToken) return;
-      if(lineIndex >= BOOT_LINES.length){ timeoutIds.push(setTimeout(finishNow, finalHoldMs)); return; }
-      const entry = BOOT_LINES[lineIndex];
-      if(typeof entry === 'string') typeStringLine(entry);
-      else if(entry && entry.progress) runProgressLine(entry);
-    };
-
-    const typeStringLine = (line)=>{
-      if(line.length === 0){
-        renderedLines[lineIndex] = ''; redraw(); lineIndex++;
-        timeoutIds.push(setTimeout(processLine, interLineMs/2));
-        return;
+    function resize(){
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      var count = Math.floor((canvas.width * canvas.height) / 9000);
+      stars = [];
+      for(var i=0;i<count;i++){
+        stars.push({
+          x: Math.random()*canvas.width,
+          y: Math.random()*canvas.height,
+          r: Math.random()*1.3 + 0.2,
+          a: Math.random()*0.6 + 0.15,
+          tw: Math.random()*0.015 + 0.003,
+          dir: Math.random() > 0.5 ? 1 : -1
+        });
       }
-      let charIndex = 0;
-      const step = ()=>{
-        if(myToken!==dosBootToken) return;
-        charIndex++;
-        renderedLines[lineIndex] = line.slice(0, charIndex);
-        redraw();
-        if(charIndex < line.length){ keyBlip(); timeoutIds.push(setTimeout(step, perCharMs)); }
-        else{
-          const trimmed = line.trim();
-          if(trimmed.startsWith('[ OK ]')) okBlip();
-          else if(trimmed === `${OS_NAME} BEREIT.`) readyChord();
-          lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs));
+    }
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(var i=0;i<stars.length;i++){
+        var s = stars[i];
+        ctx.beginPath();
+        ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle = 'rgba(232,230,227,'+s.a.toFixed(3)+')';
+        ctx.fill();
+        if(!reduceMotion){
+          s.a += s.tw * s.dir;
+          if(s.a > 0.75 || s.a < 0.1) s.dir *= -1;
         }
-      };
-      step();
-    };
+      }
+      if(!reduceMotion) requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+    draw();
+  })();
 
-    const runProgressLine = (entry)=>{
-      try{ BootSound.diskAccess(); }catch(err){}
-      const steps = 22, stepMs = Math.max(30, entry.ms/steps);
-      let step = 0;
-      renderedLines[lineIndex] = renderProgressLine(entry.progress, 0); redraw();
-      const tick = ()=>{
-        if(myToken!==dosBootToken) return;
-        step++;
-        const pct = Math.min(100, Math.round(step/steps*100));
-        renderedLines[lineIndex] = renderProgressLine(entry.progress, pct); redraw();
-        if(step%4===0){ try{ BootSound.tone(500+pct*4,0.02,'square',0.03); }catch(err){} }
-        if(step < steps) timeoutIds.push(setTimeout(tick, stepMs));
-        else{ lineIndex++; timeoutIds.push(setTimeout(processLine, interLineMs)); }
-      };
-      tick();
-    };
-
-    timeoutIds.push(setTimeout(processLine, bannerRevealMs));
-  });
-}
-
-/* Seiteneinstieg, zweistufig:
-   1) Willkommen-Screen ("MC ORCA GAMES HUB" + Button "Systeme starten") wird
-      SOFORT und ganz ohne Animation/Sound gezeigt — damit Besucher nicht
-      direkt vom Boot-Effekt ueberrumpelt werden.
-   2) Erst nach Klick (oder Enter/Leertaste) auf den Button startet der
-      CRT-Poweron-Flash -> voller DOS-Bootstream -> danach wird der
-      eigentliche Seiteninhalt sichtbar. */
-function startBootSequence(){
-  document.documentElement.classList.add('boot-locked');
-  setTimeout(async ()=>{
-    const crt = document.getElementById('bootCrtOverlay');
-    if(crt) crt.classList.add('active');
-    await playDosBootSequence();
-    if(crt){ crt.classList.remove('active'); crt.style.display = 'none'; }
-    document.documentElement.classList.remove('boot-locked');
-    const site = document.getElementById('siteContent');
-    if(site) site.classList.remove('boot-hidden');
-    /* Sicherheits-Fallback: das bestehende Scroll-Reveal (.reveal +
-       IntersectionObserver) beobachtet Elemente ggf. schon, waehrend
-       #siteContent noch display:none war. Direkt nach dem Sichtbarwerden
-       pruefen wir zusaetzlich von Hand, was gerade im Viewport liegt, und
-       blenden das sofort ein, statt uns allein auf den Observer zu
-       verlassen. */
-    requestAnimationFrame(()=>{
-      document.querySelectorAll('.reveal').forEach(el=>{
-        const r = el.getBoundingClientRect();
-        if(r.top < window.innerHeight && r.bottom > 0) el.classList.add('in');
+  // scroll reveal
+  (function(){
+    var els = document.querySelectorAll('.reveal');
+    if(!('IntersectionObserver' in window)){
+      els.forEach(function(el){ el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
       });
+    }, { threshold:0.12 });
+    els.forEach(function(el){ io.observe(el); });
+  })();
+
+  // account panel toggle
+  (function(){
+    var toggle = document.getElementById('cloudAccountToggle');
+    var panel = document.getElementById('cloudAccountPanel');
+    if(!toggle || !panel) return;
+    toggle.addEventListener('click', function(e){
+      e.stopPropagation();
+      panel.classList.toggle('open');
     });
-  }, 900);
-}
-
-function bootIntoSite(){
-  document.documentElement.classList.add('boot-locked');
-  const welcome = document.getElementById('bootWelcomeOverlay');
-  const startBtn = document.getElementById('bootStartBtn');
-
-  if(!welcome || !startBtn){ startBootSequence(); return; }
-
-  const beginBoot = ()=>{
-    startBtn.removeEventListener('click', beginBoot);
-    document.removeEventListener('keydown', keyHandler);
-    try{ BootSound.postBeep(); }catch(err){}
-    welcome.classList.add('hidden');
-    setTimeout(()=>{ welcome.remove(); startBootSequence(); }, 400);
-  };
-  const keyHandler = (e)=>{
-    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); beginBoot(); }
-  };
-  startBtn.addEventListener('click', beginBoot);
-  document.addEventListener('keydown', keyHandler);
-  startBtn.focus();
-}
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', bootIntoSite);
-}else{
-  bootIntoSite();
-}
-
+    document.addEventListener('click', function(e){
+      if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.classList.remove('open');
+    });
+    var heroBtn = document.getElementById('heroLoginBtn');
+    if(heroBtn){
+      heroBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        window.scrollTo({ top:0, behavior:'smooth' });
+        panel.classList.add('open');
+      });
+    }
+  })();
 </script>
-
-<!-- NEU (TODO-CLOUD-SAVE-KONTOLEISTE): eigenstaendiges Konto-Widget, 6-stelliger E-Mail-Code
-     statt Magic-Link (funktioniert auch aus einer APK-WebView heraus, kein Browser-Redirect
-     noetig). Gleiche Supabase-Zugangsdaten wie in den anderen Spielen -> eine Anmeldung gilt
-     ueberall auf dieser Domain, weil die Session im localStorage der Domain liegt. -->
-<div id="cloudAccountBar" style="position:fixed;top:14px;right:14px;z-index:99999;font-family:system-ui,-apple-system,sans-serif;font-size:12px;">
-  <button id="cloudAccountToggle" style="background:rgba(15,15,20,0.85);color:#eee;border:1px solid #555;padding:7px 14px;border-radius:18px;cursor:pointer;backdrop-filter:blur(4px);">☁ Konto</button>
-  <div id="cloudAccountPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:250px;background:#16161a;border:1px solid #444;border-radius:10px;padding:12px;box-shadow:0 10px 26px rgba(0,0,0,0.5);color:#ddd;">
-    <div id="cloudStepEmail">
-      <div style="line-height:1.5;color:#aaa;">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
-      <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;">
-      <button id="cloudSendCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Code senden</button>
-    </div>
-    <div id="cloudStepCode" style="display:none;">
-      <div style="line-height:1.5;color:#aaa;">Code aus der E-Mail eingeben:</div>
-      <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="width:100%;box-sizing:border-box;margin-top:8px;padding:7px 9px;background:#222;border:1px solid #444;border-radius:6px;color:#eee;letter-spacing:3px;text-align:center;">
-      <button id="cloudVerifyCodeBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Bestätigen</button>
-    </div>
-    <div id="cloudStepIn" style="display:none;">
-      <div style="line-height:1.5;color:#aaa;">Eingeloggt als <b id="cloudUserEmail" style="color:#eee;">—</b></div>
-      <button id="cloudSignOutBtn" style="width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;cursor:pointer;">Ausloggen</button>
-    </div>
-    <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
-  </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -809,28 +571,51 @@ if(document.readyState === 'loading'){
     : null;
   var supabaseClient = window.__cloudSupabase;
   window.__cloudUser = null;
+  window.__cloudProfile = null;
   var pendingEmail = '';
   var uiState = 'email';
 
-  var toggle = document.getElementById('cloudAccountToggle');
-  var panel = document.getElementById('cloudAccountPanel');
   var stepEmail = document.getElementById('cloudStepEmail');
   var stepCode = document.getElementById('cloudStepCode');
   var stepIn = document.getElementById('cloudStepIn');
   var statusEl = document.getElementById('cloudStatusMsg');
+  var toggle = document.getElementById('cloudAccountToggle');
 
-  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.style.color = isErr ? '#e37b7b' : '#8fd18f'; }
+  function setStatus(msg, isErr){
+    statusEl.textContent = msg || '';
+    statusEl.className = 'acct-status' + (isErr ? ' err' : (msg ? ' ok' : ''));
+  }
   function render(){
     stepEmail.style.display = uiState === 'email' ? '' : 'none';
     stepCode.style.display = uiState === 'code' ? '' : 'none';
     stepIn.style.display = uiState === 'in' ? '' : 'none';
-    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
-    var emailEl = document.getElementById('cloudUserEmail');
-    if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+    var profileName = window.__cloudProfile && window.__cloudProfile.username;
+    toggle.textContent = uiState === 'in' ? ('☁ ' + (profileName || 'Eingeloggt')) : '☁ Konto';
+    var avatarEl = document.getElementById('cloudUserAvatar');
+    var nameEl = document.getElementById('cloudUserName');
+    if(avatarEl){
+      var __av = (window.__cloudProfile && window.__cloudProfile.avatar) || '🚀';
+      if(/\.(png|jpg|jpeg|webp|gif)$/i.test(__av)){
+        avatarEl.innerHTML = '';
+        var __img = document.createElement('img');
+        __img.src = __av; __img.alt = '';
+        avatarEl.appendChild(__img);
+      } else {
+        avatarEl.textContent = __av;
+      }
+    }
+    if(nameEl) nameEl.textContent = profileName || (window.__cloudUser ? window.__cloudUser.email : '—');
   }
-
-  toggle.addEventListener('click', function(){ panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
-  document.addEventListener('click', function(e){ if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.style.display = 'none'; });
+  async function loadProfile(){
+    window.__cloudProfile = null;
+    if(supabaseClient && window.__cloudUser){
+      try{
+        var res = await supabaseClient.from('profiles').select('username,avatar,bio').eq('user_id', window.__cloudUser.id).maybeSingle();
+        if(!res.error && res.data) window.__cloudProfile = res.data;
+      }catch(e){ console.warn('Profil konnte nicht geladen werden', e); }
+    }
+    render();
+  }
 
   if(!supabaseClient){
     setStatus('Cloud-Konto noch nicht eingerichtet.', true);
@@ -839,15 +624,12 @@ if(document.readyState === 'loading'){
       var session = res.data.session;
       window.__cloudUser = session ? session.user : null;
       uiState = window.__cloudUser ? 'in' : 'email';
-      render();
-      if(window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+      loadProfile();
     });
     supabaseClient.auth.onAuthStateChange(function(event, session){
-      var wasLoggedOut = !window.__cloudUser;
       window.__cloudUser = session ? session.user : null;
       uiState = window.__cloudUser ? 'in' : 'email';
-      render();
-      if(wasLoggedOut && window.__cloudUser && window.__cloudSyncOnLogin) window.__cloudSyncOnLogin();
+      loadProfile();
     });
 
     document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
@@ -882,14 +664,6 @@ if(document.readyState === 'loading'){
 })();
 </script>
 
-<!-- NEU (Sync-Status-Uebersicht): eigenstaendiges Script, ruehrt die Cloud-Konto-Logik oben
-     NICHT an -- nutzt nur window.__cloudSupabase (von dort gesetzt) und fragt selbst per
-     getSession() + eigenem onAuthStateChange-Listener den Login-Status ab (Supabase erlaubt
-     mehrere Listener parallel). Zeigt pro Spiel lokalen vs. Cloud-Versionszaehler
-     (<spiel>_localver / DB-Spalte version, siehe Cloud-Sync-Update) und verlinkt bei Bedarf
-     ins jeweilige Spiel mit ?cloudsync=1 (oeffnet dort automatisch das Cloud-Panel, siehe
-     Patch in game.html). Kein eigener Push/Pull hier -- die eigentliche Sync-Aktion bleibt
-     bewusst beim getesteten "Jetzt synchronisieren"-Button im jeweiligen Spiel. -->
 <script>
 (function(){
   'use strict';
@@ -904,12 +678,9 @@ if(document.readyState === 'loading'){
   function getLocalVersion(key){
     try{ var v = localStorage.getItem(key); return v != null ? parseInt(v, 10) : null; }catch(e){ return null; }
   }
-
-  // Tausender-Trennung, damit auch sehr hohe Zaehlerstaende die Zeile nicht sprengen/unleserlich werden.
   function fmtVer(n){
     try{ return n.toLocaleString('de-DE'); }catch(e){ return String(n); }
   }
-
   function rowEl(id){ return document.querySelector('.sync-row[data-game="' + id + '"]'); }
 
   function renderStatus(id, localVer, cloudVer, cloudKnown){
@@ -917,40 +688,20 @@ if(document.readyState === 'loading'){
     if(!el) return;
     var s = el.querySelector('.sr-status');
     if(!s) return;
-    // Genaue Zaehlerstaende weiterhin als Tooltip verfuegbar (Hover), fuers Debuggen.
     var tip = 'lokal: ' + (localVer != null ? fmtVer(localVer) : '—') + ' · cloud: ' + (cloudVer != null ? fmtVer(cloudVer) : '—');
     s.title = tip;
-    if(!cloudKnown){
-      s.textContent = 'nicht eingeloggt';
-      s.style.color = 'var(--red-faint)';
-    } else if(localVer == null && cloudVer == null){
-      s.textContent = 'keine Daten';
-      s.style.color = 'var(--red-faint)';
-    } else if(cloudVer == null){
-      s.textContent = 'nur lokal, noch nie hochgeladen';
-      s.style.color = 'var(--red-dim)';
-    } else if(localVer == null){
-      s.textContent = '⬇ nur Cloud, lokal leer';
-      s.style.color = 'var(--pc)';
-    } else if(localVer === cloudVer){
-      s.textContent = '✓ synchron';
-      s.style.color = '#7fbf7f';
-    } else if(localVer > cloudVer){
-      s.textContent = '⬆ lokal neuer';
-      s.style.color = 'var(--pc)';
-    } else {
-      s.textContent = '⬇ Cloud neuer';
-      s.style.color = 'var(--pc)';
-    }
+    if(!cloudKnown){ s.textContent = 'nicht eingeloggt'; s.style.color = 'var(--fg-faint)'; }
+    else if(localVer == null && cloudVer == null){ s.textContent = 'keine Daten'; s.style.color = 'var(--fg-faint)'; }
+    else if(cloudVer == null){ s.textContent = 'nur lokal, noch nie hochgeladen'; s.style.color = 'var(--fg-dim)'; }
+    else if(localVer == null){ s.textContent = '⬇ nur Cloud, lokal leer'; s.style.color = 'var(--fg)'; }
+    else if(localVer === cloudVer){ s.textContent = '✓ synchron'; s.style.color = '#7fbf7f'; }
+    else if(localVer > cloudVer){ s.textContent = '⬆ lokal neuer'; s.style.color = 'var(--fg)'; }
+    else{ s.textContent = '⬇ Cloud neuer'; s.style.color = 'var(--fg)'; }
   }
 
   async function refreshGame(game, supabaseClient, user){
     var localVer = getLocalVersion(game.localverKey);
-
-    if(!user){
-      renderStatus(game.id, localVer, null, false);
-      return;
-    }
+    if(!user){ renderStatus(game.id, localVer, null, false); return; }
     try{
       var q = supabaseClient.from('saves').select('version,updated_at').eq('user_id', user.id);
       q = game.cloudFilter.type === 'like' ? q.like('key', game.cloudFilter.pattern) : q.eq('key', game.cloudFilter.pattern);
@@ -972,7 +723,7 @@ if(document.readyState === 'loading'){
   async function refreshAll(){
     var supabaseClient = window.__cloudSupabase;
     var hintEl = document.getElementById('syncStatusHint');
-    var boxEl = document.querySelector('.syncbox');
+    var boxEl = document.getElementById('syncStatusBox');
     if(!supabaseClient){
       if(hintEl) hintEl.textContent = 'Cloud nicht verfügbar';
       if(boxEl) boxEl.classList.remove('loggedIn');
@@ -981,16 +732,16 @@ if(document.readyState === 'loading'){
     }
     var res = await supabaseClient.auth.getSession();
     var user = (res && res.data && res.data.session) ? res.data.session.user : null;
-    // GEÄNDERT (TODO-SYNCBOX-NUR-EINGELOGGT, Nutzerwunsch: "das Sync-Dingend ausblenden, wenn man
-    // nicht eingeloggt ist, erst anzeigen, wenn man eingeloggt ist"): die ganze Box (siehe CSS
-    // .syncbox{display:none} / .syncbox.loggedIn{display:block}) bleibt jetzt komplett weg, statt
-    // nur der Hinweistext "nicht eingeloggt — oben rechts anmelden" — sie war ohne Login ohnehin
-    // nutzlos (nichts zum Vergleichen). .in zusätzlich zu .loggedIn, weil der bestehende
-    // Scroll-Reveal-Effekt (siehe IntersectionObserver oben) ein display:none-Element nie als
-    // sichtbar registriert und die Box sonst dauerhaft bei opacity:0 hängen bliebe.
     if(boxEl) boxEl.classList.toggle('loggedIn', !!user);
     if(user && boxEl) boxEl.classList.add('in');
-    if(hintEl) hintEl.textContent = user ? ('eingeloggt als ' + user.email) : 'nicht eingeloggt';
+    var displayName = null;
+    if(user){
+      try{
+        var pRes = await supabaseClient.from('profiles').select('username').eq('user_id', user.id).maybeSingle();
+        if(!pRes.error && pRes.data && pRes.data.username) displayName = pRes.data.username;
+      }catch(e){ /* Profiltabelle evtl. noch nicht angelegt - egal, Fallback auf E-Mail */ }
+    }
+    if(hintEl) hintEl.textContent = user ? ('eingeloggt als ' + (displayName || user.email)) : 'nicht eingeloggt';
     for(var j=0;j<GAMES.length;j++){ await refreshGame(GAMES[j], supabaseClient, user); }
   }
 
@@ -1000,7 +751,6 @@ if(document.readyState === 'loading'){
       window.__cloudSupabase.auth.onAuthStateChange(function(){ refreshAll(); });
     }
   }
-
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', boot);
   } else {
@@ -1008,5 +758,6 @@ if(document.readyState === 'loading'){
   }
 })();
 </script>
+
 </body>
 </html>

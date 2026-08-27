@@ -3512,7 +3512,11 @@ window.__cloudSyncOnLogin = async function(){
     var localHasData = localList && localList.keys && localList.keys.length > 0;
     async function pushAllLocal(){ await __potsPushAllLocal(localList); }
     if(!sel.data || sel.data.length === 0){
-      if(localHasData){ window.__cloudSyncLocked = false; await pushAllLocal(); }
+      window.__cloudSyncLocked = false;
+      if(localHasData){
+        var __uploadNewLogin = await __cloudCustomConfirm('Für diesen Account gibt es noch keinen Cloud-Spielstand. Auf diesem Gerät liegt aber ein lokaler Spielstand (z. B. von einem anderen Account). Diesen jetzt diesem Account zuordnen und hochladen?', 'Ja, hochladen', 'Nein, leer lassen', null);
+        if(__uploadNewLogin){ await pushAllLocal(); }
+      }
       return;
     }
     // NEU (Bugfix wiederholter Dialog): vor dem Fragen pruefen, ob lokal und Cloud inhaltlich
@@ -20026,8 +20030,14 @@ window.addEventListener('load', initGame);
         var localList = await window.storage.list('', false);
         var localHasData = localList && localList.keys && localList.keys.length > 0;
         if(!sel || sel.length === 0){
+          // Kein Cloud-Stand vorhanden -> NICHT mehr automatisch hochladen (koennte ein anderer
+          // Account gewesen sein, dessen lokaler Stand noch im Browser liegt) -- stattdessen fragen.
           window.__cloudSyncLocked = false;
-          if(localHasData){ await __potsPushAllLocal(localList); setStatus('Kein Cloud-Stand gefunden — lokaler Stand hochgeladen.', false); }
+          if(localHasData){
+            var __uploadNewManual = await __cloudCustomConfirm('Für diesen Account gibt es noch keinen Cloud-Spielstand. Auf diesem Gerät liegt aber ein lokaler Spielstand (z. B. von einem anderen Account). Diesen jetzt diesem Account zuordnen und hochladen?', 'Ja, hochladen', 'Nein, leer lassen', null);
+            if(__uploadNewManual){ await __potsPushAllLocal(localList); setStatus('Lokaler Spielstand hochgeladen.', false); }
+            else{ setStatus('Kein Cloud-Stand — lokaler Spielstand wurde NICHT hochgeladen.', false); }
+          }
           else{ setStatus('Weder lokal noch in der Cloud ein Spielstand gefunden.', true); }
           return;
         }

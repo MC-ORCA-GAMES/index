@@ -1,0 +1,884 @@
+<!--
+  MC ORCA GAMES — Spielerprofil (Unterseite des Hubs)
+  Datei-Version: v1.1
+  Changelog:
+    v1.1 – Statistik-Karten: Emoji-Icons durch farbige Punkte (Spielfarbe wie
+           im Hub/raenge.html) ersetzt; Reihenfolge auf Aetheris → Deep Anchor
+           → Path of the Stars → Astrion vereinheitlicht (wie im Hub); Abstand
+           zwischen Profil-Formular und Statistik-Karte ergänzt.
+    v1.0 – Neue Unterseite: eigener Spielername + Avatar + kurze Bio, ersetzt
+           die Anzeige der rohen E-Mail-Adresse im Konto-Widget auf allen
+           MC-ORCA-Games-Seiten (Hub + Aetheris + Astrion + Deep Anchor +
+           Path of the Stars). Daten liegen in Supabase-Tabelle "profiles"
+           (user_id, username, avatar, bio) mit RLS "nur eigene Zeile".
+           Gleiche Supabase-Zugangsdaten/Session wie überall auf der Domain.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spielerprofil — MC ORCA Games</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+    --gold:#D4AF37; --gold-dim:rgba(212,175,55,0.14);
+    --red:#D6303F; --violet:#B23AFF; --orange:#FF6A2B;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3, .display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--gold); color:#0a0b12; }
+  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; } }
+
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.5; pointer-events:none; }
+  .wrap{ position:relative; z-index:2; max-width:720px; margin:0 auto; padding:0 24px; }
+
+  /* ---------- nav ---------- */
+  .nav{ position:sticky; top:0; z-index:30; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .nav-left{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .nav-back{ font-size:13px; color:var(--fg-dim); white-space:nowrap; transition:color .15s; }
+  .nav-back:hover{ color:var(--fg); }
+  .nav-brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; color:var(--gold); white-space:nowrap; }
+  .nav-brand .mark{ width:22px; height:22px; border-radius:50%; background:conic-gradient(from 200deg, #D4AF37, #D6303F, #B23AFF, #FF6A2B, #D4AF37); box-shadow:0 0 14px var(--gold-dim); flex-shrink:0; }
+  .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); transition:.15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- hero ---------- */
+  .hero{ padding:56px 0 36px; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--fg-dim); margin-bottom:18px; }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); box-shadow:0 0 8px var(--gold); }
+  .hero h1{ font-size:clamp(28px,4.6vw,40px); line-height:1.08; font-weight:700; letter-spacing:-0.01em; margin:0 0 14px; }
+  .hero p.pitch{ font-size:15px; line-height:1.65; color:var(--fg-dim); max-width:560px; margin:0; }
+
+  /* ---------- card / form ---------- */
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:28px; }
+  .sec{ padding-bottom:64px; }
+
+  .notice{ text-align:center; padding:44px 24px; }
+  .notice p{ color:var(--fg-dim); font-size:14.5px; line-height:1.65; max-width:420px; margin:0 auto; }
+
+  .flabel{ display:block; font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-bottom:10px; }
+  .fgroup{ margin-bottom:24px; }
+  .fgroup:last-of-type{ margin-bottom:28px; }
+  .fhint{ font-size:11.5px; color:var(--fg-faint); margin-top:7px; }
+
+  #usernameInput, #bioInput{
+    width:100%; box-sizing:border-box; padding:11px 13px; background:var(--bg-alt);
+    border:1px solid var(--line); border-radius:10px; color:var(--fg); font-family:'Inter'; font-size:14px;
+  }
+  #usernameInput:focus, #bioInput:focus{ outline:none; border-color:var(--fg-faint); }
+  #bioInput{ resize:vertical; font-family:'Inter'; line-height:1.55; }
+
+  .avatar-grid{ display:grid; grid-template-columns:repeat(8,1fr); gap:8px; }
+  @media (max-width:480px){ .avatar-grid{ grid-template-columns:repeat(6,1fr); } }
+  .avatar-opt{
+    aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:19px;
+    background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; cursor:pointer;
+    transition:border-color .15s, background .15s, box-shadow .15s; padding:0;
+  }
+  .avatar-opt:hover{ border-color:var(--fg-faint); }
+  .avatar-opt.selected{ border-color:var(--gold); background:var(--gold-dim); box-shadow:0 0 0 1px var(--gold) inset; }
+  .avatar-opt img{ width:100%; height:100%; object-fit:cover; border-radius:9px; display:block; }
+  .avatar-divider{ grid-column:1/-1; font-size:11px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:.05em; margin:10px 0 2px; }
+  .avatar-divider:first-child{ margin-top:0; }
+  .acct-avatar img, .pv-avatar img{ width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; }
+
+  /* ---------- Statistiken pro Spiel ---------- */
+  .stats-games{ display:flex; flex-direction:column; gap:14px; }
+  .stats-game{ border:1px solid var(--line); border-radius:12px; padding:16px 18px; background:var(--bg-alt); }
+  .stats-game-head{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; margin-bottom:12px; }
+  .stats-game-head .dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; box-shadow:0 0 8px currentColor; }
+  .stats-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:12px; }
+  .stat-tile{ text-align:center; }
+  .stat-tile .val{ font-family:'Space Grotesk'; font-weight:700; font-size:19px; color:var(--gold); }
+  .stat-tile .lbl2{ font-size:11.5px; color:var(--fg-faint); margin-top:2px; }
+  .stats-empty{ font-size:13px; color:var(--fg-faint); }
+
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; font-family:'Space Grotesk'; font-weight:600; font-size:14px; padding:12px 22px; border-radius:10px; transition:.15s; border:none; cursor:pointer; width:100%; }
+  .btn-primary{ background:var(--gold); color:#0a0b12; }
+  .btn-danger-outline{ background:transparent; border:1px solid rgba(214,48,63,0.5); color:#e37b7b; }
+  .btn-danger-outline:hover{ background:rgba(214,48,63,0.08); border-color:var(--red); }
+  .btn-danger{ background:var(--red); color:#fff; }
+  .btn-danger:hover{ filter:brightness(1.1); }
+  .btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--fg-dim); }
+  .btn-ghost:hover{ border-color:var(--fg-faint); color:var(--fg); }
+  .danger-card{ border-color:rgba(214,48,63,0.3); }
+  .danger-text{ font-size:13px; color:var(--fg-dim); line-height:1.65; margin:0 0 18px; }
+  .danger-actions{ display:flex; gap:10px; }
+  #deleteConfirmInput{ width:100%; box-sizing:border-box; padding:11px 13px; background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; color:var(--fg); font-family:'Inter'; font-size:14px; margin-bottom:12px; }
+  #deleteConfirmInput:focus{ outline:none; border-color:var(--red); }
+  .btn-primary:hover{ transform:translateY(-1px); filter:brightness(1.08); box-shadow:0 8px 24px var(--gold-dim); }
+
+  .fstatus{ margin-top:14px; font-size:13px; text-align:center; min-height:1em; }
+  .fstatus.ok{ color:#7fbf7f; } .fstatus.err{ color:#e37b7b; }
+
+  .preview{ display:flex; align-items:center; gap:14px; margin-bottom:26px; padding-bottom:26px; border-bottom:1px solid var(--line); }
+  .preview .pv-avatar{ width:52px; height:52px; border-radius:50%; background:var(--bg-alt); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; }
+  .preview .pv-text{ min-width:0; }
+  .preview .pv-name{ font-family:'Space Grotesk'; font-weight:700; font-size:16px; }
+  .preview .pv-bio{ font-size:12.5px; color:var(--fg-faint); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* ---------- account widget (wie Hub/Aetheris/Astrion/Deep Anchor/PotS) ---------- */
+  .acct-wrap{ position:relative; }
+  .acct-panel{ display:none; position:absolute; top:calc(100% + 10px); right:0; width:256px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; box-shadow:0 20px 48px rgba(0,0,0,0.45); z-index:40; }
+  .acct-panel.open{ display:block; }
+  .acct-panel .lbl{ font-size:12px; line-height:1.55; color:var(--fg-dim); margin-bottom:10px; }
+  .acct-panel input{ width:100%; box-sizing:border-box; padding:9px 11px; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; color:var(--fg); font-family:'Inter'; font-size:13.5px; }
+  .acct-panel input:focus{ outline:none; border-color:var(--fg-faint); }
+  .acct-panel input#cloudCodeInput{ letter-spacing:4px; text-align:center; }
+  .acct-btn{ width:100%; margin-top:9px; padding:9px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg); font-family:'Inter'; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; }
+  .acct-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .acct-panel a.acct-btn{ display:block; box-sizing:border-box; text-align:center; text-decoration:none; }
+  .acct-status{ display:block; margin-top:9px; font-size:11px; line-height:1.5; }
+  .acct-status.ok{ color:#7fbf7f; } .acct-status.err{ color:#e37b7b; }
+  .acct-whoami{ display:flex; align-items:center; gap:9px; }
+  .acct-avatar{ font-size:19px; line-height:1; flex-shrink:0; }
+  #cloudUserName{ color:var(--fg); font-weight:600; }
+
+  html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
+  ::-webkit-scrollbar{ width:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      <a class="nav-back" href="index.html">← Hub</a>
+      <span class="nav-brand"><span class="mark"></span> SPIELERPROFIL</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+    <a class="nav-cta" href="raenge.html">🏆 Ränge</a>
+    <div class="acct-wrap" id="cloudAccountBar">
+      <button class="nav-cta" id="cloudAccountToggle" type="button">☁ Konto</button>
+      <div class="acct-panel" id="cloudAccountPanel">
+        <div id="cloudStepEmail">
+          <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+          <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
+          <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+        </div>
+        <div id="cloudStepCode" style="display:none;">
+          <div class="lbl">Code aus der E-Mail eingeben:</div>
+          <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
+          <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
+        </div>
+        <div id="cloudStepIn" style="display:none;">
+          <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
+          <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
+        </div>
+        <span class="acct-status" id="cloudStatusMsg"></span>
+      </div>
+    </div>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="eyebrow"><span class="dot"></span> Dein Konto</div>
+    <h1>Spielerprofil</h1>
+    <p class="pitch">Leg dir einen Spielernamen, ein Icon und einen kurzen Status-Text an. Das ersetzt
+      deine E-Mail-Adresse in der Konto-Anzeige auf allen MC ORCA Games Seiten — deine E-Mail bleibt
+      privat und wird nirgends öffentlich angezeigt.</p>
+  </section>
+
+  <section class="sec">
+
+    <div class="card notice" id="loggedOutNotice" style="display:none">
+      <p>Du bist noch nicht eingeloggt. Nutze oben rechts „☁ Konto“, um dich per E-Mail-Code
+        anzumelden — danach kannst du hier dein Profil einrichten.</p>
+    </div>
+
+    <div class="card notice" id="loadingNotice">
+      <p>Einen Moment …</p>
+    </div>
+
+    <div class="card" id="profileForm" style="display:none">
+
+      <div class="preview">
+        <div class="pv-avatar" id="previewAvatar">🚀</div>
+        <div class="pv-text">
+          <div class="pv-name" id="previewName">Spieler</div>
+          <div class="pv-bio" id="previewBio">Noch kein Status-Text</div>
+        </div>
+      </div>
+
+      <div class="fgroup">
+        <label class="flabel">Avatar</label>
+        <div class="avatar-grid" id="avatarGrid"></div>
+      </div>
+
+      <div class="fgroup">
+        <label class="flabel" for="usernameInput">Spielername</label>
+        <input type="text" id="usernameInput" maxlength="24" placeholder="z. B. Sternenwanderer">
+        <div class="fhint">Wird anstelle deiner E-Mail-Adresse angezeigt. Max. 24 Zeichen.</div>
+      </div>
+
+      <div class="fgroup">
+        <label class="flabel" for="bioInput">Status / Bio</label>
+        <textarea id="bioInput" maxlength="140" rows="3" placeholder="Ein kurzer Satz über dich …"></textarea>
+        <div class="fhint"><span id="bioCount">0</span>/140 Zeichen</div>
+      </div>
+
+      <button class="btn btn-primary" id="saveProfileBtn" type="button">Speichern</button>
+      <div class="fstatus" id="profileStatus"></div>
+    </div>
+
+    <div class="card" id="statsSection" style="display:none; margin-top:20px;">
+      <div class="flabel" style="margin-bottom:14px;">Deine Statistiken</div>
+      <div class="stats-games" id="statsGames"></div>
+    </div>
+
+    <div class="card danger-card" id="dangerSection" style="display:none; margin-top:20px;">
+      <div class="flabel" style="margin-bottom:10px;">Konto löschen</div>
+      <p class="danger-text">Löscht deinen Login und alle Cloud-Daten unwiderruflich: Spielername/Avatar/Bio
+        sowie alle Cloud-Spielstände (Aetheris, Deep Anchor, Path of the Stars, Astrion). Lokal auf diesem
+        Gerät gespeicherte Spielstände sind davon nicht betroffen. Das kann nicht rückgängig gemacht werden.</p>
+
+      <div id="deleteStep1">
+        <button class="btn btn-danger-outline" id="deleteAccountBtn" type="button" style="width:auto; padding:11px 20px;">Konto unwiderruflich löschen</button>
+      </div>
+
+      <div id="deleteStep2" style="display:none;">
+        <label class="flabel" for="deleteConfirmInput" style="font-weight:500; font-size:12.5px;">Gib zur Bestätigung <strong>LÖSCHEN</strong> ein:</label>
+        <input type="text" id="deleteConfirmInput" placeholder="LÖSCHEN" autocomplete="off">
+        <div class="danger-actions">
+          <button class="btn btn-danger" id="deleteConfirmBtn" type="button">Endgültig löschen</button>
+          <button class="btn btn-ghost" id="deleteCancelBtn" type="button">Abbrechen</button>
+        </div>
+      </div>
+      <div class="fstatus" id="deleteStatus"></div>
+    </div>
+
+  </section>
+
+</div>
+
+<script>
+/* ---------- Sternenfeld ---------- */
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], w, h;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    const count = Math.min(160, Math.floor((w*h)/13000));
+    stars = Array.from({length:count}, () => ({ x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.1+0.2, p:Math.random()*Math.PI*2, s:Math.random()*0.015+0.005 }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#E9E7E2';
+    stars.forEach(st=>{
+      const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.08 + tw*0.22;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if(!reduced) requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize(); requestAnimationFrame(draw);
+  if(reduced) draw(0);
+})();
+
+/* ---------- Konto-Panel Toggle ---------- */
+(function(){
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+  if(!toggle || !panel) return;
+  toggle.addEventListener('click', function(e){
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if(!document.getElementById('cloudAccountBar').contains(e.target)) panel.classList.remove('open');
+  });
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+  var toggle = document.getElementById('cloudAccountToggle');
+
+  var loggedOutEl = document.getElementById('loggedOutNotice');
+  var loadingEl = document.getElementById('loadingNotice');
+  var formEl = document.getElementById('profileForm');
+  var statsSection = document.getElementById('statsSection');
+  var statsGames = document.getElementById('statsGames');
+  var dangerSection = document.getElementById('dangerSection');
+  var deleteStep1 = document.getElementById('deleteStep1');
+  var deleteStep2 = document.getElementById('deleteStep2');
+  var deleteConfirmInput = document.getElementById('deleteConfirmInput');
+  var deleteStatusEl = document.getElementById('deleteStatus');
+  var avatarGrid = document.getElementById('avatarGrid');
+  var usernameInput = document.getElementById('usernameInput');
+  var bioInput = document.getElementById('bioInput');
+  var bioCount = document.getElementById('bioCount');
+  var profileStatusEl = document.getElementById('profileStatus');
+  var previewAvatar = document.getElementById('previewAvatar');
+  var previewName = document.getElementById('previewName');
+  var previewBio = document.getElementById('previewBio');
+  var selectedAvatar = '🚀';
+
+  var AVATARS = ['🚀','🛰️','👨‍🚀','👽','🪐','🌌','⭐','🌠','🌍','🔭','🛸','⚡','🔥','💫','🌟','🧭','🛡️','⚙️','🎯','☄️','🐋','🦾','🧬','🌙'];
+
+  /* Bild-Avatare: kuratierte Auswahl aus Astrion, NUR aus den ersten beiden
+     Sets ("erwachen" + "galaxie_chaos") — die "Sternenkern"-Verschmelzungs-
+     karten (Rarity 5, höchste Stufe), je Rasse eine, aus beiden Sets. Pfade
+     folgen Astrions autoCardImgPath()-Konvention (art/sets/cards/<set>/<id>.png).
+     WICHTIG: absolute (domain-root-relative) Pfade, da derselbe Avatar-Wert
+     auch auf den anderen MC-ORCA-Spielseiten (in eigenen Unterordnern)
+     angezeigt wird — ein Pfad relativ zu profil.html würde dort brechen. */
+  var IMAGE_AVATARS = [
+    { path: '/astrion/art/sets/cards/erwachen/089.png', label: 'Sternenkern: Terra-Bär' },
+    { path: '/astrion/art/sets/cards/erwachen/090.png', label: "Sternenkern: Sil'Kara-Wurm" },
+    { path: '/astrion/art/sets/cards/erwachen/091.png', label: 'Sternenkern: Nexus-Spinne' },
+    { path: '/astrion/art/sets/cards/erwachen/092.png', label: 'Sternenkern: Solen-Schlange' },
+    { path: '/astrion/art/sets/cards/galaxie_chaos/185.png', label: 'Sternenkern: Terra-Waschbär' },
+    { path: '/astrion/art/sets/cards/galaxie_chaos/186.png', label: "Sternenkern: Sil'Kara-Wurm-Chaos" },
+    { path: '/astrion/art/sets/cards/galaxie_chaos/187.png', label: 'Sternenkern: Nexus-Spinne-Fehlfunktion' },
+    { path: '/astrion/art/sets/cards/galaxie_chaos/188.png', label: 'Sternenkern: Solen-Schlangenzündung' },
+  ];
+
+  function isImageAvatar(a){
+    return typeof a === 'string' && /\.(png|jpg|jpeg|webp|gif)$/i.test(a);
+  }
+  // Füllt ein Avatar-Element (Grid-Button, Vorschau-Kreis, Status-Icon)
+  // korrekt: Bildpfad -> <img>, Emoji -> Text.
+  function renderAvatarInto(el, a){
+    el.innerHTML = '';
+    if(isImageAvatar(a)){
+      var img = document.createElement('img');
+      img.src = a;
+      img.alt = '';
+      el.appendChild(img);
+    } else {
+      el.textContent = a || '🚀';
+    }
+  }
+
+  AVATARS.forEach(function(a){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'avatar-opt';
+    btn.textContent = a;
+    btn.dataset.avatarValue = a;
+    btn.addEventListener('click', function(){
+      selectAvatarInGrid(a);
+      updatePreview();
+    });
+    avatarGrid.appendChild(btn);
+  });
+
+  var astrionDivider = document.createElement('div');
+  astrionDivider.className = 'avatar-divider';
+  astrionDivider.textContent = 'Astrion';
+  avatarGrid.appendChild(astrionDivider);
+
+  IMAGE_AVATARS.forEach(function(entry){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'avatar-opt';
+    btn.title = entry.label;
+    btn.dataset.avatarValue = entry.path;
+    renderAvatarInto(btn, entry.path);
+    btn.addEventListener('click', function(){
+      selectAvatarInGrid(entry.path);
+      updatePreview();
+    });
+    avatarGrid.appendChild(btn);
+  });
+
+  function selectAvatarInGrid(a){
+    selectedAvatar = a;
+    Array.prototype.forEach.call(avatarGrid.children, function(c){
+      if(!c.dataset || !('avatarValue' in c.dataset)) return;
+      c.classList.toggle('selected', c.dataset.avatarValue === a);
+    });
+  }
+
+  function updatePreview(){
+    renderAvatarInto(previewAvatar, selectedAvatar);
+    previewName.textContent = usernameInput.value.trim() || 'Spieler';
+    previewBio.textContent = bioInput.value.trim() || 'Noch kein Status-Text';
+  }
+
+  usernameInput.addEventListener('input', updatePreview);
+  bioInput.addEventListener('input', function(){
+    bioCount.textContent = bioInput.value.length;
+    updatePreview();
+  });
+
+  function setAcctStatus(msg, isErr){
+    statusEl.textContent = msg || '';
+    statusEl.className = 'acct-status' + (isErr ? ' err' : (msg ? ' ok' : ''));
+  }
+  function setProfileStatus(msg, isErr){
+    profileStatusEl.textContent = msg || '';
+    profileStatusEl.className = 'fstatus' + (isErr ? ' err' : (msg ? ' ok' : ''));
+  }
+
+  function renderAcct(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    toggle.textContent = uiState === 'in' ? '☁ Eingeloggt' : '☁ Konto';
+    var avatarEl = document.getElementById('cloudUserAvatar');
+    var nameEl = document.getElementById('cloudUserName');
+    if(avatarEl) renderAvatarInto(avatarEl, selectedAvatar);
+    if(nameEl) nameEl.textContent = (usernameInput.value.trim()) || (window.__cloudUser ? window.__cloudUser.email : '—');
+  }
+
+  // Liga-Namen aus Astrion (astrion/game.html: TOURNAMENT_LEAGUES), hier nur
+  // als Anzeige-Mapping dupliziert — rein kosmetisch, keine Spiellogik.
+  var TOURNAMENT_LEAGUE_LABELS = ['Außenposten-Cup','Kolonie-Liga','Silicae-Dominanz','Synthiden-Konklave','Solenari-Zirkel','Sternenkern-Thron'];
+
+  // Lookup für Deep Anchor "weiteste Erkundung" (dupliziert aus deep anchor/game.html:
+  // DEEP_SPACE — id, name, deltaVReq (als Distanz-Rang über ALLE Kategorien hinweg
+  // durchgehend monoton, siehe Konzept dort) sowie ly/mly wo vorhanden. Rein für die
+  // Anzeige hier, keine Spiellogik.
+  // Schiffs-Keys aus aetheris/game.html (SHIPS) — nur die Keys, für die
+  // Flottengrößen-Summe in den Statistiken. Keine Kosten/Werte nötig.
+  var AETHERIS_SHIP_KEYS = ['colonyShip','smallCargo','largeCargo','recycler','espionageProbe','lightFighter','heavyFighter','cruiser','destroyer','battlecruiser','battleship','bomber','worldbreaker','sunforgeDreadnought'];
+
+  var DEEP_SPACE_LOOKUP = {
+    mond:{name:'Mond',dv:185.0},
+    venus:{name:'Venus',dv:225.0},
+    mars:{name:'Mars',dv:255.0},
+    merkur:{name:'Merkur',dv:270.0},
+    jupiter:{name:'Jupiter',dv:320.0},
+    saturn:{name:'Saturn',dv:360.0},
+    uranus:{name:'Uranus',dv:385.0},
+    neptun:{name:'Neptun',dv:420.0},
+    europa:{name:'Europa',dv:330.0},
+    titanMond:{name:'Titan',dv:370.0},
+    ceres:{name:'Ceres',dv:295.0},
+    pluto:{name:'Pluto',dv:410.0},
+    alphaCentauri:{name:'Alpha Centauri',dv:900.0,ly:4.37},
+    proximaB:{name:'Proxima b',dv:950.0,ly:4.24},
+    barnardsStern:{name:'Barnards Stern b',dv:1000.0,ly:5.96},
+    wolf359:{name:'Wolf 359',dv:1199.0,ly:7.86},
+    lalande21185:{name:'Lalande 21185',dv:1216.0,ly:8.31},
+    sirius:{name:'Sirius',dv:1227.0,ly:8.6},
+    luyten7268:{name:'Luyten 726-8',dv:1231.0,ly:8.7},
+    ross154:{name:'Ross 154',dv:1268.0,ly:9.68},
+    ross248:{name:'Ross 248',dv:1291.0,ly:10.3},
+    epsilonEridani:{name:'Epsilon Eridani',dv:1299.0,ly:10.5},
+    lacaille9352:{name:'Lacaille 9352',dv:1307.0,ly:10.7},
+    ross128:{name:'Ross 128',dv:1318.0,ly:11.0},
+    procyon:{name:'Procyon',dv:1333.0,ly:11.4},
+    s61Cygni:{name:'61 Cygni',dv:1333.0,ly:11.4},
+    epsilonIndi:{name:'Epsilon Indi',dv:1348.0,ly:11.8},
+    tauCeti:{name:'Tau Ceti',dv:1352.0,ly:11.9},
+    gj1061:{name:'GJ 1061',dv:1352.0,ly:11.9},
+    luytensStar:{name:'Luyten\'s Star',dv:1371.0,ly:12.4},
+    teegardensStar:{name:'Teegarden\'s Star',dv:1375.0,ly:12.5},
+    kapteynsStar:{name:'Kapteyn\'s Star',dv:1386.0,ly:12.8},
+    lacaille8760:{name:'Lacaille 8760',dv:1390.0,ly:12.9},
+    kruger60:{name:'Kruger 60',dv:1398.0,ly:13.1},
+    wolf1061:{name:'Wolf 1061',dv:1424.0,ly:13.8},
+    vanMaanensStar:{name:'Van Maanen\'s Star',dv:1436.0,ly:14.1},
+    m31Kernregion:{name:'M31-Kernregion',dv:2400.0,mly:2.5},
+    andromedaAussenspiraleI:{name:'Außenspirale I',dv:2480.0,mly:2.52},
+    sprungpforteXi:{name:'Sprungpforte Xi',dv:2520.0,mly:2.54},
+    oberweltKryon:{name:'Oberwelt Kryon',dv:2560.0,mly:2.55},
+    echofeldTriangulum:{name:'Echofeld (Richtung Triangulum)',dv:2620.0,mly:2.7},
+    tiefenfeldEcho:{name:'Tiefenfeld Echo',dv:2680.0,mly:2.8},
+    triangulumKernregion:{name:'Triangulum-Kernregion',dv:2420.0,mly:2.7},
+    triangulumSternbildungsfeld:{name:'Sternbildungsfeld NGC 604',dv:2450.0,mly:2.72},
+    triangulumSignalquelle:{name:'Signalquelle Echofeld',dv:2480.0,mly:2.74},
+    triangulumAussenring:{name:'Außenring',dv:2520.0,mly:2.76},
+    triangulumNebelrand:{name:'Nebelrand',dv:2560.0,mly:2.85},
+    triangulumRandzone:{name:'Triangulum-Randzone',dv:2600.0,mly:2.95},
+    sculptorKernregion:{name:'Sculptor-Kernregion',dv:2420.0,mly:11.4},
+    sculptorStaubarmI:{name:'Staubarm I',dv:2450.0,mly:11.42},
+    sculptorSupernovaRest:{name:'Supernova-Überrest',dv:2480.0,mly:11.45},
+    sculptorGezeitenfeld:{name:'Gezeitenfeld',dv:2510.0,mly:11.48},
+    sculptorSilberrand:{name:'Silberrand',dv:2550.0,mly:11.55},
+    sculptorRandzone:{name:'Sculptor-Randzone',dv:2600.0,mly:11.65},
+    bodeKernregion:{name:'Bode-Kernregion',dv:2430.0,mly:11.8},
+    bodeSpiralarmI:{name:'Spiralarm I',dv:2460.0,mly:11.82},
+    bodeGezeitenbruecke:{name:'Gezeitenbrücke',dv:2490.0,mly:11.85},
+    bodeZigarrenrand:{name:'Zigarrenrand',dv:2520.0,mly:11.88},
+    bodeAussenhalo:{name:'Außenhalo',dv:2560.0,mly:11.95},
+    bodeRandzone:{name:'Bode-Randzone',dv:2600.0,mly:12.05},
+    centaurusKernregion:{name:'Centaurus-Kernregion',dv:2440.0,mly:13.7},
+    centaurusStaubbahnI:{name:'Staubbahn I',dv:2470.0,mly:13.72},
+    centaurusJetfeld:{name:'Jetfeld',dv:2500.0,mly:13.75},
+    centaurusKugelsternhaufen:{name:'Kugelsternhaufenfeld',dv:2530.0,mly:13.78},
+    centaurusHaloRand:{name:'Halorand',dv:2565.0,mly:13.85},
+    centaurusRandzone:{name:'Centaurus-Randzone',dv:2600.0,mly:13.95},
+    whirlpoolKernregion:{name:'Whirlpool-Kernregion',dv:2450.0,mly:23.0},
+    whirlpoolSpiralarmI:{name:'Spiralarm I',dv:2480.0,mly:23.05},
+    whirlpoolGezeitenschweif:{name:'Gezeitenschweif',dv:2510.0,mly:23.1},
+    whirlpoolBegleiterrand:{name:'Begleiterrand',dv:2540.0,mly:23.15},
+    whirlpoolAeussererArm:{name:'Äußerer Arm',dv:2570.0,mly:23.3},
+    whirlpoolRandzone:{name:'Whirlpool-Randzone',dv:2600.0,mly:23.5},
+    sombreroKernregion:{name:'Sombrero-Kernregion',dv:2460.0,mly:29.3},
+    sombreroStaubringI:{name:'Staubring I',dv:2495.0,mly:29.35},
+    sombreroUnklareKlassifikation:{name:'Unklare Klassifikation',dv:2525.0,mly:29.4},
+    sombreroKugelsternhaufenfeld:{name:'Kugelsternhaufenfeld',dv:2555.0,mly:29.45},
+    sombreroBulgeRand:{name:'Bulgerand',dv:2580.0,mly:29.6},
+    sombreroRandzone:{name:'Sombrero-Randzone',dv:2600.0,mly:29.8},
+    antennaeKernregion:{name:'Antennen-Kernregion (NGC 4038)',dv:2430.0,mly:45.0},
+    antennaeSuedkern:{name:'Südkern (NGC 4039)',dv:2450.0,mly:45.05},
+    antennaeGezeitenschweifOst:{name:'Östlicher Gezeitenschweif',dv:2470.0,mly:45.1},
+    antennaeGezeitenschweifWest:{name:'Westlicher Gezeitenschweif',dv:2490.0,mly:45.15},
+    antennaeSternentstehungsfeld:{name:'Sternentstehungsfeld',dv:2510.0,mly:45.2},
+    antennaeUeberlappungszone:{name:'Überlappungszone',dv:2530.0,mly:45.3},
+    antennaeAussenhalo:{name:'Außenhalo',dv:2560.0,mly:45.4},
+    antennaeRandzone:{name:'Antennen-Randzone',dv:2600.0,mly:45.5},
+    m87Kernregion:{name:'Virgo-A-Kernregion',dv:2440.0,mly:53.5},
+    m87Jetkanal:{name:'Relativistischer Jetkanal',dv:2500.0,mly:53.6},
+    m87Kugelsternhaufenschwarm:{name:'Kugelsternhaufenschwarm',dv:2560.0,mly:53.7},
+    m87Randzone:{name:'Virgo-A-Randzone',dv:2600.0,mly:53.9},
+    ngc1365Kernregion:{name:'NGC-1365-Kernregion',dv:2450.0,mly:56.0},
+    ngc1365BalkenarmOst:{name:'Balkenarm Ost',dv:2490.0,mly:56.1},
+    ngc1365BalkenarmWest:{name:'Balkenarm West',dv:2530.0,mly:56.2},
+    ngc1365Spiralaussenring:{name:'Spiral-Außenring',dv:2570.0,mly:56.35},
+    ngc1365Randzone:{name:'NGC-1365-Randzone',dv:2600.0,mly:56.5}
+  };
+
+  function statTile(val, label){
+    var d = document.createElement('div');
+    d.className = 'stat-tile';
+    var v = document.createElement('div'); v.className = 'val'; v.textContent = val;
+    var l = document.createElement('div'); l.className = 'lbl2'; l.textContent = label;
+    d.appendChild(v); d.appendChild(l);
+    return d;
+  }
+
+  function gameCardEl(color, title, contentEl){
+    var card = document.createElement('div');
+    card.className = 'stats-game';
+    var head = document.createElement('div');
+    head.className = 'stats-game-head';
+    var dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = color;
+    dot.style.color = color;
+    head.appendChild(dot);
+    head.appendChild(document.createTextNode(title));
+    card.appendChild(head);
+    card.appendChild(contentEl);
+    return card;
+  }
+
+  function emptyMsg(text){
+    var d = document.createElement('div');
+    d.className = 'stats-empty';
+    d.textContent = text;
+    return d;
+  }
+
+  // Statistiken für Astrion + Deep Anchor aus der gemeinsamen 'saves'-Tabelle
+  // (dieselbe Tabelle, über die die Spiele selbst ihren Cloud-Sync machen —
+  // siehe [[mc-orca-login]]). Rein lesend, greift nicht in die Spielstände ein.
+  async function loadStats(user){
+    statsGames.innerHTML = '';
+    statsGames.appendChild(emptyMsg('Lade Statistiken …'));
+    var cards = [];
+
+    // --- Aetheris (ebenfalls mehrere Speicherprofile -> neuesten Stand nehmen) ---
+    try{
+      var eRes = await supabaseClient.from('saves').select('key,value,updated_at').eq('user_id', user.id).like('key','aetheris_%').order('updated_at', { ascending:false }).limit(1);
+      if(!eRes.error && eRes.data && eRes.data[0] && eRes.data[0].value){
+        var a = JSON.parse(eRes.data[0].value);
+        var planetCount = Object.keys(a.planets || {}).length;
+        // Flottengröße: alle Schiffstypen (SHIPS-Liste aus aetheris/game.html, hier nur die
+        // Keys dupliziert) über alle Planeten UND deren Monde (moon/moon2) aufsummiert.
+        var fleetTotal = 0;
+        Object.values(a.planets || {}).forEach(function(p){
+          AETHERIS_SHIP_KEYS.forEach(function(k){ fleetTotal += (p.fleet && p.fleet[k]) || 0; });
+          ['moon','moon2'].forEach(function(mk){
+            if(p[mk] && p[mk].fleet){ AETHERIS_SHIP_KEYS.forEach(function(k){ fleetTotal += p[mk].fleet[k] || 0; }); }
+          });
+        });
+        var dysonPct = Math.floor(((a.dysonState && a.dysonState.panelsBuilt) || 0) / 10) / 10; // /1000*100, 1 Nachkommastelle
+        var achievementCount = Object.keys(a.achievementsClaimed || {}).length;
+        var grid3 = document.createElement('div'); grid3.className = 'stats-grid';
+        grid3.appendChild(statTile(planetCount, 'Planeten'));
+        grid3.appendChild(statTile(fleetTotal, 'Flottengröße'));
+        grid3.appendChild(statTile(dysonPct + ' %', 'Dyson-Sphäre'));
+        grid3.appendChild(statTile(achievementCount, 'Erfolge'));
+        cards.push(gameCardEl('var(--gold)', 'Aetheris', grid3));
+      } else {
+        cards.push(gameCardEl('var(--gold)', 'Aetheris', emptyMsg('Noch kein Spielstand in der Cloud.')));
+      }
+    }catch(e){
+      console.warn('Aetheris-Statistiken konnten nicht geladen werden', e);
+      cards.push(gameCardEl('var(--gold)', 'Aetheris', emptyMsg('Statistiken konnten nicht geladen werden.')));
+    }
+
+    // --- Deep Anchor (mehrere Speicherprofile möglich -> neuesten Stand nehmen) ---
+    try{
+      var dRes = await supabaseClient.from('saves').select('key,value,updated_at').eq('user_id', user.id).like('key','deepanchor_%').order('updated_at', { ascending:false }).limit(1);
+      if(!dRes.error && dRes.data && dRes.data[0] && dRes.data[0].value){
+        var d = JSON.parse(dRes.data[0].value);
+        var totalDays = d.day || 1;
+        var years = Math.floor((totalDays - 1) / 365);
+        var daysRem = (totalDays - 1) % 365 + 1;
+        var companyTimeLabel = years > 0 ? (years + ' J. ' + daysRem + ' T.') : (daysRem + ' Tage');
+        // Weiteste Erkundung: unter allen erreichten exploredTargets dasjenige mit dem
+        // höchsten deltaVReq (steigt über ALLE Entfernungs-Kategorien hinweg durchgehend
+        // monoton an — von Mond/Mars bis intergalaktisch, siehe DEEP_SPACE_LOOKUP oben).
+        var farthestLabel = '—';
+        var explored = d.exploredTargets || [];
+        var best = null;
+        explored.forEach(function(key){
+          var t = DEEP_SPACE_LOOKUP[key];
+          if(t && (!best || t.dv > best.dv)) best = t;
+        });
+        if(best){
+          if(best.mly != null) farthestLabel = best.name + ' (' + best.mly + ' Mio. Lj)';
+          else if(best.ly != null) farthestLabel = best.name + ' (' + best.ly + ' Lj)';
+          else farthestLabel = best.name;
+        }
+        var grid2 = document.createElement('div'); grid2.className = 'stats-grid';
+        grid2.appendChild(statTile(companyTimeLabel, 'Firmenzeit'));
+        grid2.appendChild(statTile((d.colonies||[]).length, 'Kolonien'));
+        grid2.appendChild(statTile((d.exploredTargets||[]).length, 'Erkundete Ziele'));
+        grid2.appendChild(statTile(farthestLabel, 'Weiteste Erkundung'));
+        cards.push(gameCardEl('var(--orange)', 'Deep Anchor', grid2));
+      } else {
+        cards.push(gameCardEl('var(--orange)', 'Deep Anchor', emptyMsg('Noch kein Spielstand in der Cloud.')));
+      }
+    }catch(e){
+      console.warn('Deep-Anchor-Statistiken konnten nicht geladen werden', e);
+      cards.push(gameCardEl('var(--orange)', 'Deep Anchor', emptyMsg('Statistiken konnten nicht geladen werden.')));
+    }
+
+    // --- Path of the Stars (Cloud-Keys sind mit "pots:" präfixiert, z. B.
+    // "pots:save:main" — siehe cloudManualSyncBtn-Handler in path of the
+    // stars/game.html). Hauptspielstand-Key ist "pots:save:main"; der
+    // Intro-Spielstand ("pots:save:intro") wird hier bewusst ignoriert. ---
+    try{
+      var pRes = await supabaseClient.from('saves').select('value').eq('user_id', user.id).eq('key','pots:save:main').maybeSingle();
+      if(!pRes.error && pRes.data && pRes.data.value){
+        var p = JSON.parse(pRes.data.value);
+        var pl = p.player || {};
+        var st = pl.stats || {};
+        var creditsLabel = (typeof pl.credits === 'number') ? pl.credits.toLocaleString('de-DE') + ' Cr' : '—';
+        var empireCount = (p.systems || []).filter(function(s){ return s.ownedBy === 'player'; }).length;
+        var grid4 = document.createElement('div'); grid4.className = 'stats-grid';
+        grid4.appendChild(statTile(creditsLabel, 'Credits'));
+        grid4.appendChild(statTile((st.combatWins||0) + ':' + (st.combatLosses||0), 'Siege:Niederlagen'));
+        grid4.appendChild(statTile(empireCount, 'Eroberte Systeme'));
+        grid4.appendChild(statTile((pl.unlockedAchievements||[]).length, 'Erfolge'));
+        cards.push(gameCardEl('var(--red)', 'Path of the Stars', grid4));
+      } else {
+        cards.push(gameCardEl('var(--red)', 'Path of the Stars', emptyMsg('Noch kein Spielstand in der Cloud.')));
+      }
+    }catch(e){
+      console.warn('Path-of-the-Stars-Statistiken konnten nicht geladen werden', e);
+      cards.push(gameCardEl('var(--red)', 'Path of the Stars', emptyMsg('Statistiken konnten nicht geladen werden.')));
+    }
+
+    // --- Astrion (fester Save-Key, kein Profil-System) ---
+    try{
+      var aRes = await supabaseClient.from('saves').select('value').eq('user_id', user.id).eq('key','astrion_save').maybeSingle();
+      if(!aRes.error && aRes.data && aRes.data.value){
+        var s = JSON.parse(aRes.data.value);
+        var cardCount = Object.keys(s.collection || {}).length;
+        var leagueIdx = (s.tournament && typeof s.tournament.currentLeagueIdx === 'number') ? s.tournament.currentLeagueIdx : 0;
+        var leagueLabel = TOURNAMENT_LEAGUE_LABELS[leagueIdx] || TOURNAMENT_LEAGUE_LABELS[0];
+        var grid = document.createElement('div'); grid.className = 'stats-grid';
+        grid.appendChild(statTile(cardCount, 'Karten gesammelt'));
+        grid.appendChild(statTile((s.battleWins||0) + ':' + (s.battleLosses||0), 'Siege:Niederlagen'));
+        grid.appendChild(statTile(leagueLabel, 'Turnier-Liga'));
+        grid.appendChild(statTile(s.dailyStreak||0, 'Tage-Streak'));
+        cards.push(gameCardEl('var(--violet)', 'Astrion', grid));
+      } else {
+        cards.push(gameCardEl('var(--violet)', 'Astrion', emptyMsg('Noch kein Spielstand in der Cloud.')));
+      }
+    }catch(e){
+      console.warn('Astrion-Statistiken konnten nicht geladen werden', e);
+      cards.push(gameCardEl('var(--violet)', 'Astrion', emptyMsg('Statistiken konnten nicht geladen werden.')));
+    }
+
+    statsGames.innerHTML = '';
+    cards.forEach(function(c){ statsGames.appendChild(c); });
+  }
+
+  async function loadProfile(user){
+    try{
+      var res = await supabaseClient.from('profiles').select('username,avatar,bio').eq('user_id', user.id).maybeSingle();
+      if(!res.error && res.data){
+        usernameInput.value = res.data.username || '';
+        bioInput.value = res.data.bio || '';
+        bioCount.textContent = bioInput.value.length;
+        selectAvatarInGrid(res.data.avatar || '🚀');
+      } else {
+        usernameInput.value = '';
+        bioInput.value = '';
+        bioCount.textContent = '0';
+        selectAvatarInGrid('🚀');
+      }
+    }catch(e){
+      console.warn('Profil konnte nicht geladen werden', e);
+    }
+    updatePreview();
+    renderAcct();
+  }
+
+  async function refreshView(){
+    if(!supabaseClient){
+      loadingEl.style.display = 'none';
+      loggedOutEl.style.display = '';
+      loggedOutEl.querySelector('p').textContent = 'Cloud-Konto noch nicht eingerichtet.';
+      formEl.style.display = 'none';
+      statsSection.style.display = 'none';
+      dangerSection.style.display = 'none';
+      return;
+    }
+    var res = await supabaseClient.auth.getSession();
+    var user = (res && res.data && res.data.session) ? res.data.session.user : null;
+    window.__cloudUser = user;
+    uiState = user ? 'in' : 'email';
+    loadingEl.style.display = 'none';
+    if(user){
+      loggedOutEl.style.display = 'none';
+      formEl.style.display = '';
+      statsSection.style.display = '';
+      dangerSection.style.display = '';
+      await loadProfile(user);
+      loadStats(user);
+    } else {
+      loggedOutEl.style.display = '';
+      formEl.style.display = 'none';
+      statsSection.style.display = 'none';
+      dangerSection.style.display = 'none';
+      renderAcct();
+    }
+  }
+
+  document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+    if(!supabaseClient) return;
+    var email = document.getElementById('cloudEmailInput').value.trim();
+    if(!email || email.indexOf('@') === -1){ setAcctStatus('Bitte gültige E-Mail eingeben.', true); return; }
+    setAcctStatus('Sende Code …', false);
+    var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+    if(res.error){ setAcctStatus('Fehler: ' + res.error.message, true); return; }
+    pendingEmail = email;
+    uiState = 'code';
+    renderAcct();
+    setAcctStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+  });
+
+  document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+    if(!supabaseClient) return;
+    var code = document.getElementById('cloudCodeInput').value.trim();
+    if(!code){ setAcctStatus('Bitte Code eingeben.', true); return; }
+    setAcctStatus('Prüfe Code …', false);
+    var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+    if(res.error){ setAcctStatus('Fehler: ' + res.error.message, true); return; }
+    setAcctStatus('Eingeloggt!', false);
+  });
+
+  document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+    if(!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+    uiState = 'email';
+    setAcctStatus('Ausgeloggt.', false);
+  });
+
+  document.getElementById('saveProfileBtn').addEventListener('click', async function(){
+    if(!supabaseClient || !window.__cloudUser){ setProfileStatus('Bitte zuerst einloggen.', true); return; }
+    var username = usernameInput.value.trim();
+    if(!username){ setProfileStatus('Bitte einen Spielernamen eingeben.', true); return; }
+    setProfileStatus('Speichere …', false);
+    var res = await supabaseClient.from('profiles').upsert({
+      user_id: window.__cloudUser.id,
+      username: username,
+      avatar: selectedAvatar,
+      bio: bioInput.value.trim(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if(res.error){ setProfileStatus('Fehler: ' + res.error.message, true); return; }
+    setProfileStatus('Gespeichert!', false);
+    renderAcct();
+  });
+
+  /* ---------- Konto löschen (ruft die Edge Function "delete-account" auf,
+     die serverseitig mit dem Service-Role-Key den Auth-User + alle Zeilen
+     in "saves"/"profiles" löscht — siehe supabase/functions/delete-account) ---------- */
+  function setDeleteStatus(msg, isErr){
+    deleteStatusEl.textContent = msg || '';
+    deleteStatusEl.className = 'fstatus' + (msg ? (isErr ? ' err' : ' ok') : '');
+  }
+
+  document.getElementById('deleteAccountBtn').addEventListener('click', function(){
+    deleteStep1.style.display = 'none';
+    deleteStep2.style.display = '';
+    deleteConfirmInput.value = '';
+    setDeleteStatus('', false);
+    deleteConfirmInput.focus();
+  });
+
+  document.getElementById('deleteCancelBtn').addEventListener('click', function(){
+    deleteStep2.style.display = 'none';
+    deleteStep1.style.display = '';
+    setDeleteStatus('', false);
+  });
+
+  document.getElementById('deleteConfirmBtn').addEventListener('click', async function(){
+    if(!supabaseClient || !window.__cloudUser) return;
+    if(deleteConfirmInput.value.trim().toUpperCase() !== 'LÖSCHEN'){
+      setDeleteStatus('Bitte genau „LÖSCHEN" eingeben.', true);
+      return;
+    }
+    setDeleteStatus('Konto wird gelöscht …', false);
+    try{
+      var res = await supabaseClient.functions.invoke('delete-account');
+      if(res.error) throw res.error;
+      if(res.data && res.data.error) throw new Error(res.data.error);
+      setDeleteStatus('Konto gelöscht. Du wirst ausgeloggt …', false);
+      await supabaseClient.auth.signOut();
+      setTimeout(function(){ window.location.href = 'index.html'; }, 1500);
+    }catch(e){
+      setDeleteStatus('Fehler: ' + (e && e.message ? e.message : 'Löschen fehlgeschlagen.'), true);
+    }
+  });
+
+  if(supabaseClient){
+    supabaseClient.auth.onAuthStateChange(function(){ refreshView(); });
+  }
+  refreshView();
+})();
+</script>
+
+</body>
+</html>

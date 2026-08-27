@@ -4,6 +4,12 @@
  ASTRION — Karten aus den Tiefen des Alls
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v0.06.105
+- FIX (Geschenkcode "ASTRION2500" gab falsche Menge, Nutzer-Feedback: "der geschenke code
+  astrion 2500 stimt nicht er gibt mehr als die 2500 ac aus"): GIFT_CODES["ASTRION2500"].credits
+  stand auf 1000000000 (offenbar ein liegen gebliebener Testwert) statt der im Code selbst und
+  im Label ("Startpaket", 2500 AC) beschriebenen 2500 AC. Auf 2500 korrigiert.
+
 v0.06.104
 - NEU (TODO-EINSTELLUNGEN-STARTSEITE, Nutzer-Feedback: "auf jedem Spiel bis auf Deep Anchor ist
   auf der Startseite kein Kopf für die echte Einstellung im Spiel, so dass man vor den Saves auch
@@ -5032,7 +5038,7 @@ v0.00.1
 
 <script>
 "use strict";
-const VERSION = "v0.06.104";
+const VERSION = "v0.06.105";
 
 /* Debug-Werkzeuge im Karten-Detail-Modal (Raster ein/aus + Zonen bearbeiten).
    Auf true setzen, um beim Nachjustieren von RACE_LAYOUT/RACE_ART_BOX wieder
@@ -13608,7 +13614,7 @@ document.querySelectorAll('#difficultyToggleRow [data-difficulty]').forEach(btn=
    Value = Belohnung. Aktuell nur credits, kann bei Bedarf um weitere
    Felder erweitert werden (z.B. cardIds:[...] für konkrete Karten). */
 const GIFT_CODES = {
-  "ASTRION2500": { credits: 1000000000, label: "Startpaket" },
+  "ASTRION2500": { credits: 2500, label: "Startpaket" },
   "GB DAMIAN": { boosters: { erwachen: 20, galaxie_chaos: 20 }, label: "Gästebuch Damian" }
 };
 function normalizeGiftCode(raw){
@@ -14571,8 +14577,14 @@ document.getElementById('startSettingsBtn').addEventListener('click', async ()=>
         var localRaw = null;
         try{ localRaw = localStorage.getItem('astrion_save'); }catch(e){}
         if(!cloudRow){
+          // Kein Cloud-Stand vorhanden -> NICHT mehr automatisch hochladen (koennte ein anderer
+          // Account gewesen sein, dessen lokaler Stand noch im Browser liegt) -- stattdessen fragen.
           window.__cloudSyncLocked = false;
-          if(localRaw){ await window.__cloudUpsert('astrion_save', localRaw); setStatus('Kein Cloud-Stand gefunden — lokaler Stand hochgeladen.', false); }
+          if(localRaw){
+            var __uploadNewManual = await __cloudCustomConfirm('Für diesen Account gibt es noch keinen Cloud-Spielstand. Auf diesem Gerät liegt aber ein lokaler Spielstand (z. B. von einem anderen Account). Diesen jetzt diesem Account zuordnen und hochladen?', 'Ja, hochladen', 'Nein, leer lassen', null);
+            if(__uploadNewManual){ await window.__cloudUpsert('astrion_save', localRaw); setStatus('Lokaler Spielstand hochgeladen.', false); }
+            else{ setStatus('Kein Cloud-Stand — lokaler Spielstand wurde NICHT hochgeladen.', false); }
+          }
           else{ setStatus('Weder lokal noch in der Cloud ein Spielstand gefunden.', true); }
           return;
         }
@@ -14746,7 +14758,11 @@ window.__cloudSyncOnLogin = async function(){
     try{ localRaw = localStorage.getItem('astrion_save'); }catch(e){}
     var cloudRow = (sel.data && sel.data[0]) || null;
     if(!cloudRow){
-      if(localRaw){ window.__cloudSyncLocked = false; await window.__cloudUpsert('astrion_save', localRaw); }
+      window.__cloudSyncLocked = false;
+      if(localRaw){
+        var __uploadNewLogin = await __cloudCustomConfirm('Für diesen Account gibt es noch keinen Cloud-Spielstand. Auf diesem Gerät liegt aber ein lokaler Spielstand (z. B. von einem anderen Account). Diesen jetzt diesem Account zuordnen und hochladen?', 'Ja, hochladen', 'Nein, leer lassen', null);
+        if(__uploadNewLogin){ await window.__cloudUpsert('astrion_save', localRaw); }
+      }
       return;
     }
     // NEU (Bugfix wiederholter Dialog): vor dem Fragen pruefen, ob lokal und Cloud inhaltlich

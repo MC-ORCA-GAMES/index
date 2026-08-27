@@ -17388,8 +17388,14 @@ window.addEventListener("resize", () => { if (currentView === "dyson") positionD
           try{ if(localStorage.getItem(__localKeys[__i]) !== null) localHasData = true; }catch(e){}
         }
         if(!sel.data || sel.data.length === 0){
+          // Kein Cloud-Stand vorhanden -> NICHT mehr automatisch hochladen (koennte ein anderer
+          // Account gewesen sein, dessen lokaler Stand noch im Browser liegt) -- stattdessen fragen.
           window.__cloudSyncLocked = false;
-          if(localHasData){ await __aetherisPushAllLocal(); setStatus('Kein Cloud-Stand gefunden — lokaler Stand hochgeladen.', false); }
+          if(localHasData){
+            var __uploadNewManual = await __cloudCustomConfirm('Für diesen Account gibt es noch keinen Cloud-Spielstand. Auf diesem Gerät liegt aber ein lokaler Spielstand (z. B. von einem anderen Account). Diesen jetzt diesem Account zuordnen und hochladen?', 'Ja, hochladen', 'Nein, leer lassen', null);
+            if(__uploadNewManual){ await __aetherisPushAllLocal(); setStatus('Lokaler Spielstand hochgeladen.', false); }
+            else{ setStatus('Kein Cloud-Stand — lokaler Spielstand wurde NICHT hochgeladen.', false); }
+          }
           else{ setStatus('Weder lokal noch in der Cloud ein Spielstand gefunden.', true); }
           return;
         }
@@ -17614,7 +17620,11 @@ window.__cloudSyncOnLogin = async function(){
       }
     }catch(e){}
     if(!sel.data || sel.data.length === 0){
-      if(localHasData){ window.__cloudSyncLocked = false; await __aetherisPushAllLocal(); }
+      window.__cloudSyncLocked = false;
+      if(localHasData){
+        var __uploadNewLogin = await __cloudCustomConfirm('Für diesen Account gibt es noch keinen Cloud-Spielstand. Auf diesem Gerät liegt aber ein lokaler Spielstand (z. B. von einem anderen Account). Diesen jetzt diesem Account zuordnen und hochladen?', 'Ja, hochladen', 'Nein, leer lassen', null);
+        if(__uploadNewLogin){ await __aetherisPushAllLocal(); }
+      }
       return;
     }
     // NEU (Bugfix wiederholter Dialog): vor dem Fragen pruefen, ob lokal und Cloud inhaltlich
