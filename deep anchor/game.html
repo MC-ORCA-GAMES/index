@@ -3047,6 +3047,23 @@ html.ui-theme-dos .dos-galaxy-menu{ display:block; }
    als sein Inhalt zu werden, sodass stattdessen das .dos-ascii-map selbst scrollt (overflow-x:auto
    oben). Absicherung fürs ganze Panel, nicht nur für diesen einen Fall. */
 .panel{ min-width:0; }
+/* BUGFIX (galaxyMapCanvas/galaxyHubCanvas-Endlos-Resize, dieselbe Ursache wie beim
+   statsMoneyChart-Fix oben, aber hier am eigentlichen Wurzel-Element): .main-col ist ein
+   CSS-Grid-Item (Track "1fr" in .layout) und hatte KEIN min-width:0. Grid-Items bekommen ohne
+   diese Regel automatisch min-width:auto, was sich am größten "min-content"-Beitrag ihrer
+   Kind-Elemente orientiert -- und bei einem <canvas> mit width:100% zählt dafür NICHT die
+   CSS-Breite, sondern das width-Attribut (die interne Zeichenauflösung). Da drawGalaxyMap()/
+   drawGalaxyHub() genau dieses Attribut bei jedem Redraw auf canvas.clientWidth*devicePixelRatio
+   setzen, entsteht auf Geräten mit devicePixelRatio > 1 (jedes Retina-Handy/-Tablet) ein
+   Teufelskreis: canvas.width wächst -> .main-col wächst mit (min-width:auto greift) ->
+   clientWidth beim nächsten Redraw ist größer -> canvas.width wächst weiter usw. Getestet: auf
+   einem simulierten Handy-Viewport (DPR 3) explodierte galaxyMapCanvas so über mehrere Frames
+   von 9.000px auf 243.000px Breite -- deutlich extremer als der bereits gefixte
+   statsMoneyChart-Fall, weil hier zwei Canvases (Hub + Sternenkarte) sich gegenseitig
+   hochschaukeln. min-width:0 ist der etablierte Fix dafür (siehe .panel oben) und nimmt dem
+   Grid-Item die automatische Aufblähung komplett; betrifft/repariert damit alle Canvas-Karten
+   innerhalb von .main-col in einem Rutsch, nicht nur die Galaxie-Ansicht. */
+.main-col{ min-width:0; }
 /* NEU (auf Nutzerwunsch: "bei Gefahr müssen wir uns was einfallen lassen, das man das anders
    erkenntlich macht"): da unter dem DOS-Stil keine Farbcodierung mehr existiert, kennzeichnet
    stattdessen ein simples Blinken (wie bei alten Text-Terminal-Warnungen) alles, was vorher rot
