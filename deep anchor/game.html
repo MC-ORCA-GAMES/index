@@ -2628,6 +2628,14 @@ canvas{ display:block; }
 #galaxyMapCanvas{ width:100%; height:400px; background:radial-gradient(ellipse at 50% 50%, #121212 0%, #070707 55%, #030303 100%); border:1px solid var(--border); border-radius:var(--radius); cursor:grab; }
 #andromedaMapCanvas{ width:100%; height:400px; margin-top:10px; background:radial-gradient(ellipse at 50% 50%, #14121a 0%, #070708 55%, #020203 100%); border:1px solid var(--border); border-radius:var(--radius); cursor:grab; }
 #galaxyHubCanvas{ width:100%; height:220px; background:radial-gradient(ellipse at 50% 50%, #101014 0%, #060607 55%, #020203 100%); border:1px solid var(--border); border-radius:var(--radius); cursor:grab; }
+/* BUGFIX (statsMoneyChart-Endlos-Resize): fehlte bisher komplett -- ohne feste CSS-Breite
+   bestimmt bei <canvas> das width-Attribut selbst die Layout-/Boxgröße. drawMoneyChart() liest
+   canvas.clientWidth und schreibt canvas.width = clientWidth*dpr zurück; ohne diese Regel wuchs
+   dadurch bei jedem Redraw sowohl das Attribut als auch (weil es die Layoutgröße mitbestimmt) der
+   sichtbare Container immer weiter -- Endlosschleife, die v.a. auf Handy/Tablet-Chrome zum Absturz
+   führte. Feste width:100% entkoppelt Layoutgröße vom width-Attribut, analog zu den anderen
+   Canvas-Karten oben. */
+#statsMoneyChart{ width:100%; height:260px; background:#060606; border:1px solid var(--border); border-radius:var(--radius); }
 .map-wrap{ position:relative; }
 .map-reset-btn{
   position:absolute; top:8px; right:8px; z-index:5;
