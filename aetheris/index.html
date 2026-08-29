@@ -155,6 +155,7 @@
   @media (max-width:760px){ .roadmap-grid{ grid-template-columns:1fr; } }
   .rtag{ display:inline-block; font-size:10.5px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:4px 10px; border-radius:999px; margin-bottom:12px; }
   .rtag.now{ background:var(--accent-dim); color:var(--accent); }
+  .rtag.done{ background:rgba(122,196,127,0.14); color:#7AC47F; }
   .rtag.next{ background:rgba(127,160,196,0.14); color:#7FA0C4; }
   .rtag.idea{ background:rgba(255,255,255,0.05); color:var(--fg-faint); }
   .roadmap-grid ul{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
@@ -202,6 +203,13 @@
   ::-webkit-scrollbar{ width:10px; }
   ::-webkit-scrollbar-track{ background:var(--bg); }
   ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
+
+  .updates-list{ display:flex; flex-direction:column; gap:12px; margin-top:20px; }
+  .update-item{ display:flex; gap:14px; align-items:baseline; padding:14px 16px; background:var(--panel); border:1px solid var(--line); border-radius:10px; }
+  .update-ver{ flex-shrink:0; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:11.5px; color:var(--accent); background:var(--accent-dim); padding:4px 10px; border-radius:999px; white-space:nowrap; }
+  .update-text{ font-size:13.5px; color:var(--fg-dim); line-height:1.6; }
+  .update-text b{ color:var(--fg); }
+  .updates-more{ margin-top:16px; font-size:12.5px; color:var(--fg-faint); }
 </style>
 </head>
 <body>
@@ -396,16 +404,16 @@
     </div>
     <div class="roadmap-grid">
       <div>
-        <span class="rtag now">In Arbeit</span>
+        <span class="rtag done">Fertig</span>
         <ul>
           <li><b>Dyson-Sphäre</b> — Neues Endgame-Ziel. Bauteile werden auf unterschiedlichen Planetentypen produziert, auf einem künstlichen Mond montiert und zur Sonne verschickt.
             <br><a class="glink" href="dyson-vorschau.html" target="_blank" rel="noopener">Vorschau ansehen →</a></li>
+          <li><b>Lebendige KI-Imperien</b> — 2 bis 10 computergesteuerte Reiche, die im Hintergrund eigenständig wachsen, kolonisieren und miteinander in Konflikt geraten.</li>
         </ul>
       </div>
       <div>
         <span class="rtag next">Als Nächstes geplant</span>
         <ul>
-          <li><b>Lebendige KI-Imperien</b> — 2 bis 10 computergesteuerte Reiche, die im Hintergrund eigenständig wachsen, kolonisieren und miteinander in Konflikt geraten.</li>
           <li><b>Screaming-Sun-Expeditionen</b> — Eine storygetriebene Expeditionslinie in eine schwer erreichbare Sondergalaxie, freigeschaltet über die Dyson-Sphäre.</li>
         </ul>
       </div>
@@ -420,6 +428,23 @@
         </ul>
       </div>
     </div>
+  </section>
+
+  <section class="sec reveal" id="updates">
+    <div class="sec-head">
+      <div class="sec-kicker">09 · Updates</div>
+      <h2>Was sich zuletzt getan hat</h2>
+      <p class="sec-lead">Eine Auswahl der letzten spürbaren Änderungen. Die vollständige, technische Änderungshistorie steht im Spiel selbst am Kopf des Quelltexts.</p>
+    </div>
+    <div class="updates-list">
+      <div class="update-item"><span class="update-ver">v1.1.2</span><span class="update-text">Boot-Sequenz beim Spielstart entfernt (Feedback: nervte) — das Spiel startet jetzt direkt.</span></div>
+      <div class="update-item"><span class="update-ver">v1.1.1</span><span class="update-text">Einstellungen (inkl. Konto &amp; Cloud-Sync) sind jetzt auch direkt vom Titelbildschirm aus erreichbar, nicht erst im laufenden Spiel.</span></div>
+      <div class="update-item"><span class="update-ver">v1.1.0</span><span class="update-text">Zuverlässigerer Cloud-Speicherstand-Abgleich zwischen mehreren Geräten (Versions-Zähler statt reinem Zeitstempel).</span></div>
+      <div class="update-item"><span class="update-ver">v1.0.4</span><span class="update-text">Energieverbrauch der Gebäude überarbeitet (Balancing) — praktisch jedes Gebäude verbraucht jetzt laufend Energie.</span></div>
+      <div class="update-item"><span class="update-ver">v1.0.3</span><span class="update-text">Autopilot kolonisiert jetzt gezielt nach benötigten Planetentypen statt zufällig, ist bei normalen Profilen standardmäßig aus.</span></div>
+      <div class="update-item"><span class="update-ver">v1.0.1</span><span class="update-text">🎁 Geschenkcode-Einlösung eingeführt.</span></div>
+    </div>
+    <p class="updates-more">Weitere Fixes &amp; Feinschliff laufend, nicht einzeln aufgeführt.</p>
   </section>
 
   <section class="sec reveal final" id="start">

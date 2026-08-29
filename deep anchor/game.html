@@ -1,6 +1,25 @@
 <!--
 CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
 
+v4-79 (deep_anchor_4_6_38.html)
+- ENTFERNT (Nutzer-Feedback: Boot-Sequenz nervt): Die komplette "MC ORCA GAMES OS" Boot-Sequenz ist
+  raus — sowohl die kurze Röhrenmonitor-Einschalt-Sequenz auf dem Splash-Screen (#crtBootOverlay,
+  .crt-boot-line) als auch der lange DOS-Bootstream beim tatsächlichen Spieleintritt
+  (#dosBootOverlay, playDosBootSequence(), ~35-40s Laufzeit). showGameRoot() blendet direkt in den
+  Spielbereich, ohne Zwischenschritt.
+  Da das erzwungene CGA/EGA-Retro-Farbschema (BOOT_FORCED_COLOR/-PATTERN, applyForcedBootTheme(),
+  themeLocked) bisher extra für Splash/Boot aktiv war und erst danach auf das echte, unter
+  "Darstellung" eingestellte Farbschema/Muster umschaltete (unlockTheme()): das eigentlich
+  eingestellte Farbschema/Muster (currentUIColor/currentUIPattern) greift jetzt ab dem allerersten
+  Frame, kein CGA-Zwischenschritt mehr. Entfernt: BOOT_FORCED_COLOR/-PATTERN, themeLocked,
+  CRT_BOOT_ANIM_MS, crtBootThemeTimer, skipCrtBootAnim(), applyForcedBootTheme(), unlockTheme(),
+  getBootContext(), generateDosBootLines(), EASTER_EGG_VARIANTS, CPU_CLOCK_VARIANTS,
+  DISK_ACCESS_LINES, MODEM_LINE, DOS_BOOT_BANNER/_STACKED, renderProgressLine(), dosBootToken,
+  playDosBootSequence() sowie alle zugehörigen CSS-Keyframes (crtBootLine/-OverlayFade/-ContentIn,
+  crtPowerOn/-Off, dosBannerFlash, dosLineFlash). Der DOS-Konsolen-UI-Stil (ui-theme-dos, separate
+  "Darstellung"-Option) ist davon nicht betroffen und bleibt unverändert wählbar.
+- GAME_VERSION von "v4-78" auf "v4-79" erhöht.
+
 v4-78 (deep_anchor_4_6_37.html)
 - GEÄNDERT (TODO-HUD-KOMPAKT, Nutzer-Feedback: "lässt sich nicht scrollen und scrollen wollte ich
   auch nicht, sind Daten die auf einen Blick sichtbar sein sollten" + drei konkrete Kürzungen):
@@ -2803,137 +2822,6 @@ canvas{ display:block; }
 }
 @keyframes splashPulse{ 0%,100%{opacity:.4;} 50%{opacity:1;} }
 
-/* ============================== BOOT-ANIMATION (TODO-BOOT-ANIMATION) ==============================
-   Alter-Röhrenmonitor-Einschalt-Effekt, läuft einmalig über dem Splash-Screen. Zeitachse (siehe
-   Delays unten, alles relativ zum Seitenladen):
-     0.00–0.20s  Bildschirm komplett schwarz ("Röhre kalt")
-     0.20–0.35s  heller horizontaler Strich schnappt in die Bildschirmmitte
-     0.35–0.62s  Strich klappt zur vollen Höhe auf, mit leichtem Überschwingen (typisch für
-                 Röhrenmonitore, die kurz übers Ziel hinausschießen bevor sie sich fangen)
-     0.42–0.77s  Logo/Menü blenden währenddessen mit einem kurzen Überbelichtungs-Flash ein
-     0.60–0.85s  komplettes Overlay blendet aus, gibt den normalen Splash-Screen frei
-   .start-inner (der Startbildschirm dahinter) bleibt davon unberührt — die Sequenz läuft
-   ausschließlich auf #splashScreen, das im Spielverlauf ohnehin nie wieder gezeigt wird. */
-#crtBootOverlay{
-  position:absolute; inset:0; z-index:5; background:#000; pointer-events:none; overflow:hidden;
-  animation: crtBootOverlayFade 0.25s linear 0.6s forwards;
-}
-.crt-boot-line{
-  position:absolute; left:50%; top:50%; width:100%; height:3px;
-  background:linear-gradient(90deg, transparent, #dff6ff 15%, #ffffff 50%, #dff6ff 85%, transparent);
-  box-shadow:0 0 20px 4px rgba(180,230,255,.9), 0 0 60px 14px rgba(120,200,255,.5);
-  transform:translate(-50%,-50%) scaleY(0.002);
-  opacity:0;
-  animation: crtBootLine 0.42s cubic-bezier(.2,.85,.3,1) 0.2s forwards;
-}
-@keyframes crtBootLine{
-  0%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:0; }
-  15%{ opacity:1; }
-  40%{ transform:translate(-50%,-50%) scaleY(0.002); opacity:1; }
-  78%{ transform:translate(-50%,-50%) scaleY(1.08); opacity:1; }
-  92%{ transform:translate(-50%,-50%) scaleY(0.97); }
-  100%{ transform:translate(-50%,-50%) scaleY(1); opacity:0; }
-}
-@keyframes crtBootOverlayFade{ from{ opacity:1; } to{ opacity:0; visibility:hidden; } }
-#splashScreen.crt-boot .splash-inner{
-  opacity:0;
-  animation: crtBootContentIn 0.35s ease-out 0.42s forwards;
-}
-@keyframes crtBootContentIn{
-  0%{ opacity:0; filter:brightness(2.4) contrast(1.5); }
-  100%{ opacity:1; filter:brightness(1) contrast(1); }
-}
-/* ============================== DOS-BOOTSTREAM (TODO-DOS-BOOTSTREAM) ==============================
-   Auf Nutzerwunsch: "eine Animation ... einen Boot Stream wie früher die PCs hochgefahren sind mit
-   den Schriftzügen ... 30 sec lang aber das erst nach dem man auf Fortsetzen oder Neues Spiel ...
-   sobald man direkt ins Spiel kommt". Läuft NICHT auf dem Splash-Screen (das ist die separate,
-   kurze Röhren-Einschalt-Animation weiter oben), sondern erst beim tatsächlichen Spieleintritt.
-   Aufruf zentral in showGameRoot() (siehe JS weiter unten), da dort alle drei Wege ins Spiel
-   (Neues Spiel / Fortsetzen / Spielstand-Import) ohnehin zusammenlaufen — hier also nur EINmal
-   verdrahtet statt an drei Stellen einzeln. Reiner Textaufbau per JS-Typewriter (siehe
-   playDosBootSequence()), da ein rein CSS-getriebenes Timing für variablen Zeilentext zu unflexibel
-   wäre. Klick/Taste überspringt die Sequenz sofort. */
-#dosBootOverlay{
-  position:fixed; inset:0; z-index:600; background:#000;
-  display:none; align-items:flex-start; justify-content:flex-start;
-  padding:40px; box-sizing:border-box; cursor:pointer;
-  overflow:hidden; /* GEÄNDERT: kein manuelles Scrollen mehr möglich (Wheel/Touch werden ignoriert) —
-    das automatische Mitscrollen ans Zeilenende passiert weiterhin per JS via overlay.scrollTop
-    (funktioniert auch mit overflow:hidden, nur eben nicht durch den Nutzer selbst auslösbar) */
-  opacity:1; transition:opacity .4s ease;
-}
-#dosBootOverlay.visible{ display:flex; }
-#dosBootOverlay.fading{ opacity:0; }
-/* NEU (Retro-Boot-Effekte, auf Nutzerwunsch): klassisches CRT-Einschalt-Flackern beim Start der
-   Boot-Sequenz — Röhre "wärmt auf", kurzer heller Blitz, dann normale Helligkeit. */
-#dosBootOverlay.crt-poweron{ animation: crtPowerOn .55s ease-out both; transform-origin:center center; }
-@keyframes crtPowerOn{
-  0%{ transform:scaleY(.008); filter:brightness(28); opacity:1; }
-  10%{ transform:scaleY(.02); filter:brightness(20); }
-  20%{ transform:scaleY(.55); filter:brightness(7); }
-  32%{ transform:scaleY(1); filter:brightness(2.6); }
-  45%{ transform:scaleY(1); filter:brightness(1.15); }
-  100%{ transform:scaleY(1); filter:brightness(1); }
-}
-/* NEU: Gegenstück beim Übergang ins Spiel — Bildschirm kollabiert erst zu einer waagrechten
-   Linie, dann zu einem hellen Punkt, klassischer Röhrenmonitor-Ausschalteffekt. Ersetzt das
-   vorherige reine Opacity-Fade (siehe .fading oben, bleibt als Fallback-Klasse stehen). */
-#dosBootOverlay.crt-poweroff{ animation: crtPowerOff .55s ease-in forwards; transform-origin:center center; }
-@keyframes crtPowerOff{
-  0%{ transform:scaleY(1) scaleX(1); filter:brightness(1); opacity:1; }
-  55%{ transform:scaleY(.012) scaleX(1); filter:brightness(5); opacity:1; }
-  78%{ transform:scaleY(.012) scaleX(.02); filter:brightness(9); opacity:1; }
-  100%{ transform:scaleY(.012) scaleX(.002); filter:brightness(0); opacity:0; }
-}
-/* NEU (v4-39, TODO-DOS-BOOTSTREAM-EPIC): eigene, immer-neutrale Scanline-Textur nur für diesen
-   Overlay — bewusst NICHT der globale #crtOverlay (der bleibt während des kompletten Starts laut
-   TODO-STANDARD-START abgeschaltet), sondern eine kleine self-contained Ebene, rein atmosphärisch. */
-#dosBootOverlay::after{
-  content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
-  background:repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 2px, transparent 3px);
-  mix-blend-mode:multiply; opacity:.5;
-}
-.dos-boot-inner{ width:100%; max-width:900px; position:relative; z-index:1; }
-.dos-boot-banner{
-  margin:0 0 10px; white-space:pre; overflow-x:auto; font-family:'Courier New', ui-monospace, monospace;
-  font-size:9.5px; line-height:1.15; color:var(--accent);
-  text-shadow:0 0 10px rgba(255,106,43,.75), 0 0 2px rgba(255,106,43,1);
-  opacity:0; animation: dosBannerFlash .5s ease-out forwards;
-}
-@media (min-width:700px){ .dos-boot-banner{ font-size:13px; } }
-/* NEU (TODO-BOOT-BANNER-STACKED-IMMER, Nutzer-Wunsch: "GAMES OS soll unter MC ORCA kommen", nicht
-   nur auf schmalen Handys): die gestapelte Variante ist jetzt IMMER sichtbar, die breite Ein-
-   Zeilen-Variante immer versteckt -- kein Breakpoint mehr nötig, da der gestapelte Look generell
-   gewünscht ist (die breite Variante bleibt im DOM erhalten statt gelöscht zu werden, falls das
-   doch mal wieder gebraucht wird -- einfach mit vertauschtem display:none/block reaktivierbar). */
-.dos-boot-banner-stacked{ display:block; }
-.dos-boot-banner-wide{ display:none; }
-@keyframes dosBannerFlash{
-  0%{ opacity:0; filter:brightness(3); }
-  60%{ opacity:1; filter:brightness(2.2); }
-  100%{ opacity:1; filter:brightness(1); }
-}
-.dos-boot-text{
-  margin:0; white-space:pre-wrap; word-break:break-word;
-  font-family:'Courier New', ui-monospace, monospace;
-  font-size:14px; line-height:1.55;
-  color:var(--accent); text-shadow:0 0 6px rgba(255,106,43,.55), 0 0 1px rgba(255,106,43,.9);
-}
-.dos-boot-flash{ animation: dosLineFlash .35s ease-out; }
-@keyframes dosLineFlash{ 0%{ filter:brightness(2.4); } 100%{ filter:brightness(1); } }
-#dosBootText.typing::after{
-  content: '';
-  display:inline-block; width:8px; height:14px; background:var(--accent);
-  box-shadow:0 0 6px rgba(255,106,43,.7);
-  animation:dosCursorBlink 1s steps(1) infinite;
-  vertical-align:-2px; margin-left:1px;
-}
-@keyframes dosCursorBlink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
-.dos-boot-skip{
-  position:fixed; bottom:22px; right:28px; font-size:11px; letter-spacing:1.5px;
-  color:var(--accent-dim); text-transform:uppercase; animation: splashPulse 1.8s ease-in-out infinite;
-  z-index:3;
-}
 .start-menu{
   display:flex; flex-direction:column; gap:10px; width:100%; margin-top:18px;
 }
@@ -3338,18 +3226,7 @@ html.ui-theme-dos input[type="number"]{
   </defs>
 </svg>
 
-<div id="splashScreen" class="fullscreen-overlay splash crt-boot">
-  <!-- NEU (TODO-BOOT-ANIMATION, auf Nutzerwunsch: "eine Animation bei Start des Spiels [...] wie
-       ein alter Computer der Monitor angeht, mit Filter und so"): rein CSS-getriebene, einmalige
-       Röhrenmonitor-Einschalt-Sequenz, die NUR beim allerersten Laden über dem Splash-Screen
-       läuft (der wird nie erneut gezeigt, siehe init()) — kein Skript-Timing nötig, alles über
-       CSS-Animation-Delays sequenziert: kurz schwarz (Röhre "kalt") → statisches Rauschen
-       (wiederverwendete SVG-Fraktalrauschen-Textur aus .crt-layer-noise) → heller horizontaler
-       Strich schnappt in die Mitte → Strich klappt mit leichtem Überschwingen zur vollen Höhe auf
-       → kurzes Aufblitzen/Flackern, während Logo+Menü darunter einblenden. -->
-  <div id="crtBootOverlay" aria-hidden="true">
-    <div class="crt-boot-line"></div>
-  </div>
+<div id="splashScreen" class="fullscreen-overlay splash">
   <canvas class="warp-canvas" id="warpSplash"></canvas>
   <div class="splash-inner">
     <img src="art/bilder/logo.png" alt="Deep Anchor" class="splash-logo"
@@ -3544,22 +3421,6 @@ html.ui-theme-dos input[type="number"]{
       </div>
     </div>
   </div>
-</div>
-
-<!-- NEU (TODO-DOS-BOOTSTREAM): siehe CSS-Kommentar weiter oben. Wird von showGameRoot() ein-/ausgeblendet. -->
-<div id="dosBootOverlay" aria-hidden="true">
-  <div class="dos-boot-inner">
-    <!-- NEU (TODO-BOOT-BANNER-MOBILE): zwei pre-Elemente statt eines -- welches sichtbar ist,
-         entscheidet ALLEIN die CSS-Media-Query (dos-boot-banner-wide/-stacked weiter oben), nicht
-         mehr eine einmalige JS-Breitenprüfung beim Sequenzstart. Robuster bei z.B. Zoom, DevTools-
-         Emulation oder Umgebungen, in denen window.innerWidth vom tatsächlichen CSS-Viewport
-         abweicht. Beide werden von playDosBootSequence() befüllt, nur eines ist je nach Breite
-         sichtbar. -->
-    <pre class="dos-boot-banner dos-boot-banner-wide" id="dosBootBanner"></pre>
-    <pre class="dos-boot-banner dos-boot-banner-stacked" id="dosBootBannerStacked"></pre>
-    <pre class="dos-boot-text" id="dosBootText"></pre>
-  </div>
-  <div class="dos-boot-skip">Klicken zum Überspringen</div>
 </div>
 
 <div class="modal-bg" id="settingsModal">
@@ -15080,15 +14941,9 @@ document.getElementById('videoVolumeSlider').addEventListener('input', (e)=>{
 // gegenseitig zu überschreiben) und Muster (#crtOverlay[data-pattern], siehe CSS weiter oben).
 // #crtOverlay hängt bewusst an document.documentElement statt an body, damit der body-Filter die
 // Overlay-Ebene selbst nicht mitfärbt.
-// GEÄNDERT (auf Nutzerwunsch: "alten Monitor Muster und die CGA/EGA (reduzierte Farbpalette) für
-// vorstart, start und boot, dann wieder normal einstellen so wie es eingestellt war — das soll als
-// GESAMT-EFFEKT sein"): Splash-Screen, Startseite und beide Boot-Animationen laufen jetzt IMMER mit
-// dem festen Retro-Look CGA/EGA (reduzierte Farbpalette) + Interlace-Kamm — Stark
-// (BOOT_FORCED_COLOR/BOOT_FORCED_PATTERN weiter unten), UNABHÄNGIG vom unter "Darstellung"
-// gespeicherten Farbschema/Muster. Das eigentlich gespeicherte/eingestellte Theme bleibt im
-// Hintergrund erhalten (currentUIColor/currentUIPattern, siehe initUITheme()) und wird erst wieder
-// sichtbar angewendet, sobald der DOS-Bootstream fertig ist (unlockTheme(), aufgerufen am Ende von
-// playDosBootSequence()) — ab dann läuft das Spiel wieder ganz normal im konfigurierten Theme.
+// GEÄNDERT (Boot-Sequenz entfernt): das gespeicherte Farbschema/Muster (currentUIColor/
+// currentUIPattern, siehe initUITheme()) greift jetzt sofort ab dem allerersten Frame — kein
+// erzwungener CGA/EGA-Zwischenschritt für Splash/Boot mehr.
 const UI_COLOR_KEY = 'deepAnchorUIColor';
 const UI_PATTERN_KEY = 'deepAnchorUIPattern';
 const COLOR_FILTERS = {
@@ -15131,54 +14986,9 @@ function ensureCrtOverlay(){
   }
   return crtOverlayEl;
 }
-// ENTFERNT (v4-28): Mauszeiger-Phosphor-Nachleuchten (spawnPhosphorGhost/onPhosphorMouseMove/
-// setPhosphorTrailActive) wieder gestrichen — Feedback: unnötiges Gimmick, keiner braucht das.
-// NEU: fester Retro-Look für Vorstart/Startseite/Boot, siehe Kommentarblock weiter oben.
-const BOOT_FORCED_COLOR = 'cga';
-const BOOT_FORCED_PATTERN = 'interlace';
-let themeLocked = true;
-// NEU (Grafik-Fix, auf Nutzerwunsch: "2 farb nuasen beim boot effekt"): applyForcedBootTheme()
-// legt via body.style.filter das CGA-Posterize-Farbschema über die komplette Seite. Wurde das
-// bisher SOFORT beim Laden aktiviert, lief die kurze Röhren-Einschalt-Sequenz (#crtBootOverlay,
-// eigener brightness/contrast-Filter auf .splash-inner, siehe CSS weiter oben) darüber — zwei
-// CSS-Filter auf verschachtelten Elementen multiplizieren sich, statt sich zu ersetzen, was wie
-// zwei überlagerte Farbtöne aussah. Fix: der erzwungene CGA-Look wird erst NACH der Röhren-
-// Sequenz aktiviert (CRT_BOOT_ANIM_MS, an die CSS-Timings oben angelehnt), oder sofort, falls die
-// Sequenz per Klick übersprungen wird (siehe skipCrtBootAnim() unten). So läuft der Flash immer
-// auf neutralem Schwarz/Weiß ab, das CGA-Schema greift optisch erst danach.
-const CRT_BOOT_ANIM_MS = 900;
-let crtBootThemeTimer = null;
-function skipCrtBootAnim(){
-  if(crtBootThemeTimer){ clearTimeout(crtBootThemeTimer); crtBootThemeTimer = null; }
-  applyForcedBootTheme();
-}
-// NEU (Grafik-Fix, auf Nutzerwunsch: "wenn ich CGA/EGA an habe werden bei jedem Popup wie
-// Einstellung, das Start-Video usw. nicht auf das Farbschema umgestellt"): .modal-bg-Fenster
-// hängen (siehe Kommentar weiter oben bei "document.querySelectorAll('.modal-bg')...") bewusst
-// an <html> statt an <body>, damit sie NICHT den durch body.style.filter erzeugten Containing
-// Block für position:fixed-Elemente erben. Nebeneffekt: sie sind dadurch auch keine <body>-
-// Nachfahren mehr und bekommen body.style.filter (Farbschema) gar nicht mehr mit — das war der
-// gemeldete Grafikfehler. Fix: denselben Filter-String zusätzlich direkt auf jedes .modal-bg-
-// Element setzen (ein filter DIREKT auf einem Element beeinflusst nur dessen eigene Nachfahren als
-// Containing Block, NICHT das Element selbst — die eigene position:fixed-Positionierung des
-// Fensters bleibt also unverändert relativ zum Viewport, nur die Optik wird gefärbt).
 function applyFilterEverywhere(filterStr){
   document.body.style.filter = filterStr;
   document.querySelectorAll('.modal-bg').forEach(el => { el.style.filter = filterStr; });
-}
-function applyForcedBootTheme(){
-  const overlay = ensureCrtOverlay();
-  overlay.setAttribute('data-pattern', BOOT_FORCED_PATTERN);
-  overlay.classList.add('active');
-  const parts = [];
-  if(COLOR_FILTERS[BOOT_FORCED_COLOR]) parts.push(COLOR_FILTERS[BOOT_FORCED_COLOR]);
-  applyFilterEverywhere(parts.join(' '));
-}
-function unlockTheme(){
-  if(!themeLocked) return;
-  themeLocked = false;
-  applyUIColorScheme(currentUIColor); // wendet das tatsächlich gespeicherte/eingestellte Theme an
-  applyUIPattern(currentUIPattern);   // (ruft intern auch updateBodyFilter() auf)
 }
 function applyUIColorScheme(colorId){
   const id = COLOR_FILTERS.hasOwnProperty(colorId) ? colorId : 'standard';
@@ -15191,7 +15001,7 @@ function applyUIColorScheme(colorId){
 function applyUIPattern(patternId){
   const id = PATTERN_IDS.includes(patternId) ? patternId : 'none';
   const overlay = ensureCrtOverlay();
-  if(!themeLocked && OVERLAY_PATTERN_IDS.includes(id)){
+  if(OVERLAY_PATTERN_IDS.includes(id)){
     overlay.setAttribute('data-pattern', id);
     overlay.classList.add('active');
   } else {
@@ -15209,7 +15019,6 @@ function applyUIPattern(patternId){
 // CSS-Klasse gesetzt werden: zwei separate CSS-Klassen mit je eigener filter-Property würden sich
 // gegenseitig überschreiben statt zu kombinieren, ein zusammengesetzter String funktioniert dagegen.
 function updateBodyFilter(colorId, patternId){
-  if(themeLocked) return; // Boot-Look bleibt sichtbar, Auswahl wird trotzdem oben in Storage/currentUI* gemerkt
   const parts = [];
   if(COLOR_FILTERS[colorId]) parts.push(COLOR_FILTERS[colorId]);
   if(patternId === 'barrel') parts.push('url(#crtBarrelFilter)');
@@ -15343,8 +15152,10 @@ document.getElementById('uiStyleSelect').addEventListener('change', (e)=>{
   if(colorSel) colorSel.value = currentUIColor;
   const patternSel = document.getElementById('uiPatternSelect');
   if(patternSel) patternSel.value = currentUIPattern;
-  // GEÄNDERT (Grafik-Fix): nicht mehr sofort — siehe crtBootThemeTimer/skipCrtBootAnim() weiter oben.
-  crtBootThemeTimer = setTimeout(()=>{ crtBootThemeTimer = null; applyForcedBootTheme(); }, CRT_BOOT_ANIM_MS);
+  // GEÄNDERT (Boot-Sequenz entfernt): das gespeicherte Farbschema/Muster greift jetzt sofort,
+  // kein erzwungener CGA-Zwischenschritt mehr.
+  applyUIColorScheme(currentUIColor);
+  applyUIPattern(currentUIPattern);
 })();
 
 Music.armAutoplayUnlock();
@@ -15516,7 +15327,7 @@ document.getElementById('fileInput').addEventListener('change', (e)=>{
 /* ============================== VERSION / PATCH NOTES ============================== */
 // NEU (TODO-PATCH-NOTES): GAME_VERSION wird auf dem Startbildschirm im Patch-Notes-Button
 // angezeigt (siehe init()). Bei jeder neuen Version hier hochzaehlen.
-const GAME_VERSION = 'v4-78';
+const GAME_VERSION = 'v4-79';
 // NAMENSKONVENTION (ab v4-5): kein "-fix"-Suffix mehr, da nicht jede Version ein Bugfix ist —
 // fortlaufend v4-1, v4-2, v4-3, … Aeltere Versionsnummern (v4-fix1 bis v4-fix4, v3.9-fix-Reihe)
 // behalten im CHANGELOG-Kommentarblock oben ihre historische Bezeichnung, nur ab hier gilt das
@@ -16193,343 +16004,8 @@ function showGameRoot(){
   document.getElementById('startScreen').style.display = 'none';
   document.getElementById('gameRoot').style.display = '';
   if (window.stopWarpTunnel) window.stopWarpTunnel();
-  // GEÄNDERT (Grafik-Fix: "beim Boot kommt das Rückkehr-Popup, müsste erst nach dem Abspielen oder
-  // nach Überspringen erscheinen, sonst zerstört es den Effekt"): playDosBootSequence() gibt jetzt
-  // ein Promise zurück, das erst auflöst, wenn der Boot fertig durchgelaufen ODER übersprungen
-  // wurde (siehe dort) — showGameRoot() reicht dieses Promise einfach durch, damit Aufrufer wie
-  // startContinueGame() ein Popup (z.B. "Während du weg warst") erst NACH dem Boot zeigen können,
-  // statt es dem noch laufenden Boot-Overlay zu überlagern.
-  return playDosBootSequence();
 }
 
-// NEU (v4-39, TODO-DOS-BOOTSTREAM-EPIC, auf Nutzerwunsch: "beim Boot noch mehr Boot-Sachen ...
-// noch epischer"): Retro-Boot-Textstream, läuft einmalig bei jedem Spieleintritt (Neues Spiel /
-// Fortsetzen / Import) über dem bereits sichtbaren gameRoot. Gegenüber v4-38 erweitert um:
-//   - ASCII-Art-Logo (per pyfiglet generiert, Font "ansi_shadow"), blitzt beim Start hell auf
-//   - zwei animierte Fortschrittsbalken (echte Objekte statt reiner Zeilen-Strings, siehe
-//     DOS_BOOT_LINES: {progress:'...', ms:...}), simuliert per JS-Intervall statt CSS
-//   - dezente Tastatur-Blips (Sound.tone(), jeder 3. Buchstabe) sowie ein Bestätigungs-Blip nach
-//     jeder [ OK ]-Zeile und ein Abschluss-Akkord bei "ANCHOR-OS BEREIT." (Sound.buildOk())
-//   - Gesamtdauer jetzt ~35-40s statt der ursprünglichen ~30s
-// Reines JS-Timing statt CSS-Keyframes, da Zeilenanzahl/-länge/-typ (Text vs. Fortschrittsbalken)
-// variabel ist. Klick/Taste überspringt jederzeit sofort. Das unter "Darstellung" gewählte
-// Farbschema/Muster ist bereits ab Splash-Screen aktiv (siehe initUITheme()), gilt also auch
-// während des kompletten Bootstreams unverändert weiter.
-const DOS_BOOT_BANNER = ` __  __  ____    ___  ____   ____    _       ____    _    __  __ _____ ____     ___  ____
-|  \\/  |/ ___|  / _ \\|  _ \\ / ___|  / \\     / ___|  / \\  |  \\/  | ____/ ___|   / _ \\/ ___|
-| |\\/| | |     | | | | |_) | |     / _ \\   | |  _  / _ \\ | |\\/| |  _| \\___ \\  | | | \\___ \\
-| |  | | |___  | |_| |  _ <| |___ / ___ \\  | |_| |/ ___ \\| |  | | |___ ___) | | |_| |___) |
-|_|  |_|\\____|  \\___/|_| \\_\\\\____/_/   \\_\\  \\____/_/   \\_\\_|  |_|_____|____/   \\___/|____/`;
-// NEU (TODO-BOOT-BANNER-MOBILE, Nutzer-Wunsch: "GAMES OS unter MC ORCA packen für Hochformat-
-// Ansicht am Handy"): DOS_BOOT_BANNER ist als durchgehende Zeile ~90 Zeichen breit -- selbst beim
-// kleinsten Font (9.5px, siehe .dos-boot-banner) auf einem schmalen Hochformat-Handy breiter als
-// der Bildschirm, bisher nur mit horizontalem Scrollen (overflow-x:auto) statt echter Anpassung
-// lösbar. Statt den Banner-Text neu zu erfinden, wird der bestehende exakt an der Wortlücke
-// zwischen "ORCA" und "GAMES" in zwei Teile zerlegt (Spalte 42 von 90, ermittelt indem alle
-// Zeilen gemeinsam auf durchgängige Leerspalten geprüft wurden -- so bleibt die Blockschrift jedes
-// einzelnen Buchstabens exakt erhalten, kein manuelles Nachzeichnen nötig) und untereinander
-// gestapelt. Wird per JS unterhalb einer Breakpoint-Breite ausgewählt, siehe playDosBootSequence().
-const DOS_BOOT_BANNER_STACKED = ` __  __  ____    ___  ____   ____    _    
-|  \\/  |/ ___|  / _ \\|  _ \\ / ___|  / \\   
-| |\\/| | |     | | | | |_) | |     / _ \\  
-| |  | | |___  | |_| |  _ <| |___ / ___ \\ 
-|_|  |_|\\____|  \\___/|_| \\_\\\\____/_/   \\_\\
-  ____    _    __  __ _____ ____     ___  ____
- / ___|  / \\  |  \\/  | ____/ ___|   / _ \\/ ___|
-| |  _  / _ \\ | |\\/| |  _| \\___ \\  | | | \\___ \\
-| |_| |/ ___ \\| |  | | |___ ___) | | |_| |___) |
- \\____/_/   \\_\\_|  |_|_____|____/   \\___/|____/`;
-// NEU (Retro-Boot-Effekte, auf Nutzerwunsch: "vielleicht Firmennamen nutzen oder so, das was man
-// eingibt"): DOS_BOOT_LINES ist jetzt kein statisches Array mehr, sondern wird bei jedem Boot per
-// generateDosBootLines() frisch aus dem aktuellen Spielstand + Profil gebaut — Firmenname,
-// Schwierigkeitsgrad, Firmenzeit, Guthaben sowie Kolonie-/Flottenstatus werden live eingesetzt.
-// Zusätzlich ein bisschen Zufalls-Variation (CPU-Takt, Reihenfolge der Hintergrunddienste,
-// Easter-Egg-Zeile), damit nicht jeder Boot exakt gleich aussieht.
-function shuffleArr(arr){
-  const a = arr.slice();
-  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
-  return a;
-}
-function pickRandom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-function getBootContext(){
-  let companyName = 'Unbekannt';
-  try{
-    const p = cachedProfilesList.find(p=>p.id===activeProfileId);
-    if(p && p.name) companyName = p.name;
-  }catch(err){}
-  let difficultyLabel = 'Normal';
-  try{ difficultyLabel = getDifficulty().label; }catch(err){}
-  return {
-    companyName,
-    difficultyLabel,
-    day: (typeof state !== 'undefined' && state && state.day) ? state.day : 1,
-    moneyStr: (typeof state !== 'undefined' && state) ? fmtMoney(state.money) : '€0',
-    coloniesCount: (typeof state !== 'undefined' && state && state.colonies) ? state.colonies.length : 0,
-    fleetCount: (typeof state !== 'undefined' && state && state.orbitSats) ? state.orbitSats.length : 0,
-  };
-}
-const EASTER_EGG_VARIANTS = [
-  ["WARNUNG: Unbekanntes Objekt in Sensorreichweite", "  ... Signatur bekannt. Ignoriert. (Kaffeetasse der Crew)"],
-  ["WARNUNG: Ungewoehnliche Geraeuschsignatur erkannt", "  ... Quelle identifiziert. Ignoriert. (Kollege pfeift wieder Weltraum-Schlager)"],
-  ["WARNUNG: Thermisches Signal ausserhalb der Norm", "  ... Ursache gefunden. Ignoriert. (Kaffeemaschine im Dauerbetrieb)"],
-];
-const CPU_CLOCK_VARIANTS = ["4.3 THz","4.7 THz","4.9 THz","5.1 THz"];
-function generateDosBootLines(){
-  const ctx = getBootContext();
-  const bgServices = shuffleArr([
-    "  [ OK ] Autosave-Daemon",
-    "  [ OK ] Markt-Ticker",
-    "  [ OK ] Ereignisplaner",
-    "  [ OK ] Kollisionswarnsystem",
-  ]);
-  const easterEgg = pickRandom(EASTER_EGG_VARIANTS);
-  // NEU (TODO-BOOT-COPYRIGHT-JAHR, Nutzer-Klarstellung: Copyright-Jahr = Erstellungsjahr des
-  // Spiels, kein "heute"-Wert -- ein dynamisches new Date().getFullYear() wäre falsch gewesen und
-  // würde sich in Zukunft munter weiterschieben, obwohl Copyright-Jahre per Konvention fest das
-  // Jahr der Erstellung sind (so wie z.B. "© 2024 Firma" auch Jahre später "2024" bleibt). Fest
-  // auf 2026 (Erstellungsjahr), keine Berechnung mehr nötig.
-  const bootCopyrightYear = 2026;
-  return [
-    "ANCHOR SYSTEMS BIOS v4.39",
-    `(C) ${bootCopyrightYear} Anchor Systems Ltd. Alle Rechte vorbehalten.`,
-    "",
-    `Firma ................... ${ctx.companyName} [OK]`,
-    `Sicherheitsstufe ......... ${ctx.difficultyLabel}`,
-    "",
-    `CPU ...................... Quantum Core i9-X @ ${pickRandom(CPU_CLOCK_VARIANTS)}`,
-    "Speichertest .............. 65536K OK",
-    "Sicherheitsmodul .......... TPM 3.2 verifiziert",
-    "",
-    "Suche Laufwerke...",
-    "  Primary Master ... DEEP-ANCHOR-SSD-01 [OK]",
-    "  Primary Slave  ... NONE",
-    "  Backup-Array    ... 3x REDUNDANT [OK]",
-    "",
-    { progress: "Pruefe Dateisystem-Integritaet", ms: 1600 },
-    "",
-    "Lade ANCHOR-OS Kernel v9.2...",
-    "Initialisiere Treiber:",
-    "  [ OK ] Lebenserhaltungs-Interface",
-    "  [ OK ] Navigationsarray",
-    "  [ OK ] Auftrags-Engine",
-    "  [ OK ] Handelsroutenverwaltung",
-    "  [ OK ] Kolonie-Netzwerk-Uplink",
-    "  [ OK ] Orbitaltelemetrie",
-    "  [ OK ] Galaxiekarten-Renderer",
-    "  [ OK ] Flottenleitsystem",
-    "",
-    "Binde Dateisysteme ein...",
-    "  /firmen             ... eingebunden",
-    "  /auftraege           ... eingebunden",
-    "  /kolonien            ... eingebunden",
-    "  /spielstaende        ... eingebunden",
-    "",
-    { progress: "Kompiliere Sternkarten-Cache", ms: 2000 },
-    "",
-    "Baue Deep-Space-Uplink auf...",
-    "  Signal ................ erfasst",
-    "  Latenz ................ 12ms",
-    "  Handshake ............. abgeschlossen",
-    "  Verschluesselung ...... AES-4096",
-    "",
-    easterEgg[0],
-    easterEgg[1],
-    "",
-    "Starte Hintergrunddienste...",
-    ...bgServices,
-    "",
-    "Pruefe Firmenregister... OK",
-    `Firmenzeit ............... Tag ${ctx.day} synchronisiert`,
-    `Kontostand ................ ${ctx.moneyStr} verifiziert`,
-    `Kolonie-Netzwerk .......... ${ctx.coloniesCount} aktive Kolonie(n) erkannt`,
-    `Flottenregister ........... ${ctx.fleetCount} Einheit(en) erfasst`,
-    "Lade Spieldaten... OK",
-    "",
-    "ANCHOR-OS BEREIT.",
-    "",
-    `Willkommen an Bord, ${ctx.companyName}.`
-  ];
-}
-function renderProgressLine(label, pct, width=24){
-  const filled = Math.max(0, Math.min(width, Math.round(width * pct/100)));
-  const bar = '█'.repeat(filled) + '░'.repeat(width-filled);
-  return `${label} [${bar}] ${String(pct).padStart(3,' ')}%`;
-}
-let dosBootToken = 0;
-// NEU (Retro-Boot-Effekte): welche Zeilen ein Disketten-/Festplatten-Zugriffsgeräusch bzw. den
-// Modem-Sound auslösen, exakt an den entsprechenden DOS_BOOT_LINES-Text gekoppelt.
-const DISK_ACCESS_LINES = new Set([
-  "  Primary Master ... DEEP-ANCHOR-SSD-01 [OK]",
-  "  Primary Slave  ... NONE",
-  "  Backup-Array    ... 3x REDUNDANT [OK]",
-  "  /firmen             ... eingebunden",
-  "  /auftraege           ... eingebunden",
-  "  /kolonien            ... eingebunden",
-  "  /spielstaende        ... eingebunden",
-]);
-const MODEM_LINE = "Baue Deep-Space-Uplink auf...";
-function playDosBootSequence(){
-  return new Promise((resolve)=>{
-  const overlay = document.getElementById('dosBootOverlay');
-  const textEl = document.getElementById('dosBootText');
-  const bannerEl = document.getElementById('dosBootBanner');
-  const bannerStackedEl = document.getElementById('dosBootBannerStacked');
-  if(!overlay || !textEl) { resolve(); return; }
-  const DOS_BOOT_LINES = generateDosBootLines(); // NEU: pro Boot frisch generiert (Firmenname, Tag, Guthaben, Zufalls-Variation, ...)
-  const myToken = ++dosBootToken; // verhindert Überlappung, falls Funktion mehrfach kurz hintereinander aufgerufen wird
-  const totalCharBudgetMs = 24000; // Zeit fürs Tippen aller reinen Textzeilen (Fortschrittsbalken laufen separat, siehe unten)
-  const totalChars = DOS_BOOT_LINES.reduce((n,l)=> n + (typeof l === 'string' ? Math.max(l.length,1) : 0), 0);
-  const perCharMs = Math.min(28, Math.max(9, totalCharBudgetMs / Math.max(totalChars,1)));
-  const interLineMs = 130; // Pause zwischen Zeilen
-  const finalHoldMs = 2600; // Pause auf der letzten Zeile mit blinkendem Cursor, vor dem Ausblenden
-  const bannerRevealMs = 900; // Pause nach dem ASCII-Logo-Aufblitzen, bevor der Textstream beginnt
-
-  textEl.textContent = '';
-  textEl.classList.add('typing'); // NEU: blinkender Terminal-Cursor am Zeilenende (::after, CSS oben)
-  // NEU (TODO-BOOT-BANNER-MOBILE): beide Varianten IMMER befüllen -- welche sichtbar ist,
-  // entscheidet ausschließlich CSS (.dos-boot-banner-wide/-stacked, 700px-Breakpoint), nicht mehr
-  // eine einmalige JS-Breitenprüfung hier (die z.B. bei Zoom/DevTools-Emulation vom tatsächlichen
-  // CSS-Viewport abweichen konnte -- siehe Nutzer-Feedback "hast du leider nicht drunter gelegt").
-  [bannerEl, bannerStackedEl].forEach(el=>{
-    if(!el) return;
-    el.textContent = (el===bannerStackedEl) ? DOS_BOOT_BANNER_STACKED : DOS_BOOT_BANNER;
-    // Animation neu anstoßen (falls die Sequenz schon einmal in dieser Sitzung lief, siehe
-    // TODO-ZURUECK-ZUR-STARTSEITE-Flow): ohne Reflow-Trick würde die CSS-Animation beim zweiten
-    // Aufruf nicht erneut abspielen.
-    el.style.animation = 'none';
-    void el.offsetWidth;
-    el.style.animation = '';
-  });
-  overlay.classList.remove('fading', 'crt-poweroff');
-  overlay.classList.add('visible');
-  // NEU (Retro-Boot-Effekte): CRT-Einschalt-Flicker + POST-Beep — Reflow-Trick wie beim Banner,
-  // damit die Animation auch bei einem zweiten Boot in derselben Sitzung erneut abspielt.
-  overlay.classList.remove('crt-poweron');
-  void overlay.offsetWidth;
-  overlay.classList.add('crt-poweron');
-  try{ Sound.postBeep(); }catch(err){}
-  const prevBodyOverflow = document.body.style.overflow; // NEU: Body-Scroll sperren, solange der
-  document.body.style.overflow = 'hidden'; // Boot-Overlay sichtbar ist — verhindert, dass ein
-    // Wheel/Touch-Scroll-Event, das das (jetzt overflow:hidden) Overlay selbst nicht mehr
-    // verarbeitet, stattdessen zum dahinterliegenden gameRoot durchgereicht wird (Scroll-Chaining).
-
-  let finished = false;
-  let timeoutIds = [];
-  const clearAllTimers = ()=>{ timeoutIds.forEach(id=>clearTimeout(id)); timeoutIds = []; };
-  let renderedLines = [];
-  const redraw = ()=>{ textEl.textContent = renderedLines.join('\n'); overlay.scrollTop = overlay.scrollHeight; };
-
-  const finishNow = ()=>{
-    if(finished || myToken !== dosBootToken) return;
-    finished = true;
-    clearAllTimers();
-    textEl.textContent = DOS_BOOT_LINES.map(l => typeof l==='string' ? l : renderProgressLine(l.progress,100)).join('\n');
-    overlay.scrollTop = overlay.scrollHeight;
-    overlay.classList.remove('crt-poweron');
-    overlay.classList.add('crt-poweroff'); // NEU: Röhren-Ausschaltkollaps statt reinem Opacity-Fade
-    textEl.classList.remove('typing'); // NEU: blinkender Cursor verschwindet mit dem letzten Frame
-    document.body.style.overflow = prevBodyOverflow; // NEU: Body-Scroll wieder freigeben
-    unlockTheme(); // NEU: eigenes/eingestelltes Farbschema+Muster greift erst ab hier wieder
-    setTimeout(()=>{
-      if(myToken !== dosBootToken) return;
-      overlay.classList.remove('visible','fading','crt-poweroff');
-      overlay.removeEventListener('click', skipHandler);
-      document.removeEventListener('keydown', skipHandler);
-      resolve(); // NEU: Boot ist jetzt WIRKLICH fertig (Overlay komplett weg) — erst ab hier dürfen
-                 // Popups wie "Während du weg warst" erscheinen, siehe showGameRoot()/startContinueGame()
-    }, 550);
-  };
-  const skipHandler = ()=> finishNow();
-  overlay.addEventListener('click', skipHandler);
-  document.addEventListener('keydown', skipHandler);
-
-  let lineIndex = 0;
-  let blipCounter = 0;
-  const keyBlip = ()=>{
-    blipCounter++;
-    if(blipCounter % 3 === 0){ try{ Sound.tone(760 + Math.random()*260, 0.02, 'square', 0.045); }catch(err){} }
-  };
-  const okBlip = ()=>{ try{ Sound.tone(1180, 0.05, 'square', 0.05); }catch(err){} };
-  const readyChord = ()=>{ try{ Sound.buildOk(); }catch(err){} };
-
-  const processLine = ()=>{
-    if(myToken !== dosBootToken) return;
-    if(lineIndex >= DOS_BOOT_LINES.length){
-      const t = setTimeout(finishNow, finalHoldMs);
-      timeoutIds.push(t);
-      return;
-    }
-    const entry = DOS_BOOT_LINES[lineIndex];
-    if(typeof entry === 'string'){
-      typeStringLine(entry);
-    } else if(entry && entry.progress){
-      runProgressLine(entry);
-    }
-  };
-
-  const typeStringLine = (line)=>{
-    if(line === MODEM_LINE){ try{ Sound.modemHandshake(); }catch(err){} }
-    else if(DISK_ACCESS_LINES.has(line)){ try{ Sound.diskAccess(); }catch(err){} }
-    if(line.length === 0){
-      renderedLines[lineIndex] = '';
-      redraw();
-      lineIndex++;
-      const t = setTimeout(processLine, interLineMs/2);
-      timeoutIds.push(t);
-      return;
-    }
-    let charIndex = 0;
-    const step = ()=>{
-      if(myToken !== dosBootToken) return;
-      charIndex++;
-      renderedLines[lineIndex] = line.slice(0, charIndex);
-      redraw();
-      if(charIndex < line.length){
-        keyBlip();
-        const t = setTimeout(step, perCharMs);
-        timeoutIds.push(t);
-      } else {
-        const trimmed = line.trim();
-        if(trimmed.startsWith('[ OK ]')) okBlip();
-        else if(trimmed === 'ANCHOR-OS BEREIT.') readyChord();
-        lineIndex++;
-        const t = setTimeout(processLine, interLineMs);
-        timeoutIds.push(t);
-      }
-    };
-    step();
-  };
-
-  const runProgressLine = (entry)=>{
-    try{ Sound.diskAccess(); }catch(err){}
-    const steps = 22;
-    const stepMs = Math.max(30, entry.ms/steps);
-    let step = 0;
-    renderedLines[lineIndex] = renderProgressLine(entry.progress, 0);
-    redraw();
-    const tick = ()=>{
-      if(myToken !== dosBootToken) return;
-      step++;
-      const pct = Math.min(100, Math.round(step/steps*100));
-      renderedLines[lineIndex] = renderProgressLine(entry.progress, pct);
-      redraw();
-      if(step % 4 === 0){ try{ Sound.tone(500 + pct*4, 0.02, 'square', 0.03); }catch(err){} }
-      if(step < steps){
-        const t = setTimeout(tick, stepMs);
-        timeoutIds.push(t);
-      } else {
-        lineIndex++;
-        const t = setTimeout(processLine, interLineMs);
-        timeoutIds.push(t);
-      }
-    };
-    tick();
-  };
-
-  const startTimer = setTimeout(processLine, bannerRevealMs);
-  timeoutIds.push(startTimer);
-  });
-}
 
 async function startNewGame(difficultyId){
   // NEU (TODO-SCHWIERIGKEITSGRAD): state wird jetzt über freshState(difficultyId) neu aufgesetzt
@@ -16599,7 +16075,6 @@ async function init(){
   document.body.style.overflow = 'hidden';
   const continueBtn = document.getElementById('btnContinueGame');
   const goToStartScreen = async ()=>{
-    skipCrtBootAnim(); // NEU: erzwungenes CGA-Theme sofort nachholen, falls per Klick übersprungen
     document.getElementById('splashScreen').style.display = 'none';
     document.getElementById('startScreen').style.display = 'flex';
     document.body.style.overflow = ''; // NEU: Scroll-Sperre wieder aufheben, siehe Kommentar oben
