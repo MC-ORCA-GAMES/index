@@ -1,0 +1,508 @@
+<!--
+  MC ORCA — NEXUS — Landingpage
+  Folgt der gleichen Konvention wie aetheris/index.html, astrion/index.html etc.:
+  index.html = reine Marketing-/Infoseite mit Konto-Widget (Cloud-Login, gleicher
+  Account wie ueberall), game.html = das eigentliche spielbare Idle-Mining-Spiel.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — Idle-Mining-Spiel · MC ORCA Games</title>
+<meta name="description" content="NEXUS: das kostenlose Idle-Mining-Spiel von MC ORCA Games, ohne Echtgeld. Bau deine Mining-Farm auf und gib deine Nova-Rift in Aetheris, Deep Anchor, Path of the Stars und Astrion aus.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+    --gold:#D4AF37; --red:#D6303F; --violet:#B23AFF; --orange:#FF6A2B;
+    --blue:#2F8CFF; --blue-dim:rgba(47,140,255,0.14);
+    --up:#3ddc84;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--blue); color:#0a0b12; }
+  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; }
+  }
+
+  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
+  .wrap{ position:relative; z-index:2; max-width:1080px; margin:0 auto; padding:0 24px; }
+
+  /* ---------- nav ---------- */
+  .nav{ position:sticky; top:0; z-index:10; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; flex-wrap:wrap; }
+  .brand .mark{ width:26px; height:26px; border-radius:50%; background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--blue), var(--gold)); box-shadow:0 0 16px var(--blue-dim); flex-shrink:0; }
+  .brand .mark img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .brand .mark img.hidden{ display:none; }
+  .brand .divider{ width:1px; height:16px; background:var(--line); margin:0 2px; }
+  .brand .sub{ color:var(--blue); font-weight:700; }
+  .brand .game-pill{ font-family:'Inter'; font-weight:600; font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase; color:var(--blue); background:var(--blue-dim); padding:3px 9px; border-radius:999px; }
+  .brand .game-pill.pill-alt{ color:var(--up); background:rgba(61,220,132,0.12); }
+  @media (max-width:760px){ .brand .game-pill.pill-alt{ display:none; } }
+  @media (max-width:600px){ .brand .game-pill{ display:none; } }
+  .back-link{ font-size:12.5px; color:var(--fg-dim); display:inline-flex; align-items:center; gap:6px; transition:color .15s; white-space:nowrap; }
+  .back-link:hover{ color:var(--fg); }
+  .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); transition:border-color .15s, color .15s, background .15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- hero ---------- */
+  .hero{ padding:88px 0 54px; position:relative; }
+  .hero-grid{ display:grid; grid-template-columns:1.15fr 0.85fr; gap:40px; align-items:center; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-dim); margin-bottom:22px; }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); box-shadow:0 0 8px var(--blue); }
+  .live-ticker{ display:inline-flex; align-items:center; gap:9px; font-family:'JetBrains Mono','Space Grotesk',monospace; font-size:12.5px; color:var(--fg-dim); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:8px 16px; margin:0 0 26px; }
+  .live-ticker .lt-dot{ width:7px; height:7px; border-radius:50%; background:var(--up); box-shadow:0 0 8px var(--up); animation:livePulse 2.2s ease-in-out infinite; flex-shrink:0; }
+  .live-ticker .lt-price{ color:var(--fg); font-weight:600; }
+  @keyframes livePulse{ 0%,100%{ opacity:0.5; transform:scale(1); } 50%{ opacity:1; transform:scale(1.25); } }
+  .hero h1{ font-size:clamp(34px,5.6vw,58px); line-height:1.06; font-weight:700; letter-spacing:-0.01em; margin:0 0 20px; max-width:760px; }
+  .hero h1 .accent{ background:linear-gradient(100deg, #6fb4ff, var(--blue) 60%, #1a5fd6); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+  /* ---------- hero logo emblem ---------- */
+  .hero-emblem{ position:relative; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; }
+  .hero-emblem .ring{ position:absolute; border:1px solid var(--blue); border-radius:50%; opacity:0.22; }
+  .hero-emblem .ring.r1{ width:56%; height:56%; animation:emblemSpin 26s linear infinite; }
+  .hero-emblem .ring.r2{ width:78%; height:78%; opacity:0.14; animation:emblemSpin 40s linear infinite reverse; }
+  .hero-emblem .ring.r3{ width:100%; height:100%; opacity:0.08; }
+  .hero-emblem .glow{ position:absolute; width:70%; height:70%; border-radius:50%; background:radial-gradient(circle, var(--blue-dim), transparent 70%); filter:blur(6px); animation:emblemPulse 3.6s ease-in-out infinite; }
+  .hero-emblem img{ position:relative; z-index:2; width:62%; max-width:280px; filter:drop-shadow(0 0 34px rgba(47,140,255,0.55)); animation:emblemFloat 5.5s ease-in-out infinite; }
+  .hero-emblem img.hidden{ display:none; }
+  @keyframes emblemSpin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+  @keyframes emblemPulse{ 0%,100%{ opacity:0.7; transform:scale(1); } 50%{ opacity:1; transform:scale(1.08); } }
+  @keyframes emblemFloat{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-10px); } }
+  @media (max-width:760px){ .hero-grid{ grid-template-columns:1fr; } .hero-emblem{ max-width:260px; margin:0 auto; order:-1; } }
+  .hero p{ font-size:16.5px; line-height:1.65; color:var(--fg-dim); max-width:560px; margin:0 0 30px; }
+  .hero p strong{ color:var(--fg); }
+  .hero-ctas{ display:flex; gap:14px; flex-wrap:wrap; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; padding:13px 24px; border-radius:10px; transition:transform .15s, box-shadow .15s, background .15s, border-color .15s; }
+  .btn-primary{ background:var(--blue); color:#061224; }
+  .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 8px 24px var(--blue-dim); }
+  .btn-ghost{ border:1px solid var(--line); color:var(--fg); }
+  .btn-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+
+  /* ---------- feature strip ---------- */
+  .features{ padding:8px 0 56px; display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:18px; }
+  .feature{ border:1px solid var(--line); border-radius:14px; padding:20px 20px 22px; background:var(--panel); }
+  .feature .fi{ width:34px; height:34px; border-radius:9px; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:14px; }
+  .feature h4{ margin:0 0 6px; font-size:14.5px; font-weight:600; }
+  .feature p{ margin:0; font-size:13px; line-height:1.55; color:var(--fg-dim); }
+
+  /* ---------- constellation-strip ---------- */
+  .games-strip{ padding:4px 0 60px; }
+  .gs-head{ text-align:center; margin-bottom:30px; }
+  .gs-head .kicker{ font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-faint); }
+  .gs-head h2{ font-size:clamp(20px,3vw,26px); font-weight:600; margin:8px 0 0; }
+  .gs-row{ display:flex; justify-content:center; align-items:center; gap:0; flex-wrap:wrap; }
+  .gs-node{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 26px; position:relative; }
+  .gs-node .dot{ width:11px; height:11px; border-radius:50%; }
+  .gs-node .name{ font-family:'Space Grotesk'; font-size:12px; font-weight:600; color:var(--fg-dim); letter-spacing:0.03em; }
+  .gs-line{ width:44px; height:1px; background:linear-gradient(90deg, var(--line), var(--blue-dim), var(--line)); }
+  .gs-hub{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 8px; }
+  .gs-hub .dot{ width:16px; height:16px; border-radius:50%; background:var(--blue); box-shadow:0 0 18px var(--blue); }
+  .gs-hub .name{ font-family:'Space Grotesk'; font-size:12.5px; font-weight:700; color:var(--blue); letter-spacing:0.04em; }
+  @media (max-width:760px){ .gs-line{ display:none; } .gs-row{ gap:14px 0; } }
+
+  /* ---------- how it works ---------- */
+  .how{ padding:8px 0 64px; }
+  .how-head{ text-align:center; margin-bottom:30px; }
+  .how-head .kicker{ font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-faint); }
+  .how-head h2{ font-size:clamp(20px,3vw,26px); font-weight:600; margin:8px 0 0; }
+  .how-steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  .how-step{ border:1px solid var(--line); border-radius:14px; padding:22px 20px; background:var(--panel); text-align:center; }
+  .how-step .num{ font-family:'Space Grotesk'; font-weight:700; font-size:13px; color:var(--blue); background:var(--blue-dim); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
+  .how-step h4{ margin:0 0 6px; font-size:14px; font-weight:600; }
+  .how-step p{ margin:0; font-size:12.5px; line-height:1.5; color:var(--fg-dim); }
+  @media (max-width:700px){ .how-steps{ grid-template-columns:1fr; } }
+
+  .rule{ border:none; border-top:1px solid var(--line); margin:0 0 40px; }
+
+  /* ---------- closing CTA ---------- */
+  .closing{ padding:0 0 80px; text-align:center; }
+  .closing h2{ font-size:clamp(22px,3.4vw,30px); font-weight:600; margin:0 0 14px; }
+  .closing p{ color:var(--fg-dim); font-size:14.5px; margin:0 0 26px; }
+
+  /* ---------- footer ---------- */
+  footer{ border-top:1px solid var(--line); padding:36px 0 52px; }
+  .foot-inner{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+  .foot-brand{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--fg-dim); }
+  .foot-links{ display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--fg-faint); }
+  .foot-links a{ transition:color .15s; }
+  .foot-links a:hover{ color:var(--fg); }
+  .foot-links .sep{ color:var(--line); }
+
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:#3a3d4d; }
+
+  /* ---------- account widget ---------- */
+  .acct-wrap{ position:relative; }
+  .acct-panel{ display:none; position:absolute; top:calc(100% + 10px); right:0; width:264px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; box-shadow:0 20px 48px rgba(0,0,0,0.45); z-index:20; }
+  .acct-panel.open{ display:block; }
+  .acct-panel .lbl{ font-size:12.5px; line-height:1.55; color:var(--fg-dim); margin-bottom:10px; }
+  .acct-panel input{ width:100%; box-sizing:border-box; padding:9px 11px; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; color:var(--fg); font-family:'Inter'; font-size:13.5px; margin:6px 0; }
+  .acct-panel input:focus{ outline:none; border-color:var(--fg-faint); }
+  .acct-panel input#cloudCodeInput{ letter-spacing:4px; text-align:center; }
+  .acct-btn{ width:100%; margin-top:9px; padding:9px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg); font-family:'Inter'; font-size:13px; font-weight:600; cursor:pointer; transition:border-color .15s, background .15s; }
+  .acct-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .acct-status{ display:block; margin-top:9px; font-size:11.5px; line-height:1.5; }
+  .acct-status.ok{ color:#7fbf7f; }
+  .acct-status.err{ color:#e37b7b; }
+  #cloudUserName{ color:var(--fg); font-weight:600; }
+  .acct-whoami{ display:flex; align-items:center; gap:9px; }
+  .acct-avatar{ font-size:19px; line-height:1; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; }
+  .acct-avatar img{ width:19px; height:19px; object-fit:cover; border-radius:50%; display:block; }
+  .acct-panel a.acct-btn{ display:block; box-sizing:border-box; text-align:center; text-decoration:none; }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"><img src="../art/logo.png" alt="" onerror="this.classList.add('hidden')"></span>
+      MC ORCA <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Idle-Mining-Spiel</span> <span class="game-pill pill-alt">Kein Echtgeld</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="back-link" href="../index.html">← Alle Spiele</a>
+      <div class="acct-wrap" id="cloudAccountBar">
+        <button class="nav-cta" id="cloudAccountToggle" type="button">☁ Konto</button>
+        <div class="acct-panel" id="cloudAccountPanel">
+          <div id="cloudStepEmail">
+            <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+            <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
+            <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+          </div>
+          <div id="cloudStepCode" style="display:none;">
+            <div class="lbl">Code aus der E-Mail eingeben:</div>
+            <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
+            <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
+          </div>
+          <div id="cloudStepIn" style="display:none;">
+            <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
+            <a class="acct-btn" id="cloudPlayLink" href="game.html">Zu NEXUS spielen →</a>
+            <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
+          </div>
+          <span class="acct-status" id="cloudStatusMsg"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <section class="hero reveal in">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow"><span class="dot"></span> Fünftes MC ORCA-Spiel · Idle Mining</div>
+        <div class="live-ticker" id="liveTicker"><span class="lt-dot"></span> Kurs: <span class="lt-price" id="ltPrice">–</span> <span id="ltTrend"></span></div>
+        <h1>Bau deine Mining-Farm auf. <span class="accent">Gib die Nova-Rift überall aus.</span></h1>
+        <p>NEXUS ist ein eigenständiges Idle-Mining-Spiel: Rigs kaufen, passiv Nova-Rift minen,
+           Farm ausbauen. Der Unterschied zu einer normalen Spielwährung — deine Nova-Rift
+           landen in derselben Wallet wie in Aetheris, Deep Anchor, Path of the Stars und
+           Astrion, und du kannst sie dort direkt für Premium-Items ausgeben. Alles rein
+           virtuell: <strong>es wird zu keinem Zeitpunkt echtes Geld eingesetzt</strong> —
+           nirgendwo im Spiel gibt es einen Kaufen-Button für echte Währung.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="game.html">Jetzt spielen</a>
+          <a class="btn btn-ghost" href="../index.html">Zurück zur Übersicht</a>
+        </div>
+      </div>
+      <div class="hero-emblem">
+        <span class="ring r3"></span>
+        <span class="glow"></span>
+        <span class="ring r1"></span>
+        <span class="ring r2"></span>
+        <img src="art/logo.png" alt="NEXUS" onerror="this.classList.add('hidden')">
+      </div>
+    </div>
+  </section>
+
+  <section class="features reveal in">
+    <div class="feature">
+      <div class="fi">⛏</div>
+      <h4>Ein richtiges Idle-Game</h4>
+      <p>USB-Miner, GPU-Rigs, ASIC-Farmen: Rigs kaufen, Produktionsrate steigern,
+         auch offline weiterminen. NEXUS spielt sich eigenständig wie deine anderen
+         MC ORCA-Spiele — nur eben um Nova-Rift statt um Kolonien.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">⬡</div>
+      <h4>Nova-Rift gelten in allen vier Spielen</h4>
+      <p>Was du hier erminst, ist keine reine NEXUS-Währung — es ist deine
+         studioweite Wallet. Kauf dir damit Premium-Items direkt in Aetheris,
+         Deep Anchor, Path of the Stars oder Astrion.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">⛨</div>
+      <h4>Betrugssicher by Design</h4>
+      <p>Alle Guthaben-Änderungen laufen über serverseitige Funktionen. Der Client
+         meldet nie einen Betrag — nur die Serverzeit entscheidet, was gemint wurde.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">∅</div>
+      <h4>Kein Echtgeld, nirgends</h4>
+      <p>NEXUS und der Premium-Shop laufen komplett ohne echte Zahlungen — es gibt
+         keinen Bezahlvorgang, keine Kreditkarte, kein Echtgeld-Guthaben. Alle
+         Nova-Rift werden ausschließlich im Spiel erspielt.</p>
+    </div>
+  </section>
+
+  <section class="games-strip reveal in">
+    <div class="gs-head">
+      <div class="kicker">Ein Spiel, vier Einlöseorte</div>
+      <h2>Hier geminte Nova-Rift kaufen dort etwas</h2>
+    </div>
+    <div class="gs-row">
+      <div class="gs-node"><span class="dot" style="background:var(--gold); box-shadow:0 0 8px var(--gold);"></span><span class="name">AETHERIS</span></div>
+      <div class="gs-line"></div>
+      <div class="gs-node"><span class="dot" style="background:var(--orange); box-shadow:0 0 8px var(--orange);"></span><span class="name">DEEP ANCHOR</span></div>
+      <div class="gs-line"></div>
+      <div class="gs-hub"><span class="dot"></span><span class="name">NEXUS</span></div>
+      <div class="gs-line"></div>
+      <div class="gs-node"><span class="dot" style="background:var(--red); box-shadow:0 0 8px var(--red);"></span><span class="name">PATH OF THE STARS</span></div>
+      <div class="gs-line"></div>
+      <div class="gs-node"><span class="dot" style="background:var(--violet); box-shadow:0 0 8px var(--violet);"></span><span class="name">ASTRION</span></div>
+    </div>
+    <p style="text-align:center; font-size:12.5px; color:var(--fg-faint); margin-top:22px;">
+      NEXUS minen → Nova-Rift verdienen → in jedem der vier Spiele für Premium-Items ausgeben.
+    </p>
+  </section>
+
+  <hr class="rule">
+
+  <section class="how reveal in">
+    <div class="how-head">
+      <div class="kicker">So funktioniert's</div>
+      <h2>In drei Schritten zur ersten Ausgabe</h2>
+    </div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="num">1</div>
+        <h4>Einloggen &amp; minen</h4>
+        <p>Mit deinem MC ORCA-Konto anmelden, kostenlosen USB-Miner abholen,
+           Rigs ausbauen — läuft auch passiv weiter.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">2</div>
+        <h4>Nova-Rift sammeln</h4>
+        <p>Deine Wallet füllt sich in Echtzeit, serverseitig berechnet — keine
+           Chance auf Manipulation.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">3</div>
+        <h4>In jedem Spiel ausgeben</h4>
+        <p>Premium-Items im NEXUS-Shop kaufen und direkt in Aetheris, Deep Anchor,
+           Path of the Stars oder Astrion nutzen.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="closing reveal in">
+    <h2>Bereit für deine erste Mining-Farm?</h2>
+    <p>Kostenlos, ohne Echtgeld, mit deinem bestehenden MC ORCA-Konto.</p>
+    <a class="btn btn-primary" href="game.html">Jetzt spielen</a>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap foot-inner">
+    <div class="foot-brand">MC ORCA Games — NEXUS (Idle-Mining-Spiel)</div>
+    <div class="foot-links">
+      <a href="game.html">Spielen</a><span class="sep">·</span>
+      <a href="../index.html">Alle Spiele</a><span class="sep">·</span>
+      <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // starfield (identisch zum Haupt-Hub)
+  (function(){
+    var canvas = document.getElementById('stars');
+    var ctx = canvas.getContext('2d');
+    var stars = [];
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function resize(){
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      var count = Math.floor((canvas.width * canvas.height) / 9000);
+      stars = [];
+      for(var i=0;i<count;i++){
+        stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*1.3+0.2, a: Math.random()*0.6+0.15, tw: Math.random()*0.015+0.003, dir: Math.random()>0.5?1:-1 });
+      }
+    }
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(var i=0;i<stars.length;i++){
+        var s = stars[i];
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle = 'rgba(232,230,227,'+s.a.toFixed(3)+')'; ctx.fill();
+        if(!reduceMotion){ s.a += s.tw*s.dir; if(s.a>0.75||s.a<0.1) s.dir*=-1; }
+      }
+      if(!reduceMotion) requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize); resize(); draw();
+  })();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  window.__cloudProfile = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+
+  function setStatus(msg, isErr){
+    statusEl.textContent = msg || '';
+    statusEl.className = 'acct-status' + (isErr ? ' err' : (msg ? ' ok' : ''));
+  }
+  function render(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    var profileName = window.__cloudProfile && window.__cloudProfile.username;
+    toggle.textContent = uiState === 'in' ? ('☁ ' + (profileName || 'Eingeloggt')) : '☁ Konto';
+    var avatarEl = document.getElementById('cloudUserAvatar');
+    var nameEl = document.getElementById('cloudUserName');
+    if(avatarEl){
+      var __av = (window.__cloudProfile && window.__cloudProfile.avatar) || '🚀';
+      if(/\.(png|jpg|jpeg|webp|gif)$/i.test(__av)){
+        avatarEl.innerHTML = '';
+        var __img = document.createElement('img');
+        __img.src = __av; __img.alt = '';
+        avatarEl.appendChild(__img);
+      } else {
+        avatarEl.textContent = __av;
+      }
+    }
+    if(nameEl) nameEl.textContent = profileName || (window.__cloudUser ? window.__cloudUser.email : '—');
+  }
+  async function loadProfile(){
+    window.__cloudProfile = null;
+    if(supabaseClient && window.__cloudUser){
+      try{
+        var res = await supabaseClient.from('profiles').select('username,avatar,bio').eq('user_id', window.__cloudUser.id).maybeSingle();
+        if(!res.error && res.data) window.__cloudProfile = res.data;
+      }catch(e){ console.warn('Profil konnte nicht geladen werden', e); }
+    }
+    render();
+  }
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data.session;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      loadProfile();
+    });
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      loadProfile();
+    });
+
+    document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+      var email = document.getElementById('cloudEmailInput').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+      var code = document.getElementById('cloudCodeInput').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+
+    document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      render();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+  render();
+
+  toggle.addEventListener('click', function(){ panel.classList.toggle('open'); });
+  document.addEventListener('click', function(e){
+    if(!panel.contains(e.target) && e.target !== toggle && panel.classList.contains('open')) panel.classList.remove('open');
+  });
+})();
+
+/* ---------- Live-Kurs-Ticker im Hero ---------- */
+(function(){
+  'use strict';
+  var sb = window.__cloudSupabase;
+  if (!sb) return;
+  var priceEl = document.getElementById('ltPrice');
+  var trendEl = document.getElementById('ltTrend');
+  if (!priceEl) return;
+
+  function fmtPrice(n){
+    return Number(n).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  async function loadTicker(){
+    try {
+      var res = await sb.schema('crypto_farm').rpc('get_market_status');
+      if (res.error) throw res.error;
+      var row = (res.data && res.data[0]) || null;
+      if (!row) return;
+      priceEl.textContent = fmtPrice(row.price);
+      var mult = Number(row.price_multiplier);
+      var up = mult >= 1;
+      trendEl.innerHTML = '<span style="color:' + (up ? 'var(--up)' : '#ff5d5d') + '">' + (up ? '▲' : '▼') + ' ×' + mult.toFixed(2) + ' Ertrag</span>';
+    } catch (e) {
+      console.warn('Live-Kurs konnte nicht geladen werden', e);
+    }
+  }
+
+  loadTicker();
+  setInterval(loadTicker, 20000);
+})();
+</script>
+
+</body>
+</html>

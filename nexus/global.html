@@ -1,0 +1,377 @@
+<!--
+  MC ORCA — NEXUS — Globale Wallet
+  Zeigt, wie viele Credits ALLE Spieler zusammen im NEXUS-Idle-Mining-Spiel
+  bereits gemint haben: live, öffentlich, ohne Login nötig (Aggregat-Funktion
+  crypto_farm.get_global_mining_stats(), anon-ausführbar).
+  Design-System 1:1 aus nexus/index.html übernommen (Blau als Akzentfarbe).
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — Globale Wallet · MC ORCA Games</title>
+<meta name="description" content="Wie viele Nova-Rift alle Spieler zusammen im NEXUS-Idle-Mining-Spiel geminet haben — live, pro Stunde, Tag, Woche, Monat und insgesamt.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+    --gold:#D4AF37; --red:#D6303F; --violet:#B23AFF; --orange:#FF6A2B;
+    --blue:#2F8CFF; --blue-dim:rgba(47,140,255,0.14);
+    --up:#3ddc84;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--blue); color:#0a0b12; }
+  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; }
+  }
+
+  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
+  .wrap{ position:relative; z-index:2; max-width:1080px; margin:0 auto; padding:0 24px; }
+
+  /* ---------- nav (identisch zu nexus/index.html) ---------- */
+  .nav{ position:sticky; top:0; z-index:10; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; flex-wrap:wrap; }
+  .brand .mark{ width:26px; height:26px; border-radius:50%; background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--blue), var(--gold)); box-shadow:0 0 16px var(--blue-dim); flex-shrink:0; }
+  .brand .mark img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .brand .mark img.hidden{ display:none; }
+  .brand .divider{ width:1px; height:16px; background:var(--line); margin:0 2px; }
+  .brand .sub{ color:var(--blue); font-weight:700; }
+  .brand .game-pill{ font-family:'Inter'; font-weight:600; font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase; color:var(--blue); background:var(--blue-dim); padding:3px 9px; border-radius:999px; }
+  @media (max-width:600px){ .brand .game-pill{ display:none; } }
+  .back-link{ font-size:12.5px; color:var(--fg-dim); display:inline-flex; align-items:center; gap:6px; transition:color .15s; white-space:nowrap; }
+  .back-link:hover{ color:var(--fg); }
+  .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg); background:var(--blue-dim); border-color:rgba(47,140,255,0.35); transition:border-color .15s, background .15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:var(--blue); background:rgba(47,140,255,0.22); }
+
+  /* ---------- hero / lifetime counter ---------- */
+  .hero{ padding:72px 0 8px; text-align:center; }
+  .hero-coin{ width:64px; height:64px; object-fit:contain; margin-bottom:14px; filter:drop-shadow(0 0 16px rgba(80,140,255,0.5)); }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-dim); margin-bottom:22px; }
+  .eyebrow .dot{ width:7px; height:7px; border-radius:50%; background:var(--blue); box-shadow:0 0 8px var(--blue); animation:pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:0.5; } 50%{ opacity:1; } }
+  .hero h1{ font-size:clamp(22px,3.6vw,30px); font-weight:600; margin:0 0 26px; color:var(--fg-dim); }
+  .lifetime-value{
+    font-family:'Space Grotesk'; font-weight:700; font-size:clamp(44px,9vw,88px); line-height:1;
+    background:linear-gradient(100deg, #6fb4ff, var(--blue) 55%, #1a5fd6);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    letter-spacing:-0.01em;
+  }
+  .lifetime-unit{ font-family:'Space Grotesk'; font-size:clamp(18px,3vw,26px); color:var(--fg-dim); font-weight:600; margin-left:8px; }
+  .lifetime-unit-icon{ width:clamp(18px,3vw,26px); height:clamp(18px,3vw,26px); object-fit:contain; margin-left:8px; vertical-align:-3px; }
+  .sc-coin{ width:12px; height:12px; object-fit:contain; vertical-align:-1px; }
+  .lifetime-sub{ margin:14px 0 0; font-size:13px; color:var(--fg-faint); }
+  .lifetime-sub span{ color:var(--fg-dim); }
+
+  /* ---------- stat cards ---------- */
+  .stats{ padding:48px 0 12px; display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  .stat-card{ border:1px solid var(--line); border-radius:14px; padding:20px 18px; background:var(--panel); text-align:center; }
+  .stat-card .sc-label{ font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); margin-bottom:10px; }
+  .stat-card .sc-value{ font-family:'Space Grotesk'; font-weight:700; font-size:clamp(18px,2.4vw,24px); color:var(--fg); }
+  .stat-card .sc-value small{ font-size:12px; color:var(--fg-dim); font-weight:600; }
+  @media (max-width:760px){ .stats{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:420px){ .stats{ grid-template-columns:1fr; } }
+
+  /* ---------- chart panel ---------- */
+  .chart-panel{ margin:32px 0 12px; border:1px solid var(--line); border-radius:16px; padding:22px 24px 18px; background:var(--panel); }
+  .chart-panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+  .chart-panel-head .t{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; }
+  .chart-panel-head .hint{ font-size:11.5px; color:var(--fg-faint); }
+  .chart-box{ position:relative; height:220px; }
+
+  /* ---------- miners row ---------- */
+  .miners-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:30px 0 8px; font-size:13px; color:var(--fg-dim); }
+  .miners-row b{ color:var(--blue); font-family:'Space Grotesk'; }
+
+  .refresh-note{ text-align:center; font-size:11.5px; color:var(--fg-faint); margin:8px 0 60px; }
+
+  .cta-row{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin:44px 0 70px; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; padding:13px 24px; border-radius:10px; transition:transform .15s, box-shadow .15s, background .15s, border-color .15s; }
+  .btn-primary{ background:var(--blue); color:#061224; }
+  .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 8px 24px var(--blue-dim); }
+  .btn-ghost{ border:1px solid var(--line); color:var(--fg); }
+  .btn-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+
+  footer{ border-top:1px solid var(--line); padding:36px 0 52px; }
+  .foot-inner{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+  .foot-brand{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--fg-dim); }
+  .foot-links{ display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--fg-faint); }
+  .foot-links a{ transition:color .15s; }
+  .foot-links a:hover{ color:var(--fg); }
+
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:#3a3d4d; }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"><img src="../art/logo.png" alt="" onerror="this.classList.add('hidden')"></span>
+      MC ORCA <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Globale Wallet</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="back-link" href="../index.html">← Alle Spiele</a>
+      <a class="nav-cta" href="game.html">Jetzt minen →</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <section class="hero reveal in">
+    <img src="art/nova-rift-coin-96.png" alt="" aria-hidden="true" class="hero-coin">
+    <div class="eyebrow"><span class="dot"></span> Live · von allen Spielern zusammen</div>
+    <h1>Insgesamt im NEXUS geminte Nova-Rift</h1>
+    <div><span class="lifetime-value" id="lifetimeValue">–</span><img class="lifetime-unit-icon" src="art/nova-rift-coin-32.png" alt="" aria-hidden="true"></div>
+    <p class="lifetime-sub">Seit Spielstart, über alle Accounts hinweg · <span id="minersLine">wird geladen …</span></p>
+  </section>
+
+  <section class="stats reveal in">
+    <div class="stat-card">
+      <div class="sc-label">Letzte Stunde</div>
+      <div class="sc-value" id="statHour">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Letzte 24 Stunden</div>
+      <div class="sc-value" id="statDay">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Letzte 7 Tage</div>
+      <div class="sc-value" id="statWeek">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Letzte 30 Tage</div>
+      <div class="sc-value" id="statMonth">–</div>
+    </div>
+  </section>
+
+  <section class="chart-panel reveal in">
+    <div class="chart-panel-head">
+      <span class="t">Zeiträume im Vergleich</span>
+      <span class="hint">Nova-Rift, global gemint</span>
+    </div>
+    <div class="chart-box"><canvas id="periodChart"></canvas></div>
+  </section>
+
+  <section class="chart-panel reveal in">
+    <div class="chart-panel-head">
+      <span class="t">Kontostand-Verlauf <span class="dot" style="display:inline-block;margin-left:6px;vertical-align:middle;"></span></span>
+      <span class="hint">Kumuliert, alle Accounts zusammen</span>
+    </div>
+    <div class="chart-box"><canvas id="historyChart"></canvas></div>
+  </section>
+
+  <p class="refresh-note" id="refreshNote">Aktualisiert sich automatisch alle 60 Sekunden.</p>
+
+  <div class="cta-row reveal in">
+    <a class="btn btn-primary" href="game.html">Selbst NEXUS spielen</a>
+    <a class="btn btn-ghost" href="index.html">Was ist NEXUS?</a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap foot-inner">
+    <div class="foot-brand">MC ORCA Games — Indie-Solo-Projekte</div>
+    <div class="foot-links">
+      <a href="../index.html">Alle Spiele</a><span class="sep">·</span>
+      <a href="index.html">NEXUS</a><span class="sep">·</span>
+      <a href="game.html">Spielen</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // starfield (identisch zum Haupt-Hub)
+  (function(){
+    var canvas = document.getElementById('stars');
+    var ctx = canvas.getContext('2d');
+    var stars = [];
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function resize(){
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      var count = Math.floor((canvas.width * canvas.height) / 9000);
+      stars = [];
+      for(var i=0;i<count;i++){
+        stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*1.3+0.2, a: Math.random()*0.6+0.15, tw: Math.random()*0.015+0.003, dir: Math.random()>0.5?1:-1 });
+      }
+    }
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(var i=0;i<stars.length;i++){
+        var s = stars[i];
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle = 'rgba(232,230,227,'+s.a.toFixed(3)+')'; ctx.fill();
+        if(!reduceMotion){ s.a += s.tw*s.dir; if(s.a>0.75||s.a<0.1) s.dir*=-1; }
+      }
+      if(!reduceMotion) requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize); resize(); draw();
+  })();
+
+  // scroll reveal (Sektionen sind hier schon .in, falls IO fehlt egal)
+  (function(){
+    var els = document.querySelectorAll('.reveal');
+    if(!('IntersectionObserver' in window)) return;
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ entry.target.classList.add('in'); io.unobserve(entry.target); }
+      });
+    }, { threshold:0.1 });
+    els.forEach(function(el){ io.observe(el); });
+  })();
+</script>
+
+<script>
+(function(){
+  'use strict';
+
+  const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_jGDsh2FGvEwOROPjcNNF4w_dknIFpIv';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let periodChart = null;
+  let historyChart = null;
+
+  function fmtCredits(n, maxDigits){
+    n = Number(n) || 0;
+    return n.toLocaleString('de-DE', { maximumFractionDigits: (maxDigits != null ? maxDigits : 2) });
+  }
+  function fmtCompact(n){
+    n = Number(n) || 0;
+    if(n >= 1e9) return (n/1e9).toLocaleString('de-DE',{maximumFractionDigits:2}) + ' Mrd.';
+    if(n >= 1e6) return (n/1e6).toLocaleString('de-DE',{maximumFractionDigits:2}) + ' Mio.';
+    if(n >= 1e3) return (n/1e3).toLocaleString('de-DE',{maximumFractionDigits:2}) + ' Tsd.';
+    return fmtCredits(n);
+  }
+
+  function renderChart(row){
+    const ctx = document.getElementById('periodChart');
+    const data = {
+      labels: ['1 Std.', '24 Std.', '7 Tage', '30 Tage'],
+      datasets: [{
+        data: [row.last_hour, row.last_24h, row.last_7d, row.last_30d],
+        backgroundColor: 'rgba(47,140,255,0.55)',
+        borderColor: '#2F8CFF',
+        borderWidth: 1.5,
+        borderRadius: 6,
+        maxBarThickness: 64
+      }]
+    };
+    const opts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display:false }, ticks: { color:'#8b8fa3', font:{ family:'Inter', size:11.5 } } },
+        y: {
+          grid: { color:'rgba(232,230,227,0.06)' },
+          ticks: { color:'#8b8fa3', font:{ family:'Inter', size:11 }, callback: function(v){ return fmtCompact(v); } }
+        }
+      }
+    };
+    if(periodChart){ periodChart.data = data; periodChart.options = opts; periodChart.update(); }
+    else{ periodChart = new Chart(ctx, { type:'bar', data:data, options:opts }); }
+  }
+
+  async function loadStats(){
+    try{
+      const res = await sb.schema('crypto_farm').rpc('get_global_mining_stats');
+      if(res.error) throw res.error;
+      const row = (res.data && res.data[0]) || null;
+      if(!row) return;
+
+      document.getElementById('lifetimeValue').textContent = fmtCredits(row.lifetime_total);
+      const scCoin = '<img class="sc-coin" src="art/nova-rift-coin-32.png" alt="">';
+      document.getElementById('statHour').innerHTML = fmtCredits(row.last_hour) + ' ' + scCoin;
+      document.getElementById('statDay').innerHTML = fmtCredits(row.last_24h) + ' ' + scCoin;
+      document.getElementById('statWeek').innerHTML = fmtCredits(row.last_7d) + ' ' + scCoin;
+      document.getElementById('statMonth').innerHTML = fmtCredits(row.last_30d) + ' ' + scCoin;
+      document.getElementById('minersLine').textContent = row.miners_count + ' Miner insgesamt registriert';
+
+      renderChart(row);
+    }catch(e){
+      console.warn('Globale NEXUS-Stats konnten nicht geladen werden', e);
+      document.getElementById('minersLine').textContent = 'Daten konnten nicht geladen werden.';
+    }
+  }
+
+  function renderHistoryChart(rows){
+    const ctx = document.getElementById('historyChart');
+    const canvasEl = ctx;
+    const gctx = canvasEl.getContext('2d');
+    const gradient = gctx.createLinearGradient(0, 0, 0, 220);
+    gradient.addColorStop(0, 'rgba(61,220,132,0.35)');
+    gradient.addColorStop(1, 'rgba(61,220,132,0.02)');
+
+    const data = {
+      labels: rows.map(r => new Date(r.bucket_start).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })),
+      datasets: [{
+        data: rows.map(r => Number(r.cumulative_total)),
+        borderColor: '#3ddc84',
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.25,
+        borderWidth: 2,
+        pointRadius: 0
+      }]
+    };
+    const opts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          grid: { color:'rgba(232,230,227,0.06)' },
+          ticks: { color:'#8b8fa3', font:{ family:'Inter', size:11 }, callback: function(v){ return fmtCompact(v); } }
+        }
+      }
+    };
+    if(historyChart){ historyChart.data = data; historyChart.options = opts; historyChart.update(); }
+    else{ historyChart = new Chart(canvasEl, { type:'line', data:data, options:opts }); }
+  }
+
+  async function loadHistory(){
+    try{
+      const res = await sb.schema('crypto_farm').rpc('get_global_mining_history', { p_bucket_minutes: 15 });
+      if(res.error) throw res.error;
+      const rows = res.data || [];
+      if(rows.length) renderHistoryChart(rows);
+    }catch(e){
+      console.warn('Kontostand-Verlauf konnte nicht geladen werden', e);
+    }
+  }
+
+  loadStats();
+  loadHistory();
+  setInterval(loadStats, 60000);
+  setInterval(loadHistory, 60000);
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1117 @@
+<!--
+  MC ORCA — NEXUS
+
+  Changelog:
+  - v2: Prestige-System + Skillbaum. Dritte Stat-Karte "Gesamt gemined
+    (all-time)" (persistiert über Prestige-Resets hinweg, in
+    platform.wallets.lifetime_mined_alltime). Prestige-Panel mit
+    Fortschrittsbalken (Schwelle: 100.000 Coins Lifetime im aktuellen
+    Durchlauf), setzt Rigs + Guthaben zurueck, vergibt dauerhafte
+    Prestige-Punkte (floor(sqrt(total_mined/10000))). Skillbaum mit drei
+    Aesten (Produktion/Markt/Oekonomie) a 4 Stufen, permanent, ueberlebt
+    jeden Reset. Backend-Aenderungen: neue Spalten auf platform.wallets
+    (lifetime_mined_alltime, prestige_points, prestige_level), neue
+    Tabellen platform.skill_nodes + platform.player_skills, neue RPCs
+    crypto_farm.do_prestige() und platform.buy_skill_node(), sowie
+    get_production_rate/buy_rig/collect_earnings angepasst, damit
+    Skill-Effekte greifen.
+
+  Spielübergreifender Premium-Markt / Zentralbank für alle vier MC ORCA-Spiele.
+  Design-System 1:1 aus dem Haupt-Hub (index.html) übernommen: Space Grotesk +
+  Inter, Sternenfeld-Canvas, gleicher Konto-Login (E-Mail-Code), gleiche
+  Farb-Systematik -- Blau als fünfte Akzentfarbe neben Gold/Orange/Rot/Violet.
+
+  Backend/Logik unveraendert aus crypto_farm.html uebernommen (gleiche IDs,
+  gleiche Supabase-RPCs, gleiches Betrugsschutz-Modell). Reines Redesign.
+
+  HINWEIS ZU PFADEN: Diese Datei geht davon aus, dass sie in einem
+  Unterordner neben aetheris/, astrion/, ... liegt (z.B. "nexus/index.html"),
+  genau wie die anderen Spiele -- daher "../index.html" und "../art/logo.png"
+  fuer den Zuruck-Link und das Studio-Logo. Falls der Ordnername oder die
+  Ablage anders ist, bitte die zwei Pfade unten anpassen.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — Idle-Mining spielen · MC ORCA Games</title>
+<meta name="description" content="NEXUS: dein Idle-Mining-Fortschritt, deine Nova-Rift, dein Premium-Shop.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+
+    --gold:#D4AF37; --red:#D6303F; --violet:#B23AFF; --orange:#FF6A2B;
+
+    /* fuenfte Akzentfarbe: Blau -- fuer NEXUS / den uebergreifenden Markt */
+    --blue:#2F8CFF; --blue-dim:rgba(47,140,255,0.14);
+    --up:#3ddc84; --down:#ff5d5d; --mono:'JetBrains Mono', monospace;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  h1,h2,h3, .display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--blue); color:#0a0b12; }
+  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+  .hidden{ display:none !important; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; }
+  }
+
+  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
+  .wrap{ position:relative; z-index:2; max-width:1080px; margin:0 auto; padding:0 24px; }
+
+  /* ---------- nav ---------- */
+  .nav{ position:sticky; top:0; z-index:10; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; }
+  .brand .mark{ width:26px; height:26px; border-radius:50%; background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--blue), var(--gold)); box-shadow:0 0 16px var(--blue-dim); flex-shrink:0; animation:markPulse 3.2s ease-in-out infinite; }
+  @keyframes markPulse{ 0%,100%{ box-shadow:0 0 10px var(--blue-dim); } 50%{ box-shadow:0 0 20px rgba(47,140,255,0.5); } }
+  .brand .mark img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .brand .mark img.hidden{ display:none; }
+  .brand .divider{ width:1px; height:16px; background:var(--line); margin:0 2px; }
+  .brand .sub{ color:var(--blue); font-weight:700; }
+  .brand .game-pill{ font-family:'Inter'; font-weight:600; font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase; color:var(--blue); background:var(--blue-dim); padding:3px 9px; border-radius:999px; }
+  .brand .game-pill.pill-alt{ color:var(--up); background:rgba(61,220,132,0.12); }
+  @media (max-width:760px){ .brand .game-pill.pill-alt{ display:none; } }
+  @media (max-width:600px){ .brand .game-pill{ display:none; } }
+  .back-link{ font-size:12.5px; color:var(--fg-dim); display:inline-flex; align-items:center; gap:6px; transition:color .15s; }
+  .back-link:hover{ color:var(--fg); }
+  .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); transition:border-color .15s, color .15s, background .15s; }
+  .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- hero ---------- */
+  .hero{ padding:88px 0 54px; position:relative; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-dim); margin-bottom:22px; }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); box-shadow:0 0 8px var(--blue); }
+  .hero h1{ font-size:clamp(34px,5.6vw,58px); line-height:1.06; font-weight:700; letter-spacing:-0.01em; margin:0 0 20px; max-width:760px; }
+  .hero h1 .accent{ background:linear-gradient(100deg, #6fb4ff, var(--blue) 60%, #1a5fd6); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .hero p{ font-size:16.5px; line-height:1.65; color:var(--fg-dim); max-width:520px; margin:0 0 30px; }
+  .hero-ctas{ display:flex; gap:14px; flex-wrap:wrap; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; padding:13px 24px; border-radius:10px; transition:transform .15s, box-shadow .15s, background .15s, border-color .15s; }
+  .btn-primary{ background:var(--blue); color:#061224; }
+  .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 8px 24px var(--blue-dim); }
+  .btn-ghost{ border:1px solid var(--line); color:var(--fg); }
+  .btn-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+
+  /* ---------- feature strip: warum uebergreifend ---------- */
+  .features{ padding:8px 0 56px; display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:18px; }
+  .feature{ border:1px solid var(--line); border-radius:14px; padding:20px 20px 22px; background:var(--panel); }
+  .feature .fi{ width:34px; height:34px; border-radius:9px; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:14px; }
+  .feature h4{ margin:0 0 6px; font-size:14.5px; font-weight:600; }
+  .feature p{ margin:0; font-size:13px; line-height:1.55; color:var(--fg-dim); }
+
+  /* ---------- constellation-strip: die vier spiele, blau vereint ---------- */
+  .games-strip{ padding:4px 0 60px; }
+  .gs-head{ text-align:center; margin-bottom:30px; }
+  .gs-head .kicker{ font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-faint); }
+  .gs-head h2{ font-size:clamp(20px,3vw,26px); font-weight:600; margin:8px 0 0; }
+  .gs-row{ display:flex; justify-content:center; align-items:center; gap:0; flex-wrap:wrap; }
+  .gs-node{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 26px; position:relative; }
+  .gs-node .dot{ width:11px; height:11px; border-radius:50%; }
+  .gs-node .name{ font-family:'Space Grotesk'; font-size:12px; font-weight:600; color:var(--fg-dim); letter-spacing:0.03em; }
+  .gs-line{ width:44px; height:1px; background:linear-gradient(90deg, var(--line), var(--blue-dim), var(--line)); }
+  .gs-hub{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 8px; }
+  .gs-hub .dot{ width:16px; height:16px; border-radius:50%; background:var(--blue); box-shadow:0 0 18px var(--blue); }
+  .gs-hub .name{ font-family:'Space Grotesk'; font-size:12.5px; font-weight:700; color:var(--blue); letter-spacing:0.04em; }
+
+  .rule{ border:none; border-top:1px solid var(--line); margin:0; }
+
+  /* ---------- login ---------- */
+  .login-section{ padding:10px 0 90px; display:flex; justify-content:center; }
+  .login-box{ width:100%; max-width:380px; border:1px solid var(--line); border-radius:16px; background:var(--panel); padding:28px 26px; }
+  .login-box .lb-head{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .login-box .lb-head .fi{ width:30px; height:30px; border-radius:8px; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .login-box h2{ font-size:15.5px; font-weight:600; margin:0; }
+  .login-box .lb-sub{ font-size:12.5px; color:var(--fg-dim); margin:6px 0 20px; line-height:1.5; }
+  input{ width:100%; box-sizing:border-box; padding:11px 12px; margin:6px 0; border-radius:9px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-family:'Inter'; font-size:13.5px; }
+  input:focus{ outline:none; border-color:var(--blue); }
+  input#otpInput{ font-family:var(--mono); letter-spacing:3px; text-align:center; }
+  button{ font-family:'Space Grotesk'; font-size:13px; font-weight:600; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:transparent; color:var(--fg); cursor:pointer; transition:border-color .15s, background .15s; }
+  button:hover:not(:disabled){ border-color:var(--blue); background:rgba(47,140,255,0.06); }
+  button:disabled{ opacity:0.4; cursor:default; }
+  .btn-block{ width:100%; margin-top:8px; background:var(--blue); border-color:var(--blue); color:#061224; }
+  .btn-block:hover{ filter:brightness(1.08); background:var(--blue); }
+  .msg{ font-family:'Inter'; font-size:12.5px; padding:10px 12px; border-radius:9px; margin-top:10px; text-align:left; line-height:1.5; }
+  .msg.ok{ background:rgba(61,220,132,0.1); color:var(--up); }
+  .msg.err{ background:rgba(255,93,93,0.1); color:var(--down); }
+
+  /* ---------- dashboard ---------- */
+  .dash{ padding:0 0 90px; position:relative; }
+  .dash-watermark{ position:absolute; top:-30px; right:-40px; width:260px; height:260px; opacity:0.06; pointer-events:none; z-index:-1; filter:blur(0.5px); }
+  .dash-watermark img{ width:100%; height:100%; object-fit:contain; }
+  @media (max-width:760px){ .dash-watermark{ display:none; } }
+  #bankBar{
+    border:1px solid var(--line); background:var(--panel);
+    border-radius:12px; padding:14px 16px; margin-bottom:20px;
+  }
+  #bankBar .bb-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; font-family:var(--mono); font-size:12px; margin-bottom:9px; }
+  #bankBar .bb-label{ color:var(--fg-faint); display:flex; align-items:center; gap:7px; }
+  #bankBar .bb-label .bb-icon{ color:var(--gold); }
+  #bankBar .bb-value{ color:var(--gold); font-weight:600; }
+  #bankBar .bb-track{ position:relative; height:8px; border-radius:999px; background:rgba(212,175,55,0.1); overflow:hidden; }
+  #bankBar .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, #8a6c1c, var(--gold)); box-shadow:0 0 12px rgba(212,175,55,0.65), 0 0 2px rgba(212,175,55,0.9); transition:width .8s cubic-bezier(.2,.8,.2,1); animation:bbPulse 2.6s ease-in-out infinite; }
+  @keyframes bbPulse{ 0%,100%{ filter:brightness(1); } 50%{ filter:brightness(1.28); } }
+  #bankBar .bb-sub{ font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-top:6px; }
+
+  /* ---------- farm overview (icon grid) ---------- */
+  .farm-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr)); gap:10px; margin-bottom:6px; }
+  .farm-tile{ border:1px solid var(--line); border-radius:12px; padding:12px 10px 10px; background:radial-gradient(circle at 30% 0%, var(--blue-dim), transparent 70%); text-align:center; }
+  .farm-tile .ft-icon{ font-size:22px; line-height:1; margin-bottom:6px; filter:drop-shadow(0 0 6px var(--blue-dim)); display:flex; align-items:center; justify-content:center; }
+  .farm-tile .ft-icon img.rig-icon-img{ width:28px; height:28px; object-fit:contain; }
+  .farm-tile .ft-name{ font-family:'Space Grotesk'; font-size:11px; font-weight:600; color:var(--fg-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .farm-tile .ft-swarm{ display:flex; flex-wrap:wrap; justify-content:center; gap:2px; margin-top:8px; min-height:14px; }
+  .farm-tile .ft-swarm span{ font-size:10px; opacity:0.85; display:inline-flex; }
+  .farm-tile .ft-swarm img.ft-swarm-img{ width:12px; height:12px; object-fit:contain; }
+  .farm-tile .ft-swarm .ft-more{ font-family:var(--mono); font-size:9.5px; color:var(--blue); }
+  .farm-empty{ font-size:12.5px; color:var(--fg-faint); padding:6px 0 14px; }
+
+  .rig-icon-tile{ width:38px; height:38px; border-radius:10px; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; overflow:hidden; }
+  .rig-icon-tile img.rig-icon-img{ width:100%; height:100%; object-fit:cover; border-radius:8px; }
+  .rig-row{ align-items:flex-start; }
+  .rig-row-main{ display:flex; align-items:flex-start; gap:12px; }
+
+  /* ---------- offline earnings modal ---------- */
+  .offline-modal-backdrop{ position:fixed; inset:0; z-index:100; background:rgba(6,7,12,0.72); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn .25s ease; }
+  @keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
+  .offline-modal-card{ width:100%; max-width:360px; border:1px solid var(--line); background:var(--panel); border-radius:18px; padding:28px 26px 24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5); animation:popIn .35s cubic-bezier(.2,.9,.25,1.2); }
+  @keyframes popIn{ from{ opacity:0; transform:translateY(14px) scale(.96); } to{ opacity:1; transform:translateY(0) scale(1); } }
+  .offline-modal-card .om-icon{ width:52px; height:52px; margin:0 auto 14px; border-radius:50%; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 0 22px var(--blue-dim); overflow:hidden; }
+  .offline-modal-card .om-icon img{ width:70%; height:70%; object-fit:contain; }
+  .offline-modal-card h3{ font-size:16.5px; margin:0 0 8px; }
+  .offline-modal-card .om-away{ font-family:var(--mono); font-size:12px; color:var(--fg-dim); margin-bottom:16px; }
+  .offline-modal-card .om-amount{ font-family:'Space Grotesk'; font-size:32px; font-weight:700; color:var(--up); margin-bottom:20px; }
+  .offline-modal-card .om-amount .om-plus{ font-size:20px; opacity:0.8; margin-right:2px; }
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 22px; margin-bottom:18px; }
+  .panel h3{ font-family:'Space Grotesk'; font-size:14px; font-weight:600; margin:0 0 16px; display:flex; align-items:center; gap:8px; }
+  .panel h3 .tag{ font-weight:400; color:var(--fg-faint); font-size:12px; }
+  .panel h3 .live-dot{ width:7px; height:7px; border-radius:50%; background:var(--up); box-shadow:0 0 8px var(--up); animation:livePulse 2.2s ease-in-out infinite; flex-shrink:0; }
+  @keyframes livePulse{ 0%,100%{ opacity:0.5; transform:scale(1); } 50%{ opacity:1; transform:scale(1.25); } }
+  .fly-amount{ position:fixed; z-index:50; font-family:'Space Grotesk'; font-weight:700; font-size:16px; color:var(--up); pointer-events:none; animation:flyUp 900ms ease-out forwards; text-shadow:0 0 10px rgba(61,220,132,0.5); }
+  @keyframes flyUp{ 0%{ opacity:0; transform:translateY(0) scale(0.9); } 15%{ opacity:1; transform:translateY(-6px) scale(1); } 100%{ opacity:0; transform:translateY(-46px) scale(1); } }
+
+  .top-row{ display:flex; gap:16px; flex-wrap:wrap; }
+  .stat-card{ flex:1; min-width:190px; border:1px solid var(--line); border-radius:14px; padding:16px 18px; background:radial-gradient(circle at 20% 0%, var(--blue-dim), transparent 65%); }
+  .stat-card .label{ font-size:11px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:0.08em; }
+  .stat-card .value{ font-family:'Space Grotesk'; font-size:28px; font-weight:700; color:var(--fg); margin-top:6px; }
+  .stat-card .value.up{ color:var(--up); }
+  .coin-value{ display:flex; align-items:center; gap:8px; }
+  .coin-icon{ width:26px; height:26px; object-fit:contain; filter:drop-shadow(0 0 6px rgba(80,140,255,0.5)); }
+  .coin-icon-sm{ width:14px; height:14px; object-fit:contain; vertical-align:-2px; }
+  .stat-card .sub{ font-family:var(--mono); font-size:11.5px; color:var(--fg-dim); margin-top:4px; }
+
+  .chart-box{ position:relative; height:190px; }
+  .chart-box canvas{ position:absolute; inset:0; width:100% !important; height:100% !important; }
+  .chart-empty-hint{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; font-size:12.5px; color:var(--fg-faint); padding:0 20px; }
+  .wallet-range-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 12px; }
+  .wr-tab{ font-family:'JetBrains Mono', monospace; font-size:11px; padding:5px 10px; border-radius:999px;
+    border:1px solid rgba(232,230,227,0.14); background:transparent; color:#8b8fa3; cursor:pointer; }
+  .wr-tab:hover{ border-color:rgba(232,230,227,0.3); color:#e8e6e3; }
+  .wr-tab.active{ background:#2F8CFF; border-color:#2F8CFF; color:#fff; }
+
+  /* ---------- prestige ---------- */
+  .prestige-box{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .prestige-progress{ flex:1; min-width:220px; }
+  .prestige-progress-track{ height:10px; border-radius:999px; background:var(--bg-alt); border:1px solid var(--line); overflow:hidden; }
+  .prestige-progress-fill{ height:100%; width:0%; background:linear-gradient(90deg, var(--blue), var(--violet)); transition:width .3s; }
+  .prestige-progress-label{ font-size:12px; color:var(--fg-dim); margin-top:6px; font-family:var(--mono); }
+  .prestige-hint{ font-size:12.5px; color:var(--fg-dim); line-height:1.55; margin:14px 0 0; }
+  .prestige-points-row{ display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+  .prestige-points-row .label{ font-size:12.5px; color:var(--fg-dim); }
+  .prestige-points-row .value{ font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:var(--violet); }
+
+  /* ---------- skill tree ---------- */
+  .skill-tree{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:18px; }
+  .skill-branch h4{ margin:0 0 12px; font-size:13.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--fg-dim); }
+  .skill-node{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:var(--panel); opacity:0.45; }
+  .skill-node.available{ opacity:1; border-color:rgba(47,140,255,0.35); }
+  .skill-node.owned{ opacity:1; border-color:var(--up); background:rgba(61,220,132,0.06); }
+  .skill-node .sn-name{ font-weight:600; font-size:13.5px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .skill-node .sn-desc{ font-size:12px; color:var(--fg-dim); margin-top:4px; line-height:1.5; }
+  .skill-node .sn-cost{ font-family:var(--mono); font-size:11.5px; color:var(--violet); margin-top:8px; }
+  .skill-node button{ margin-top:10px; width:100%; padding:7px 10px; border-radius:8px; border:1px solid var(--blue); color:var(--blue); background:transparent; font-size:12px; font-weight:600; cursor:pointer; transition:background .15s, color .15s; }
+  .skill-node button:hover:not(:disabled){ background:var(--blue); color:#061224; }
+  .skill-node button:disabled{ opacity:0.4; cursor:default; border-color:var(--line); color:var(--fg-faint); }
+  .skill-node .sn-owned-tag{ font-size:11px; color:var(--up); font-weight:700; }
+
+  .rig-row, .shop-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 0; border-bottom:1px solid var(--line); }
+  .rig-row:last-child, .shop-row:last-child{ border-bottom:none; }
+  .rig-name{ font-family:'Space Grotesk'; font-weight:600; font-size:14px; }
+  .rig-meta{ font-family:var(--mono); font-size:11px; color:var(--fg-dim); margin-top:3px; }
+  .rig-desc{ font-size:12px; color:var(--fg-faint); margin-top:3px; max-width:380px; line-height:1.5; }
+  .qty-badge{ font-family:var(--mono); font-size:11px; background:var(--blue-dim); color:var(--blue); padding:2px 8px; border-radius:999px; margin-left:8px; }
+  .buy-btn-group{ display:flex; gap:8px; flex-shrink:0; }
+  .buy-btn-group button{ font-size:12px; padding:9px 14px; white-space:nowrap; }
+  .shop-row button{ flex-shrink:0; }
+
+  /* ---------- footer ---------- */
+  footer{ border-top:1px solid var(--line); padding:36px 0 52px; }
+  .foot-inner{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+  .foot-brand{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--fg-dim); }
+  .foot-links{ display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--fg-faint); }
+  .foot-links a{ transition:color .15s; }
+  .foot-links a:hover{ color:var(--fg); }
+  .foot-links .sep{ color:var(--line); }
+
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:#3a3d4d; }
+
+  @media (max-width:760px){
+    .features{ grid-template-columns:1fr; }
+    .gs-line{ display:none; }
+    .gs-row{ gap:14px 0; }
+    .nav-cta{ padding:8px 13px; font-size:12.5px; }
+    .back-link span.txt{ display:none; }
+  }
+  @media (max-width:600px){
+    .wrap{ padding:0 14px; }
+    .hero{ padding:60px 0 40px; }
+    .panel{ padding:15px 16px; margin-bottom:14px; border-radius:12px; }
+    .stat-card{ min-width:130px; flex-basis:calc(50% - 8px); padding:13px 14px; }
+    .stat-card .value{ font-size:20px; }
+    .chart-box{ height:130px; }
+    .rig-row, .shop-row{ flex-direction:column; align-items:stretch; gap:10px; }
+    .buy-btn-group{ width:100%; }
+    .buy-btn-group button{ flex:1; }
+    .shop-row button{ width:100%; }
+    #bankBar{ font-size:10.5px; }
+  }
+  @media (max-width:380px){
+    .stat-card{ flex-basis:100%; }
+    .buy-btn-group{ flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"><img src="../art/logo.png" alt="" onerror="this.classList.add('hidden')"></span>
+      MC ORCA <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Idle-Mining-Spiel</span> <span class="game-pill pill-alt">Kein Echtgeld</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <a class="back-link" href="index.html">← <span class="txt">NEXUS-Übersicht</span></a>
+      <a class="nav-cta" href="../raenge.html">🏆 Ränge</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ---------- LOGIN ---------- -->
+  <div id="loginView">
+    <section class="login-section" id="login">
+      <div class="login-box">
+        <div class="lb-head"><span class="fi">☁</span><h2>Per E-Mail-Code anmelden</h2></div>
+        <p class="lb-sub">Gleicher Account wie in allen MC ORCA-Spielen. Kein Passwort — nur ein
+           6-stelliger Code per E-Mail. Alles kostenlos, kein Echtgeld erforderlich.</p>
+        <input type="email" id="emailInput" placeholder="deine@email.de">
+        <button class="btn-block" id="sendOtpBtn">Code anfordern</button>
+        <input type="text" id="otpInput" placeholder="6-stelliger Code" class="hidden">
+        <button class="btn-block hidden" id="verifyOtpBtn">Einloggen</button>
+        <div id="loginMsg"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ---------- GAME / DASHBOARD ---------- -->
+  <div id="gameView" class="hidden dash">
+    <div class="dash-watermark"><img src="art/logo.png" alt="" onerror="this.parentElement.style.display='none'"></div>
+    <div id="bankBar"></div>
+    <div id="statusMsg"></div>
+
+    <div class="panel top-row">
+      <div class="stat-card">
+        <div class="label">Wallet-Guthaben</div>
+        <div class="value up coin-value"><img class="coin-icon" src="art/nova-rift-coin-96.png" alt="" aria-hidden="true"><span id="balanceDisplay">–</span></div>
+        <div class="sub" id="rateDisplay">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Lifetime gemined</div>
+        <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-96.png" alt="" aria-hidden="true"><span id="totalMinedDisplay">–</span></div>
+        <div class="sub" id="marketPriceDisplay">Kurs: –</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Gesamt gemined (all-time)</div>
+        <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-96.png" alt="" aria-hidden="true"><span id="allTimeMinedDisplay">–</span></div>
+        <div class="sub" id="prestigeLevelDisplay">Prestige-Stufe –</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Kontostand — Verlauf</h3>
+      <div class="wallet-range-tabs" id="walletRangeTabs">
+        <button type="button" class="wr-tab" data-hours="1" data-bucket="1">1 Std</button>
+        <button type="button" class="wr-tab active" data-hours="24" data-bucket="15">24 Std</button>
+        <button type="button" class="wr-tab" data-hours="168" data-bucket="120">7 Tage</button>
+        <button type="button" class="wr-tab" data-hours="720" data-bucket="480">30 Tage</button>
+        <button type="button" class="wr-tab" data-hours="" data-bucket="1440">Immer</button>
+      </div>
+      <div class="chart-box"><canvas id="walletChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h3><span class="live-dot"></span>Kurs <span class="tag">— beeinflusst deinen Ertrag (0.5×–2.0×)</span></h3>
+      <div class="chart-box"><canvas id="marketChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h3>Deine Farm <span class="tag">— alle Rigs auf einen Blick</span></h3>
+      <div id="farmOverview"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Mining-Rigs</h3>
+      <div id="rigList"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Prestige <span class="tag">— Farm zurücksetzen für permanente Skill-Punkte</span></h3>
+      <div class="prestige-box">
+        <div class="prestige-progress">
+          <div class="prestige-progress-track"><div class="prestige-progress-fill" id="prestigeProgressFill"></div></div>
+          <div class="prestige-progress-label" id="prestigeProgressLabel">– / 100.000 Coins im aktuellen Durchlauf</div>
+        </div>
+        <button type="button" class="btn btn-primary" id="prestigeBtn" disabled>♻ Prestigen</button>
+      </div>
+      <p class="prestige-hint">Beim Prestigen werden alle Rigs und dein Guthaben zurückgesetzt — dafür bekommst du dauerhafte
+        Prestige-Punkte für den Skillbaum unten, die für immer bleiben, egal wie oft du danach nochmal zurücksetzt.</p>
+      <div class="prestige-points-row">
+        <span class="label">Verfügbare Prestige-Punkte</span>
+        <span class="value" id="prestigePointsDisplay">0</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Skillbaum <span class="tag">— permanente Boni, überleben jeden Prestige-Reset</span></h3>
+      <div id="skillTree" class="skill-tree"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Premium-Shop <span class="tag">— Items gelten auch in Aetheris, Deep Anchor, Path of the Stars & Astrion</span></h3>
+      <div id="shopList"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Dein Inventar</h3>
+      <div id="inventoryList"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ---------- OFFLINE-EARNINGS-POPUP ---------- -->
+<div id="offlineModal" class="offline-modal-backdrop hidden">
+  <div class="offline-modal-card">
+    <div class="om-icon"><img src="art/logo.png" alt="" aria-hidden="true"></div>
+    <h3>Willkommen zurück!</h3>
+    <div class="om-away" id="omAway"></div>
+    <div class="om-amount" id="omAmount"></div>
+    <button class="btn-block" id="omCloseBtn">Weitermachen</button>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap foot-inner">
+    <div class="foot-brand">MC ORCA Games — NEXUS (Idle-Mining-Spiel)</div>
+    <div class="foot-links">
+      <a href="../index.html">Alle Spiele</a><span class="sep">·</span>
+      <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // starfield (identisch zum Haupt-Hub)
+  (function(){
+    var canvas = document.getElementById('stars');
+    var ctx = canvas.getContext('2d');
+    var stars = [];
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function resize(){
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      var count = Math.floor((canvas.width * canvas.height) / 9000);
+      stars = [];
+      for(var i=0;i<count;i++){
+        stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*1.3+0.2, a: Math.random()*0.6+0.15, tw: Math.random()*0.015+0.003, dir: Math.random()>0.5?1:-1 });
+      }
+    }
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(var i=0;i<stars.length;i++){
+        var s = stars[i];
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle = 'rgba(232,230,227,'+s.a.toFixed(3)+')'; ctx.fill();
+        if(!reduceMotion){ s.a += s.tw*s.dir; if(s.a>0.75||s.a<0.1) s.dir*=-1; }
+      }
+      if(!reduceMotion) requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize); resize(); draw();
+  })();
+</script>
+
+<script>
+/* ---------- Supabase-Client (gleicher Account wie andere Spiele) ---------- */
+const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_jGDsh2FGvEwOROPjcNNF4w_dknIFpIv';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+let currentUser = null;
+let rigTypes = [];
+let playerRigs = {};      // rig_type_id -> quantity
+let shopItems = [];
+let inventoryItemIds = new Set();
+let currentBalance = 0;
+let currentRate = 0;
+let skillNodes = [];       // statischer Katalog, wird einmal geladen
+let ownedSkillIds = new Set();
+let prestigePoints = 0;
+let prestigeLevel = 0;
+const PRESTIGE_THRESHOLD = 100000;
+let refreshTimer = null;
+let walletChart = null;
+let marketChart = null;
+let currentWalletHours = 24;
+let currentWalletBucket = 15;
+
+/* ---------- Live-Balance-Ticker ---------- */
+let displayedBalance = 0;
+let tickInterval = null;
+const TICK_MS = 200;
+
+function renderBalance(){
+  document.getElementById('balanceDisplay').textContent = fmtCoin(displayedBalance);
+}
+
+function animateBalanceTo(target){
+  const start = displayedBalance;
+  const diff = target - start;
+  if (Math.abs(diff) < 0.005) { displayedBalance = target; renderBalance(); return; }
+  const duration = 700;
+  const t0 = performance.now();
+  (function step(now){
+    const t = Math.min((now - t0) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    displayedBalance = start + diff * eased;
+    renderBalance();
+    if (t < 1) requestAnimationFrame(step);
+    else { displayedBalance = target; renderBalance(); }
+  })(t0);
+}
+
+document.getElementById('prestigeBtn').addEventListener('click', doPrestige);
+
+function startBalanceTicking(){
+  if (tickInterval) clearInterval(tickInterval);
+  tickInterval = setInterval(() => {
+    if (currentRate > 0) {
+      displayedBalance += currentRate * (TICK_MS / 1000);
+      renderBalance();
+    }
+  }, TICK_MS);
+}
+
+/* ---------- Farm-Icons ---------- */
+const RIG_ICON_RULES = [
+  [/usb/i, '🔌'], [/solar/i, '☀️'], [/wind/i, '🌬️'], [/gpu|grafik/i, '🎮'],
+  [/asic/i, '🧊'], [/server|rack/i, '🖥️'], [/fusion|kern|reaktor/i, '☢️'],
+  [/quanten|quantum/i, '🌀'], [/satellit|orbit/i, '🛰️'], [/dyson/i, '🌟'],
+];
+function rigIcon(name){
+  const hit = RIG_ICON_RULES.find(([re]) => re.test(name || ''));
+  return hit ? hit[1] : '⛏️';
+}
+
+/* Bild-Key pro Rig-Name, fuer Bild-Assets unter art/rigs/<key>.png.
+   Faellt automatisch auf das Emoji zurueck, falls die Datei (noch) fehlt --
+   d.h. neue Rigs funktionieren sofort, auch bevor ein Bild dafuer existiert. */
+const RIG_IMAGE_KEY_RULES = [
+  [/usb/i, 'usb-miner'], [/gpu|grafik/i, 'gpu-rig'], [/asic/i, 'asic-miner'],
+  [/mining-container|container/i, 'mining-container'], [/solar/i, 'solar-farm'],
+  [/fusion|kern|reaktor/i, 'fusions-miner'], [/quanten|quantum/i, 'quanten-rig'],
+  [/dyson/i, 'dyson-sammler'], [/satellit|orbit/i, 'satelliten-schwarm'],
+];
+function rigImageKey(name){
+  const hit = RIG_IMAGE_KEY_RULES.find(([re]) => re.test(name || ''));
+  return hit ? hit[1] : null;
+}
+/* Liefert HTML fuer ein Rig-Icon: echtes Bild wenn vorhanden, sonst Emoji. */
+function rigIconHtml(name){
+  const emoji = rigIcon(name);
+  const key = rigImageKey(name);
+  if (!key) return `<span class="rig-icon-emoji">${emoji}</span>`;
+  return `<img class="rig-icon-img" src="art/rigs/${key}.png" alt=""
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+          <span class="rig-icon-emoji" style="display:none;">${emoji}</span>`;
+}
+
+/* ---------- Offline-Earnings ---------- */
+const LAST_SEEN_KEY = 'nexus_last_seen_ts';
+let firstLoadDone = false;
+
+function getLastSeenTs(){
+  const v = localStorage.getItem(LAST_SEEN_KEY);
+  return v ? parseInt(v, 10) : null;
+}
+function setLastSeenTs(){
+  localStorage.setItem(LAST_SEEN_KEY, Date.now().toString());
+}
+function fmtDuration(ms){
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h <= 0) return `${m} Min.`;
+  return `${h} Std. ${m} Min.`;
+}
+
+/* ---------- Fliegende +/-X¢-Zahl (visuelles Feedback bei Kauf/Sammeln) ---------- */
+function spawnFly(text, atEl, positive){
+  if (!atEl) return;
+  const rect = atEl.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'fly-amount';
+  el.innerHTML = text;
+  el.style.left = (rect.left + rect.width / 2) + 'px';
+  el.style.top = rect.top + 'px';
+  el.style.transform = 'translateX(-50%)';
+  if (!positive) el.style.color = 'var(--down)';
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+function showOfflinePopup(earned, elapsedMs){
+  document.getElementById('omAway').textContent = `Du warst ${fmtDuration(elapsedMs)} weg`;
+  document.getElementById('omAmount').innerHTML = `<span class="om-plus">+</span>${fmtCoin(earned)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">`;
+  document.getElementById('offlineModal').classList.remove('hidden');
+}
+document.getElementById('omCloseBtn').addEventListener('click', () => {
+  document.getElementById('offlineModal').classList.add('hidden');
+});
+
+function showMsg(elId, text, ok){
+  document.getElementById(elId).innerHTML = `<div class="msg ${ok ? 'ok' : 'err'}">${text}</div>`;
+}
+function clearMsg(elId){ document.getElementById(elId).innerHTML = ''; }
+
+function fmtCoin(n){
+  n = Number(n) || 0;
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(2) + 'k';
+  return n.toFixed(2);
+}
+
+function enterGame(){
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('gameView').classList.remove('hidden');
+}
+
+/* ---------- Login-Flow ---------- */
+document.getElementById('sendOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) return;
+  clearMsg('loginMsg');
+  const { error } = await sb.auth.signInWithOtp({ email });
+  if (error) { showMsg('loginMsg', error.message, false); return; }
+  document.getElementById('otpInput').classList.remove('hidden');
+  document.getElementById('verifyOtpBtn').classList.remove('hidden');
+  showMsg('loginMsg', 'Code wurde per E-Mail geschickt.', true);
+});
+
+document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const token = document.getElementById('otpInput').value.trim();
+  const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+  if (error) { showMsg('loginMsg', error.message, false); return; }
+  currentUser = data.user;
+  enterGame();
+  await sb.schema('platform').rpc('ensure_player_ready'); // liegt im 'platform'-Schema
+  initCharts();
+  await loadEverything();
+  refreshTimer = setInterval(loadEverything, 5000);
+});
+
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    currentUser = data.session.user;
+    enterGame();
+    await sb.schema('platform').rpc('ensure_player_ready');
+    initCharts();
+    await loadEverything();
+    refreshTimer = setInterval(loadEverything, 5000);
+  }
+})();
+
+/* ---------- Charts ---------- */
+function initCharts(){
+  const commonOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { display: false },
+      y: { ticks: { color: '#8b8fa3', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(232,230,227,0.06)' } }
+    },
+    elements: { point: { radius: 0 } }
+  };
+  walletChart = new Chart(document.getElementById('walletChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: commonOpts
+  });
+  marketChart = new Chart(document.getElementById('marketChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: commonOpts
+  });
+
+  const rangeTabs = document.getElementById('walletRangeTabs');
+  if (rangeTabs && !rangeTabs.dataset.wired) {
+    rangeTabs.dataset.wired = '1';
+    rangeTabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('.wr-tab');
+      if (!btn) return;
+      rangeTabs.querySelectorAll('.wr-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentWalletHours = btn.dataset.hours === '' ? null : Number(btn.dataset.hours);
+      currentWalletBucket = Number(btn.dataset.bucket);
+      loadWalletHistory();
+    });
+  }
+}
+
+/* ---------- Persönlicher Kontostand-Verlauf (Zeitfilter) ---------- */
+async function loadWalletHistory(){
+  const { data, error } = await sb.schema('platform').rpc('get_my_wallet_history', {
+    p_hours: currentWalletHours,
+    p_bucket_minutes: currentWalletBucket
+  });
+  if (error) { console.warn('Kontostand-Verlauf konnte nicht geladen werden', error); return; }
+  const showDate = currentWalletHours === null || currentWalletHours > 24;
+  updateChart(walletChart, data || [], 'balance', { bucket_start: true, showDate });
+}
+
+function setMarketChartTrend(trendUp){
+  if (!marketChart) return;
+  const ds = marketChart.data.datasets[0];
+  const canvasEl = marketChart.canvas;
+  const gctx = canvasEl.getContext('2d');
+  const h = canvasEl.height || 190;
+  const gradient = gctx.createLinearGradient(0, 0, 0, h);
+  if (trendUp) {
+    ds.borderColor = '#3ddc84';
+    gradient.addColorStop(0, 'rgba(61,220,132,0.32)');
+    gradient.addColorStop(1, 'rgba(61,220,132,0.02)');
+  } else {
+    ds.borderColor = '#ff5d5d';
+    gradient.addColorStop(0, 'rgba(255,93,93,0.32)');
+    gradient.addColorStop(1, 'rgba(255,93,93,0.02)');
+  }
+  ds.backgroundColor = gradient;
+}
+
+/* ---------- Hauptladefunktion ---------- */
+async function loadEverything(){
+  clearMsg('statusMsg');
+
+  // Ertrag abrechnen -- rein serverseitig berechnet (siehe Kommentar oben).
+  // Hinweis: laeuft zusaetzlich jede Minute im Hintergrund per Cron fuer ALLE
+  // Spieler (crypto_farm.collect_all_earnings), auch wenn niemand eingeloggt
+  // ist. Dieser Aufruf hier holt nur die letzten paar Sekunden seit dem
+  // letzten Cron-Tick nach.
+  const { data: collectedNow } = await sb.schema('crypto_farm').rpc('collect_earnings');
+
+  const [{ data: wallet }, { data: state }, { data: rigs }, { data: playerRigRows },
+         { data: shop }, { data: inventory }, { data: bank },
+         { data: marketHist }, { data: marketStatusRows },
+         { data: mySkillRows }] = await Promise.all([
+    sb.schema('platform').from('wallets').select('premium_balance, lifetime_mined_alltime, prestige_points, prestige_level').eq('player_id', currentUser.id).maybeSingle(),
+    sb.schema('crypto_farm').from('player_state').select('total_mined').eq('player_id', currentUser.id).maybeSingle(),
+    sb.schema('crypto_farm').from('rig_types').select('*').order('sort_order'),
+    sb.schema('crypto_farm').from('player_rigs').select('rig_type_id, quantity').eq('player_id', currentUser.id),
+    sb.schema('platform').from('shop_items').select('*').eq('active', true).order('sort_order'),
+    sb.schema('platform').from('player_inventory').select('item_id').eq('player_id', currentUser.id),
+    sb.schema('platform').from('central_bank').select('reserve_balance').eq('id', 1).maybeSingle(),
+    sb.schema('crypto_farm').from('market_price_history').select('price, recorded_at').order('recorded_at', { ascending: false }).limit(120),
+    sb.schema('crypto_farm').rpc('get_market_status'),
+    sb.schema('platform').from('player_skills').select('node_id').eq('player_id', currentUser.id)
+  ]);
+  if (skillNodes.length === 0) {
+    const { data: nodes } = await sb.schema('platform').from('skill_nodes').select('*').order('branch').order('tier');
+    skillNodes = nodes || [];
+  }
+  const marketHistOrdered = (marketHist || []).slice().reverse(); // wieder chronologisch (älteste zuerst) fürs Chart
+  loadWalletHistory(); // eigener RPC-Call, unabhängig vom Zeitfenster der anderen Panels
+  const marketStatus = (marketStatusRows && marketStatusRows[0]) || null;
+
+  currentBalance = wallet?.premium_balance ?? 0;
+  rigTypes = rigs || [];
+  playerRigs = {};
+  (playerRigRows || []).forEach(r => { playerRigs[r.rig_type_id] = r.quantity; });
+  currentRate = rigTypes.reduce((sum, rt) => sum + (playerRigs[rt.id] || 0) * Number(rt.base_rate), 0);
+  shopItems = shop || [];
+  inventoryItemIds = new Set((inventory || []).map(i => i.item_id));
+  ownedSkillIds = new Set((mySkillRows || []).map(r => r.node_id));
+  prestigePoints = Number(wallet?.prestige_points ?? 0);
+  prestigeLevel = Number(wallet?.prestige_level ?? 0);
+
+  animateBalanceTo(currentBalance);
+  if (!tickInterval) startBalanceTicking();
+  document.getElementById('rateDisplay').innerHTML = `+${fmtCoin(currentRate)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">/s`;
+  document.getElementById('totalMinedDisplay').textContent = fmtCoin(state?.total_mined ?? 0);
+  document.getElementById('allTimeMinedDisplay').textContent = fmtCoin(wallet?.lifetime_mined_alltime ?? 0);
+  document.getElementById('prestigeLevelDisplay').textContent = `Prestige-Stufe ${prestigeLevel}`;
+  document.getElementById('prestigePointsDisplay').textContent = fmtCoin(prestigePoints);
+
+  const runMined = Number(state?.total_mined ?? 0);
+  const pct = Math.min(100, (runMined / PRESTIGE_THRESHOLD) * 100);
+  document.getElementById('prestigeProgressFill').style.width = pct + '%';
+  document.getElementById('prestigeProgressLabel').textContent =
+    `${fmtCoin(runMined)} / ${fmtCoin(PRESTIGE_THRESHOLD)} Coins im aktuellen Durchlauf`;
+  const prestigeBtn = document.getElementById('prestigeBtn');
+  prestigeBtn.disabled = runMined < PRESTIGE_THRESHOLD;
+  prestigeBtn.textContent = runMined >= PRESTIGE_THRESHOLD ? '♻ Jetzt prestigen' : '♻ Prestigen';
+
+  renderSkillTree();
+
+  const collectedAmt = Number(collectedNow ?? 0);
+  if (collectedAmt > 0.005) {
+    spawnFly('+' + fmtCoin(collectedAmt) + ' <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">', document.getElementById('balanceDisplay'), true);
+  }
+
+  // Zentralbank-Reserve + laufendes Kurs-Event (Bonus/Malus), live aus get_market_status()
+  const reserveVal = Number(bank?.reserve_balance ?? 0);
+  const eventActive = !!(marketStatus && marketStatus.event_type);
+  if (eventActive) {
+    const isBonus = marketStatus.event_type === 'bonus';
+    const expiresMs = new Date(marketStatus.event_expires_at).getTime();
+    const secsLeft = Math.max(0, Math.round((expiresMs - Date.now()) / 1000));
+    const mins = Math.floor(secsLeft / 60), secs = secsLeft % 60;
+    document.getElementById('bankBar').innerHTML = `
+      <div class="bb-top">
+        <span class="bb-label"><span class="bb-icon">${isBonus ? '⚡' : '⚠️'}</span> ${marketStatus.event_label}</span>
+        <span class="bb-value" style="color:${isBonus ? 'var(--up)' : 'var(--down)'}">×${Number(marketStatus.event_multiplier).toFixed(2)} Ertrag</span>
+      </div>
+      <div class="bb-track"><div class="bb-fill" style="width:100%;background:linear-gradient(90deg, ${isBonus ? '#1c6a45, var(--up)' : '#7a1c1c, var(--down)'})"></div></div>
+      <div class="bb-sub">🏦 Reserve: ${fmtCoin(reserveVal)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> · Event endet in ${mins}:${String(secs).padStart(2,'0')}</div>`;
+  } else {
+    document.getElementById('bankBar').innerHTML = `
+      <div class="bb-top">
+        <span class="bb-label"><span class="bb-icon">🏦</span> Zentralbank-Reserve</span>
+        <span class="bb-value">${fmtCoin(reserveVal)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""></span>
+      </div>
+      <div class="bb-sub">Kein aktives Kurs-Event · starke Kursausschläge können jederzeit einen Bonus- oder Malus-Event auslösen</div>`;
+  }
+
+  // Offline-Earnings-Popup (nur beim ersten Laden nach Login/Session-Start).
+  // Da Coins jetzt auch im Hintergrund (Cron, jede Minute, fuer alle Spieler)
+  // gutgeschrieben werden, waere eine reine Balance-Differenz beim Login fast
+  // immer 0. Stattdessen: alles aufsummieren, was seit dem letzten Besuch im
+  // mining_log gelandet ist -- egal ob durch den Cron oder durch collect_earnings.
+  if (!firstLoadDone) {
+    firstLoadDone = true;
+    const lastSeen = getLastSeenTs();
+    if (lastSeen) {
+      const elapsedMs = Date.now() - lastSeen;
+      if (elapsedMs > 60000) {
+        const { data: sinceRows } = await sb.schema('crypto_farm').from('mining_log')
+          .select('amount').eq('player_id', currentUser.id)
+          .gte('recorded_at', new Date(lastSeen).toISOString());
+        const earned = (sinceRows || []).reduce((sum, r) => sum + Number(r.amount), 0);
+        if (earned > 0.005) {
+          showOfflinePopup(earned, elapsedMs);
+        }
+      }
+    }
+  }
+  setLastSeenTs();
+
+  const lastPrice = marketHistOrdered.length ? marketHistOrdered[marketHistOrdered.length - 1].price : null;
+  const prevPrice = marketHistOrdered.length > 1 ? marketHistOrdered[marketHistOrdered.length - 2].price : lastPrice;
+  const trendUp = lastPrice != null && prevPrice != null && lastPrice >= prevPrice;
+  const priceMult = marketStatus ? Number(marketStatus.price_multiplier) : null;
+  document.getElementById('marketPriceDisplay').innerHTML =
+    lastPrice != null
+      ? `Kurs: ${Number(lastPrice).toFixed(2)} <span style="color:${trendUp ? 'var(--up)' : 'var(--down)'}">${trendUp ? '▲' : '▼'}</span>` +
+        (priceMult != null ? ` <span style="color:var(--fg-faint)">· ×${priceMult.toFixed(2)} Ertrag</span>` : '')
+      : 'Kurs: –';
+
+  setMarketChartTrend(trendUp);
+  updateChart(marketChart, marketHistOrdered, 'price');
+
+  renderFarmOverview();
+  renderRigs();
+  renderShop();
+  renderInventory();
+}
+
+/* ---------- Starter-Rig (Opt-in-Claim statt Auto-Vergabe) ---------- */
+async function claimStarterRig(){
+  const btn = document.getElementById('claimStarterRigBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird geholt …'; }
+  const { data, error } = await sb.schema('crypto_farm').rpc('claim_starter_rig');
+  if (error) {
+    showMsg('statusMsg', error.message, false);
+    if (btn) { btn.disabled = false; btn.textContent = '🎁 Kostenlosen Starter-Miner holen'; }
+    return;
+  }
+  if (data) {
+    showMsg('statusMsg', 'Starter-Miner abgeholt! 🎉', true);
+  }
+  await loadEverything();
+}
+
+/* ---------- Farm-Uebersicht (Icon-Grid) ---------- */
+function renderFarmOverview(){
+  const el = document.getElementById('farmOverview');
+  const owned = rigTypes.filter(rt => (playerRigs[rt.id] || 0) > 0);
+  if (owned.length === 0) {
+    el.innerHTML = `
+      <p class="farm-empty">Noch keine Rigs — hol dir deinen kostenlosen Starter-Miner, oder kauf
+        direkt unten im Mining-Rigs-Panel.</p>
+      <button type="button" class="btn btn-primary" id="claimStarterRigBtn">🎁 Kostenlosen Starter-Miner holen</button>`;
+    const claimBtn = document.getElementById('claimStarterRigBtn');
+    if (claimBtn) claimBtn.addEventListener('click', claimStarterRig, { once: true });
+    return;
+  }
+  el.innerHTML = '<div class="farm-grid"></div>';
+  const grid = el.querySelector('.farm-grid');
+  owned.forEach(rt => {
+    const qty = playerRigs[rt.id] || 0;
+    const iconHtml = rigIconHtml(rt.name);
+    const swarmIconHtml = rigIconHtml(rt.name).replace('rig-icon-img', 'rig-icon-img ft-swarm-img').replace('rig-icon-emoji', 'rig-icon-emoji ft-swarm-emoji');
+    const shown = Math.min(qty, 16);
+    const swarm = Array.from({ length: shown }, () => `<span>${swarmIconHtml}</span>`).join('');
+    const more = qty > shown ? `<span class="ft-more">+${qty - shown}</span>` : '';
+    const tile = document.createElement('div');
+    tile.className = 'farm-tile';
+    tile.innerHTML = `
+      <div class="ft-icon">${iconHtml}</div>
+      <div class="ft-name">${rt.name}</div>
+      <div class="ft-swarm">${swarm}${more}</div>`;
+    grid.appendChild(tile);
+  });
+}
+
+function updateChart(chart, rows, field, opts){
+  if (!chart) return;
+  const tsKey = (opts && opts.bucket_start) ? 'bucket_start' : 'recorded_at';
+  const showDate = !!(opts && opts.showDate);
+  chart.data.labels = rows.map(r => {
+    const d = new Date(r[tsKey]);
+    return showDate
+      ? d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  });
+  chart.data.datasets[0].data = rows.map(r => Number(r[field]));
+  // Bei sehr wenigen Punkten (z.B. neuer Account + grober Bucket bei "30 Tage"/"Immer")
+  // zeichnet Chart.js sonst gar nichts, weil eine Linie mind. 2 Punkte braucht und der
+  // Punkt-Radius global auf 0 steht. Also Punkte kurz sichtbar machen.
+  chart.data.datasets[0].pointRadius = rows.length <= 2 ? 4 : 0;
+  toggleChartEmptyState(chart, rows.length === 0);
+  chart.update();
+}
+
+function toggleChartEmptyState(chart, isEmpty){
+  const canvas = chart.canvas;
+  const box = canvas.closest('.chart-box');
+  if (!box) return;
+  let hint = box.querySelector('.chart-empty-hint');
+  if (isEmpty) {
+    canvas.style.visibility = 'hidden';
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.className = 'chart-empty-hint';
+      hint.textContent = 'Noch nicht genug Verlauf für diesen Zeitraum.';
+      box.appendChild(hint);
+    }
+  } else {
+    canvas.style.visibility = 'visible';
+    if (hint) hint.remove();
+  }
+}
+
+/* ---------- Rigs ---------- */
+function rigCost(rt, owned, qty){
+  const g = Number(rt.cost_growth);
+  return Number(rt.base_cost) * Math.pow(g, owned) * (Math.pow(g, qty) - 1) / (g - 1);
+}
+
+function renderRigs(){
+  const el = document.getElementById('rigList');
+  el.innerHTML = '';
+  rigTypes.forEach(rt => {
+    const owned = playerRigs[rt.id] || 0;
+    const cost1 = rigCost(rt, owned, 1);
+    const cost10 = rigCost(rt, owned, 10);
+    const row = document.createElement('div');
+    row.className = 'rig-row';
+    row.innerHTML = `
+      <div class="rig-row-main">
+        <div class="rig-icon-tile">${rigIconHtml(rt.name)}</div>
+        <div>
+          <div class="rig-name">${rt.name} <span class="qty-badge">×${owned}</span></div>
+          <div class="rig-desc">${rt.description ?? ''}</div>
+          <div class="rig-meta">${Number(rt.base_rate)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">/s pro Einheit</div>
+        </div>
+      </div>
+      <div class="buy-btn-group">
+        <button data-qty="1" data-cost="${cost1}">+1 (${fmtCoin(cost1)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">)</button>
+        <button data-qty="10" data-cost="${cost10}">+10 (${fmtCoin(cost10)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">)</button>
+      </div>`;
+    row.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => buyRig(rt.id, parseInt(btn.dataset.qty, 10), btn));
+    });
+    el.appendChild(row);
+  });
+}
+
+window.buyRig = async function(rigTypeId, qty, btnEl){
+  const { data, error } = await sb.schema('crypto_farm').rpc('buy_rig', { p_rig_type_id: rigTypeId, p_quantity: qty });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${qty}× Rig für ${fmtCoin(row?.total_cost ?? 0)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">.`, true);
+  spawnFly('-' + fmtCoin(row?.total_cost ?? 0) + ' <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">', btnEl, false);
+  await loadEverything();
+};
+
+/* ---------- Premium-Shop ---------- */
+function renderShop(){
+  const el = document.getElementById('shopList');
+  el.innerHTML = '';
+  if (shopItems.length === 0) {
+    el.innerHTML = '<p style="color:var(--fg-faint); font-size:12.5px">Aktuell keine Items im Shop.</p>';
+    return;
+  }
+  shopItems.forEach(item => {
+    const owned = inventoryItemIds.has(item.id);
+    const row = document.createElement('div');
+    row.className = 'shop-row';
+    row.innerHTML = `
+      <div>
+        <div class="rig-name">${item.name}</div>
+        <div class="rig-desc">${item.description ?? ''}</div>
+        <div class="rig-meta">${fmtCoin(item.price)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> · ${item.effect_type}</div>
+      </div>`;
+    const btn = document.createElement('button');
+    if (owned) {
+      btn.textContent = 'Bereits besessen';
+      btn.disabled = true;
+    } else {
+      btn.textContent = 'Kaufen';
+      btn.addEventListener('click', () => buyShopItem(item.id, item.price, btn));
+    }
+    row.appendChild(btn);
+    el.appendChild(row);
+  });
+}
+
+window.buyShopItem = async function(itemId, price, btnEl){
+  const { error } = await sb.schema('platform').rpc('purchase_shop_item', { p_item_id: itemId });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  showMsg('statusMsg', 'Kauf erfolgreich.', true);
+  spawnFly('-' + fmtCoin(price) + ' <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">', btnEl, false);
+  await loadEverything();
+};
+
+/* ---------- Prestige ---------- */
+window.doPrestige = async function(){
+  const btn = document.getElementById('prestigeBtn');
+  if (!confirm('Wirklich prestigen? Alle Rigs und dein aktuelles Guthaben werden zurückgesetzt. Du bekommst dauerhafte Prestige-Punkte für den Skillbaum.')) return;
+  btn.disabled = true; btn.textContent = 'Wird zurückgesetzt …';
+  const { data, error } = await sb.schema('crypto_farm').rpc('do_prestige');
+  if (error) {
+    showMsg('statusMsg', error.message, false);
+    btn.disabled = false; btn.textContent = '♻ Prestigen';
+    return;
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Prestige erfolgreich! +${fmtCoin(row?.points_earned ?? 0)} Prestige-Punkte, jetzt Stufe ${row?.prestige_level ?? '?'}.`, true);
+  await loadEverything();
+};
+
+/* ---------- Skillbaum ---------- */
+const SKILL_BRANCH_LABELS = { produktion: '⚙️ Produktion', markt: '📈 Markt', oekonomie: '💰 Ökonomie' };
+
+function renderSkillTree(){
+  const el = document.getElementById('skillTree');
+  el.innerHTML = '';
+  const branches = ['produktion', 'markt', 'oekonomie'];
+  branches.forEach(branch => {
+    const nodes = skillNodes.filter(n => n.branch === branch).sort((a, b) => a.tier - b.tier);
+    if (nodes.length === 0) return;
+    const col = document.createElement('div');
+    col.className = 'skill-branch';
+    col.innerHTML = `<h4>${SKILL_BRANCH_LABELS[branch] || branch}</h4>`;
+    let prevOwned = true; // Tier 1 hat keine Voraussetzung
+    nodes.forEach(node => {
+      const owned = ownedSkillIds.has(node.id);
+      const unlocked = prevOwned; // Vorstufe freigeschaltet?
+      const affordable = prestigePoints >= Number(node.cost_points);
+      const card = document.createElement('div');
+      card.className = 'skill-node' + (owned ? ' owned' : (unlocked ? ' available' : ''));
+      card.innerHTML = `
+        <div class="sn-name"><span>${node.name}</span>${owned ? '<span class="sn-owned-tag">✓ aktiv</span>' : ''}</div>
+        <div class="sn-desc">${node.description}</div>
+        <div class="sn-cost">${node.cost_points} Prestige-Punkte</div>`;
+      if (!owned) {
+        const btn = document.createElement('button');
+        btn.textContent = !unlocked ? 'Vorstufe fehlt' : (!affordable ? 'Zu wenig Punkte' : 'Freischalten');
+        btn.disabled = !unlocked || !affordable;
+        btn.addEventListener('click', () => buySkillNode(node.id, btn));
+        card.appendChild(btn);
+      }
+      col.appendChild(card);
+      prevOwned = owned;
+    });
+    el.appendChild(col);
+  });
+}
+
+window.buySkillNode = async function(nodeId, btnEl){
+  btnEl.disabled = true; btnEl.textContent = 'Wird freigeschaltet …';
+  const { error } = await sb.schema('platform').rpc('buy_skill_node', { p_node_id: nodeId });
+  if (error) {
+    showMsg('statusMsg', error.message, false);
+    btnEl.disabled = false; btnEl.textContent = 'Freischalten';
+    return;
+  }
+  showMsg('statusMsg', 'Skill freigeschaltet! 🎉', true);
+  await loadEverything();
+};
+
+function renderInventory(){
+  const el = document.getElementById('inventoryList');
+  const owned = shopItems.filter(i => inventoryItemIds.has(i.id));
+  if (owned.length === 0) {
+    el.innerHTML = '<p style="color:var(--fg-faint); font-size:12.5px">Noch keine Premium-Items besessen.</p>';
+    return;
+  }
+  el.innerHTML = owned.map(i => `<div class="rig-row"><div class="rig-name">${i.name}</div></div>`).join('');
+}
+</script>
+</body>
+</html>

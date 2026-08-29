@@ -12,8 +12,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MC ORCA Games — Vier Weltraumspiele, ein Orbit</title>
-<meta name="description" content="MC ORCA Games: Aetheris, Path of the Stars, Astrion und Deep Anchor — browserbasierte Weltraumspiele ohne Download.">
+<title>MC ORCA Games — Fünf Weltraumspiele, ein Orbit</title>
+<meta name="description" content="MC ORCA Games: Aetheris, Path of the Stars, Astrion, Deep Anchor und NEXUS — browserbasierte Weltraumspiele ohne Download.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -35,6 +35,8 @@
     --violet-dim:rgba(178,58,255,0.14);
     --orange:#FF6A2B;
     --orange-dim:rgba(255,106,43,0.14);
+    --blue:#2F8CFF;
+    --blue-dim:rgba(47,140,255,0.14);
   }
 
   *{ box-sizing:border-box; }
@@ -77,7 +79,7 @@
   .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; }
   .brand .mark{
     width:26px; height:26px; border-radius:50%;
-    background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--gold));
+    background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--blue), var(--gold));
     box-shadow:0 0 16px rgba(212,175,55,0.35);
     flex-shrink:0;
   }
@@ -89,6 +91,28 @@
     transition:border-color .15s, color .15s, background .15s;
   }
   .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- NEXUS global tap-on badge ---------- */
+  .nexus-tap{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12.5px; font-weight:600; padding:8px 14px 8px 12px; border-radius:999px;
+    border:1px solid rgba(47,140,255,0.35); color:var(--fg);
+    background:var(--blue-dim);
+    transition:border-color .15s, background .15s, transform .15s;
+    white-space:nowrap;
+  }
+  .nexus-tap:hover{ border-color:var(--blue); background:rgba(47,140,255,0.22); transform:translateY(-1px); }
+  .nexus-tap .nt-dot{
+    width:7px; height:7px; border-radius:50%; background:var(--blue);
+    box-shadow:0 0 8px var(--blue); flex-shrink:0;
+    animation:nt-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes nt-pulse{ 0%,100%{ opacity:0.5; } 50%{ opacity:1; } }
+  .nexus-tap .nt-label{ color:var(--fg-dim); font-weight:500; }
+  .nexus-tap .nt-label b{ color:var(--blue); font-weight:700; }
+  .nexus-tap .nt-value{ font-family:'Space Grotesk'; color:var(--fg); }
+  .nexus-tap .nt-coin{ width:13px; height:13px; object-fit:contain; flex-shrink:0; }
+  @media (max-width:600px){ .nexus-tap .nt-label{ display:none; } }
 
   /* ---------- hero ---------- */
   .hero{ padding:96px 0 64px; position:relative; }
@@ -123,15 +147,20 @@
   .constellation-head{ text-align:center; margin-bottom:8px; }
   .constellation-head .kicker{ font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-faint); }
   .constellation-head h2{ font-size:clamp(22px,3.4vw,30px); font-weight:600; margin:8px 0 0; }
-  .const-svg{ width:100%; height:auto; margin-top:36px; overflow:visible; }
+  .const-svg{ display:block; width:100%; max-width:560px; height:auto; margin:36px auto 0; overflow:visible; }
   .const-line{ stroke:var(--line); stroke-width:1; fill:none; }
+  .const-orbit-ring{ fill:none; stroke:var(--blue); stroke-width:1; }
+  .const-spike{ fill:var(--blue); }
+  .const-sat-orbit{ fill:none; stroke-width:1.3; opacity:0.55; }
   .const-node-halo{ opacity:0.35; transition:opacity .2s, r .2s; }
   .const-node{ cursor:pointer; }
   .const-node circle.core{ transition:r .2s, filter .2s; }
   .const-node:hover .core{ filter:brightness(1.3); }
   .const-node:hover .const-node-halo{ opacity:0.6; }
-  .const-label{ font-family:'Space Grotesk'; font-size:12px; font-weight:600; fill:var(--fg-dim); letter-spacing:0.02em; transition:fill .2s; }
+  .const-node:hover .const-sat-orbit{ opacity:0.9; }
+  .const-label{ font-family:'Space Grotesk'; font-size:14px; font-weight:600; fill:var(--fg-dim); letter-spacing:0.02em; transition:fill .2s; }
   .const-node:hover .const-label{ fill:var(--fg); }
+  .const-hub-label{ font-family:'Space Grotesk'; font-size:15px; font-weight:700; fill:var(--blue); letter-spacing:0.06em; }
 
   /* ---------- section rule ---------- */
   .rule{ border:none; border-top:1px solid var(--line); margin:0; }
@@ -188,6 +217,7 @@
   .pots{ --pc:var(--red); --pc-dim:var(--red-dim); }
   .astrion{ --pc:var(--violet); --pc-dim:var(--violet-dim); }
   .deepanchor{ --pc:var(--orange); --pc-dim:var(--orange-dim); }
+  .nexus{ --pc:var(--blue); --pc-dim:var(--blue-dim); }
 
   /* ---------- footer ---------- */
   footer{ border-top:1px solid var(--line); padding:40px 0 56px; }
@@ -273,6 +303,12 @@
   <div class="nav-inner">
     <div class="brand"><span class="mark"><img src="bilder/logo.png" alt="" onerror="this.classList.add('hidden')"></span> MC ORCA GAMES</div>
     <div style="display:flex; align-items:center; gap:10px;">
+    <a class="nexus-tap" href="nexus/global.html" title="Globale NEXUS-Wallet — von allen Spielern zusammen geminte Nova-Rift">
+      <span class="nt-dot"></span>
+      <span class="nt-label">NEXUS <b>global gemined</b></span>
+      <img class="nt-coin" src="nexus/art/nova-rift-coin-32.png" alt="" aria-hidden="true">
+      <span class="nt-value" id="nexusGlobalTap">…</span>
+    </a>
     <a class="nav-cta" href="raenge.html">🏆 Ränge</a>
     <div class="acct-wrap" id="cloudAccountBar">
       <button class="nav-cta" id="cloudAccountToggle" type="button">☁ Konto</button>
@@ -302,10 +338,10 @@
 <div class="wrap">
 
   <section class="hero">
-    <div class="eyebrow"><span class="dot"></span> Vier Spiele · Ein Studio</div>
+    <div class="eyebrow"><span class="dot"></span> Fünf Spiele · Ein Studio</div>
     <h1>Weltraumspiele, die <span class="accent">im Browser</span> zuhause sind.</h1>
     <p>Kein Download nötig — einfach öffnen und spielen. Ein optionales Konto
-       synchronisiert deinen Spielstand über alle vier Spiele hinweg.</p>
+       synchronisiert deinen Spielstand über deine Spiele hinweg.</p>
     <div class="hero-ctas">
       <a class="btn btn-primary" href="#games">Spiele entdecken</a>
       <a class="btn btn-ghost" href="#" id="heroLoginBtn">Anmelden</a>
@@ -315,40 +351,72 @@
   <section class="constellation reveal" id="games">
     <div class="constellation-head">
       <div class="kicker">Die Sternenkarte</div>
-      <h2>Vier Welten, ein Orbit</h2>
+      <h2>Fünf Welten, ein Orbit</h2>
     </div>
-    <svg class="const-svg" viewBox="0 0 900 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sternenkarte der vier MC ORCA Spiele">
-      <path class="const-line" d="M 110 190 L 330 90 L 570 150 L 800 70"></path>
+    <svg class="const-svg" viewBox="0 0 720 720" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sternenkarte: NEXUS im Zentrum, verbunden mit Aetheris, Deep Anchor, Path of the Stars und Astrion">
 
+      <!-- äußere Orbit-Ringe, wie im NEXUS-Logo -->
+      <circle class="const-orbit-ring" cx="360" cy="360" r="300" opacity="0.28"></circle>
+      <circle class="const-orbit-ring" cx="360" cy="360" r="336" opacity="0.12"></circle>
+
+      <!-- Kompass-Zacken N/O/S/W -->
+      <path class="const-spike" d="M360,38 L373,60 L360,82 L347,60 Z" opacity="0.55"></path>
+      <path class="const-spike" d="M360,638 L373,660 L360,682 L347,660 Z" opacity="0.55"></path>
+      <path class="const-spike" d="M38,360 L60,347 L82,360 L60,373 Z" opacity="0.55"></path>
+      <path class="const-spike" d="M638,360 L660,347 L682,360 L660,373 Z" opacity="0.55"></path>
+
+      <!-- geschwungene Verbindungslinien Hub -> Satelliten -->
+      <path class="const-line" d="M 360 360 Q 278 222 140 140"></path>
+      <path class="const-line" d="M 360 360 Q 442 222 580 140"></path>
+      <path class="const-line" d="M 360 360 Q 278 498 140 580"></path>
+      <path class="const-line" d="M 360 360 Q 442 498 580 580"></path>
+
+      <!-- Zentraler Hub: NEXUS -->
+      <a href="nexus/index.html">
+        <g class="const-node" transform="translate(360,360)">
+          <circle class="const-node-halo" r="52" fill="var(--blue)"></circle>
+          <circle class="core" r="17" fill="var(--blue)"></circle>
+          <text class="const-hub-label" x="0" y="88" text-anchor="middle">NEXUS</text>
+        </g>
+      </a>
+
+      <!-- Satellit: Aetheris (oben links) -->
       <a href="aetheris/index.html">
-        <g class="const-node" transform="translate(110,190)">
-          <circle class="const-node-halo" r="26" fill="var(--gold)"></circle>
-          <circle class="core" r="7" fill="var(--gold)"></circle>
-          <text class="const-label" x="0" y="42" text-anchor="middle">AETHERIS</text>
+        <g class="const-node" transform="translate(140,140)">
+          <ellipse class="const-sat-orbit" rx="38" ry="15" transform="rotate(-25)" stroke="var(--gold)"></ellipse>
+          <circle class="const-node-halo" r="24" fill="var(--gold)"></circle>
+          <circle class="core" r="8" fill="var(--gold)"></circle>
+          <text class="const-label" x="0" y="-34" text-anchor="middle">AETHERIS</text>
         </g>
       </a>
 
+      <!-- Satellit: Deep Anchor (oben rechts) -->
       <a href="deep%20anchor/index.html">
-        <g class="const-node" transform="translate(330,90)">
-          <circle class="const-node-halo" r="26" fill="var(--orange)"></circle>
-          <circle class="core" r="7" fill="var(--orange)"></circle>
-          <text class="const-label" x="0" y="-20" text-anchor="middle">DEEP ANCHOR</text>
+        <g class="const-node" transform="translate(580,140)">
+          <ellipse class="const-sat-orbit" rx="38" ry="15" transform="rotate(25)" stroke="var(--orange)"></ellipse>
+          <circle class="const-node-halo" r="24" fill="var(--orange)"></circle>
+          <circle class="core" r="8" fill="var(--orange)"></circle>
+          <text class="const-label" x="0" y="-34" text-anchor="middle">DEEP ANCHOR</text>
         </g>
       </a>
 
+      <!-- Satellit: Path of the Stars (unten links) -->
       <a href="path%20of%20the%20stars/index.html">
-        <g class="const-node" transform="translate(570,150)">
-          <circle class="const-node-halo" r="26" fill="var(--red)"></circle>
-          <circle class="core" r="7" fill="var(--red)"></circle>
-          <text class="const-label" x="0" y="42" text-anchor="middle">PATH OF THE STARS</text>
+        <g class="const-node" transform="translate(140,580)">
+          <ellipse class="const-sat-orbit" rx="38" ry="15" transform="rotate(25)" stroke="var(--red)"></ellipse>
+          <circle class="const-node-halo" r="24" fill="var(--red)"></circle>
+          <circle class="core" r="8" fill="var(--red)"></circle>
+          <text class="const-label" x="0" y="46" text-anchor="middle">PATH OF THE STARS</text>
         </g>
       </a>
 
+      <!-- Satellit: Astrion (unten rechts) -->
       <a href="astrion/index.html">
-        <g class="const-node" transform="translate(800,70)">
-          <circle class="const-node-halo" r="26" fill="var(--violet)"></circle>
-          <circle class="core" r="7" fill="var(--violet)"></circle>
-          <text class="const-label" x="0" y="-20" text-anchor="middle">ASTRION</text>
+        <g class="const-node" transform="translate(580,580)">
+          <ellipse class="const-sat-orbit" rx="38" ry="15" transform="rotate(-25)" stroke="var(--violet)"></ellipse>
+          <circle class="const-node-halo" r="24" fill="var(--violet)"></circle>
+          <circle class="core" r="8" fill="var(--violet)"></circle>
+          <text class="const-label" x="0" y="46" text-anchor="middle">ASTRION</text>
         </g>
       </a>
     </svg>
@@ -455,6 +523,26 @@
         </div>
       </div>
       <div class="g-visual"><span class="ring r1"></span><span class="ring r2"></span><img class="glogo-img" src="astrion/art/logo.png" alt="ASTRION" onerror="this.classList.add('hidden')" onload="this.nextElementSibling.style.display='none'"><span class="wordmark">ASTRION</span></div>
+    </div>
+
+    <div class="game nexus reveal">
+      <div class="g-copy">
+        <div class="g-eyebrow">NEXUS <span class="ver">· Idle-Mining</span></div>
+        <h3 class="g-title">Studioweite Nova-Rift, live gemint</h3>
+        <p class="g-sub">Rigs kaufen, passiv minen, überall ausgeben — komplett ohne Echtgeld.</p>
+        <p class="g-pitch">Baue deine Mining-Farm auf und verdiene Nova-Rift, die direkt in Aetheris,
+           Deep Anchor, Path of the Stars und Astrion für Premium-Items gelten. Eine Wallet,
+           fünf Spiele.</p>
+        <div class="g-meta">
+          <div class="m"><span class="k">Gilt in</span><span class="v">4 Spielen</span></div>
+          <div class="m"><span class="k">Echtgeld</span><span class="v">Keins, nirgends</span></div>
+        </div>
+        <div class="g-ctas">
+          <a class="g-btn primary" href="nexus/index.html">Entdecken</a>
+          <a class="g-btn secondary" href="nexus/game.html">Direkt spielen</a>
+        </div>
+      </div>
+      <div class="g-visual"><span class="ring r1"></span><span class="ring r2"></span><img class="glogo-img" src="nexus/art/logo.png" alt="NEXUS" onerror="this.classList.add('hidden')" onload="this.nextElementSibling.style.display='none'"><span class="wordmark">NEXUS</span></div>
     </div>
 
   </section>
@@ -754,6 +842,74 @@
     if(window.__cloudSupabase){
       window.__cloudSupabase.auth.onAuthStateChange(function(){ refreshAll(); });
     }
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+
+<script>
+(function(){
+  'use strict';
+
+  function fmtCredits(n){
+    n = Number(n) || 0;
+    if(n >= 1e6) return (n/1e6).toLocaleString('de-DE',{maximumFractionDigits:2}) + 'M';
+    if(n >= 1e3) return (n/1e3).toLocaleString('de-DE',{maximumFractionDigits:2}) + 'k';
+    return n.toLocaleString('de-DE',{maximumFractionDigits:2});
+  }
+
+  var nexusTapValue = 0;
+  var nexusTapAnimating = false;
+
+  function animateTapTo(target){
+    var start = nexusTapValue;
+    var diff = target - start;
+    var el = document.getElementById('nexusGlobalTap');
+    if (!el) return;
+    if (Math.abs(diff) < 0.0001) { nexusTapValue = target; el.textContent = fmtCredits(target); return; }
+    var duration = 900;
+    var t0 = performance.now();
+    nexusTapAnimating = true;
+    (function step(now){
+      var t = Math.min((now - t0) / duration, 1);
+      var eased = 1 - Math.pow(1 - t, 3);
+      nexusTapValue = start + diff * eased;
+      el.textContent = fmtCredits(nexusTapValue);
+      if (t < 1) { requestAnimationFrame(step); }
+      else { nexusTapAnimating = false; }
+    })(t0);
+  }
+
+  async function loadGlobalTap(){
+    var el = document.getElementById('nexusGlobalTap');
+    if(!el) return;
+    var supabaseClient = window.__cloudSupabase;
+    if(!supabaseClient){ el.textContent = '—'; return; }
+    try{
+      var res = await supabaseClient.schema('crypto_farm').rpc('get_global_mining_stats');
+      if(res.error) throw res.error;
+      var row = (res.data && res.data[0]) || null;
+      if(!row){ el.textContent = '—'; return; }
+      var target = Number(row.lifetime_total) || 0;
+      if (el.textContent === '…' || el.textContent === '—') {
+        nexusTapValue = target;
+        el.textContent = fmtCredits(target);
+      } else {
+        animateTapTo(target);
+      }
+    }catch(e){
+      el.textContent = '—';
+      console.warn('NEXUS Global-Wallet konnte nicht geladen werden', e);
+    }
+  }
+
+  function boot(){
+    loadGlobalTap();
+    setInterval(loadGlobalTap, 15000);
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', boot);
