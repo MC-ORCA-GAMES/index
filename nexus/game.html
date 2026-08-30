@@ -524,7 +524,13 @@ function animateBalanceTo(target){
   })(t0);
 }
 
-document.getElementById('prestigeBtn').addEventListener('click', doPrestige);
+// NEU (Bugfix ReferenceError): doPrestige wird erst weiter unten definiert (als
+// window.doPrestige = async function(){...}, keine gehoistete function-Deklaration). Direkte
+// Übergabe des Bezeichners hier hätte zur Ladezeit einen ReferenceError geworfen und DAS GESAMTE
+// Script an dieser Stelle abgebrochen -- inklusive aller späteren addEventListener-Aufrufe wie
+// dem Login-Button. Lazy-Lookup per Pfeilfunktion löst das, da doPrestige erst beim tatsächlichen
+// Klick (also garantiert nach vollständigem Laden) aufgelöst wird.
+document.getElementById('prestigeBtn').addEventListener('click', () => doPrestige());
 
 function startBalanceTicking(){
   if (tickInterval) clearInterval(tickInterval);
