@@ -1,5 +1,17 @@
 <!--
   MC ORCA — NEXUS — Globale Wallet
+
+  Changelog:
+  - v2: Bugfix "Kontostand-Verlauf" -- zeigte bisher faelschlich die
+    kumulierte Mining-Summe aus mining_log (monoton steigend, kennt keine
+    Ausgaben/Verkaeufe -- das war "Lifetime gemined", kein Kontostand). Jetzt
+    echter periodischer Snapshot der aktuellen Summe ueber alle Wallets
+    (platform.global_balance_history, per Cron jede Minute befuellt via
+    platform.snapshot_global_balances()), abgerufen ueber neue RPC
+    platform.get_global_balance_history(). Wegen des neuen
+    Zwei-Waehrungs-Systems in game.html (Nova-Rift <-> Store-Credits) zeigt
+    der Chart jetzt zwei Linien mit je eigener Y-Achse.
+
   Zeigt, wie viele Credits ALLE Spieler zusammen im NEXUS-Idle-Mining-Spiel
   bereits gemint haben: live, öffentlich, ohne Login nötig (Aggregat-Funktion
   crypto_farm.get_global_mining_stats(), anon-ausführbar).
@@ -90,6 +102,12 @@
   .chart-panel-head .t{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; }
   .chart-panel-head .hint{ font-size:11.5px; color:var(--fg-faint); }
   .chart-box{ position:relative; height:220px; }
+  .chart-legend{ display:flex; gap:18px; font-size:11.5px; color:var(--fg-dim); margin:-4px 0 10px; }
+  .chart-legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:-1px; }
+  .chart-legend .dot-nova{ background:#3ddc84; }
+  .chart-legend .dot-sc{ background:var(--violet); }
+  .chart-note{ text-align:center; font-size:11.5px; color:var(--fg-faint); margin:10px 0 0; }
+  .chart-empty-hint{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12.5px; color:var(--fg-faint); padding:0 20px; }
 
   /* ---------- miners row ---------- */
   .miners-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:30px 0 8px; font-size:13px; color:var(--fg-dim); }
@@ -178,9 +196,14 @@
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
       <span class="t">Kontostand-Verlauf <span class="dot" style="display:inline-block;margin-left:6px;vertical-align:middle;"></span></span>
-      <span class="hint">Kumuliert, alle Accounts zusammen</span>
+      <span class="hint">Aktuelle Summe über alle Accounts — Nova-Rift &amp; Store-Credits</span>
+    </div>
+    <div class="chart-legend">
+      <span><i class="dot-nova"></i> Nova-Rift (gehalten)</span>
+      <span><i class="dot-sc"></i> Store-Credits</span>
     </div>
     <div class="chart-box"><canvas id="historyChart"></canvas></div>
+    <p class="chart-note" id="historyChartNote"></p>
   </section>
 
   <p class="refresh-note" id="refreshNote">Aktualisiert sich automatisch alle 60 Sekunden.</p>
@@ -320,23 +343,44 @@
 
   function renderHistoryChart(rows){
     const ctx = document.getElementById('historyChart');
+    const box = ctx.closest('.chart-box');
+    const existingHint = box.querySelector('.chart-empty-hint');
+    if (existingHint) existingHint.remove();
+    ctx.style.visibility = 'visible';
+
     const canvasEl = ctx;
     const gctx = canvasEl.getContext('2d');
-    const gradient = gctx.createLinearGradient(0, 0, 0, 220);
-    gradient.addColorStop(0, 'rgba(61,220,132,0.35)');
-    gradient.addColorStop(1, 'rgba(61,220,132,0.02)');
+    const gradientNova = gctx.createLinearGradient(0, 0, 0, 220);
+    gradientNova.addColorStop(0, 'rgba(61,220,132,0.30)');
+    gradientNova.addColorStop(1, 'rgba(61,220,132,0.02)');
+    const gradientSc = gctx.createLinearGradient(0, 0, 0, 220);
+    gradientSc.addColorStop(0, 'rgba(178,58,255,0.30)');
+    gradientSc.addColorStop(1, 'rgba(178,58,255,0.02)');
+
+    // Bei sehr wenigen Punkten (kurz nach Deploy / wenig Historie) trotzdem
+    // sichtbare Marker zeigen, statt einer unsichtbaren 0px-Linie.
+    const pointR = rows.length <= 4 ? 3 : 0;
 
     const data = {
       labels: rows.map(r => new Date(r.bucket_start).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })),
-      datasets: [{
-        data: rows.map(r => Number(r.cumulative_total)),
-        borderColor: '#3ddc84',
-        backgroundColor: gradient,
-        fill: true,
-        tension: 0.25,
-        borderWidth: 2,
-        pointRadius: 0
-      }]
+      datasets: [
+        {
+          label: 'Nova-Rift (gehalten)',
+          data: rows.map(r => Number(r.total_nova_rift)),
+          borderColor: '#3ddc84',
+          backgroundColor: gradientNova,
+          pointBackgroundColor: '#3ddc84',
+          fill: true, tension: 0.25, borderWidth: 2, pointRadius: pointR, yAxisID: 'yNova'
+        },
+        {
+          label: 'Store-Credits',
+          data: rows.map(r => Number(r.total_premium)),
+          borderColor: '#B23AFF',
+          backgroundColor: gradientSc,
+          pointBackgroundColor: '#B23AFF',
+          fill: true, tension: 0.25, borderWidth: 2, pointRadius: pointR, yAxisID: 'ySc'
+        }
+      ]
     };
     const opts = {
       responsive: true,
@@ -345,24 +389,48 @@
       plugins: { legend: { display: false } },
       scales: {
         x: { display: false },
-        y: {
+        yNova: {
+          position: 'left',
           grid: { color:'rgba(232,230,227,0.06)' },
-          ticks: { color:'#8b8fa3', font:{ family:'Inter', size:11 }, callback: function(v){ return fmtCompact(v); } }
+          ticks: { color:'#3ddc84', font:{ family:'Inter', size:10.5 }, callback: function(v){ return fmtCompact(v); } }
+        },
+        ySc: {
+          position: 'right',
+          grid: { display:false },
+          ticks: { color:'#B23AFF', font:{ family:'Inter', size:10.5 }, callback: function(v){ return fmtCompact(v); } }
         }
       }
     };
     if(historyChart){ historyChart.data = data; historyChart.options = opts; historyChart.update(); }
     else{ historyChart = new Chart(canvasEl, { type:'line', data:data, options:opts }); }
+
+    document.getElementById('historyChartNote').textContent =
+      rows.length < 4 ? 'Noch am Sammeln — alle 60 Sekunden kommt ein neuer Datenpunkt dazu.' : '';
+  }
+
+  function showHistoryEmptyState(text){
+    const canvas = document.getElementById('historyChart');
+    canvas.style.visibility = 'hidden';
+    const box = canvas.closest('.chart-box');
+    let hint = box.querySelector('.chart-empty-hint');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.className = 'chart-empty-hint';
+      box.appendChild(hint);
+    }
+    hint.textContent = text;
   }
 
   async function loadHistory(){
     try{
-      const res = await sb.schema('crypto_farm').rpc('get_global_mining_history', { p_bucket_minutes: 15 });
+      const res = await sb.schema('platform').rpc('get_global_balance_history', { p_bucket_minutes: 15 });
       if(res.error) throw res.error;
       const rows = res.data || [];
       if(rows.length) renderHistoryChart(rows);
+      else showHistoryEmptyState('Noch keine Verlaufsdaten — der erste Snapshot kommt in Kürze.');
     }catch(e){
       console.warn('Kontostand-Verlauf konnte nicht geladen werden', e);
+      showHistoryEmptyState('Verlauf konnte gerade nicht geladen werden.');
     }
   }
 
