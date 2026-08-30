@@ -251,6 +251,8 @@
   .rig-name{ font-family:'Space Grotesk'; font-weight:600; font-size:14px; }
   .rig-meta{ font-family:var(--mono); font-size:11px; color:var(--fg-dim); margin-top:3px; }
   .rig-desc{ font-size:12px; color:var(--fg-faint); margin-top:3px; max-width:380px; line-height:1.5; }
+  .shop-group-title{ margin:22px 0 4px; font-size:12.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--fg-dim); }
+  .shop-group-title:first-child{ margin-top:0; }
   .qty-badge{ font-family:var(--mono); font-size:11px; background:var(--blue-dim); color:var(--blue); padding:2px 8px; border-radius:999px; margin-left:8px; }
   .buy-btn-group{ display:flex; gap:8px; flex-shrink:0; }
   .buy-btn-group button{ font-size:12px; padding:9px 14px; white-space:nowrap; }
@@ -474,7 +476,7 @@
 <script>
 /* ---------- Supabase-Client (gleicher Account wie andere Spiele) ---------- */
 const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_jGDsh2FGvEwOROPjcNNF4w_dknIFpIv';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
 });
@@ -999,6 +1001,14 @@ window.buyRig = async function(rigTypeId, qty, btnEl){
 };
 
 /* ---------- Premium-Shop ---------- */
+const SHOP_GROUP_LABELS = {
+  global: 'Global — alle Spiele',
+  aetheris: 'Aetheris',
+  deep_anchor: 'Deep Anchor',
+  astrion: 'Astrion',
+  path_of_the_stars: 'Path of the Stars'
+};
+
 function renderShop(){
   const el = document.getElementById('shopList');
   el.innerHTML = '';
@@ -1006,32 +1016,54 @@ function renderShop(){
     el.innerHTML = '<p style="color:var(--fg-faint); font-size:12.5px">Aktuell keine Items im Shop.</p>';
     return;
   }
+  // Nach Spiel gruppieren, 'global' zuerst, sonst alphabetisch nach Label.
+  const groups = new Map();
   shopItems.forEach(item => {
-    const owned = inventoryItemIds.has(item.id);
-    const row = document.createElement('div');
-    row.className = 'shop-row';
-    row.innerHTML = `
-      <div>
-        <div class="rig-name">${item.name}</div>
-        <div class="rig-desc">${item.description ?? ''}</div>
-        <div class="rig-meta">${fmtCoin(item.price)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> · ${item.effect_type}</div>
-      </div>`;
-    const btn = document.createElement('button');
-    if (owned) {
-      btn.textContent = 'Bereits besessen';
-      btn.disabled = true;
-    } else {
-      btn.textContent = 'Kaufen';
-      btn.addEventListener('click', () => buyShopItem(item.id, item.price, btn));
-    }
-    row.appendChild(btn);
-    el.appendChild(row);
+    const scope = item.game_scope || 'global';
+    if (!groups.has(scope)) groups.set(scope, []);
+    groups.get(scope).push(item);
+  });
+  const scopes = [...groups.keys()].sort((a, b) => {
+    if (a === 'global') return -1;
+    if (b === 'global') return 1;
+    return (SHOP_GROUP_LABELS[a] || a).localeCompare(SHOP_GROUP_LABELS[b] || b);
+  });
+
+  scopes.forEach(scope => {
+    const heading = document.createElement('div');
+    heading.className = 'shop-group-title';
+    heading.textContent = SHOP_GROUP_LABELS[scope] || scope;
+    el.appendChild(heading);
+
+    groups.get(scope).forEach(item => {
+      const repeatable = item.effect_type === 'resource_grant';
+      const owned = !repeatable && inventoryItemIds.has(item.id);
+      const row = document.createElement('div');
+      row.className = 'shop-row';
+      row.innerHTML = `
+        <div>
+          <div class="rig-name">${item.name}</div>
+          <div class="rig-desc">${item.description ?? ''}</div>
+          <div class="rig-meta">${fmtCoin(item.price)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> · ${item.effect_type}</div>
+        </div>`;
+      const btn = document.createElement('button');
+      if (owned) {
+        btn.textContent = 'Bereits besessen';
+        btn.disabled = true;
+      } else {
+        btn.textContent = 'Kaufen';
+        btn.addEventListener('click', () => buyShopItem(item.id, item.price, btn));
+      }
+      row.appendChild(btn);
+      el.appendChild(row);
+    });
   });
 }
 
 window.buyShopItem = async function(itemId, price, btnEl){
+  btnEl.disabled = true;
   const { error } = await sb.schema('platform').rpc('purchase_shop_item', { p_item_id: itemId });
-  if (error) { showMsg('statusMsg', error.message, false); return; }
+  if (error) { showMsg('statusMsg', error.message, false); btnEl.disabled = false; return; }
   showMsg('statusMsg', 'Kauf erfolgreich.', true);
   spawnFly('-' + fmtCoin(price) + ' <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">', btnEl, false);
   await loadEverything();

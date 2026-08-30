@@ -1309,6 +1309,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <input type="range" class="music-volume-input" id="settingsMusicVolume" min="0" max="1" step="0.05" style="width:100%;margin:2px 0 6px;accent-color:#D4AF37">
       <button class="settings-item" id="leaderboardBtn">Rangliste</button>
       <button class="settings-item" id="giftCodeBtn">🎁 Code einlösen</button>
+      <button class="settings-item" id="nexusInboxBtn">📦 NEXUS-Pakete <span id="nexusInboxBadge" style="display:none;background:#D4AF37;color:#1A1410;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span></button>
       <button class="settings-item" id="aiEmpireDebugBtn">🤖 KI-Imperien (Debug)</button>
       <button class="settings-item" id="exportBtn">Spielstand-Backup</button>
       <button class="settings-item" id="importBtn">Spielstand-Import</button>
@@ -1365,6 +1366,16 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <div id="giftCodeFeedback" style="font-size:11px;min-height:14px;line-height:1.4"></div>
       <button class="menu-btn" id="giftCodeSubmitBtn" style="width:100%">Einlösen</button>
       <button class="reset-btn" id="giftCodeModalCloseBtn" style="margin-top:6px">Schließen</button>
+    </div>
+  </div>
+
+  <div class="more-menu-overlay" id="nexusInboxModalOverlay">
+    <div class="more-menu-sheet" id="nexusInboxModalSheet" style="grid-template-columns:1fr; gap:10px; padding:18px 16px calc(20px + env(safe-area-inset-bottom, 0px))">
+      <div class="bname" style="font-size:14px">📦 NEXUS-Pakete</div>
+      <div class="bmeta" style="color:#8A7A6A">Ressourcen, die du im NEXUS-Shop gekauft hast, landen erst hier — du holst sie dir manuell ab, damit nichts automatisch und unbemerkt passiert.</div>
+      <div id="nexusInboxBody" style="text-align:left"></div>
+      <button class="menu-btn primary" id="nexusInboxClaimBtn" style="width:100%;display:none">Alles abholen</button>
+      <button class="reset-btn" id="nexusInboxModalCloseBtn" style="margin-top:6px">Schließen</button>
     </div>
   </div>
 
@@ -17317,6 +17328,113 @@ setInterval(function(){
     if(v !== null) window.__cloudUpsert(k, v);
   });
 }, 8000);
+
+// 📦 NEXUS-Pakete: offene Ressourcen-Käufe aus dem NEXUS-Shop (platform.resource_grants).
+// Bewusst KEIN Auto-Claim beim Start/Login -- Nutzerwunsch: eine Box, die die offenen Pakete
+// sichtbar anzeigt, Abholen passiert nur per Klick. So kann nichts unbemerkt/doppelt passieren.
+var NEXUS_RES_LABELS = { aetherium: "✨ Ätherium", dunkle_materie: "🌌 Dunkle Materie" };
+
+async function nexusInboxFetchPending(){
+  if(!window.__cloudUser || !window.__cloudSupabase) return [];
+  var res = await window.__cloudSupabase.schema('platform').from('resource_grants')
+    .select('resource_key,amount')
+    .eq('game_scope', 'aetheris')
+    .is('claimed_at', null);
+  if(res.error){ console.warn('NEXUS-Pakete laden fehlgeschlagen:', res.error.message); return []; }
+  var totals = {};
+  (res.data || []).forEach(function(row){
+    totals[row.resource_key] = (totals[row.resource_key] || 0) + Number(row.amount);
+  });
+  return Object.keys(totals).map(function(key){ return { resource_key: key, amount: totals[key] }; });
+}
+
+async function nexusInboxRefreshBadge(){
+  var badge = document.getElementById('nexusInboxBadge');
+  if(!badge) return;
+  var pending = await nexusInboxFetchPending();
+  if(pending.length > 0){
+    badge.textContent = String(pending.length);
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function nexusInboxRenderBody(){
+  var body = document.getElementById('nexusInboxBody');
+  var claimBtn = document.getElementById('nexusInboxClaimBtn');
+  if(!body) return;
+  if(!window.__cloudUser){
+    body.innerHTML = '<div class="bmeta" style="color:#8A7A6A">Nur mit Cloud-Konto verfügbar -- erst in den Einstellungen einloggen.</div>';
+    claimBtn.style.display = 'none';
+    return;
+  }
+  body.innerHTML = '<div class="bmeta" style="color:#8A7A6A">Lade …</div>';
+  var pending = await nexusInboxFetchPending();
+  if(pending.length === 0){
+    body.innerHTML = '<div class="bmeta" style="color:#8A7A6A">Keine offenen Pakete. Käufe aus dem NEXUS-Shop tauchen hier auf.</div>';
+    claimBtn.style.display = 'none';
+    return;
+  }
+  body.innerHTML = pending.map(function(p){
+    var label = NEXUS_RES_LABELS[p.resource_key] || p.resource_key;
+    return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.15);font-size:12.5px;">'
+      + '<span>' + label + '</span><span style="color:#D4AF37">' + Math.floor(p.amount).toLocaleString('de-DE') + '</span></div>';
+  }).join('');
+  claimBtn.style.display = 'block';
+}
+
+async function nexusInboxClaim(){
+  var claimBtn = document.getElementById('nexusInboxClaimBtn');
+  var body = document.getElementById('nexusInboxBody');
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  claimBtn.disabled = true;
+  claimBtn.textContent = 'Wird abgeholt …';
+  try{
+    var res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants', { p_game_scope: 'aetheris' });
+    if(res.error) throw res.error;
+    var home = planets[homeId];
+    (res.data || []).forEach(function(row){
+      var amount = Number(row.total_amount) || 0;
+      if(amount <= 0) return;
+      if(row.resource_key === 'aetherium' && home && home.resources){
+        home.resources.aetherium = (home.resources.aetherium || 0) + amount;
+      } else if(row.resource_key === 'dunkle_materie'){
+        darkMatter = (darkMatter || 0) + amount;
+      }
+    });
+    saveGame();
+    render();
+    sfx.click();
+  }catch(err){
+    console.warn('NEXUS-Pakete abholen fehlgeschlagen:', err.message);
+  }finally{
+    claimBtn.disabled = false;
+    claimBtn.textContent = 'Alles abholen';
+    await nexusInboxRenderBody();
+    await nexusInboxRefreshBadge();
+  }
+}
+
+document.getElementById("nexusInboxBtn").addEventListener("click", () => {
+  document.getElementById("nexusInboxModalOverlay").classList.add("open");
+  nexusInboxRenderBody();
+});
+document.getElementById("nexusInboxModalCloseBtn").addEventListener("click", () => {
+  document.getElementById("nexusInboxModalOverlay").classList.remove("open");
+});
+document.getElementById("nexusInboxModalOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "nexusInboxModalOverlay") document.getElementById("nexusInboxModalOverlay").classList.remove("open");
+});
+document.getElementById("nexusInboxClaimBtn").addEventListener("click", nexusInboxClaim);
+
+// Badge-Check: einmal beim Laden (falls schon eingeloggt) und nach jedem Login-Trigger.
+setTimeout(function(){ nexusInboxRefreshBadge(); }, 2000);
+var __nexusInboxOrigSyncOnLogin = window.__cloudSyncOnLogin;
+window.__cloudSyncOnLogin = async function(){
+  await __nexusInboxOrigSyncOnLogin();
+  nexusInboxRefreshBadge();
+};
 </script>
 </body>
 </html>

@@ -3477,6 +3477,18 @@ html.ui-theme-dos input[type="number"]{
         <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
       </div>
 
+      <!-- NEU (NEXUS-Zeitsprung): Postfach für Zeitsprung-Käufe aus dem NEXUS-Shop
+           (platform.resource_grants, resource_key 'time_skip_days') — simuliert beim Abholen die
+           gekaufte Anzahl Spieltage mit der echten tick()-Funktion, genau wie der bestehende
+           Offline-Fortschritt (computeAndApplyOfflineProgress), und zeigt danach dieselbe
+           "Während du weg warst"-Zusammenfassung. Bewusst KEIN Auto-Claim -- Abholen nur per Klick. -->
+      <div class="settings-row" id="nexusInboxSection" style="padding-bottom:14px; border-bottom:1px solid var(--border);">
+        <label class="lbl" style="display:block; margin-bottom:8px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">📦 NEXUS-Pakete <span id="nexusInboxBadge" style="display:none;background:var(--accent,#4ade80);color:#111;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></label>
+        <div class="small-muted" style="line-height:1.5; margin-bottom:8px;">Zeitsprünge, die du im NEXUS-Shop gekauft hast, landen erst hier — du holst sie dir manuell ab.</div>
+        <div id="nexusInboxBody" style="text-align:left;"></div>
+        <button class="btn" id="nexusInboxClaimBtn" style="width:100%;margin-top:8px;display:none;">Alles abholen</button>
+      </div>
+
       <div class="settings-row" style="margin-top:14px;">
         <button class="btn" id="btnHelp" style="width:100%;">Hilfe — Auftrag → Bauplan Spickzettel</button>
       </div>
@@ -14879,6 +14891,9 @@ function openSettingsModal(){
   const inGame = document.getElementById('gameRoot').style.display !== 'none';
   const backRow = document.getElementById('btnBackToStart').closest('.settings-row');
   if(backRow) backRow.style.display = inGame ? '' : 'none';
+  const nexusRow = document.getElementById('nexusInboxSection');
+  if(nexusRow) nexusRow.style.display = inGame ? '' : 'none';
+  if(inGame) nexusInboxRenderBody();
   document.getElementById('settingsModal').classList.add('active');
 }
 document.getElementById('btnSettings').addEventListener('click', ()=>{
@@ -16770,6 +16785,143 @@ window.__cloudSyncOnLogin = async function(){
     window.__cloudSyncLocked = false;
     window.__cloudSyncBusy = false;
   }
+};
+
+// 📦 NEXUS-Pakete: offene Zeitsprung-Käufe aus dem NEXUS-Shop (platform.resource_grants).
+// Bewusst KEIN Auto-Claim -- eine Box zeigt die offenen Pakete an, Abholen passiert nur per
+// Klick. Beim Abholen wird die gekaufte Anzahl Spieltage mit der ECHTEN tick()-Funktion
+// simuliert -- exakt dasselbe Prinzip wie computeAndApplyOfflineProgress() (nur tage-getrieben
+// statt an echte verstrichene Zeit gekoppelt), inklusive Wiederverwendung der bestehenden
+// "Während du weg warst"-Zusammenfassung (renderOfflineReport/showOfflineReportModal).
+var NEXUS_RES_LABELS = { time_skip_days: "🚀 Zeitsprung-Tage" };
+
+async function nexusInboxFetchPending(){
+  if(!window.__cloudUser || !window.__cloudSupabase) return [];
+  var res = await window.__cloudSupabase.schema('platform').from('resource_grants')
+    .select('resource_key,amount')
+    .eq('game_scope', 'deep_anchor')
+    .is('claimed_at', null);
+  if(res.error){ console.warn('NEXUS-Pakete laden fehlgeschlagen:', res.error.message); return []; }
+  var totals = {};
+  (res.data || []).forEach(function(row){
+    totals[row.resource_key] = (totals[row.resource_key] || 0) + Number(row.amount);
+  });
+  return Object.keys(totals).map(function(key){ return { resource_key: key, amount: totals[key] }; });
+}
+
+async function nexusInboxRefreshBadge(){
+  var badge = document.getElementById('nexusInboxBadge');
+  if(!badge) return;
+  var pending = await nexusInboxFetchPending();
+  if(pending.length > 0){
+    badge.textContent = String(pending.length);
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function nexusInboxRenderBody(){
+  var body = document.getElementById('nexusInboxBody');
+  var claimBtn = document.getElementById('nexusInboxClaimBtn');
+  if(!body) return;
+  if(!window.__cloudUser){
+    body.innerHTML = '<div class="small-muted">Nur mit Cloud-Konto verfügbar -- erst oben einloggen.</div>';
+    claimBtn.style.display = 'none';
+    return;
+  }
+  body.innerHTML = '<div class="small-muted">Lade …</div>';
+  var pending = await nexusInboxFetchPending();
+  if(pending.length === 0){
+    body.innerHTML = '<div class="small-muted">Keine offenen Pakete. Käufe aus dem NEXUS-Shop tauchen hier auf.</div>';
+    claimBtn.style.display = 'none';
+    return;
+  }
+  body.innerHTML = pending.map(function(p){
+    var label = NEXUS_RES_LABELS[p.resource_key] || p.resource_key;
+    var years = p.resource_key === 'time_skip_days' ? ' (' + (p.amount/365).toLocaleString('de-DE', {maximumFractionDigits:1}) + ' Jahre)' : '';
+    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">'
+      + '<span>' + label + '</span><span>' + Math.floor(p.amount).toLocaleString('de-DE') + years + '</span></div>';
+  }).join('');
+  claimBtn.style.display = 'block';
+}
+
+async function nexusInboxClaim(){
+  var claimBtn = document.getElementById('nexusInboxClaimBtn');
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  claimBtn.disabled = true;
+  claimBtn.textContent = 'Wird abgeholt …';
+  try{
+    var res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants', { p_game_scope: 'deep_anchor' });
+    if(res.error) throw res.error;
+    var totalDays = 0;
+    (res.data || []).forEach(function(row){
+      var amount = Number(row.total_amount) || 0;
+      if(amount <= 0) return;
+      if(row.resource_key === 'time_skip_days') totalDays += Math.round(amount);
+    });
+    if(totalDays > 0){
+      document.getElementById('settingsModal').classList.remove('active');
+      // Gleicher Ablauf wie computeAndApplyOfflineProgress(): before/after-Snapshot, dann
+      // simDays × stiller tick(true), danach dieselbe Zusammenfassung anzeigen.
+      var before = {
+        money: state.money,
+        lifetimeIncome: state.stats.lifetimeIncome,
+        lifetimeUpkeep: state.stats.lifetimeUpkeep,
+        hangarCount: state.hangar.length,
+        moduleHangarCount: state.moduleHangar.length,
+        orbitSatsCount: state.orbitSats.length,
+        satellitesLost: state.stats.satellitesLost,
+        contractsCompleted: state.stats.contractsCompleted,
+        researchCompleted: state.stats.researchCompleted,
+        coloniesCount: state.colonies.length,
+        firstContactsCount: state.firstContacts.length,
+      };
+      offlineCatchupActive = true;
+      for(var i=0; i<totalDays; i++){ tick(true); }
+      offlineCatchupActive = false;
+      state.lastRealTimestamp = Date.now();
+      checkAchievements(true);
+      checkLogbookEntries(true);
+      var satsLost = state.stats.satellitesLost - before.satellitesLost;
+      var arrivals = Math.max(0, (state.orbitSats.length - before.orbitSatsCount) + satsLost);
+      var report = {
+        days: totalDays, wasCapped: false, rawDays: totalDays,
+        moneyDelta: state.money - before.money,
+        incomeDelta: state.stats.lifetimeIncome - before.lifetimeIncome,
+        upkeepDelta: state.stats.lifetimeUpkeep - before.lifetimeUpkeep,
+        shipsFinished: state.hangar.length - before.hangarCount,
+        modulesFinished: state.moduleHangar.length - before.moduleHangarCount,
+        arrivals: arrivals, satsLost: satsLost,
+        contractsCompleted: state.stats.contractsCompleted - before.contractsCompleted,
+        researchCompleted: state.stats.researchCompleted - before.researchCompleted,
+        newColonies: state.colonies.length - before.coloniesCount,
+        newContacts: state.firstContacts.length - before.firstContactsCount,
+      };
+      autosave(true);
+      renderAll();
+      showOfflineReportModal(report);
+      Sound.click();
+    }
+  }catch(err){
+    console.warn('NEXUS-Pakete abholen fehlgeschlagen:', err.message);
+    toast('⚠️ Abholen fehlgeschlagen.', 'bad');
+  }finally{
+    claimBtn.disabled = false;
+    claimBtn.textContent = 'Alles abholen';
+    await nexusInboxRenderBody();
+    await nexusInboxRefreshBadge();
+  }
+}
+
+document.getElementById('nexusInboxClaimBtn').addEventListener('click', nexusInboxClaim);
+
+// Badge-Check: einmal beim Laden (falls schon eingeloggt) und nach jedem Login-Trigger.
+setTimeout(function(){ nexusInboxRefreshBadge(); }, 2000);
+var __nexusInboxOrigSyncOnLogin = window.__cloudSyncOnLogin;
+window.__cloudSyncOnLogin = async function(){
+  if(__nexusInboxOrigSyncOnLogin) await __nexusInboxOrigSyncOnLogin();
+  nexusInboxRefreshBadge();
 };
 </script>
 </body>
