@@ -634,24 +634,41 @@ document.getElementById('sendOtpBtn').addEventListener('click', async () => {
   const email = document.getElementById('emailInput').value.trim();
   if (!email) return;
   clearMsg('loginMsg');
-  const { error } = await sb.auth.signInWithOtp({ email });
-  if (error) { showMsg('loginMsg', error.message, false); return; }
-  document.getElementById('otpInput').classList.remove('hidden');
-  document.getElementById('verifyOtpBtn').classList.remove('hidden');
-  showMsg('loginMsg', 'Code wurde per E-Mail geschickt.', true);
+  showMsg('loginMsg', 'Sende Code …', true);
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    document.getElementById('otpInput').classList.remove('hidden');
+    document.getElementById('verifyOtpBtn').classList.remove('hidden');
+    showMsg('loginMsg', 'Code wurde an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', true);
+  } catch (err) {
+    // NEU: Vorher konnte ein interner Client-Fehler (z.B. ungültiger API-Key) hier still
+    // durchrutschen -- kein Log, keine Mail, keine sichtbare Meldung. Jetzt wird JEDER
+    // Fehlschlag angezeigt, egal ob er von Supabase als {error} zurückkommt oder als
+    // JS-Exception auftritt.
+    console.error('signInWithOtp fehlgeschlagen:', err);
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
 });
 
 document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
   const email = document.getElementById('emailInput').value.trim();
   const token = document.getElementById('otpInput').value.trim();
-  const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
-  if (error) { showMsg('loginMsg', error.message, false); return; }
-  currentUser = data.user;
-  enterGame();
-  await sb.schema('platform').rpc('ensure_player_ready'); // liegt im 'platform'-Schema
-  initCharts();
-  await loadEverything();
-  refreshTimer = setInterval(loadEverything, 5000);
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Prüfe Code …', true);
+  try {
+    const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    enterGame();
+    await sb.schema('platform').rpc('ensure_player_ready'); // liegt im 'platform'-Schema
+    initCharts();
+    await loadEverything();
+    refreshTimer = setInterval(loadEverything, 5000);
+  } catch (err) {
+    console.error('verifyOtp fehlgeschlagen:', err);
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
 });
 
 (async () => {
