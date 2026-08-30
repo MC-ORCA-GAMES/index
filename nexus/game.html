@@ -2,6 +2,21 @@
   MC ORCA — NEXUS
 
   Changelog:
+  - v3: Zwei-Waehrungs-System (Nova-Rift <-> Store-Credits), wie beim echten
+    Krypto-Mining. Bisher floss alles direkt in premium_balance und der Kurs
+    wirkte nur auf die Ertragsrate -- horten hatte also nie einen Sinn. Jetzt:
+    Mining kreditiert platform.wallets.nova_rift_balance (volatil, Kurs
+    schwankt weiter waehrend man haelt). Neue RPC crypto_farm.sell_nova_rift()
+    tauscht Nova-Rift zum GERADE AKTUELLEN Kurs in premium_balance
+    ("Store-Credits", stabil, zahlt den spielübergreifenden Premium-Shop) --
+    das ist der neue strategische Hort-Anreiz. Rigs kosten jetzt Nova-Rift
+    statt Store-Credits (Re-Investition der eigenen Foerderleistung).
+    Bonus-/Malus-Netzwerkevents wirken weiterhin auf die ErtragsRATE (das
+    bildet Mining-Schwierigkeit ab), der reine Kurs (price_multiplier) aber
+    nicht mehr -- er zaehlt nur noch beim Verkaufen. Beim Prestige wird nur
+    noch der Nova-Rift-Bestand zurueckgesetzt, Store-Credits (dein bereits
+    verkauftes, spielübergreifendes Guthaben) bleiben erhalten. Neue Tabelle
+    crypto_farm.sell_log fuer den Verkaufsverlauf.
   - v2: Prestige-System + Skillbaum. Dritte Stat-Karte "Gesamt gemined
     (all-time)" (persistiert über Prestige-Resets hinweg, in
     platform.wallets.lifetime_mined_alltime). Prestige-Panel mit
@@ -210,6 +225,11 @@
   .coin-icon{ width:26px; height:26px; object-fit:contain; filter:drop-shadow(0 0 6px rgba(80,140,255,0.5)); }
   .coin-icon-sm{ width:14px; height:14px; object-fit:contain; vertical-align:-2px; }
   .stat-card .sub{ font-family:var(--mono); font-size:11.5px; color:var(--fg-dim); margin-top:4px; }
+  .sc-icon{ font-size:22px; line-height:1; filter:drop-shadow(0 0 6px rgba(80,140,255,0.5)); }
+  .sc-icon-sm{ font-size:13px; vertical-align:-1px; }
+  .sell-box{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .sell-box input{ flex:1; min-width:160px; background:var(--bg-alt, rgba(255,255,255,0.03)); border:1px solid var(--line); border-radius:10px; padding:12px 14px; color:var(--fg); font-family:var(--mono); font-size:14px; }
+  .sell-preview{ margin-top:12px; font-family:var(--mono); font-size:13px; color:var(--fg-dim); }
 
   .chart-box{ position:relative; height:190px; }
   .chart-box canvas{ position:absolute; inset:0; width:100% !important; height:100% !important; }
@@ -345,14 +365,18 @@
 
     <div class="panel top-row">
       <div class="stat-card">
-        <div class="label">Wallet-Guthaben</div>
+        <div class="label">Nova-Rift (gehalten)</div>
         <div class="value up coin-value"><img class="coin-icon" src="art/nova-rift-coin-96.png" alt="" aria-hidden="true"><span id="balanceDisplay">–</span></div>
         <div class="sub" id="rateDisplay">–</div>
       </div>
       <div class="stat-card">
+        <div class="label">Store-Credits</div>
+        <div class="value coin-value"><span class="sc-icon" aria-hidden="true">💠</span><span id="storeBalanceDisplay">–</span></div>
+        <div class="sub" id="marketPriceDisplay">Kurs: –</div>
+      </div>
+      <div class="stat-card">
         <div class="label">Lifetime gemined</div>
         <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-96.png" alt="" aria-hidden="true"><span id="totalMinedDisplay">–</span></div>
-        <div class="sub" id="marketPriceDisplay">Kurs: –</div>
       </div>
       <div class="stat-card">
         <div class="label">Gesamt gemined (all-time)</div>
@@ -362,7 +386,7 @@
     </div>
 
     <div class="panel">
-      <h3>Kontostand — Verlauf</h3>
+      <h3>Store-Credits — Verlauf <span class="tag">— ändert sich nur bei Verkauf & Shop-Käufen, nicht beim Minen</span></h3>
       <div class="wallet-range-tabs" id="walletRangeTabs">
         <button type="button" class="wr-tab" data-hours="1" data-bucket="1">1 Std</button>
         <button type="button" class="wr-tab active" data-hours="24" data-bucket="15">24 Std</button>
@@ -374,8 +398,18 @@
     </div>
 
     <div class="panel">
-      <h3><span class="live-dot"></span>Kurs <span class="tag">— beeinflusst deinen Ertrag (0.5×–2.0×)</span></h3>
+      <h3><span class="live-dot"></span>Kurs <span class="tag">— bestimmt den Umtauschkurs beim Verkauf, nicht mehr deinen Ertrag</span></h3>
       <div class="chart-box"><canvas id="marketChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h3>Nova-Rift verkaufen <span class="tag">— tauscht gehaltene Nova-Rift zum aktuellen Kurs in Store-Credits</span></h3>
+      <div class="sell-box">
+        <input type="number" id="sellAmountInput" min="0" step="any" placeholder="Menge Nova-Rift">
+        <button type="button" class="btn btn-ghost" id="sellMaxBtn">Alles</button>
+        <button type="button" class="btn btn-primary" id="sellBtn">Verkaufen</button>
+      </div>
+      <div class="sell-preview" id="sellPreview">–</div>
     </div>
 
     <div class="panel">
@@ -397,7 +431,8 @@
         </div>
         <button type="button" class="btn btn-primary" id="prestigeBtn" disabled>♻ Prestigen</button>
       </div>
-      <p class="prestige-hint">Beim Prestigen werden alle Rigs und dein Guthaben zurückgesetzt — dafür bekommst du dauerhafte
+      <p class="prestige-hint">Beim Prestigen werden alle Rigs und dein Nova-Rift-Bestand zurückgesetzt — deine Store-Credits
+        (dein bereits verkauftes, spielübergreifendes Guthaben) bleiben erhalten. Dafür bekommst du dauerhafte
         Prestige-Punkte für den Skillbaum unten, die für immer bleiben, egal wie oft du danach nochmal zurücksetzt.</p>
       <div class="prestige-points-row">
         <span class="label">Verfügbare Prestige-Punkte</span>
@@ -486,8 +521,10 @@ let rigTypes = [];
 let playerRigs = {};      // rig_type_id -> quantity
 let shopItems = [];
 let inventoryItemIds = new Set();
-let currentBalance = 0;
+let currentBalance = 0;   // Nova-Rift (volatil, gehalten)
+let storeBalance = 0;     // Store-Credits (stabil, zahlt den Premium-Shop)
 let currentRate = 0;
+let latestPrice = 100;    // letzter bekannter Kurs, fuer die Verkaufsvorschau
 let skillNodes = [];       // statischer Katalog, wird einmal geladen
 let ownedSkillIds = new Set();
 let prestigePoints = 0;
@@ -773,7 +810,7 @@ async function loadEverything(){
          { data: shop }, { data: inventory }, { data: bank },
          { data: marketHist }, { data: marketStatusRows },
          { data: mySkillRows }] = await Promise.all([
-    sb.schema('platform').from('wallets').select('premium_balance, lifetime_mined_alltime, prestige_points, prestige_level').eq('player_id', currentUser.id).maybeSingle(),
+    sb.schema('platform').from('wallets').select('nova_rift_balance, premium_balance, lifetime_mined_alltime, prestige_points, prestige_level').eq('player_id', currentUser.id).maybeSingle(),
     sb.schema('crypto_farm').from('player_state').select('total_mined').eq('player_id', currentUser.id).maybeSingle(),
     sb.schema('crypto_farm').from('rig_types').select('*').order('sort_order'),
     sb.schema('crypto_farm').from('player_rigs').select('rig_type_id, quantity').eq('player_id', currentUser.id),
@@ -792,7 +829,8 @@ async function loadEverything(){
   loadWalletHistory(); // eigener RPC-Call, unabhängig vom Zeitfenster der anderen Panels
   const marketStatus = (marketStatusRows && marketStatusRows[0]) || null;
 
-  currentBalance = wallet?.premium_balance ?? 0;
+  currentBalance = wallet?.nova_rift_balance ?? 0;
+  storeBalance = wallet?.premium_balance ?? 0;
   rigTypes = rigs || [];
   playerRigs = {};
   (playerRigRows || []).forEach(r => { playerRigs[r.rig_type_id] = r.quantity; });
@@ -806,6 +844,7 @@ async function loadEverything(){
   animateBalanceTo(currentBalance);
   if (!tickInterval) startBalanceTicking();
   document.getElementById('rateDisplay').innerHTML = `+${fmtCoin(currentRate)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">/s`;
+  document.getElementById('storeBalanceDisplay').textContent = fmtCoin(storeBalance);
   document.getElementById('totalMinedDisplay').textContent = fmtCoin(state?.total_mined ?? 0);
   document.getElementById('allTimeMinedDisplay').textContent = fmtCoin(wallet?.lifetime_mined_alltime ?? 0);
   document.getElementById('prestigeLevelDisplay').textContent = `Prestige-Stufe ${prestigeLevel}`;
@@ -878,10 +917,11 @@ async function loadEverything(){
   const prevPrice = marketHistOrdered.length > 1 ? marketHistOrdered[marketHistOrdered.length - 2].price : lastPrice;
   const trendUp = lastPrice != null && prevPrice != null && lastPrice >= prevPrice;
   const priceMult = marketStatus ? Number(marketStatus.price_multiplier) : null;
+  if (lastPrice != null) latestPrice = Number(lastPrice);
   document.getElementById('marketPriceDisplay').innerHTML =
     lastPrice != null
       ? `Kurs: ${Number(lastPrice).toFixed(2)} <span style="color:${trendUp ? 'var(--up)' : 'var(--down)'}">${trendUp ? '▲' : '▼'}</span>` +
-        (priceMult != null ? ` <span style="color:var(--fg-faint)">· ×${priceMult.toFixed(2)} Ertrag</span>` : '')
+        (priceMult != null ? ` <span style="color:var(--fg-faint)">· ×${priceMult.toFixed(2)} Umtausch</span>` : '')
       : 'Kurs: –';
 
   setMarketChartTrend(trendUp);
@@ -891,6 +931,7 @@ async function loadEverything(){
   renderRigs();
   renderShop();
   renderInventory();
+  updateSellPreview();
 }
 
 /* ---------- Starter-Rig (Opt-in-Claim statt Auto-Vergabe) ---------- */
@@ -1023,6 +1064,43 @@ window.buyRig = async function(rigTypeId, qty, btnEl){
   await loadEverything();
 };
 
+/* ---------- Nova-Rift verkaufen ---------- */
+function updateSellPreview(){
+  const input = document.getElementById('sellAmountInput');
+  const raw = parseFloat(input.value);
+  const preview = document.getElementById('sellPreview');
+  if (!raw || raw <= 0) {
+    preview.textContent = `Kurs gerade: ${latestPrice.toFixed(2)} → 1 Nova-Rift ≈ ${fmtCoin(latestPrice / 100)} Store-Credits`;
+    return;
+  }
+  const amount = Math.min(raw, currentBalance);
+  const gained = amount * (latestPrice / 100);
+  preview.innerHTML = `${fmtCoin(amount)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> → ≈ ${fmtCoin(gained)} <span class="sc-icon-sm">💠</span> Store-Credits zum aktuellen Kurs`;
+}
+document.getElementById('sellAmountInput').addEventListener('input', updateSellPreview);
+document.getElementById('sellMaxBtn').addEventListener('click', () => {
+  document.getElementById('sellAmountInput').value = currentBalance > 0 ? currentBalance : '';
+  updateSellPreview();
+});
+document.getElementById('sellBtn').addEventListener('click', () => sellNovaRift());
+
+window.sellNovaRift = async function(){
+  const input = document.getElementById('sellAmountInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige Menge eingeben.', false); return; }
+  const btn = document.getElementById('sellBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('crypto_farm').rpc('sell_nova_rift', { p_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg',
+    `Verkauft: ${fmtCoin(amount)} Nova-Rift für ${fmtCoin(row?.premium_gained ?? 0)} Store-Credits (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  spawnFly('+' + fmtCoin(row?.premium_gained ?? 0) + ' <span class="sc-icon-sm">💠</span>', document.getElementById('storeBalanceDisplay'), true);
+  input.value = '';
+  await loadEverything();
+};
+
 /* ---------- Premium-Shop ---------- */
 const SHOP_GROUP_LABELS = {
   global: 'Global — alle Spiele',
@@ -1067,7 +1145,7 @@ function renderShop(){
         <div>
           <div class="rig-name">${item.name}</div>
           <div class="rig-desc">${item.description ?? ''}</div>
-          <div class="rig-meta">${fmtCoin(item.price)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> · ${item.effect_type}</div>
+          <div class="rig-meta">${fmtCoin(item.price)} <span class="sc-icon-sm">💠</span> Store-Credits · ${item.effect_type}</div>
         </div>`;
       const btn = document.createElement('button');
       if (owned) {
@@ -1088,14 +1166,14 @@ window.buyShopItem = async function(itemId, price, btnEl){
   const { error } = await sb.schema('platform').rpc('purchase_shop_item', { p_item_id: itemId });
   if (error) { showMsg('statusMsg', error.message, false); btnEl.disabled = false; return; }
   showMsg('statusMsg', 'Kauf erfolgreich.', true);
-  spawnFly('-' + fmtCoin(price) + ' <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">', btnEl, false);
+  spawnFly('-' + fmtCoin(price) + ' <span class="sc-icon-sm">💠</span>', btnEl, false);
   await loadEverything();
 };
 
 /* ---------- Prestige ---------- */
 window.doPrestige = async function(){
   const btn = document.getElementById('prestigeBtn');
-  if (!confirm('Wirklich prestigen? Alle Rigs und dein aktuelles Guthaben werden zurückgesetzt. Du bekommst dauerhafte Prestige-Punkte für den Skillbaum.')) return;
+  if (!confirm('Wirklich prestigen? Alle Rigs und dein Nova-Rift-Bestand werden zurückgesetzt (Store-Credits bleiben erhalten). Du bekommst dauerhafte Prestige-Punkte für den Skillbaum.')) return;
   btn.disabled = true; btn.textContent = 'Wird zurückgesetzt …';
   const { data, error } = await sb.schema('crypto_farm').rpc('do_prestige');
   if (error) {
