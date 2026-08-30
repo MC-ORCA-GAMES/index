@@ -27,6 +27,35 @@
   .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; font-size:13px; }
   .nav-back{ color:var(--fg-dim); border-bottom:none; transition:color .15s; }
   .nav-back:hover{ color:var(--fg); border-bottom:none; }
+
+  /* ---------- burger menu (Seiten-Navigation) ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; border-bottom:none !important; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
   .nav-brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; color:var(--accent); border-bottom:none; }
   .nav-brand .mark{ width:22px; height:22px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px rgba(178,58,255,0.35); flex-shrink:0; }
 
@@ -57,9 +86,55 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-back" href="index.html">← Zurück zu ASTRION</a>
-    <span class="nav-brand"><span class="mark"></span> ASTRION</span>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="nav-brand"><span class="mark"></span> ASTRION</span>
+    <div class="burger-wrap">
+      <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="burger-panel" id="burgerPanel">
+        <div class="burger-group">
+          <div class="burger-label">Seiten</div>
+          <a href="../index.html">Hub</a>
+          <a href="../profil.html">Profil</a>
+          <a href="../raenge.html">Ränge</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Spiele</div>
+          <a href="../aetheris/index.html">Aetheris</a>
+          <a href="../astrion/index.html">Astrion</a>
+          <a href="../deep%20anchor/index.html">Deep Anchor</a>
+          <a href="../path%20of%20the%20stars/index.html">Path of the Stars</a>
+          <a href="../nexus/index.html">NEXUS</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Impressum &amp; Datenschutz</div>
+          <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+          <a href="../aetheris/impressum.html">Aetheris</a>
+          <a href="../astrion/impressum.html">Astrion</a>
+          <a href="../deep%20anchor/impressum.html">Deep Anchor</a>
+          <a href="../path%20of%20the%20stars/impressum.html">Path of the Stars</a>
+          <a href="../nexus/impressum.html">NEXUS</a>
+        </div>
+      </div>
+    </div>
+    </div>
   </div>
 </nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
 
 <div class="wrap">
   <div class="eyebrow">Rechtliches</div>

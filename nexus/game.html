@@ -1,7 +1,31 @@
 <!--
-  MC ORCA — NEXUS
+  MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.3: Neuer erster Tab "Übersicht" (kompakte Wallet-Zeilen statt grosser
+    Stat-Karten, alles auf einen Blick) -- ersetzt die bisher immer sichtbare
+    Stat-Karten-Zeile ueber den Tabs. Haupt-Tabs sitzen jetzt ganz oben (vor
+    der Übersicht gab es nichts drueber). Zentralbank-/Event-Leiste (bankBar)
+    zog von ganz oben (immer sichtbar) in die Übersicht (kompakt) -- Platzhalter-
+    Loesung, Platzierung wird spaeter nochmal ueberarbeitet. "Store-Credits"
+    umbenannt zu "MOGC" (MC ORCA Games Credits) ueberall in der Anzeige (nur
+    Anzeigetext, IDs/Variablen unveraendert). Kurs-Anzeige aus der MOGC-Karte
+    entfernt, dafuer als grosse Zahl ueber dem Kurs-Chart platziert.
+  - v3.2: "Kontostand-Verlauf" in zwei getrennte Diagramme (novaChart, scChart)
+    aufgeteilt statt einem Chart mit zwei Linien/Y-Achsen -- Nova-Rift und
+    Store-Credits haben sehr unterschiedliche Groessenordnungen, auf einer
+    gemeinsamen Skala war die kleinere Linie kaum ablesbar. Gemeinsame
+    Zeitraum-Tabs (walletRangeTabs) steuern weiterhin beide Charts zugleich.
+  - v3.1: Bugfix "Kontostand-Verlauf" (walletChart) -- platform.wallet_history wurde seit der
+    v3-Migration nur noch bei sell_nova_rift()/purchase_shop_item() befuellt (selten) UND
+    enthielt noch tausende Alt-Zeilen aus der Zeit vor der Migration (damals schrieb
+    collect_earnings() bei jedem Tick einen Snapshot, weil es nur eine Balance gab) --
+    das Chart zeigte also fast nur noch Datenmuell. Gleiches Muster wie beim Global-Fix
+    (siehe nexus/global.html v2): periodischer Cron-Snapshot statt Event-Log, jetzt ueber
+    platform.wallet_balance_history + platform.snapshot_wallet_balances() (Cron, jede
+    Minute) + neue Ausgabe von get_my_wallet_history() (bucket_start, nova_rift_balance,
+    premium_balance). walletChart zeigt jetzt -- wie das globale Pendant -- zwei Linien
+    mit je eigener Y-Achse statt nur einer (Store-Credits-)Linie.
   - v3: Zwei-Waehrungs-System (Nova-Rift <-> Store-Credits), wie beim echten
     Krypto-Mining. Bisher floss alles direkt in premium_balance und der Kurs
     wirkte nur auf die Ertragsrate -- horten hatte also nie einen Sinn. Jetzt:
@@ -31,7 +55,7 @@
     get_production_rate/buy_rig/collect_earnings angepasst, damit
     Skill-Effekte greifen.
 
-  Spielübergreifender Premium-Markt / Zentralbank für alle vier MC ORCA-Spiele.
+  Spielübergreifender Premium-Markt / Zentralbank für alle vier MC ORCA Games-Spiele.
   Design-System 1:1 aus dem Haupt-Hub (index.html) übernommen: Space Grotesk +
   Inter, Sternenfeld-Canvas, gleicher Konto-Login (E-Mail-Code), gleiche
   Farb-Systematik -- Blau als fünfte Akzentfarbe neben Gold/Orange/Rot/Violet.
@@ -105,6 +129,35 @@
   .back-link:hover{ color:var(--fg); }
   .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); transition:border-color .15s, color .15s, background .15s; }
   .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- burger menu (Seiten-Navigation) ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; border-bottom:none !important; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
 
   /* ---------- hero ---------- */
   .hero{ padding:88px 0 54px; position:relative; }
@@ -227,19 +280,66 @@
   .stat-card .sub{ font-family:var(--mono); font-size:11.5px; color:var(--fg-dim); margin-top:4px; }
   .sc-icon{ font-size:22px; line-height:1; filter:drop-shadow(0 0 6px rgba(80,140,255,0.5)); }
   .sc-icon-sm{ font-size:13px; vertical-align:-1px; }
+
+  /* ---------- Übersicht-Tab: kompakte Wallet-Zeilen statt grosser Karten ---------- */
+  .overview-panel{ max-width:420px; }
+  .wallet-list{ display:flex; flex-direction:column; }
+  .wallet-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
+  .wallet-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .wallet-row .wr-left{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--fg-dim); }
+  .wallet-row .wr-right{ text-align:right; }
+  .wallet-row .wr-value{ font-family:'Space Grotesk'; font-size:17px; font-weight:700; color:var(--fg); display:inline-flex; align-items:center; gap:6px; }
+  .wallet-row .wr-value.up{ color:var(--up); }
+  .wallet-row .wr-sub{ display:block; font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-top:2px; }
+  #bankBar.compact{ padding:12px 14px; margin-bottom:0; }
+  #bankBar.compact .bb-track{ height:6px; }
+
+  /* ---------- grosse Kurs-Anzeige über dem Markt-Chart ---------- */
+  .market-price-big{ font-family:'Space Grotesk'; font-size:26px; font-weight:700; margin:-6px 0 14px; }
+  .market-price-big .mpb-sub{ font-family:var(--mono); font-size:12px; font-weight:400; color:var(--fg-faint); margin-left:8px; }
   .sell-box{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   .sell-box input{ flex:1; min-width:160px; background:var(--bg-alt, rgba(255,255,255,0.03)); border:1px solid var(--line); border-radius:10px; padding:12px 14px; color:var(--fg); font-family:var(--mono); font-size:14px; }
   .sell-preview{ margin-top:12px; font-family:var(--mono); font-size:13px; color:var(--fg-dim); }
 
   .chart-box{ position:relative; height:190px; }
   .chart-box canvas{ position:absolute; inset:0; width:100% !important; height:100% !important; }
+  .chart-box.compact{ height:92px; }
+  .mini-chart-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
+  .mini-chart-grid .mc-item h4{ font-family:'Space Grotesk'; font-size:11.5px; font-weight:600; margin:0 0 8px;
+    display:flex; align-items:center; gap:6px; color:var(--fg-dim); }
+  .dot-kurs{ background:#D4AF37; }
+  @media (max-width:640px){ .mini-chart-grid{ grid-template-columns:1fr; } }
   .chart-empty-hint{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     text-align:center; font-size:12.5px; color:var(--fg-faint); padding:0 20px; }
   .wallet-range-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 12px; }
+  .chart-legend{ display:flex; gap:18px; font-size:11.5px; color:var(--fg-dim); margin:0 0 10px; }
+  .chart-legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:-1px; }
+  .chart-legend .dot-nova{ background:#3ddc84; }
+  .chart-legend .dot-sc{ background:#B23AFF; }
+  h3 .dot-nova, h3 .dot-sc{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:2px; vertical-align:1px; }
+  h3 .dot-nova{ background:#3ddc84; }
+  h3 .dot-sc{ background:#B23AFF; }
   .wr-tab{ font-family:'JetBrains Mono', monospace; font-size:11px; padding:5px 10px; border-radius:999px;
     border:1px solid rgba(232,230,227,0.14); background:transparent; color:#8b8fa3; cursor:pointer; }
   .wr-tab:hover{ border-color:rgba(232,230,227,0.3); color:#e8e6e3; }
   .wr-tab.active{ background:#2F8CFF; border-color:#2F8CFF; color:#fff; }
+
+  /* ---------- Haupt-Tabs ---------- */
+  .main-tabs{ display:flex; gap:8px; margin:22px 0 18px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none; padding-bottom:2px; }
+  .main-tabs::-webkit-scrollbar{ display:none; }
+  .main-tab-btn{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:13.5px; white-space:nowrap;
+    padding:10px 18px; border-radius:12px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
+    cursor:pointer; display:flex; align-items:center; gap:8px; transition:background .15s, color .15s, border-color .15s; }
+  .main-tab-btn .mt-icon{ font-size:15px; line-height:1; }
+  .main-tab-btn:hover{ border-color:rgba(232,230,227,0.25); color:var(--fg); }
+  .main-tab-btn.active{ background:var(--blue); border-color:var(--blue); color:#fff; }
+  .tab-page{ display:none; }
+  .tab-page.active{ display:block; }
+  @media (max-width:600px){
+    .main-tabs{ margin:16px 0 14px; }
+    .main-tab-btn{ padding:9px 14px; font-size:12.5px; }
+  }
 
   /* ---------- prestige ---------- */
   .prestige-box{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
@@ -330,14 +430,58 @@
   <div class="nav-inner">
     <div class="brand">
       <span class="mark"><img src="../art/logo.png" alt="" onerror="this.classList.add('hidden')"></span>
-      MC ORCA <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Idle-Mining-Spiel</span> <span class="game-pill pill-alt">Kein Echtgeld</span>
+      MC ORCA GAMES <span class="divider"></span> <span class="sub">NEXUS</span>
     </div>
     <div style="display:flex; align-items:center; gap:14px;">
       <a class="back-link" href="index.html">← <span class="txt">NEXUS-Übersicht</span></a>
       <a class="nav-cta" href="../raenge.html">🏆 Ränge</a>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+          <div class="burger-group">
+            <div class="burger-label">Seiten</div>
+            <a href="../index.html">Hub</a>
+            <a href="../profil.html">Profil</a>
+            <a href="../raenge.html">Ränge</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Spiele</div>
+            <a href="../aetheris/index.html">Aetheris</a>
+            <a href="../astrion/index.html">Astrion</a>
+            <a href="../deep%20anchor/index.html">Deep Anchor</a>
+            <a href="../path%20of%20the%20stars/index.html">Path of the Stars</a>
+            <a href="../nexus/index.html">NEXUS</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Impressum &amp; Datenschutz</div>
+            <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+            <a href="../aetheris/impressum.html">Aetheris</a>
+            <a href="../astrion/impressum.html">Astrion</a>
+            <a href="../deep%20anchor/impressum.html">Deep Anchor</a>
+            <a href="../path%20of%20the%20stars/impressum.html">Path of the Stars</a>
+            <a href="../nexus/impressum.html">NEXUS</a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
 
 <div class="wrap">
 
@@ -346,7 +490,7 @@
     <section class="login-section" id="login">
       <div class="login-box">
         <div class="lb-head"><span class="fi">☁</span><h2>Per E-Mail-Code anmelden</h2></div>
-        <p class="lb-sub">Gleicher Account wie in allen MC ORCA-Spielen. Kein Passwort — nur ein
+        <p class="lb-sub">Gleicher Account wie in allen MC ORCA Games-Spielen. Kein Passwort — nur ein
            6-stelliger Code per E-Mail. Alles kostenlos, kein Echtgeld erforderlich.</p>
         <input type="email" id="emailInput" placeholder="deine@email.de">
         <button class="btn-block" id="sendOtpBtn">Code anfordern</button>
@@ -360,33 +504,83 @@
   <!-- ---------- GAME / DASHBOARD ---------- -->
   <div id="gameView" class="hidden dash">
     <div class="dash-watermark"><img src="art/logo.png" alt="" onerror="this.parentElement.style.display='none'"></div>
-    <div id="bankBar"></div>
     <div id="statusMsg"></div>
 
-    <div class="panel top-row">
-      <div class="stat-card">
-        <div class="label">Nova-Rift (gehalten)</div>
-        <div class="value up coin-value"><img class="coin-icon" src="art/nova-rift-coin-96.png" alt="" aria-hidden="true"><span id="balanceDisplay">–</span></div>
-        <div class="sub" id="rateDisplay">–</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Store-Credits</div>
-        <div class="value coin-value"><span class="sc-icon" aria-hidden="true">💠</span><span id="storeBalanceDisplay">–</span></div>
-        <div class="sub" id="marketPriceDisplay">Kurs: –</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Lifetime gemined</div>
-        <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-96.png" alt="" aria-hidden="true"><span id="totalMinedDisplay">–</span></div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Gesamt gemined (all-time)</div>
-        <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-96.png" alt="" aria-hidden="true"><span id="allTimeMinedDisplay">–</span></div>
-        <div class="sub" id="prestigeLevelDisplay">Prestige-Stufe –</div>
+    <nav class="main-tabs" id="mainTabs">
+      <button type="button" class="main-tab-btn active" data-tab="uebersicht"><span class="mt-icon">📋</span> Übersicht</button>
+      <button type="button" class="main-tab-btn" data-tab="wallet"><span class="mt-icon">👛</span> Wallet</button>
+      <button type="button" class="main-tab-btn" data-tab="farm"><span class="mt-icon">⛏</span> Farm</button>
+      <button type="button" class="main-tab-btn" data-tab="markt"><span class="mt-icon">📈</span> Markt</button>
+      <button type="button" class="main-tab-btn" data-tab="prestige"><span class="mt-icon">♻</span> Prestige</button>
+      <button type="button" class="main-tab-btn" data-tab="shop"><span class="mt-icon">🛒</span> Shop</button>
+    </nav>
+
+    <div class="tab-page active" id="tabPage-uebersicht">
+    <div class="panel">
+      <h3>Übersicht <span class="tag">— alles auf einen Blick</span></h3>
+      <div class="top-row">
+        <div class="stat-card">
+          <div class="label">Nova-Rift Coins (NRC)</div>
+          <div class="value up coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span id="balanceDisplay" class="js-balance-nova">–</span></div>
+          <div class="sub js-rate-nova" id="rateDisplay">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">MC ORCA GAMES Coins (MOGC)</div>
+          <div class="value coin-value"><span class="sc-icon">💠</span><span id="storeBalanceDisplay" class="js-balance-mogc">–</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Lifetime gemined</div>
+          <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span id="totalMinedDisplay" class="js-lifetime-mined">–</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Gesamt gemined (all-time)</div>
+          <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span id="allTimeMinedDisplay" class="js-alltime-mined">–</span></div>
+          <div class="sub js-prestige-level" id="prestigeLevelDisplay">–</div>
+        </div>
       </div>
     </div>
 
     <div class="panel">
-      <h3>Store-Credits — Verlauf <span class="tag">— ändert sich nur bei Verkauf & Shop-Käufen, nicht beim Minen</span></h3>
+      <h3>Verlauf <span class="tag">— kompakt, alle 60 Sek. ein neuer Punkt</span></h3>
+      <div class="mini-chart-grid">
+        <div class="mc-item">
+          <h4><i class="dot-nova"></i> Nova-Rift Coins (NRC)</h4>
+          <div class="chart-box compact"><canvas id="novaChartMini"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-sc"></i> MC ORCA GAMES Coins (MOGC)</h4>
+          <div class="chart-box compact"><canvas id="scChartMini"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-kurs"></i> Kurs</h4>
+          <div class="chart-box compact"><canvas id="marketChartMini"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div id="bankBar" class="compact"></div>
+    </div>
+    </div>
+
+    <div class="tab-page" id="tabPage-wallet">
+    <div class="panel">
+      <h3>Wallet <span class="tag">— deine beiden Währungen</span></h3>
+      <div class="top-row">
+        <div class="stat-card">
+          <div class="label">Nova-Rift Coins (NRC)</div>
+          <div class="value up coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-balance-nova">–</span></div>
+          <div class="sub js-rate-nova">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">MC ORCA GAMES Coins (MOGC)</div>
+          <div class="value coin-value"><span class="sc-icon">💠</span><span class="js-balance-mogc">–</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Kontostand — Verlauf <span class="tag">— alle 60 Sek. ein neuer Punkt</span></h3>
       <div class="wallet-range-tabs" id="walletRangeTabs">
         <button type="button" class="wr-tab" data-hours="1" data-bucket="1">1 Std</button>
         <button type="button" class="wr-tab active" data-hours="24" data-bucket="15">24 Std</button>
@@ -394,22 +588,38 @@
         <button type="button" class="wr-tab" data-hours="720" data-bucket="480">30 Tage</button>
         <button type="button" class="wr-tab" data-hours="" data-bucket="1440">Immer</button>
       </div>
-      <div class="chart-box"><canvas id="walletChart"></canvas></div>
     </div>
 
     <div class="panel">
-      <h3><span class="live-dot"></span>Kurs <span class="tag">— bestimmt den Umtauschkurs beim Verkauf, nicht mehr deinen Ertrag</span></h3>
-      <div class="chart-box"><canvas id="marketChart"></canvas></div>
+      <h3><i class="dot-nova"></i> Nova-Rift Coins (NRC) <span class="tag">— volatil, Kurs wirkt weiter darauf</span></h3>
+      <div class="chart-box"><canvas id="novaChart"></canvas></div>
     </div>
 
     <div class="panel">
-      <h3>Nova-Rift verkaufen <span class="tag">— tauscht gehaltene Nova-Rift zum aktuellen Kurs in Store-Credits</span></h3>
-      <div class="sell-box">
-        <input type="number" id="sellAmountInput" min="0" step="any" placeholder="Menge Nova-Rift">
-        <button type="button" class="btn btn-ghost" id="sellMaxBtn">Alles</button>
-        <button type="button" class="btn btn-primary" id="sellBtn">Verkaufen</button>
+      <h3><i class="dot-sc"></i> MC ORCA GAMES Coins (MOGC) <span class="tag">— stabil, spielübergreifendes Guthaben</span></h3>
+      <div class="chart-box"><canvas id="scChart"></canvas></div>
+    </div>
+    </div>
+
+    <div class="tab-page" id="tabPage-farm">
+    <div class="panel">
+      <h3>Fortschritt <span class="tag">— prestige-relevant</span></h3>
+      <div class="top-row">
+        <div class="stat-card">
+          <div class="label">Nova-Rift Coins (NRC)</div>
+          <div class="value up coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-balance-nova">–</span></div>
+          <div class="sub js-rate-nova">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Lifetime gemined</div>
+          <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-lifetime-mined">–</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Gesamt gemined (all-time)</div>
+          <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-alltime-mined">–</span></div>
+          <div class="sub js-prestige-level">–</div>
+        </div>
       </div>
-      <div class="sell-preview" id="sellPreview">–</div>
     </div>
 
     <div class="panel">
@@ -421,7 +631,27 @@
       <h3>Mining-Rigs</h3>
       <div id="rigList"></div>
     </div>
+    </div>
 
+    <div class="tab-page" id="tabPage-markt">
+    <div class="panel">
+      <h3><span class="live-dot"></span>Kurs <span class="tag">— bestimmt den Umtauschkurs beim Verkauf, nicht mehr deinen Ertrag</span></h3>
+      <div class="market-price-big" id="marketPriceDisplay">Kurs: –</div>
+      <div class="chart-box"><canvas id="marketChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h3>Nova-Rift verkaufen <span class="tag">— tauscht gehaltene Nova-Rift zum aktuellen Kurs in MOGC</span></h3>
+      <div class="sell-box">
+        <input type="number" id="sellAmountInput" min="0" step="any" placeholder="Menge Nova-Rift">
+        <button type="button" class="btn btn-ghost" id="sellMaxBtn">Alles</button>
+        <button type="button" class="btn btn-primary" id="sellBtn">Verkaufen</button>
+      </div>
+      <div class="sell-preview" id="sellPreview">–</div>
+    </div>
+    </div>
+
+    <div class="tab-page" id="tabPage-prestige">
     <div class="panel">
       <h3>Prestige <span class="tag">— Farm zurücksetzen für permanente Skill-Punkte</span></h3>
       <div class="prestige-box">
@@ -431,7 +661,7 @@
         </div>
         <button type="button" class="btn btn-primary" id="prestigeBtn" disabled>♻ Prestigen</button>
       </div>
-      <p class="prestige-hint">Beim Prestigen werden alle Rigs und dein Nova-Rift-Bestand zurückgesetzt — deine Store-Credits
+      <p class="prestige-hint">Beim Prestigen werden alle Rigs und dein Nova-Rift-Bestand zurückgesetzt — deine MOGC
         (dein bereits verkauftes, spielübergreifendes Guthaben) bleiben erhalten. Dafür bekommst du dauerhafte
         Prestige-Punkte für den Skillbaum unten, die für immer bleiben, egal wie oft du danach nochmal zurücksetzt.</p>
       <div class="prestige-points-row">
@@ -444,6 +674,18 @@
       <h3>Skillbaum <span class="tag">— permanente Boni, überleben jeden Prestige-Reset</span></h3>
       <div id="skillTree" class="skill-tree"></div>
     </div>
+    </div>
+
+    <div class="tab-page" id="tabPage-shop">
+    <div class="panel">
+      <h3>Dein Guthaben</h3>
+      <div class="top-row">
+        <div class="stat-card">
+          <div class="label">MC ORCA GAMES Coins (MOGC)</div>
+          <div class="value coin-value"><span class="sc-icon">💠</span><span class="js-balance-mogc">–</span></div>
+        </div>
+      </div>
+    </div>
 
     <div class="panel">
       <h3>Premium-Shop <span class="tag">— Items gelten auch in Aetheris, Deep Anchor, Path of the Stars & Astrion</span></h3>
@@ -453,6 +695,7 @@
     <div class="panel">
       <h3>Dein Inventar</h3>
       <div id="inventoryList"></div>
+    </div>
     </div>
   </div>
 
@@ -522,7 +765,7 @@ let playerRigs = {};      // rig_type_id -> quantity
 let shopItems = [];
 let inventoryItemIds = new Set();
 let currentBalance = 0;   // Nova-Rift (volatil, gehalten)
-let storeBalance = 0;     // Store-Credits (stabil, zahlt den Premium-Shop)
+let storeBalance = 0;     // MOGC / Store-Credits (stabil, zahlt den Premium-Shop)
 let currentRate = 0;
 let latestPrice = 100;    // letzter bekannter Kurs, fuer die Verkaufsvorschau
 let skillNodes = [];       // statischer Katalog, wird einmal geladen
@@ -531,8 +774,12 @@ let prestigePoints = 0;
 let prestigeLevel = 0;
 const PRESTIGE_THRESHOLD = 100000;
 let refreshTimer = null;
-let walletChart = null;
+let novaChart = null;
+let scChart = null;
 let marketChart = null;
+let novaChartMini = null;
+let scChartMini = null;
+let marketChartMini = null;
 let currentWalletHours = 24;
 let currentWalletBucket = 15;
 
@@ -542,7 +789,7 @@ let tickInterval = null;
 const TICK_MS = 200;
 
 function renderBalance(){
-  document.getElementById('balanceDisplay').textContent = fmtCoin(displayedBalance);
+  document.querySelectorAll('.js-balance-nova').forEach(el => { el.textContent = fmtCoin(displayedBalance); });
 }
 
 function animateBalanceTo(target){
@@ -633,6 +880,22 @@ function fmtDuration(ms){
 }
 
 /* ---------- Fliegende +/-X¢-Zahl (visuelles Feedback bei Kauf/Sammeln) ---------- */
+/* Es gibt denselben Kontostand mehrfach im DOM (Übersicht/Wallet/Farm/Shop-Tab),
+   aber immer nur einer davon ist gerade sichtbar (die anderen liegen in
+   einem ausgeblendeten .tab-page). getVisibleBalanceEl() sucht sich das
+   gerade sichtbare Exemplar heraus. Ist gar keins sichtbar (z.B. man ist
+   im Markt- oder Prestige-Tab, wo kein Kontostand angezeigt wird), gibt sie
+   null zurück statt auf ein verstecktes Element auszuweichen — spawnFly()
+   bricht dann einfach ab, statt die Zahl oben links in der Browser-Ecke
+   auftauchen zu lassen (unsichtbare Elemente liegen bei getBoundingClientRect()
+   auf 0/0). */
+function getVisibleBalanceEl(selector){
+  const candidates = document.querySelectorAll(selector);
+  for (const el of candidates){
+    if (el.offsetParent !== null) return el;
+  }
+  return null;
+}
 function spawnFly(text, atEl, positive){
   if (!atEl) return;
   const rect = atEl.getBoundingClientRect();
@@ -671,6 +934,49 @@ function enterGame(){
   document.getElementById('loginView').classList.add('hidden');
   document.getElementById('gameView').classList.remove('hidden');
 }
+
+/* ---------- Haupt-Tabs (Farm / Markt / Prestige / Shop) ---------- */
+(function initMainTabs(){
+  const nav = document.getElementById('mainTabs');
+  if (!nav) return;
+  const btns = Array.from(nav.querySelectorAll('.main-tab-btn'));
+
+  function activateTab(tabId, opts){
+    btns.forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+    document.querySelectorAll('.tab-page').forEach(p => {
+      p.classList.toggle('active', p.id === 'tabPage-' + tabId);
+    });
+    // Chart.js baut/misst Canvases beim Erstellen falsch, wenn ihr Tab gerade
+    // display:none ist -- nach dem Sichtbarmachen einmal aktiv neu vermessen.
+    if (tabId === 'markt') {
+      if (marketChart) marketChart.resize();
+    }
+    if (tabId === 'wallet') {
+      if (novaChart) novaChart.resize();
+      if (scChart) scChart.resize();
+    }
+    if (tabId === 'uebersicht') {
+      if (novaChartMini) novaChartMini.resize();
+      if (scChartMini) scChartMini.resize();
+      if (marketChartMini) marketChartMini.resize();
+    }
+    if (!(opts && opts.skipSave)) {
+      try { localStorage.setItem('nexusActiveTab', tabId); } catch (e) {}
+    }
+  }
+
+  nav.addEventListener('click', (e) => {
+    const btn = e.target.closest('.main-tab-btn');
+    if (!btn) return;
+    activateTab(btn.dataset.tab);
+  });
+
+  let savedTab = null;
+  try { savedTab = localStorage.getItem('nexusActiveTab'); } catch (e) {}
+  if (savedTab && btns.some(b => b.dataset.tab === savedTab)) {
+    activateTab(savedTab, { skipSave: true });
+  }
+})();
 
 /* ---------- Login-Flow ---------- */
 document.getElementById('sendOtpBtn').addEventListener('click', async () => {
@@ -739,15 +1045,43 @@ function initCharts(){
     },
     elements: { point: { radius: 0 } }
   };
-  walletChart = new Chart(document.getElementById('walletChart'), {
+  novaChart = new Chart(document.getElementById('novaChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: commonOpts
+  });
+  scChart = new Chart(document.getElementById('scChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#B23AFF', backgroundColor: 'rgba(178,58,255,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: commonOpts
   });
   marketChart = new Chart(document.getElementById('marketChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: commonOpts
+  });
+
+  // ---- kompakte Mini-Charts fuer die Übersicht (gleiche Daten, sparkline-artig) ----
+  const compactOpts = {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { display: false }, y: { display: false } },
+    elements: { point: { radius: 0 } }
+  };
+  novaChartMini = new Chart(document.getElementById('novaChartMini'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  scChartMini = new Chart(document.getElementById('scChartMini'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#B23AFF', backgroundColor: 'rgba(178,58,255,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  marketChartMini = new Chart(document.getElementById('marketChartMini'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
   });
 
   const rangeTabs = document.getElementById('walletRangeTabs');
@@ -773,26 +1107,32 @@ async function loadWalletHistory(){
   });
   if (error) { console.warn('Kontostand-Verlauf konnte nicht geladen werden', error); return; }
   const showDate = currentWalletHours === null || currentWalletHours > 24;
-  updateChart(walletChart, data || [], 'balance', { bucket_start: true, showDate });
+  const rows = data || [];
+  updateChart(novaChart, rows, 'nova_rift_balance', { bucket_start: true, showDate });
+  updateChart(scChart, rows, 'premium_balance', { bucket_start: true, showDate });
+  updateChart(novaChartMini, rows, 'nova_rift_balance', { bucket_start: true, showDate });
+  updateChart(scChartMini, rows, 'premium_balance', { bucket_start: true, showDate });
 }
 
 function setMarketChartTrend(trendUp){
-  if (!marketChart) return;
-  const ds = marketChart.data.datasets[0];
-  const canvasEl = marketChart.canvas;
-  const gctx = canvasEl.getContext('2d');
-  const h = canvasEl.height || 190;
-  const gradient = gctx.createLinearGradient(0, 0, 0, h);
-  if (trendUp) {
-    ds.borderColor = '#3ddc84';
-    gradient.addColorStop(0, 'rgba(61,220,132,0.32)');
-    gradient.addColorStop(1, 'rgba(61,220,132,0.02)');
-  } else {
-    ds.borderColor = '#ff5d5d';
-    gradient.addColorStop(0, 'rgba(255,93,93,0.32)');
-    gradient.addColorStop(1, 'rgba(255,93,93,0.02)');
-  }
-  ds.backgroundColor = gradient;
+  [marketChart, marketChartMini].forEach(chart => {
+    if (!chart) return;
+    const ds = chart.data.datasets[0];
+    const canvasEl = chart.canvas;
+    const gctx = canvasEl.getContext('2d');
+    const h = canvasEl.height || 190;
+    const gradient = gctx.createLinearGradient(0, 0, 0, h);
+    if (trendUp) {
+      ds.borderColor = '#3ddc84';
+      gradient.addColorStop(0, 'rgba(61,220,132,0.32)');
+      gradient.addColorStop(1, 'rgba(61,220,132,0.02)');
+    } else {
+      ds.borderColor = '#ff5d5d';
+      gradient.addColorStop(0, 'rgba(255,93,93,0.32)');
+      gradient.addColorStop(1, 'rgba(255,93,93,0.02)');
+    }
+    ds.backgroundColor = gradient;
+  });
 }
 
 /* ---------- Hauptladefunktion ---------- */
@@ -843,11 +1183,13 @@ async function loadEverything(){
 
   animateBalanceTo(currentBalance);
   if (!tickInterval) startBalanceTicking();
-  document.getElementById('rateDisplay').innerHTML = `+${fmtCoin(currentRate)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">/s`;
-  document.getElementById('storeBalanceDisplay').textContent = fmtCoin(storeBalance);
-  document.getElementById('totalMinedDisplay').textContent = fmtCoin(state?.total_mined ?? 0);
-  document.getElementById('allTimeMinedDisplay').textContent = fmtCoin(wallet?.lifetime_mined_alltime ?? 0);
-  document.getElementById('prestigeLevelDisplay').textContent = `Prestige-Stufe ${prestigeLevel}`;
+  document.querySelectorAll('.js-rate-nova').forEach(el => {
+    el.innerHTML = `+${fmtCoin(currentRate)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">/s`;
+  });
+  document.querySelectorAll('.js-balance-mogc').forEach(el => { el.textContent = fmtCoin(storeBalance); });
+  document.querySelectorAll('.js-lifetime-mined').forEach(el => { el.textContent = fmtCoin(state?.total_mined ?? 0); });
+  document.querySelectorAll('.js-alltime-mined').forEach(el => { el.textContent = fmtCoin(wallet?.lifetime_mined_alltime ?? 0); });
+  document.querySelectorAll('.js-prestige-level').forEach(el => { el.textContent = `Prestige-Stufe ${prestigeLevel}`; });
   document.getElementById('prestigePointsDisplay').textContent = fmtCoin(prestigePoints);
 
   const runMined = Number(state?.total_mined ?? 0);
@@ -863,7 +1205,7 @@ async function loadEverything(){
 
   const collectedAmt = Number(collectedNow ?? 0);
   if (collectedAmt > 0.005) {
-    spawnFly('+' + fmtCoin(collectedAmt) + ' <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">', document.getElementById('balanceDisplay'), true);
+    spawnFly('+' + fmtCoin(collectedAmt) + ' <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">', getVisibleBalanceEl('.js-balance-nova'), true);
   }
 
   // Zentralbank-Reserve + laufendes Kurs-Event (Bonus/Malus), live aus get_market_status()
@@ -921,11 +1263,12 @@ async function loadEverything(){
   document.getElementById('marketPriceDisplay').innerHTML =
     lastPrice != null
       ? `Kurs: ${Number(lastPrice).toFixed(2)} <span style="color:${trendUp ? 'var(--up)' : 'var(--down)'}">${trendUp ? '▲' : '▼'}</span>` +
-        (priceMult != null ? ` <span style="color:var(--fg-faint)">· ×${priceMult.toFixed(2)} Umtausch</span>` : '')
+        (priceMult != null ? ` <span class="mpb-sub">· ×${priceMult.toFixed(2)} Umtausch</span>` : '')
       : 'Kurs: –';
 
   setMarketChartTrend(trendUp);
   updateChart(marketChart, marketHistOrdered, 'price');
+  updateChart(marketChartMini, marketHistOrdered, 'price');
 
   renderFarmOverview();
   renderRigs();
@@ -1070,12 +1413,12 @@ function updateSellPreview(){
   const raw = parseFloat(input.value);
   const preview = document.getElementById('sellPreview');
   if (!raw || raw <= 0) {
-    preview.textContent = `Kurs gerade: ${latestPrice.toFixed(2)} → 1 Nova-Rift ≈ ${fmtCoin(latestPrice / 100)} Store-Credits`;
+    preview.textContent = `Kurs gerade: ${latestPrice.toFixed(2)} → 1 Nova-Rift ≈ ${fmtCoin(latestPrice / 100)} MOGC`;
     return;
   }
   const amount = Math.min(raw, currentBalance);
   const gained = amount * (latestPrice / 100);
-  preview.innerHTML = `${fmtCoin(amount)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> → ≈ ${fmtCoin(gained)} <span class="sc-icon-sm">💠</span> Store-Credits zum aktuellen Kurs`;
+  preview.innerHTML = `${fmtCoin(amount)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> → ≈ ${fmtCoin(gained)} <span class="sc-icon-sm">💠</span> MOGC zum aktuellen Kurs`;
 }
 document.getElementById('sellAmountInput').addEventListener('input', updateSellPreview);
 document.getElementById('sellMaxBtn').addEventListener('click', () => {
@@ -1095,8 +1438,8 @@ window.sellNovaRift = async function(){
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg',
-    `Verkauft: ${fmtCoin(amount)} Nova-Rift für ${fmtCoin(row?.premium_gained ?? 0)} Store-Credits (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
-  spawnFly('+' + fmtCoin(row?.premium_gained ?? 0) + ' <span class="sc-icon-sm">💠</span>', document.getElementById('storeBalanceDisplay'), true);
+    `Verkauft: ${fmtCoin(amount)} Nova-Rift für ${fmtCoin(row?.premium_gained ?? 0)} MOGC (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  spawnFly('+' + fmtCoin(row?.premium_gained ?? 0) + ' <span class="sc-icon-sm">💠</span>', getVisibleBalanceEl('.js-balance-mogc'), true);
   input.value = '';
   await loadEverything();
 };
@@ -1145,7 +1488,7 @@ function renderShop(){
         <div>
           <div class="rig-name">${item.name}</div>
           <div class="rig-desc">${item.description ?? ''}</div>
-          <div class="rig-meta">${fmtCoin(item.price)} <span class="sc-icon-sm">💠</span> Store-Credits · ${item.effect_type}</div>
+          <div class="rig-meta">${fmtCoin(item.price)} <span class="sc-icon-sm">💠</span> MOGC · ${item.effect_type}</div>
         </div>`;
       const btn = document.createElement('button');
       if (owned) {
@@ -1173,7 +1516,7 @@ window.buyShopItem = async function(itemId, price, btnEl){
 /* ---------- Prestige ---------- */
 window.doPrestige = async function(){
   const btn = document.getElementById('prestigeBtn');
-  if (!confirm('Wirklich prestigen? Alle Rigs und dein Nova-Rift-Bestand werden zurückgesetzt (Store-Credits bleiben erhalten). Du bekommst dauerhafte Prestige-Punkte für den Skillbaum.')) return;
+  if (!confirm('Wirklich prestigen? Alle Rigs und dein Nova-Rift-Bestand werden zurückgesetzt (MOGC bleiben erhalten). Du bekommst dauerhafte Prestige-Punkte für den Skillbaum.')) return;
   btn.disabled = true; btn.textContent = 'Wird zurückgesetzt …';
   const { data, error } = await sb.schema('crypto_farm').rpc('do_prestige');
   if (error) {

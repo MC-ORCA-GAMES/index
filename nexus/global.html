@@ -1,7 +1,10 @@
 <!--
-  MC ORCA — NEXUS — Globale Wallet
+  MC ORCA GAMES — NEXUS — Globale Wallet
 
   Changelog:
+  - v2.1: "Kontostand-Verlauf" in zwei getrennte Diagramme (novaHistoryChart,
+    scHistoryChart) aufgeteilt statt einem Chart mit zwei Linien/Y-Achsen --
+    gleiche Begruendung wie beim persoenlichen Pendant in game.html v3.2.
   - v2: Bugfix "Kontostand-Verlauf" -- zeigte bisher faelschlich die
     kumulierte Mining-Summe aus mining_log (monoton steigend, kennt keine
     Ausgaben/Verkaeufe -- das war "Lifetime gemined", kein Kontostand). Jetzt
@@ -23,7 +26,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEXUS — Globale Wallet · MC ORCA Games</title>
-<meta name="description" content="Wie viele Nova-Rift alle Spieler zusammen im NEXUS-Idle-Mining-Spiel geminet haben — live, pro Stunde, Tag, Woche, Monat und insgesamt.">
+<meta name="description" content="Wie viele Nova-Rift Coins (NRC) alle Spieler zusammen im NEXUS-Idle-Mining-Spiel geminet haben — live, pro Stunde, Tag, Woche, Monat und insgesamt.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -68,6 +71,35 @@
   .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg); background:var(--blue-dim); border-color:rgba(47,140,255,0.35); transition:border-color .15s, background .15s; white-space:nowrap; }
   .nav-cta:hover{ border-color:var(--blue); background:rgba(47,140,255,0.22); }
 
+  /* ---------- burger menu (Seiten-Navigation) ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; border-bottom:none !important; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
+
   /* ---------- hero / lifetime counter ---------- */
   .hero{ padding:72px 0 8px; text-align:center; }
   .hero-coin{ width:64px; height:64px; object-fit:contain; margin-bottom:14px; filter:drop-shadow(0 0 16px rgba(80,140,255,0.5)); }
@@ -106,6 +138,9 @@
   .chart-legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:-1px; }
   .chart-legend .dot-nova{ background:#3ddc84; }
   .chart-legend .dot-sc{ background:var(--violet); }
+  .chart-panel-head .t .dot-nova, .chart-panel-head .t .dot-sc{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:2px; vertical-align:1px; }
+  .chart-panel-head .t .dot-nova{ background:#3ddc84; }
+  .chart-panel-head .t .dot-sc{ background:var(--violet); }
   .chart-note{ text-align:center; font-size:11.5px; color:var(--fg-faint); margin:10px 0 0; }
   .chart-empty-hint{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12.5px; color:var(--fg-faint); padding:0 20px; }
 
@@ -147,21 +182,65 @@
   <div class="nav-inner">
     <div class="brand">
       <span class="mark"><img src="../art/logo.png" alt="" onerror="this.classList.add('hidden')"></span>
-      MC ORCA <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Globale Wallet</span>
+      MC ORCA GAMES <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Globale Wallet</span>
     </div>
     <div style="display:flex; align-items:center; gap:10px;">
       <a class="back-link" href="../index.html">← Alle Spiele</a>
       <a class="nav-cta" href="game.html">Jetzt minen →</a>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+          <div class="burger-group">
+            <div class="burger-label">Seiten</div>
+            <a href="../index.html">Hub</a>
+            <a href="../profil.html">Profil</a>
+            <a href="../raenge.html">Ränge</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Spiele</div>
+            <a href="../aetheris/index.html">Aetheris</a>
+            <a href="../astrion/index.html">Astrion</a>
+            <a href="../deep%20anchor/index.html">Deep Anchor</a>
+            <a href="../path%20of%20the%20stars/index.html">Path of the Stars</a>
+            <a href="../nexus/index.html">NEXUS</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Impressum &amp; Datenschutz</div>
+            <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+            <a href="../aetheris/impressum.html">Aetheris</a>
+            <a href="../astrion/impressum.html">Astrion</a>
+            <a href="../deep%20anchor/impressum.html">Deep Anchor</a>
+            <a href="../path%20of%20the%20stars/impressum.html">Path of the Stars</a>
+            <a href="../nexus/impressum.html">NEXUS</a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
 
 <div class="wrap">
 
   <section class="hero reveal in">
     <img src="art/nova-rift-coin-96.png" alt="" aria-hidden="true" class="hero-coin">
     <div class="eyebrow"><span class="dot"></span> Live · von allen Spielern zusammen</div>
-    <h1>Insgesamt im NEXUS geminte Nova-Rift</h1>
+    <h1>Insgesamt im NEXUS geminte Nova-Rift Coins (NRC)</h1>
     <div><span class="lifetime-value" id="lifetimeValue">–</span><img class="lifetime-unit-icon" src="art/nova-rift-coin-32.png" alt="" aria-hidden="true"></div>
     <p class="lifetime-sub">Seit Spielstart, über alle Accounts hinweg · <span id="minersLine">wird geladen …</span></p>
   </section>
@@ -188,22 +267,27 @@
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
       <span class="t">Zeiträume im Vergleich</span>
-      <span class="hint">Nova-Rift, global gemint</span>
+      <span class="hint">Nova-Rift Coins (NRC), global gemint</span>
     </div>
     <div class="chart-box"><canvas id="periodChart"></canvas></div>
   </section>
 
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
-      <span class="t">Kontostand-Verlauf <span class="dot" style="display:inline-block;margin-left:6px;vertical-align:middle;"></span></span>
-      <span class="hint">Aktuelle Summe über alle Accounts — Nova-Rift &amp; Store-Credits</span>
+      <span class="t"><i class="dot-nova"></i> Nova-Rift Coins (NRC) — Verlauf <span class="dot" style="display:inline-block;margin-left:6px;vertical-align:middle;"></span></span>
+      <span class="hint">Aktuelle Summe über alle Accounts, gehalten (volatil)</span>
     </div>
-    <div class="chart-legend">
-      <span><i class="dot-nova"></i> Nova-Rift (gehalten)</span>
-      <span><i class="dot-sc"></i> Store-Credits</span>
+    <div class="chart-box"><canvas id="novaHistoryChart"></canvas></div>
+    <p class="chart-note" id="novaHistoryChartNote"></p>
+  </section>
+
+  <section class="chart-panel reveal in">
+    <div class="chart-panel-head">
+      <span class="t"><i class="dot-sc"></i> MC ORCA GAMES Coins (MOGC) — Verlauf</span>
+      <span class="hint">Aktuelle Summe über alle Accounts, spielübergreifend</span>
     </div>
-    <div class="chart-box"><canvas id="historyChart"></canvas></div>
-    <p class="chart-note" id="historyChartNote"></p>
+    <div class="chart-box"><canvas id="scHistoryChart"></canvas></div>
+    <p class="chart-note" id="scHistoryChartNote"></p>
   </section>
 
   <p class="refresh-note" id="refreshNote">Aktualisiert sich automatisch alle 60 Sekunden.</p>
@@ -276,7 +360,6 @@
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let periodChart = null;
-  let historyChart = null;
 
   function fmtCredits(n, maxDigits){
     n = Number(n) || 0;
@@ -341,21 +424,20 @@
     }
   }
 
-  function renderHistoryChart(rows){
-    const ctx = document.getElementById('historyChart');
+  // Rendert ein einzelnes Verlaufs-Chart (Nova-Rift ODER Store-Credits) in ein
+  // gegebenes Canvas. chartRef ist ein Objekt { chart } statt einer Variable,
+  // damit die Chart.js-Instanz auch aus dieser Funktion heraus persistiert werden kann.
+  function renderSingleHistoryChart(chartRef, canvasId, rows, field, color, colorRgb){
+    const ctx = document.getElementById(canvasId);
     const box = ctx.closest('.chart-box');
     const existingHint = box.querySelector('.chart-empty-hint');
     if (existingHint) existingHint.remove();
     ctx.style.visibility = 'visible';
 
-    const canvasEl = ctx;
-    const gctx = canvasEl.getContext('2d');
-    const gradientNova = gctx.createLinearGradient(0, 0, 0, 220);
-    gradientNova.addColorStop(0, 'rgba(61,220,132,0.30)');
-    gradientNova.addColorStop(1, 'rgba(61,220,132,0.02)');
-    const gradientSc = gctx.createLinearGradient(0, 0, 0, 220);
-    gradientSc.addColorStop(0, 'rgba(178,58,255,0.30)');
-    gradientSc.addColorStop(1, 'rgba(178,58,255,0.02)');
+    const gctx = ctx.getContext('2d');
+    const gradient = gctx.createLinearGradient(0, 0, 0, 220);
+    gradient.addColorStop(0, `rgba(${colorRgb},0.30)`);
+    gradient.addColorStop(1, `rgba(${colorRgb},0.02)`);
 
     // Bei sehr wenigen Punkten (kurz nach Deploy / wenig Historie) trotzdem
     // sichtbare Marker zeigen, statt einer unsichtbaren 0px-Linie.
@@ -363,24 +445,13 @@
 
     const data = {
       labels: rows.map(r => new Date(r.bucket_start).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })),
-      datasets: [
-        {
-          label: 'Nova-Rift (gehalten)',
-          data: rows.map(r => Number(r.total_nova_rift)),
-          borderColor: '#3ddc84',
-          backgroundColor: gradientNova,
-          pointBackgroundColor: '#3ddc84',
-          fill: true, tension: 0.25, borderWidth: 2, pointRadius: pointR, yAxisID: 'yNova'
-        },
-        {
-          label: 'Store-Credits',
-          data: rows.map(r => Number(r.total_premium)),
-          borderColor: '#B23AFF',
-          backgroundColor: gradientSc,
-          pointBackgroundColor: '#B23AFF',
-          fill: true, tension: 0.25, borderWidth: 2, pointRadius: pointR, yAxisID: 'ySc'
-        }
-      ]
+      datasets: [{
+        data: rows.map(r => Number(r[field])),
+        borderColor: color,
+        backgroundColor: gradient,
+        pointBackgroundColor: color,
+        fill: true, tension: 0.25, borderWidth: 2, pointRadius: pointR
+      }]
     };
     const opts = {
       responsive: true,
@@ -389,36 +460,40 @@
       plugins: { legend: { display: false } },
       scales: {
         x: { display: false },
-        yNova: {
-          position: 'left',
+        y: {
           grid: { color:'rgba(232,230,227,0.06)' },
-          ticks: { color:'#3ddc84', font:{ family:'Inter', size:10.5 }, callback: function(v){ return fmtCompact(v); } }
-        },
-        ySc: {
-          position: 'right',
-          grid: { display:false },
-          ticks: { color:'#B23AFF', font:{ family:'Inter', size:10.5 }, callback: function(v){ return fmtCompact(v); } }
+          ticks: { color: color, font:{ family:'Inter', size:10.5 }, callback: function(v){ return fmtCompact(v); } }
         }
       }
     };
-    if(historyChart){ historyChart.data = data; historyChart.options = opts; historyChart.update(); }
-    else{ historyChart = new Chart(canvasEl, { type:'line', data:data, options:opts }); }
+    if(chartRef.chart){ chartRef.chart.data = data; chartRef.chart.options = opts; chartRef.chart.update(); }
+    else{ chartRef.chart = new Chart(ctx, { type:'line', data:data, options:opts }); }
+  }
 
-    document.getElementById('historyChartNote').textContent =
-      rows.length < 4 ? 'Noch am Sammeln — alle 60 Sekunden kommt ein neuer Datenpunkt dazu.' : '';
+  const novaChartRef = {};
+  const scChartRef = {};
+
+  function renderHistoryCharts(rows){
+    renderSingleHistoryChart(novaChartRef, 'novaHistoryChart', rows, 'total_nova_rift', '#3ddc84', '61,220,132');
+    renderSingleHistoryChart(scChartRef, 'scHistoryChart', rows, 'total_premium', '#B23AFF', '178,58,255');
+    const note = rows.length < 4 ? 'Noch am Sammeln — alle 60 Sekunden kommt ein neuer Datenpunkt dazu.' : '';
+    document.getElementById('novaHistoryChartNote').textContent = note;
+    document.getElementById('scHistoryChartNote').textContent = note;
   }
 
   function showHistoryEmptyState(text){
-    const canvas = document.getElementById('historyChart');
-    canvas.style.visibility = 'hidden';
-    const box = canvas.closest('.chart-box');
-    let hint = box.querySelector('.chart-empty-hint');
-    if (!hint) {
-      hint = document.createElement('div');
-      hint.className = 'chart-empty-hint';
-      box.appendChild(hint);
-    }
-    hint.textContent = text;
+    ['novaHistoryChart', 'scHistoryChart'].forEach(canvasId => {
+      const canvas = document.getElementById(canvasId);
+      canvas.style.visibility = 'hidden';
+      const box = canvas.closest('.chart-box');
+      let hint = box.querySelector('.chart-empty-hint');
+      if (!hint) {
+        hint = document.createElement('div');
+        hint.className = 'chart-empty-hint';
+        box.appendChild(hint);
+      }
+      hint.textContent = text;
+    });
   }
 
   async function loadHistory(){
@@ -426,7 +501,7 @@
       const res = await sb.schema('platform').rpc('get_global_balance_history', { p_bucket_minutes: 15 });
       if(res.error) throw res.error;
       const rows = res.data || [];
-      if(rows.length) renderHistoryChart(rows);
+      if(rows.length) renderHistoryCharts(rows);
       else showHistoryEmptyState('Noch keine Verlaufsdaten — der erste Snapshot kommt in Kürze.');
     }catch(e){
       console.warn('Kontostand-Verlauf konnte nicht geladen werden', e);

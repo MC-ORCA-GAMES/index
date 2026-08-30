@@ -1,5 +1,5 @@
 <!--
-  MC ORCA — NEXUS — Landingpage
+  MC ORCA GAMES — NEXUS — Landingpage
   Folgt der gleichen Konvention wie aetheris/index.html, astrion/index.html etc.:
   index.html = reine Marketing-/Infoseite mit Konto-Widget (Cloud-Login, gleicher
   Account wie ueberall), game.html = das eigentliche spielbare Idle-Mining-Spiel.
@@ -10,7 +10,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEXUS — Idle-Mining-Spiel · MC ORCA Games</title>
-<meta name="description" content="NEXUS: das kostenlose Idle-Mining-Spiel von MC ORCA Games, ohne Echtgeld. Bau deine Mining-Farm auf und gib deine Nova-Rift in Aetheris, Deep Anchor, Path of the Stars und Astrion aus.">
+<meta name="description" content="NEXUS: das kostenlose Idle-Mining-Spiel von MC ORCA Games, ohne Echtgeld. Mine Nova-Rift, tausche sie in MC ORCA GAMES Coins und kauf dir damit Premium-Items für Aetheris, Deep Anchor, Path of the Stars und Astrion.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -54,6 +54,35 @@
   .back-link:hover{ color:var(--fg); }
   .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); transition:border-color .15s, color .15s, background .15s; white-space:nowrap; }
   .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- burger menu (Seiten-Navigation) ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; border-bottom:none !important; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
 
   /* ---------- hero ---------- */
   .hero{ padding:88px 0 54px; position:relative; }
@@ -166,6 +195,12 @@
   .acct-avatar{ font-size:19px; line-height:1; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; }
   .acct-avatar img{ width:19px; height:19px; object-fit:cover; border-radius:50%; display:block; }
   .acct-panel a.acct-btn{ display:block; box-sizing:border-box; text-align:center; text-decoration:none; }
+
+  /* ---------- Konto-Login im Bürgermenü (oben, mittig) ---------- */
+  .burger-account{ text-align:center; }
+  .burger-account .acct-toggle{ display:block; width:100%; box-sizing:border-box; text-align:center; }
+  .burger-account .acct-panel{ position:static; display:none; width:100%; margin-top:10px; box-shadow:none; text-align:left; }
+  .burger-account .acct-panel.open{ display:block; }
 </style>
 </head>
 <body>
@@ -176,49 +211,95 @@
   <div class="nav-inner">
     <div class="brand">
       <span class="mark"><img src="../art/logo.png" alt="" onerror="this.classList.add('hidden')"></span>
-      MC ORCA <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Idle-Mining-Spiel</span> <span class="game-pill pill-alt">Kein Echtgeld</span>
+      MC ORCA GAMES <span class="divider"></span> <span class="sub">NEXUS</span>
     </div>
     <div style="display:flex; align-items:center; gap:10px;">
-      <a class="back-link" href="../index.html">← Alle Spiele</a>
-      <div class="acct-wrap" id="cloudAccountBar">
-        <button class="nav-cta" id="cloudAccountToggle" type="button">☁ Konto</button>
-        <div class="acct-panel" id="cloudAccountPanel">
-          <div id="cloudStepEmail">
-            <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
-            <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
-            <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+      <a class="nav-cta" href="medien.html">📸 Medien</a>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+          <div class="burger-group burger-account acct-wrap" id="cloudAccountBar">
+            <button class="nav-cta acct-toggle" id="cloudAccountToggle" type="button">☁ Konto</button>
+            <div class="acct-panel" id="cloudAccountPanel">
+              <div id="cloudStepEmail">
+                <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+                <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
+                <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+              </div>
+              <div id="cloudStepCode" style="display:none;">
+                <div class="lbl">Code aus der E-Mail eingeben:</div>
+                <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
+                <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
+              </div>
+              <div id="cloudStepIn" style="display:none;">
+                <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
+                <a class="acct-btn" id="cloudPlayLink" href="game.html">Zu NEXUS spielen →</a>
+                <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
+              </div>
+              <span class="acct-status" id="cloudStatusMsg"></span>
+            </div>
           </div>
-          <div id="cloudStepCode" style="display:none;">
-            <div class="lbl">Code aus der E-Mail eingeben:</div>
-            <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
-            <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
+          <div class="burger-group">
+            <div class="burger-label">Seiten</div>
+            <a href="../index.html">Hub</a>
+            <a href="../profil.html">Profil</a>
+            <a href="../raenge.html">Ränge</a>
           </div>
-          <div id="cloudStepIn" style="display:none;">
-            <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
-            <a class="acct-btn" id="cloudPlayLink" href="game.html">Zu NEXUS spielen →</a>
-            <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
+          <div class="burger-group">
+            <div class="burger-label">Spiele</div>
+            <a href="../aetheris/index.html">Aetheris</a>
+            <a href="../astrion/index.html">Astrion</a>
+            <a href="../deep%20anchor/index.html">Deep Anchor</a>
+            <a href="../path%20of%20the%20stars/index.html">Path of the Stars</a>
+            <a href="../nexus/index.html">NEXUS</a>
           </div>
-          <span class="acct-status" id="cloudStatusMsg"></span>
+          <div class="burger-group">
+            <div class="burger-label">Impressum &amp; Datenschutz</div>
+            <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+            <a href="../aetheris/impressum.html">Aetheris</a>
+            <a href="../astrion/impressum.html">Astrion</a>
+            <a href="../deep%20anchor/impressum.html">Deep Anchor</a>
+            <a href="../path%20of%20the%20stars/impressum.html">Path of the Stars</a>
+            <a href="../nexus/impressum.html">NEXUS</a>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </nav>
 
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
+
 <div class="wrap">
 
   <section class="hero reveal in">
     <div class="hero-grid">
       <div>
-        <div class="eyebrow"><span class="dot"></span> Fünftes MC ORCA-Spiel · Idle Mining</div>
+        <div class="eyebrow"><span class="dot"></span> NEXUS · Idle-Mining-Spiel</div>
         <div class="live-ticker" id="liveTicker"><span class="lt-dot"></span> Kurs: <span class="lt-price" id="ltPrice">–</span> <span id="ltTrend"></span></div>
-        <h1>Bau deine Mining-Farm auf. <span class="accent">Gib die Nova-Rift überall aus.</span></h1>
+        <h1>Bau deine Mining-Farm auf. <span class="accent">Tausch deine Nova-Rift im ganzen MC ORCA GAMES Universum ein.</span></h1>
         <p>NEXUS ist ein eigenständiges Idle-Mining-Spiel: Rigs kaufen, passiv Nova-Rift minen,
-           Farm ausbauen. Der Unterschied zu einer normalen Spielwährung — deine Nova-Rift
-           landen in derselben Wallet wie in Aetheris, Deep Anchor, Path of the Stars und
-           Astrion, und du kannst sie dort direkt für Premium-Items ausgeben. Alles rein
-           virtuell: <strong>es wird zu keinem Zeitpunkt echtes Geld eingesetzt</strong> —
-           nirgendwo im Spiel gibt es einen Kaufen-Button für echte Währung.</p>
+           Farm ausbauen. Der Clou kommt beim Verkaufen: Zum aktuellen Kurs tauschst du deine
+           Nova-Rift in <strong>MC ORCA GAMES Coins</strong> — eine stabile Währung fürs gesamte
+           MC ORCA GAMES Universum. Damit kaufst du im NEXUS-Shop Premium-Items für Aetheris,
+           Deep Anchor, Path of the Stars und Astrion und aktivierst sie direkt im jeweiligen
+           Spiel. Alles rein virtuell: <strong>es wird zu keinem Zeitpunkt echtes Geld
+           eingesetzt</strong> — nirgendwo im Spiel gibt es einen Kaufen-Button für echte
+           Währung.</p>
         <div class="hero-ctas">
           <a class="btn btn-primary" href="game.html">Jetzt spielen</a>
           <a class="btn btn-ghost" href="../index.html">Zurück zur Übersicht</a>
@@ -239,35 +320,36 @@
       <div class="fi">⛏</div>
       <h4>Ein richtiges Idle-Game</h4>
       <p>USB-Miner, GPU-Rigs, ASIC-Farmen: Rigs kaufen, Produktionsrate steigern,
-         auch offline weiterminen. NEXUS spielt sich eigenständig wie deine anderen
-         MC ORCA-Spiele — nur eben um Nova-Rift statt um Kolonien.</p>
+         auch offline weiterminen. NEXUS spielt sich genauso eigenständig wie jedes
+         andere MC ORCA Games-Spiel — nur dreht sich hier alles ums Minen deiner Nova-Rift.</p>
     </div>
     <div class="feature">
       <div class="fi">⬡</div>
-      <h4>Nova-Rift gelten in allen vier Spielen</h4>
-      <p>Was du hier erminst, ist keine reine NEXUS-Währung — es ist deine
-         studioweite Wallet. Kauf dir damit Premium-Items direkt in Aetheris,
-         Deep Anchor, Path of the Stars oder Astrion.</p>
+      <h4>Zwei Währungen, ein Konto</h4>
+      <p>Nova-Rift sind deine volatile Mining-Währung, ihr Wert schwankt mit dem Kurs.
+         Verkaufst du sie, werden sie zu <strong>MC ORCA GAMES Coins</strong> — stabil
+         und gültig im Premium-Shop im gesamten MC ORCA GAMES Universum, für alle vier Spiele.</p>
     </div>
     <div class="feature">
       <div class="fi">⛨</div>
       <h4>Betrugssicher by Design</h4>
-      <p>Alle Guthaben-Änderungen laufen über serverseitige Funktionen. Der Client
-         meldet nie einen Betrag — nur die Serverzeit entscheidet, was gemint wurde.</p>
+      <p>Mining, Verkauf und Kauf laufen ausschließlich über serverseitige Funktionen.
+         Der Client meldet nie einen Betrag — nur die Serverzeit entscheidet, was
+         gemint, umgetauscht und aktiviert wurde.</p>
     </div>
     <div class="feature">
       <div class="fi">∅</div>
       <h4>Kein Echtgeld, nirgends</h4>
       <p>NEXUS und der Premium-Shop laufen komplett ohne echte Zahlungen — es gibt
-         keinen Bezahlvorgang, keine Kreditkarte, kein Echtgeld-Guthaben. Alle
-         Nova-Rift werden ausschließlich im Spiel erspielt.</p>
+         keinen Bezahlvorgang, keine Kreditkarte, kein Echtgeld-Guthaben. Sowohl
+         Nova-Rift als auch MC ORCA GAMES Coins werden ausschließlich im Spiel erspielt.</p>
     </div>
   </section>
 
   <section class="games-strip reveal in">
     <div class="gs-head">
       <div class="kicker">Ein Spiel, vier Einlöseorte</div>
-      <h2>Hier geminte Nova-Rift kaufen dort etwas</h2>
+      <h2>Hier minen und verkaufen, dort einlösen</h2>
     </div>
     <div class="gs-row">
       <div class="gs-node"><span class="dot" style="background:var(--gold); box-shadow:0 0 8px var(--gold);"></span><span class="name">AETHERIS</span></div>
@@ -281,7 +363,8 @@
       <div class="gs-node"><span class="dot" style="background:var(--violet); box-shadow:0 0 8px var(--violet);"></span><span class="name">ASTRION</span></div>
     </div>
     <p style="text-align:center; font-size:12.5px; color:var(--fg-faint); margin-top:22px;">
-      NEXUS minen → Nova-Rift verdienen → in jedem der vier Spiele für Premium-Items ausgeben.
+      NEXUS minen → Nova-Rift verkaufen → MC ORCA GAMES Coins im Shop ausgeben →
+      Items im jeweiligen Spiel aktivieren.
     </p>
   </section>
 
@@ -290,33 +373,34 @@
   <section class="how reveal in">
     <div class="how-head">
       <div class="kicker">So funktioniert's</div>
-      <h2>In drei Schritten zur ersten Ausgabe</h2>
+      <h2>In drei Schritten zum ersten Premium-Item</h2>
     </div>
     <div class="how-steps">
       <div class="how-step">
         <div class="num">1</div>
         <h4>Einloggen &amp; minen</h4>
-        <p>Mit deinem MC ORCA-Konto anmelden, kostenlosen USB-Miner abholen,
+        <p>Mit deinem MC ORCA Games-Konto anmelden, kostenlosen USB-Miner abholen,
            Rigs ausbauen — läuft auch passiv weiter.</p>
       </div>
       <div class="how-step">
         <div class="num">2</div>
-        <h4>Nova-Rift sammeln</h4>
-        <p>Deine Wallet füllt sich in Echtzeit, serverseitig berechnet — keine
-           Chance auf Manipulation.</p>
+        <h4>Nova-Rift verkaufen</h4>
+        <p>Zum aktuellen Kurs tauschst du deine gehaltenen Nova-Rift in
+           MC ORCA GAMES Coins — serverseitig berechnet, keine Chance auf Manipulation.</p>
       </div>
       <div class="how-step">
         <div class="num">3</div>
-        <h4>In jedem Spiel ausgeben</h4>
-        <p>Premium-Items im NEXUS-Shop kaufen und direkt in Aetheris, Deep Anchor,
-           Path of the Stars oder Astrion nutzen.</p>
+        <h4>Im Shop kaufen, im Spiel aktivieren</h4>
+        <p>Mit deinen MC ORCA GAMES Coins Premium-Items im NEXUS-Shop kaufen — dann im
+           passenden Spiel (Aetheris, Deep Anchor, Path of the Stars oder Astrion) einloggen
+           und dort aktivieren.</p>
       </div>
     </div>
   </section>
 
   <section class="closing reveal in">
     <h2>Bereit für deine erste Mining-Farm?</h2>
-    <p>Kostenlos, ohne Echtgeld, mit deinem bestehenden MC ORCA-Konto.</p>
+    <p>Kostenlos, ohne Echtgeld, mit deinem bestehenden MC ORCA Games-Konto.</p>
     <a class="btn btn-primary" href="game.html">Jetzt spielen</a>
   </section>
 
@@ -327,7 +411,9 @@
     <div class="foot-brand">MC ORCA Games — NEXUS (Idle-Mining-Spiel)</div>
     <div class="foot-links">
       <a href="game.html">Spielen</a><span class="sep">·</span>
+      <a href="medien.html">Screenshots &amp; Videos</a><span class="sep">·</span>
       <a href="../index.html">Alle Spiele</a><span class="sep">·</span>
+      <a href="impressum.html">Impressum &amp; Datenschutz</a><span class="sep">·</span>
       <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
     </div>
   </div>

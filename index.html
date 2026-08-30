@@ -92,6 +92,40 @@
   }
   .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
 
+  /* ---------- burger menu (Seiten-Navigation) ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; border-bottom:none !important; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
+  /* ---------- Konto-Login im Bürgermenü (oben, mittig) ---------- */
+  .burger-account{ text-align:center; }
+  .burger-account .acct-toggle{ display:block; width:100%; box-sizing:border-box; text-align:center; }
+  .burger-account .acct-panel{ position:static; display:none; width:100%; margin-top:10px; box-shadow:none; text-align:left; }
+  .burger-account .acct-panel.open{ display:block; }
+
   /* ---------- NEXUS global tap-on badge ---------- */
   .nexus-tap{
     display:inline-flex; align-items:center; gap:8px;
@@ -310,38 +344,81 @@
       <span class="nt-value" id="nexusGlobalTap">…</span>
     </a>
     <a class="nav-cta" href="raenge.html">🏆 Ränge</a>
-    <div class="acct-wrap" id="cloudAccountBar">
-      <button class="nav-cta" id="cloudAccountToggle" type="button">☁ Konto</button>
-      <div class="acct-panel" id="cloudAccountPanel">
-        <div id="cloudStepEmail">
-          <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
-          <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
-          <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+    <div class="burger-wrap">
+      <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="burger-panel" id="burgerPanel">
+        <div class="burger-group burger-account acct-wrap" id="cloudAccountBar">
+          <button class="nav-cta acct-toggle" id="cloudAccountToggle" type="button">☁ Konto</button>
+          <div class="acct-panel" id="cloudAccountPanel">
+            <div id="cloudStepEmail">
+              <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+              <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
+              <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+            </div>
+            <div id="cloudStepCode" style="display:none;">
+              <div class="lbl">Code aus der E-Mail eingeben:</div>
+              <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
+              <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
+            </div>
+            <div id="cloudStepIn" style="display:none;">
+              <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
+              <a class="acct-btn" id="cloudProfileLink" href="profil.html">Profil bearbeiten →</a>
+              <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
+            </div>
+            <span class="acct-status" id="cloudStatusMsg"></span>
+          </div>
         </div>
-        <div id="cloudStepCode" style="display:none;">
-          <div class="lbl">Code aus der E-Mail eingeben:</div>
-          <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
-          <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
+        <div class="burger-group">
+          <div class="burger-label">Seiten</div>
+          <a href="index.html">Hub</a>
+          <a href="profil.html">Profil</a>
+          <a href="raenge.html">Ränge</a>
         </div>
-        <div id="cloudStepIn" style="display:none;">
-          <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
-          <a class="acct-btn" id="cloudProfileLink" href="profil.html">Profil bearbeiten →</a>
-          <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
+        <div class="burger-group">
+          <div class="burger-label">Spiele</div>
+          <a href="aetheris/index.html">Aetheris</a>
+          <a href="astrion/index.html">Astrion</a>
+          <a href="deep%20anchor/index.html">Deep Anchor</a>
+          <a href="path%20of%20the%20stars/index.html">Path of the Stars</a>
+          <a href="nexus/index.html">NEXUS</a>
         </div>
-        <span class="acct-status" id="cloudStatusMsg"></span>
+        <div class="burger-group">
+          <div class="burger-label">Impressum &amp; Datenschutz</div>
+          <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+          <a href="aetheris/impressum.html">Aetheris</a>
+          <a href="astrion/impressum.html">Astrion</a>
+          <a href="deep%20anchor/impressum.html">Deep Anchor</a>
+          <a href="path%20of%20the%20stars/impressum.html">Path of the Stars</a>
+            <a href="nexus/impressum.html">NEXUS</a>
+        </div>
       </div>
     </div>
     </div>
   </div>
 </nav>
 
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
 <div class="wrap">
 
   <section class="hero">
-    <div class="eyebrow"><span class="dot"></span> Fünf Spiele · Ein Studio</div>
-    <h1>Weltraumspiele, die <span class="accent">im Browser</span> zuhause sind.</h1>
-    <p>Kein Download nötig — einfach öffnen und spielen. Ein optionales Konto
-       synchronisiert deinen Spielstand über deine Spiele hinweg.</p>
+    <div class="eyebrow"><span class="dot"></span> Ein Universum, fünf Spiele</div>
+    <h1>Weltraumspiele für den <span class="accent">Browser</span>. Ohne Umwege.</h1>
+    <p>Kein Download, kein Installieren — einfach öffnen und spielen. Ein optionales Konto
+       synchronisiert deine Spielstände geräteübergreifend.</p>
     <div class="hero-ctas">
       <a class="btn btn-primary" href="#games">Spiele entdecken</a>
       <a class="btn btn-ghost" href="#" id="heroLoginBtn">Anmelden</a>
@@ -351,7 +428,7 @@
   <section class="constellation reveal" id="games">
     <div class="constellation-head">
       <div class="kicker">Die Sternenkarte</div>
-      <h2>Fünf Welten, ein Orbit</h2>
+      <h2>Ein Orbit, fünf Welten</h2>
     </div>
     <svg class="const-svg" viewBox="0 0 720 720" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sternenkarte: NEXUS im Zentrum, verbunden mit Aetheris, Deep Anchor, Path of the Stars und Astrion">
 
@@ -490,13 +567,13 @@
     <div class="game pots reveal">
       <div class="g-copy">
         <div class="g-eyebrow">Path of the Stars <span class="ver">· Release</span></div>
-        <h3 class="g-title">Generationenschiff-Saga</h3>
-        <p class="g-sub">Die Sonne stirbt. Die Erde flieht.</p>
-        <p class="g-pitch">Handle zwischen den Sternen und verfolge ein uraltes Signal — während an Bord
-           nur Jahre vergehen und draußen Jahrtausende verstreichen.</p>
+        <h3 class="g-title">Offene Galaxie im Wandel</h3>
+        <p class="g-sub">Handel treiben, Fraktionen führen, dein Territorium behaupten.</p>
+        <p class="g-pitch">Ein kurzer Prolog erzählt, wie die Menschheit ihre sterbende Sonne verlässt —
+           danach steht dir die ganze offene Galaxie frei: vier Fraktionen, Piraten, dein eigener Weg.</p>
         <div class="g-meta">
           <div class="m"><span class="k">Fraktionen</span><span class="v">4 + Piraten</span></div>
-          <div class="m"><span class="k">Zeitverhältnis</span><span class="v">Bordzeit ≠ Außenzeit</span></div>
+          <div class="m"><span class="k">Modus</span><span class="v">Offene Galaxie + kurze Story-Einleitung</span></div>
         </div>
         <div class="g-ctas">
           <a class="g-btn primary" href="path%20of%20the%20stars/index.html">Entdecken</a>
@@ -528,13 +605,14 @@
     <div class="game nexus reveal">
       <div class="g-copy">
         <div class="g-eyebrow">NEXUS <span class="ver">· Idle-Mining</span></div>
-        <h3 class="g-title">Studioweite Nova-Rift, live gemint</h3>
-        <p class="g-sub">Rigs kaufen, passiv minen, überall ausgeben — komplett ohne Echtgeld.</p>
-        <p class="g-pitch">Baue deine Mining-Farm auf und verdiene Nova-Rift, die direkt in Aetheris,
-           Deep Anchor, Path of the Stars und Astrion für Premium-Items gelten. Eine Wallet,
-           fünf Spiele.</p>
+        <h3 class="g-title">Nova-Rift minen, MC ORCA GAMES Coins verdienen</h3>
+        <p class="g-sub">Rigs kaufen, passiv minen, verkaufen und im ganzen Universum ausgeben — komplett ohne Echtgeld.</p>
+        <p class="g-pitch">Baue deine Mining-Farm auf, mine Nova-Rift und verkaufe sie zum aktuellen
+           Kurs in MC ORCA GAMES Coins. Damit kaufst du im NEXUS-Shop Premium-Items für Aetheris,
+           Deep Anchor, Path of the Stars und Astrion — und aktivierst sie direkt im jeweiligen
+           Spiel. Ein Konto, fünf Spiele.</p>
         <div class="g-meta">
-          <div class="m"><span class="k">Gilt in</span><span class="v">4 Spielen</span></div>
+          <div class="m"><span class="k">Einlösbar in</span><span class="v">4 Spielen</span></div>
           <div class="m"><span class="k">Echtgeld</span><span class="v">Keins, nirgends</span></div>
         </div>
         <div class="g-ctas">
@@ -646,6 +724,13 @@
         e.preventDefault();
         e.stopPropagation();
         window.scrollTo({ top:0, behavior:'smooth' });
+        var burgerBtnEl = document.getElementById('burgerBtn');
+        var burgerPanelEl = document.getElementById('burgerPanel');
+        if(burgerBtnEl && burgerPanelEl){
+          burgerPanelEl.classList.add('open');
+          burgerBtnEl.classList.add('open');
+          burgerBtnEl.setAttribute('aria-expanded','true');
+        }
         panel.classList.add('open');
       });
     }
