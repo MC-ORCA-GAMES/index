@@ -3,6 +3,18 @@
 ============================================================
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v1.1.3
+- FIX (NEXUS-Pakete abholen schlug fehl, Nutzer-Feedback: "column reference resource_key is
+  ambiguous"): platform.claim_resource_grants() hatte einen Namenskonflikt zwischen der
+  RETURNS TABLE-Spalte "resource_key" und der gleichnamigen Tabellenspalte im UPDATE ...
+  RETURNING -- serverseitig in Supabase behoben (kein Client-Codeänderung nötig).
+- NEU (Einzelabholung NEXUS-Pakete, Nutzer-Feedback: "man müsste sehen wieviel man hat ...
+  jedes Paket einzeln, alle oder die angeklickten"): Das NEXUS-Pakete-Postfach zeigt offene
+  Käufe jetzt einzeln nach Paketgröße gruppiert (mit Anzahl) statt nur einer stummen Summe,
+  jede Gruppe mit eigener Checkbox. Neuer Button "Ausgewählte abholen" neben "Alle abholen".
+  Nutzt neue RPC platform.claim_resource_grants_by_ids(uuid[]) statt der alten
+  Alles-auf-einmal-RPC.
+
 v1.1.2
 - ENTFERNT (Nutzer-Feedback: Boot-Sequenz nervt): Die komplette "MC ORCA GAMES OS"
   Boot-Sequenz ist raus — sowohl der kurze Röhren-Blitz (CRT-Poweron) auf dem
@@ -401,6 +413,27 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
      Titelbildschirm aus geöffnet (siehe startSettingsBtn), bekommt es diese Klasse zusätzlich,
      damit es sichtbar über dem Titelbildschirm liegt statt dahinter zu verschwinden. */
   .more-menu-overlay.overTitle{ z-index:150; }
+  /* NEU (NEXUS-Pakete-Popup, spielübergreifend wie Deep Anchor): schwebender, blinkender Button
+     oben rechts -- öffnet das bestehende #nexusInboxModalOverlay direkt, statt dass der Weg nur
+     über Einstellungen ▸ NEXUS-Pakete führt. */
+  .nexus-float-btn{
+    position:fixed; top:64px; right:14px; z-index:45;
+    width:48px; height:48px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #3a2c10, #1A1410 70%);
+    border:2px solid #D4AF37; color:#D4AF37;
+    display:none; align-items:center; justify-content:center;
+    font-size:20px; cursor:pointer; box-shadow:0 0 10px rgba(212,175,55,.35);
+  }
+  .nexus-float-btn.has-pending{ display:flex; animation: nexusFloatPulse 1.6s ease-in-out infinite; }
+  @keyframes nexusFloatPulse{
+    0%,100%{ box-shadow:0 0 8px rgba(212,175,55,.4); border-color:#D4AF37; }
+    50%{ box-shadow:0 0 20px rgba(212,175,55,.95); border-color:#fff; }
+  }
+  .nexus-float-btn .nexus-float-badge{
+    position:absolute; top:-6px; right:-6px; background:#ff5555; color:#fff;
+    border-radius:9px; padding:1px 6px; font-size:10px; font-weight:700;
+    min-width:16px; text-align:center; box-shadow:0 0 0 2px #1A1410;
+  }
   .more-menu-sheet {
     position:absolute; left:0; right:0; bottom:0; max-width:var(--app-max-width); margin:0 auto;
     background:rgba(22,16,16,0.42);backdrop-filter:blur(4px) saturate(1.2);-webkit-backdrop-filter:blur(4px) saturate(1.2); border-top:1px solid rgba(212,175,55,0.3);
@@ -1162,7 +1195,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
     <canvas class="warp-canvas" id="warpGate"></canvas>
     <div class="game-logo" id="logoGate"></div>
     <div class="tap-hint" id="startGateBtn">Berühren zum Start</div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.2</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.3</div>
   </div>
 
   <div class="title-screen hidden" id="titleScreen">
@@ -1185,7 +1218,7 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
       <button class="menu-btn" id="titleMusicBtn" style="font-size:11px;width:100%">🎵 Musik</button>
       <input type="range" class="music-volume-input" id="titleMusicVolume" min="0" max="1" step="0.05" style="width:130px;margin-top:8px;accent-color:#D4AF37;display:block">
     </div>
-    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.2</div>
+    <div class="version-label" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#8A7A6A;letter-spacing:0.5px">v1.1.3</div>
   </div>
   <div class="header">
     <div class="title-row">
@@ -1369,12 +1402,18 @@ v0.53.32: Feedback "Sterne auf Spielseiten komplett unsichtbar" — stimmt: die 
     </div>
   </div>
 
+  <!-- NEU (NEXUS-Pakete-Popup, spielübergreifend wie Deep Anchor): schwebender, blinkender
+       Button, damit man nicht erst durch die Einstellungen navigieren muss. Sichtbarkeit/Blinken
+       wird per JS (nexusInboxRefreshBadge) über die Klasse "has-pending" gesteuert. -->
+  <button class="nexus-float-btn" id="nexusFloatBtn" title="NEXUS-Pakete abholen">🛰️<span class="nexus-float-badge" id="nexusFloatBadge" style="display:none;"></span></button>
+
   <div class="more-menu-overlay" id="nexusInboxModalOverlay">
     <div class="more-menu-sheet" id="nexusInboxModalSheet" style="grid-template-columns:1fr; gap:10px; padding:18px 16px calc(20px + env(safe-area-inset-bottom, 0px))">
       <div class="bname" style="font-size:14px">📦 NEXUS-Pakete</div>
       <div class="bmeta" style="color:#8A7A6A">Ressourcen, die du im NEXUS-Shop gekauft hast, landen erst hier — du holst sie dir manuell ab, damit nichts automatisch und unbemerkt passiert.</div>
       <div id="nexusInboxBody" style="text-align:left"></div>
-      <button class="menu-btn primary" id="nexusInboxClaimBtn" style="width:100%;display:none">Alles abholen</button>
+      <button class="menu-btn primary" id="nexusInboxClaimBtn" style="width:100%;display:none">Alle abholen</button>
+      <button class="menu-btn" id="nexusInboxClaimSelectedBtn" style="width:100%;display:none">Ausgewählte abholen</button>
       <button class="reset-btn" id="nexusInboxModalCloseBtn" style="margin-top:6px">Schließen</button>
     </div>
   </div>
@@ -17334,89 +17373,150 @@ setInterval(function(){
 // sichtbar anzeigt, Abholen passiert nur per Klick. So kann nichts unbemerkt/doppelt passieren.
 var NEXUS_RES_LABELS = { aetherium: "✨ Ätherium", dunkle_materie: "🌌 Dunkle Materie" };
 
+// v2 (Einzelabholung): Pakete werden NICHT mehr serverseitig zu einer Summe
+// verklebt, sondern einzeln geladen und nach (resource_key, amount) gruppiert
+// -- eine Gruppe = eine Paketgroesse aus dem Shop (z.B. "Ätherium-Paket Klein").
+// So sieht man jede gekaufte Paketgroesse einzeln mit Anzahl und kann gezielt
+// nur einen Teil abholen (Checkbox je Gruppe) statt immer alles auf einmal.
+var nexusInboxLastPending = [];
+
 async function nexusInboxFetchPending(){
   if(!window.__cloudUser || !window.__cloudSupabase) return [];
   var res = await window.__cloudSupabase.schema('platform').from('resource_grants')
-    .select('resource_key,amount')
+    .select('id,resource_key,amount')
     .eq('game_scope', 'aetheris')
-    .is('claimed_at', null);
+    .is('claimed_at', null)
+    .order('resource_key').order('amount');
   if(res.error){ console.warn('NEXUS-Pakete laden fehlgeschlagen:', res.error.message); return []; }
-  var totals = {};
+  var groups = {};
   (res.data || []).forEach(function(row){
-    totals[row.resource_key] = (totals[row.resource_key] || 0) + Number(row.amount);
+    var k = row.resource_key + '::' + row.amount;
+    if(!groups[k]) groups[k] = { resource_key: row.resource_key, amount: Number(row.amount), count: 0, ids: [] };
+    groups[k].count++;
+    groups[k].ids.push(row.id);
   });
-  return Object.keys(totals).map(function(key){ return { resource_key: key, amount: totals[key] }; });
+  return Object.keys(groups).map(function(k){ return groups[k]; });
 }
 
+// GEÄNDERT (NEXUS-Pakete-Popup): steuert zusätzlich den schwebenden Button (#nexusFloatBtn) --
+// blinkt bei offenen Paketen, statt dass man erst in den Einstellungen danach suchen muss.
 async function nexusInboxRefreshBadge(){
   var badge = document.getElementById('nexusInboxBadge');
-  if(!badge) return;
+  var floatBtn = document.getElementById('nexusFloatBtn');
+  var floatBadge = document.getElementById('nexusFloatBadge');
   var pending = await nexusInboxFetchPending();
-  if(pending.length > 0){
-    badge.textContent = String(pending.length);
-    badge.style.display = 'inline-block';
-  } else {
-    badge.style.display = 'none';
+  var totalCount = pending.reduce(function(sum, g){ return sum + g.count; }, 0);
+  if(badge){
+    if(totalCount > 0){ badge.textContent = String(totalCount); badge.style.display = 'inline-block'; }
+    else badge.style.display = 'none';
+  }
+  if(floatBtn && floatBadge){
+    if(totalCount > 0){
+      floatBadge.textContent = String(totalCount);
+      floatBadge.style.display = 'block';
+      floatBtn.classList.add('has-pending');
+    } else {
+      floatBadge.style.display = 'none';
+      floatBtn.classList.remove('has-pending');
+    }
   }
 }
 
 async function nexusInboxRenderBody(){
   var body = document.getElementById('nexusInboxBody');
-  var claimBtn = document.getElementById('nexusInboxClaimBtn');
+  var claimAllBtn = document.getElementById('nexusInboxClaimBtn');
+  var claimSelBtn = document.getElementById('nexusInboxClaimSelectedBtn');
   if(!body) return;
   if(!window.__cloudUser){
     body.innerHTML = '<div class="bmeta" style="color:#8A7A6A">Nur mit Cloud-Konto verfügbar -- erst in den Einstellungen einloggen.</div>';
-    claimBtn.style.display = 'none';
+    claimAllBtn.style.display = 'none';
+    claimSelBtn.style.display = 'none';
     return;
   }
   body.innerHTML = '<div class="bmeta" style="color:#8A7A6A">Lade …</div>';
   var pending = await nexusInboxFetchPending();
+  nexusInboxLastPending = pending;
   if(pending.length === 0){
     body.innerHTML = '<div class="bmeta" style="color:#8A7A6A">Keine offenen Pakete. Käufe aus dem NEXUS-Shop tauchen hier auf.</div>';
-    claimBtn.style.display = 'none';
+    claimAllBtn.style.display = 'none';
+    claimSelBtn.style.display = 'none';
     return;
   }
-  body.innerHTML = pending.map(function(p){
-    var label = NEXUS_RES_LABELS[p.resource_key] || p.resource_key;
-    return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.15);font-size:12.5px;">'
-      + '<span>' + label + '</span><span style="color:#D4AF37">' + Math.floor(p.amount).toLocaleString('de-DE') + '</span></div>';
+  body.innerHTML = pending.map(function(g, i){
+    var label = NEXUS_RES_LABELS[g.resource_key] || g.resource_key;
+    var total = g.amount * g.count;
+    return '<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.15);font-size:12.5px;cursor:pointer;">'
+      + '<span style="display:flex;align-items:center;gap:6px;"><input type="checkbox" class="nexusInboxChk" data-idx="' + i + '" checked style="margin:0;">' + label + ' × ' + g.count + '</span>'
+      + '<span style="color:#D4AF37">' + Math.floor(total).toLocaleString('de-DE') + '</span></label>';
   }).join('');
-  claimBtn.style.display = 'block';
+  claimAllBtn.style.display = 'block';
+  claimSelBtn.style.display = 'block';
 }
 
-async function nexusInboxClaim(){
-  var claimBtn = document.getElementById('nexusInboxClaimBtn');
-  var body = document.getElementById('nexusInboxBody');
-  if(!window.__cloudUser || !window.__cloudSupabase) return;
-  claimBtn.disabled = true;
-  claimBtn.textContent = 'Wird abgeholt …';
+function nexusInboxApplyClaimed(claimedRows){
+  var home = planets[homeId];
+  (claimedRows || []).forEach(function(row){
+    var amount = Number(row.total_amount) || 0;
+    if(amount <= 0) return;
+    if(row.resource_key === 'aetherium' && home && home.resources){
+      home.resources.aetherium = (home.resources.aetherium || 0) + amount;
+    } else if(row.resource_key === 'dunkle_materie'){
+      darkMatter = (darkMatter || 0) + amount;
+    }
+  });
+  saveGame();
+  render();
+  sfx.click();
+}
+
+async function nexusInboxClaimIds(ids, busyBtn){
+  if(!window.__cloudUser || !window.__cloudSupabase || !ids || ids.length === 0) return;
+  var claimAllBtn = document.getElementById('nexusInboxClaimBtn');
+  var claimSelBtn = document.getElementById('nexusInboxClaimSelectedBtn');
+  claimAllBtn.disabled = true;
+  claimSelBtn.disabled = true;
+  if(busyBtn) busyBtn.textContent = 'Wird abgeholt …';
   try{
-    var res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants', { p_game_scope: 'aetheris' });
+    var res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants_by_ids', { p_grant_ids: ids });
     if(res.error) throw res.error;
-    var home = planets[homeId];
-    (res.data || []).forEach(function(row){
-      var amount = Number(row.total_amount) || 0;
-      if(amount <= 0) return;
-      if(row.resource_key === 'aetherium' && home && home.resources){
-        home.resources.aetherium = (home.resources.aetherium || 0) + amount;
-      } else if(row.resource_key === 'dunkle_materie'){
-        darkMatter = (darkMatter || 0) + amount;
-      }
-    });
-    saveGame();
-    render();
-    sfx.click();
+    nexusInboxApplyClaimed(res.data || []);
   }catch(err){
     console.warn('NEXUS-Pakete abholen fehlgeschlagen:', err.message);
   }finally{
-    claimBtn.disabled = false;
-    claimBtn.textContent = 'Alles abholen';
+    claimAllBtn.disabled = false;
+    claimSelBtn.disabled = false;
+    claimAllBtn.textContent = 'Alle abholen';
+    claimSelBtn.textContent = 'Ausgewählte abholen';
     await nexusInboxRenderBody();
     await nexusInboxRefreshBadge();
   }
 }
 
+async function nexusInboxClaim(){
+  var ids = [];
+  nexusInboxLastPending.forEach(function(g){ ids = ids.concat(g.ids); });
+  await nexusInboxClaimIds(ids, document.getElementById('nexusInboxClaimBtn'));
+}
+
+async function nexusInboxClaimSelected(){
+  var checked = document.querySelectorAll('#nexusInboxBody .nexusInboxChk:checked');
+  var ids = [];
+  checked.forEach(function(chk){
+    var g = nexusInboxLastPending[Number(chk.getAttribute('data-idx'))];
+    if(g) ids = ids.concat(g.ids);
+  });
+  if(ids.length === 0) return;
+  await nexusInboxClaimIds(ids, document.getElementById('nexusInboxClaimSelectedBtn'));
+}
+
 document.getElementById("nexusInboxBtn").addEventListener("click", () => {
+  document.getElementById("nexusInboxModalOverlay").classList.add("open");
+  nexusInboxRenderBody();
+});
+// NEU (NEXUS-Pakete-Popup): schwebender Button öffnet dasselbe Popup direkt, ohne Umweg über
+// die Einstellungen -- schließt vorsorglich das Einstellungen-Sheet, falls es zufällig offen ist.
+document.getElementById("nexusFloatBtn").addEventListener("click", () => {
+  document.getElementById("settingsOverlay").classList.remove("open");
   document.getElementById("nexusInboxModalOverlay").classList.add("open");
   nexusInboxRenderBody();
 });
@@ -17427,6 +17527,7 @@ document.getElementById("nexusInboxModalOverlay").addEventListener("click", (e) 
   if (e.target.id === "nexusInboxModalOverlay") document.getElementById("nexusInboxModalOverlay").classList.remove("open");
 });
 document.getElementById("nexusInboxClaimBtn").addEventListener("click", nexusInboxClaim);
+document.getElementById("nexusInboxClaimSelectedBtn").addEventListener("click", nexusInboxClaimSelected);
 
 // Badge-Check: einmal beim Laden (falls schon eingeloggt) und nach jedem Login-Trigger.
 setTimeout(function(){ nexusInboxRefreshBadge(); }, 2000);

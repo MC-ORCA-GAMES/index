@@ -1,6 +1,19 @@
 <!--
 CHANGELOG (neueste Einträge oben voranstellen, bestehende nicht editieren)
 
+v4-80 (deep_anchor_4_6_39.html)
+- FIX (NEXUS-Pakete abholen schlug fehl, Nutzer-Feedback: "column reference resource_key is
+  ambiguous"): platform.claim_resource_grants() hatte einen Namenskonflikt zwischen der
+  RETURNS TABLE-Spalte "resource_key" und der gleichnamigen Tabellenspalte im UPDATE ...
+  RETURNING -- serverseitig in Supabase behoben (kein Client-Codeänderung nötig).
+- NEU (Einzelabholung NEXUS-Pakete, Nutzer-Feedback: "man müsste sehen wieviel man hat ...
+  jedes Paket einzeln, alle oder die angeklickten", betrifft vor allem das Zeitsprung-System):
+  Das NEXUS-Pakete-Postfach zeigt offene Käufe jetzt einzeln nach Paketgröße gruppiert (mit
+  Anzahl, z.B. "Zeitsprung 1 Jahr × 5") statt nur einer stummen Gesamtsumme in Tagen, jede
+  Gruppe mit eigener Checkbox. Neuer Button "Ausgewählte abholen" neben "Alle abholen". Nutzt
+  neue RPC platform.claim_resource_grants_by_ids(uuid[]) statt der alten Alles-auf-einmal-RPC.
+- GAME_VERSION von "v4-79" auf "v4-80" erhöht.
+
 v4-79 (deep_anchor_4_6_38.html)
 - ENTFERNT (Nutzer-Feedback: Boot-Sequenz nervt): Die komplette "MC ORCA GAMES OS" Boot-Sequenz ist
   raus — sowohl die kurze Röhrenmonitor-Einschalt-Sequenz auf dem Splash-Screen (#crtBootOverlay,
@@ -2776,6 +2789,31 @@ canvas{ display:block; }
    Stapelung — da #confirmModal im HTML vor #settingsModal steht, landete das Bestätigungs-Fenster
    optisch dahinter, obwohl es klickbar (und damit technisch "aktiv") blieb. */
 #confirmModal, #promptModal{ z-index:470; }
+
+/* NEU (NEXUS-Pakete-Popup, Nutzer-Feedback: "da ist nichts zm kliken ... eine interne spezial
+   seite achen (pop up) und das das nicht verstekt ist fileicht ein nexus logo das blinkt"):
+   schwebender, gut sichtbarer Button oben rechts über dem Spiel, der bei offenen Paketen sanft
+   pulsiert. Öffnet #nexusPopupModal direkt -- unabhängig von den Einstellungen. */
+.nexus-float-btn{
+  position:fixed; top:14px; right:14px; z-index:440;
+  width:52px; height:52px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #2a3a52, #0c1420 70%);
+  border:2px solid var(--accent,#4ade80); color:var(--accent,#4ade80);
+  display:none; align-items:center; justify-content:center;
+  font-size:22px; cursor:pointer; box-shadow:0 0 10px rgba(74,222,128,.35);
+  transition: transform .15s ease;
+}
+.nexus-float-btn:hover{ transform:scale(1.08); }
+.nexus-float-btn.has-pending{ display:flex; animation: nexusFloatPulse 1.6s ease-in-out infinite; }
+@keyframes nexusFloatPulse{
+  0%,100%{ box-shadow:0 0 8px rgba(74,222,128,.4); border-color:var(--accent,#4ade80); }
+  50%{ box-shadow:0 0 22px rgba(74,222,128,.95); border-color:#fff; }
+}
+.nexus-float-btn .nexus-float-badge{
+  position:absolute; top:-6px; right:-6px; background:#ff5555; color:#fff;
+  border-radius:9px; padding:1px 6px; font-size:10px; font-weight:700;
+  min-width:16px; text-align:center; box-shadow:0 0 0 2px #0c1420;
+}
 .modal{
   background: var(--panel); border:1px solid var(--border-lit); border-radius:var(--radius);
   width:100%; max-width:560px; padding:0; overflow:hidden;
@@ -3477,16 +3515,12 @@ html.ui-theme-dos input[type="number"]{
         <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:10.5px;line-height:1.4;"></span>
       </div>
 
-      <!-- NEU (NEXUS-Zeitsprung): Postfach für Zeitsprung-Käufe aus dem NEXUS-Shop
-           (platform.resource_grants, resource_key 'time_skip_days') — simuliert beim Abholen die
-           gekaufte Anzahl Spieltage mit der echten tick()-Funktion, genau wie der bestehende
-           Offline-Fortschritt (computeAndApplyOfflineProgress), und zeigt danach dieselbe
-           "Während du weg warst"-Zusammenfassung. Bewusst KEIN Auto-Claim -- Abholen nur per Klick. -->
+      <!-- GEÄNDERT (NEXUS-Pakete-Popup, Nutzer-Feedback: "da ist nichts zm kliken ... am besten
+           wir müssen eine interne spezial seite achen (pop up)"): die eigentliche Paket-Box ist
+           jetzt ein eigenes Popup (#nexusPopupModal), erreichbar über den blinkenden schwebenden
+           Button (#nexusFloatBtn) UND über diesen Kurz-Link hier in den Einstellungen. -->
       <div class="settings-row" id="nexusInboxSection" style="padding-bottom:14px; border-bottom:1px solid var(--border);">
-        <label class="lbl" style="display:block; margin-bottom:8px; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;">📦 NEXUS-Pakete <span id="nexusInboxBadge" style="display:none;background:var(--accent,#4ade80);color:#111;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></label>
-        <div class="small-muted" style="line-height:1.5; margin-bottom:8px;">Zeitsprünge, die du im NEXUS-Shop gekauft hast, landen erst hier — du holst sie dir manuell ab.</div>
-        <div id="nexusInboxBody" style="text-align:left;"></div>
-        <button class="btn" id="nexusInboxClaimBtn" style="width:100%;margin-top:8px;display:none;">Alles abholen</button>
+        <button class="btn" id="nexusInboxOpenFromSettingsBtn" style="width:100%;">📦 NEXUS-Pakete öffnen <span id="nexusInboxBadge" style="display:none;background:var(--accent,#4ade80);color:#111;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
       </div>
 
       <div class="settings-row" style="margin-top:14px;">
@@ -3573,6 +3607,31 @@ html.ui-theme-dos input[type="number"]{
     </div>
   </div>
 </div>
+
+<!-- NEU (NEXUS-Pakete-Popup, Nutzer-Feedback: "eine interne spezial seite achen (pop up) und
+     das das nicht verstekt ist ... nexus logo das blinkt dort drauf drücken und dan öfnet sich
+     das pop up wo man alles siht und einlösen kan"): eigenständiges Popup statt versteckter
+     Einstellungen-Box. #nexusInboxBadge/#nexusInboxBody/#nexusInboxClaimBtn/
+     #nexusInboxClaimSelectedBtn sind dieselben IDs wie zuvor -- die komplette
+     Fetch/Render/Claim-Logik weiter unten im Script bleibt dadurch unverändert funktionsfähig. -->
+<div class="modal-bg" id="nexusPopupModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="mhead"><span>📦 NEXUS-Pakete</span><button class="btn small ghost" id="closeNexusPopupModal">✕</button></div>
+    <div class="mbody">
+      <div class="settings-row" style="border-bottom:none;">
+        <div class="small-muted" style="line-height:1.5; margin-bottom:8px;">Zeitsprünge, die du im NEXUS-Shop gekauft hast, landen erst hier — du holst sie dir manuell ab.</div>
+        <div id="nexusInboxBody" style="text-align:left;"></div>
+        <button class="btn" id="nexusInboxClaimBtn" style="width:100%;margin-top:8px;display:none;">Alle abholen</button>
+        <button class="btn" id="nexusInboxClaimSelectedBtn" style="width:100%;margin-top:6px;display:none;">Ausgewählte abholen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEU (NEXUS-Pakete-Popup): schwebender, blinkender Button oben rechts -- immer sichtbar
+     sobald Pakete offen sind (in-game), nicht mehr in den Einstellungen versteckt. Sichtbarkeit
+     wird per JS (nexusInboxRefreshBadge) über die Klasse "has-pending" gesteuert. -->
+<button class="nexus-float-btn" id="nexusFloatBtn" title="NEXUS-Pakete abholen">🛰️<span class="nexus-float-badge" id="nexusFloatBadge" style="display:none;"></span></button>
 
 <div id="gameRoot" style="display:none;">
 <div class="hdr">
@@ -14893,7 +14952,6 @@ function openSettingsModal(){
   if(backRow) backRow.style.display = inGame ? '' : 'none';
   const nexusRow = document.getElementById('nexusInboxSection');
   if(nexusRow) nexusRow.style.display = inGame ? '' : 'none';
-  if(inGame) nexusInboxRenderBody();
   document.getElementById('settingsModal').classList.add('active');
 }
 document.getElementById('btnSettings').addEventListener('click', ()=>{
@@ -14932,8 +14990,12 @@ document.getElementById('btnBackToStart').addEventListener('click', ()=>{
       autosave(true);
       if(tickIntervalId) clearInterval(tickIntervalId);
       document.getElementById('settingsModal').classList.remove('active');
+      document.getElementById('nexusPopupModal').classList.remove('active');
       document.getElementById('gameRoot').style.display = 'none';
       document.getElementById('startScreen').style.display = 'flex';
+      // NEU (NEXUS-Pakete-Popup): schwebenden Button ausblenden, sobald keine Firma mehr läuft.
+      var floatBtn = document.getElementById('nexusFloatBtn');
+      if(floatBtn) floatBtn.classList.remove('has-pending');
       // BUGFIX (TODO-ZURUECK-ZUR-STARTSEITE): showGameRoot() stoppt den Warp-Tunnel-Canvas beim
       // Spielstart per stopWarpTunnel() — ohne diesen Gegenruf blieb er beim Zurückkehren zum
       // Startbildschirm eingefroren auf dem letzten Frame stehen (siehe startWarpTunnel() weiter
@@ -15367,7 +15429,7 @@ document.getElementById('fileInput').addEventListener('change', (e)=>{
 /* ============================== VERSION / PATCH NOTES ============================== */
 // NEU (TODO-PATCH-NOTES): GAME_VERSION wird auf dem Startbildschirm im Patch-Notes-Button
 // angezeigt (siehe init()). Bei jeder neuen Version hier hochzaehlen.
-const GAME_VERSION = 'v4-79';
+const GAME_VERSION = 'v4-80';
 // NAMENSKONVENTION (ab v4-5): kein "-fix"-Suffix mehr, da nicht jede Version ein Bugfix ist —
 // fortlaufend v4-1, v4-2, v4-3, … Aeltere Versionsnummern (v4-fix1 bis v4-fix4, v3.9-fix-Reihe)
 // behalten im CHANGELOG-Kommentarblock oben ihre historische Bezeichnung, nur ab hier gilt das
@@ -16044,6 +16106,9 @@ function showGameRoot(){
   document.getElementById('startScreen').style.display = 'none';
   document.getElementById('gameRoot').style.display = '';
   if (window.stopWarpTunnel) window.stopWarpTunnel();
+  // NEU (NEXUS-Pakete-Popup): sofort prüfen statt auf den 2s-Timeout beim Seitenaufruf zu warten,
+  // damit der schwebende Button gleich beim Start einer Firma korrekt ein-/ausgeblendet wird.
+  if(window.nexusInboxRefreshBadge) nexusInboxRefreshBadge();
 }
 
 
@@ -16795,126 +16860,210 @@ window.__cloudSyncOnLogin = async function(){
 // "Während du weg warst"-Zusammenfassung (renderOfflineReport/showOfflineReportModal).
 var NEXUS_RES_LABELS = { time_skip_days: "🚀 Zeitsprung-Tage" };
 
+// v2 (Einzelabholung): Pakete werden NICHT mehr serverseitig zu einer Summe
+// verklebt, sondern einzeln geladen und nach (resource_key, amount) gruppiert
+// -- eine Gruppe = eine Paketgroesse aus dem Shop (z.B. "Zeitsprung 1 Jahr").
+// So sieht man jede gekaufte Paketgroesse einzeln mit Anzahl und kann gezielt
+// nur einen Teil abholen (Checkbox je Gruppe) statt immer alles auf einmal.
+var nexusInboxLastPending = [];
+
 async function nexusInboxFetchPending(){
   if(!window.__cloudUser || !window.__cloudSupabase) return [];
   var res = await window.__cloudSupabase.schema('platform').from('resource_grants')
-    .select('resource_key,amount')
+    .select('id,resource_key,amount')
     .eq('game_scope', 'deep_anchor')
-    .is('claimed_at', null);
+    .is('claimed_at', null)
+    .order('resource_key').order('amount');
   if(res.error){ console.warn('NEXUS-Pakete laden fehlgeschlagen:', res.error.message); return []; }
-  var totals = {};
+  var groups = {};
   (res.data || []).forEach(function(row){
-    totals[row.resource_key] = (totals[row.resource_key] || 0) + Number(row.amount);
+    var k = row.resource_key + '::' + row.amount;
+    if(!groups[k]) groups[k] = { resource_key: row.resource_key, amount: Number(row.amount), count: 0, ids: [] };
+    groups[k].count++;
+    groups[k].ids.push(row.id);
   });
-  return Object.keys(totals).map(function(key){ return { resource_key: key, amount: totals[key] }; });
+  return Object.keys(groups).map(function(k){ return groups[k]; });
 }
 
+// GEÄNDERT (NEXUS-Pakete-Popup): steuert jetzt zusätzlich den schwebenden Button
+// (#nexusFloatBtn) -- der bekommt bei offenen Paketen die Klasse "has-pending" und blinkt,
+// statt dass der Nutzer erst in den Einstellungen danach suchen muss. Läuft nur, solange
+// gerade eine Firma läuft (gameRoot sichtbar), damit der Button nicht schon auf dem
+// Startbildschirm aufblitzt.
 async function nexusInboxRefreshBadge(){
   var badge = document.getElementById('nexusInboxBadge');
-  if(!badge) return;
-  var pending = await nexusInboxFetchPending();
-  if(pending.length > 0){
-    badge.textContent = String(pending.length);
-    badge.style.display = 'inline-block';
-  } else {
-    badge.style.display = 'none';
+  var floatBtn = document.getElementById('nexusFloatBtn');
+  var floatBadge = document.getElementById('nexusFloatBadge');
+  var inGame = document.getElementById('gameRoot').style.display !== 'none';
+  var pending = inGame ? await nexusInboxFetchPending() : [];
+  var totalCount = pending.reduce(function(sum, g){ return sum + g.count; }, 0);
+  if(badge){
+    if(totalCount > 0){ badge.textContent = String(totalCount); badge.style.display = 'inline-block'; }
+    else badge.style.display = 'none';
+  }
+  if(floatBtn && floatBadge){
+    if(totalCount > 0){
+      floatBadge.textContent = String(totalCount);
+      floatBadge.style.display = 'block';
+      floatBtn.classList.add('has-pending');
+    } else {
+      floatBadge.style.display = 'none';
+      floatBtn.classList.remove('has-pending');
+    }
   }
 }
 
+// NEU (NEXUS-Pakete-Popup): öffnet das eigenständige Popup (statt der versteckten
+// Einstellungen-Box) -- Aufrufer sind der schwebende Button und der Kurz-Link in den
+// Einstellungen. Lädt die Pakete bei jedem Öffnen neu, damit die Liste aktuell ist.
+async function openNexusPopupModal(){
+  document.getElementById('settingsModal').classList.remove('active');
+  document.getElementById('nexusPopupModal').classList.add('active');
+  await nexusInboxRenderBody();
+}
+document.getElementById('nexusFloatBtn').addEventListener('click', ()=>{
+  openNexusPopupModal();
+  Sound.click();
+});
+document.getElementById('nexusInboxOpenFromSettingsBtn').addEventListener('click', ()=>{
+  openNexusPopupModal();
+  Sound.click();
+});
+document.getElementById('closeNexusPopupModal').addEventListener('click', ()=>{
+  document.getElementById('nexusPopupModal').classList.remove('active');
+  Sound.click();
+});
+// Periodischer Check alle 90s, damit der schwebende Button auch aufblinkt, wenn während einer
+// laufenden Sitzung im Hintergrund (anderer Tab/Gerät) etwas Neues im NEXUS-Shop gekauft wurde.
+setInterval(function(){ nexusInboxRefreshBadge(); }, 90000);
+
 async function nexusInboxRenderBody(){
   var body = document.getElementById('nexusInboxBody');
-  var claimBtn = document.getElementById('nexusInboxClaimBtn');
+  var claimAllBtn = document.getElementById('nexusInboxClaimBtn');
+  var claimSelBtn = document.getElementById('nexusInboxClaimSelectedBtn');
   if(!body) return;
   if(!window.__cloudUser){
     body.innerHTML = '<div class="small-muted">Nur mit Cloud-Konto verfügbar -- erst oben einloggen.</div>';
-    claimBtn.style.display = 'none';
+    claimAllBtn.style.display = 'none';
+    claimSelBtn.style.display = 'none';
     return;
   }
   body.innerHTML = '<div class="small-muted">Lade …</div>';
   var pending = await nexusInboxFetchPending();
+  nexusInboxLastPending = pending;
   if(pending.length === 0){
     body.innerHTML = '<div class="small-muted">Keine offenen Pakete. Käufe aus dem NEXUS-Shop tauchen hier auf.</div>';
-    claimBtn.style.display = 'none';
+    claimAllBtn.style.display = 'none';
+    claimSelBtn.style.display = 'none';
     return;
   }
-  body.innerHTML = pending.map(function(p){
-    var label = NEXUS_RES_LABELS[p.resource_key] || p.resource_key;
-    var years = p.resource_key === 'time_skip_days' ? ' (' + (p.amount/365).toLocaleString('de-DE', {maximumFractionDigits:1}) + ' Jahre)' : '';
-    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">'
-      + '<span>' + label + '</span><span>' + Math.floor(p.amount).toLocaleString('de-DE') + years + '</span></div>';
+  body.innerHTML = pending.map(function(g, i){
+    var label = NEXUS_RES_LABELS[g.resource_key] || g.resource_key;
+    var years = g.resource_key === 'time_skip_days' ? ' (' + (g.amount/365).toLocaleString('de-DE', {maximumFractionDigits:1}) + ' Jahre)' : '';
+    var total = g.amount * g.count;
+    return '<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;cursor:pointer;">'
+      + '<span style="display:flex;align-items:center;gap:6px;"><input type="checkbox" class="nexusInboxChk" data-idx="' + i + '" checked style="margin:0;">' + label + years + ' × ' + g.count + '</span>'
+      + '<span>' + Math.floor(total).toLocaleString('de-DE') + '</span></label>';
   }).join('');
-  claimBtn.style.display = 'block';
+  claimAllBtn.style.display = 'block';
+  claimSelBtn.style.display = 'block';
 }
 
-async function nexusInboxClaim(){
-  var claimBtn = document.getElementById('nexusInboxClaimBtn');
-  if(!window.__cloudUser || !window.__cloudSupabase) return;
-  claimBtn.disabled = true;
-  claimBtn.textContent = 'Wird abgeholt …';
+// Simuliert die abgeholte Anzahl Zeitsprung-Tage per echter tick()-Funktion,
+// genau wie computeAndApplyOfflineProgress() -- gemeinsamer Kern fuer
+// "Alle abholen" und "Ausgewählte abholen".
+async function nexusInboxApplyClaimedDays(claimedRows){
+  var totalDays = 0;
+  (claimedRows || []).forEach(function(row){
+    var amount = Number(row.total_amount) || 0;
+    if(amount <= 0) return;
+    if(row.resource_key === 'time_skip_days') totalDays += Math.round(amount);
+  });
+  if(totalDays <= 0) return;
+  document.getElementById('nexusPopupModal').classList.remove('active');
+  var before = {
+    money: state.money,
+    lifetimeIncome: state.stats.lifetimeIncome,
+    lifetimeUpkeep: state.stats.lifetimeUpkeep,
+    hangarCount: state.hangar.length,
+    moduleHangarCount: state.moduleHangar.length,
+    orbitSatsCount: state.orbitSats.length,
+    satellitesLost: state.stats.satellitesLost,
+    contractsCompleted: state.stats.contractsCompleted,
+    researchCompleted: state.stats.researchCompleted,
+    coloniesCount: state.colonies.length,
+    firstContactsCount: state.firstContacts.length,
+  };
+  offlineCatchupActive = true;
+  for(var i=0; i<totalDays; i++){ tick(true); }
+  offlineCatchupActive = false;
+  state.lastRealTimestamp = Date.now();
+  checkAchievements(true);
+  checkLogbookEntries(true);
+  var satsLost = state.stats.satellitesLost - before.satellitesLost;
+  var arrivals = Math.max(0, (state.orbitSats.length - before.orbitSatsCount) + satsLost);
+  var report = {
+    days: totalDays, wasCapped: false, rawDays: totalDays,
+    moneyDelta: state.money - before.money,
+    incomeDelta: state.stats.lifetimeIncome - before.lifetimeIncome,
+    upkeepDelta: state.stats.lifetimeUpkeep - before.lifetimeUpkeep,
+    shipsFinished: state.hangar.length - before.hangarCount,
+    modulesFinished: state.moduleHangar.length - before.moduleHangarCount,
+    arrivals: arrivals, satsLost: satsLost,
+    contractsCompleted: state.stats.contractsCompleted - before.contractsCompleted,
+    researchCompleted: state.stats.researchCompleted - before.researchCompleted,
+    newColonies: state.colonies.length - before.coloniesCount,
+    newContacts: state.firstContacts.length - before.firstContactsCount,
+  };
+  autosave(true);
+  renderAll();
+  showOfflineReportModal(report);
+  Sound.click();
+}
+
+async function nexusInboxClaimIds(ids, busyBtn, idleLabel){
+  if(!window.__cloudUser || !window.__cloudSupabase || !ids || ids.length === 0) return;
+  var claimAllBtn = document.getElementById('nexusInboxClaimBtn');
+  var claimSelBtn = document.getElementById('nexusInboxClaimSelectedBtn');
+  claimAllBtn.disabled = true;
+  claimSelBtn.disabled = true;
+  if(busyBtn) busyBtn.textContent = 'Wird abgeholt …';
   try{
-    var res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants', { p_game_scope: 'deep_anchor' });
+    var res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants_by_ids', { p_grant_ids: ids });
     if(res.error) throw res.error;
-    var totalDays = 0;
-    (res.data || []).forEach(function(row){
-      var amount = Number(row.total_amount) || 0;
-      if(amount <= 0) return;
-      if(row.resource_key === 'time_skip_days') totalDays += Math.round(amount);
-    });
-    if(totalDays > 0){
-      document.getElementById('settingsModal').classList.remove('active');
-      // Gleicher Ablauf wie computeAndApplyOfflineProgress(): before/after-Snapshot, dann
-      // simDays × stiller tick(true), danach dieselbe Zusammenfassung anzeigen.
-      var before = {
-        money: state.money,
-        lifetimeIncome: state.stats.lifetimeIncome,
-        lifetimeUpkeep: state.stats.lifetimeUpkeep,
-        hangarCount: state.hangar.length,
-        moduleHangarCount: state.moduleHangar.length,
-        orbitSatsCount: state.orbitSats.length,
-        satellitesLost: state.stats.satellitesLost,
-        contractsCompleted: state.stats.contractsCompleted,
-        researchCompleted: state.stats.researchCompleted,
-        coloniesCount: state.colonies.length,
-        firstContactsCount: state.firstContacts.length,
-      };
-      offlineCatchupActive = true;
-      for(var i=0; i<totalDays; i++){ tick(true); }
-      offlineCatchupActive = false;
-      state.lastRealTimestamp = Date.now();
-      checkAchievements(true);
-      checkLogbookEntries(true);
-      var satsLost = state.stats.satellitesLost - before.satellitesLost;
-      var arrivals = Math.max(0, (state.orbitSats.length - before.orbitSatsCount) + satsLost);
-      var report = {
-        days: totalDays, wasCapped: false, rawDays: totalDays,
-        moneyDelta: state.money - before.money,
-        incomeDelta: state.stats.lifetimeIncome - before.lifetimeIncome,
-        upkeepDelta: state.stats.lifetimeUpkeep - before.lifetimeUpkeep,
-        shipsFinished: state.hangar.length - before.hangarCount,
-        modulesFinished: state.moduleHangar.length - before.moduleHangarCount,
-        arrivals: arrivals, satsLost: satsLost,
-        contractsCompleted: state.stats.contractsCompleted - before.contractsCompleted,
-        researchCompleted: state.stats.researchCompleted - before.researchCompleted,
-        newColonies: state.colonies.length - before.coloniesCount,
-        newContacts: state.firstContacts.length - before.firstContactsCount,
-      };
-      autosave(true);
-      renderAll();
-      showOfflineReportModal(report);
-      Sound.click();
-    }
+    await nexusInboxApplyClaimedDays(res.data || []);
   }catch(err){
     console.warn('NEXUS-Pakete abholen fehlgeschlagen:', err.message);
     toast('⚠️ Abholen fehlgeschlagen.', 'bad');
   }finally{
-    claimBtn.disabled = false;
-    claimBtn.textContent = 'Alles abholen';
+    claimAllBtn.disabled = false;
+    claimSelBtn.disabled = false;
+    claimAllBtn.textContent = 'Alle abholen';
+    claimSelBtn.textContent = 'Ausgewählte abholen';
     await nexusInboxRenderBody();
     await nexusInboxRefreshBadge();
   }
 }
 
+async function nexusInboxClaim(){
+  var ids = [];
+  nexusInboxLastPending.forEach(function(g){ ids = ids.concat(g.ids); });
+  await nexusInboxClaimIds(ids, document.getElementById('nexusInboxClaimBtn'));
+}
+
+async function nexusInboxClaimSelected(){
+  var checked = document.querySelectorAll('#nexusInboxBody .nexusInboxChk:checked');
+  var ids = [];
+  checked.forEach(function(chk){
+    var g = nexusInboxLastPending[Number(chk.getAttribute('data-idx'))];
+    if(g) ids = ids.concat(g.ids);
+  });
+  if(ids.length === 0){ toast('Keine Pakete ausgewählt.', 'bad'); return; }
+  await nexusInboxClaimIds(ids, document.getElementById('nexusInboxClaimSelectedBtn'));
+}
+
 document.getElementById('nexusInboxClaimBtn').addEventListener('click', nexusInboxClaim);
+document.getElementById('nexusInboxClaimSelectedBtn').addEventListener('click', nexusInboxClaimSelected);
 
 // Badge-Check: einmal beim Laden (falls schon eingeloggt) und nach jedem Login-Trigger.
 setTimeout(function(){ nexusInboxRefreshBadge(); }, 2000);

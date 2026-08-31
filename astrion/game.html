@@ -4,6 +4,19 @@
  ASTRION — Karten aus den Tiefen des Alls
  CHANGELOG — neue Einträge kommen immer ganz nach OBEN, unter diese Zeile.
 
+v0.06.107
+- FIX (NEXUS-Pakete abholen schlug fehl, Nutzer-Feedback: "column reference resource_key is
+  ambiguous"): platform.claim_resource_grants() hatte einen Namenskonflikt zwischen der
+  RETURNS TABLE-Spalte "resource_key" und der gleichnamigen Tabellenspalte im UPDATE ...
+  RETURNING -- serverseitig in Supabase behoben (kein Client-Codeänderung nötig).
+- NEU (Einzelabholung NEXUS-Pakete, Nutzer-Feedback: "man müsste sehen wieviel man hat ...
+  jedes Paket einzeln, alle oder die angeklickten"): Das NEXUS-Pakete-Postfach zeigt offene
+  Käufe jetzt einzeln nach Paketgröße gruppiert (mit Anzahl) statt nur einer stummen Summe,
+  jede Gruppe mit eigener Checkbox. Neuer Button "Ausgewählte abholen" neben "Alle abholen".
+  Nutzt neue RPC platform.claim_resource_grants_by_ids(uuid[]) statt der alten
+  Alles-auf-einmal-RPC.
+- Versionsanzeige von "v0.06.106" auf "v0.06.107" erhöht.
+
 v0.06.106
 - ENTFERNT (Nutzer-Feedback: Boot-Sequenz nervt): Die komplette "MC ORCA GAMES OS"
   Boot-Sequenz ist raus — sowohl der kurze CRT-Poweron-Flash auf #screen-soundgate
@@ -4310,6 +4323,32 @@ v0.00.1
      zufällig gleichzeitig ein Karten-Detail-Modal offen wäre. */
   #rollOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:60;display:flex;
     align-items:center;justify-content:center;padding:24px;}
+
+  /* NEU (NEXUS-Pakete-Popup, spielübergreifend wie Deep Anchor/Aetheris, Nutzer-Feedback:
+     "eine interne spezial seite achen (pop up) und das das nicht verstekt ist fileicht ein
+     nexus logo das blinkt"): eigenständiges Popup statt nur einer trade-box, die man erst in
+     den Einstellungen findet -- erreichbar über einen schwebenden, blinkenden Button. */
+  #nexusPopupOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:55;display:flex;
+    align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
+  #nexusPopupOverlay .trade-box{max-width:420px;width:100%;margin:auto;}
+  .nexus-float-btn{
+    position:fixed; top:14px; right:14px; z-index:45;
+    width:48px; height:48px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--panel), #0c1420 70%);
+    border:2px solid var(--accent); color:var(--accent);
+    display:none; align-items:center; justify-content:center;
+    font-size:20px; cursor:pointer; box-shadow:0 0 10px rgba(232,182,74,.35);
+  }
+  .nexus-float-btn.has-pending{ display:flex; animation: nexusFloatPulse 1.6s ease-in-out infinite; }
+  @keyframes nexusFloatPulse{
+    0%,100%{ box-shadow:0 0 8px rgba(232,182,74,.4); border-color:var(--accent); }
+    50%{ box-shadow:0 0 20px rgba(232,182,74,.95); border-color:#fff; }
+  }
+  .nexus-float-btn .nexus-float-badge{
+    position:absolute; top:-6px; right:-6px; background:#ff5555; color:#fff;
+    border-radius:9px; padding:1px 6px; font-size:10px; font-weight:700;
+    min-width:16px; text-align:center; box-shadow:0 0 0 2px var(--panel);
+  }
   .roll-box{background:var(--panel);border:1px solid var(--panel-border);border-radius:16px;
     padding:28px 24px;width:100%;max-width:340px;text-align:center;
     box-shadow:0 0 40px rgba(232,182,74,0.18);}
@@ -4838,15 +4877,12 @@ v0.00.1
       </div>
       <span id="cloudStatusMsg" style="display:block;margin-top:8px;font-size:12px;line-height:1.4;"></span>
     </div>
-    <!-- NEU (NEXUS-Pakete): Postfach für Ressourcen-Käufe aus dem NEXUS-Shop (platform.resource_grants),
-         gleiches Muster wie bei Aetheris — bewusst KEIN Auto-Claim, Abholen nur per Klick, damit
-         nichts unbemerkt/doppelt passiert. Als eigene trade-box direkt unter dem Cloud-Konto, da
-         ohne Login sowieso nichts abzuholen ist. -->
+    <!-- GEÄNDERT (NEXUS-Pakete-Popup, Nutzer-Feedback: "da ist nichts zm kliken ... eine interne
+         spezial seite achen (pop up)"): die eigentliche Paket-Box ist jetzt ein eigenes Popup
+         (#nexusPopupOverlay), erreichbar über den blinkenden schwebenden Button (#nexusFloatBtn)
+         UND über diesen Kurz-Link hier in den Einstellungen. -->
     <div class="trade-box" id="nexusInboxSection">
-      <h3>📦 NEXUS-Pakete <span id="nexusInboxBadge" style="display:none;background:var(--accent);color:#1A1410;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></h3>
-      <p style="margin-bottom:8px;">Sternenkredite, die du im NEXUS-Shop gekauft hast, landen erst hier — du holst sie dir manuell ab.</p>
-      <div id="nexusInboxBody" style="text-align:left;"></div>
-      <button class="buy-btn" id="nexusInboxClaimBtn" style="width:100%;margin-top:8px;display:none;">Alles abholen</button>
+      <button class="buy-btn" id="nexusInboxOpenFromSettingsBtn" style="width:100%;">📦 NEXUS-Pakete öffnen <span id="nexusInboxBadge" style="display:none;background:var(--accent);color:#1A1410;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
     </div>
     <div class="trade-box">
       <h3>Version</h3>
@@ -4927,12 +4963,31 @@ v0.00.1
     </div>
   </div>
 
+  <!-- NEU (NEXUS-Pakete-Popup): eigenständiges Popup statt versteckter trade-box in den
+       Einstellungen. #nexusInboxBadge/#nexusInboxBody/#nexusInboxClaimBtn/
+       #nexusInboxClaimSelectedBtn sind dieselben IDs wie zuvor -- die Fetch/Render/Claim-Logik
+       weiter unten im Script bleibt dadurch unverändert funktionsfähig. -->
+  <div id="nexusPopupOverlay" class="hidden">
+    <div class="trade-box">
+      <h3>📦 NEXUS-Pakete</h3>
+      <p style="margin-bottom:8px;">Sternenkredite, die du im NEXUS-Shop gekauft hast, landen erst hier — du holst sie dir manuell ab.</p>
+      <div id="nexusInboxBody" style="text-align:left;"></div>
+      <button class="buy-btn" id="nexusInboxClaimBtn" style="width:100%;margin-top:8px;display:none;">Alle abholen</button>
+      <button class="buy-btn" id="nexusInboxClaimSelectedBtn" style="width:100%;margin-top:6px;display:none;">Ausgewählte abholen</button>
+      <button class="modal-close" id="nexusPopupCloseBtn" style="width:100%;margin-top:10px;">Schließen</button>
+    </div>
+  </div>
+
+  <!-- NEU (NEXUS-Pakete-Popup): schwebender, blinkender Button oben rechts -- sichtbar sobald
+       Pakete offen sind, statt in den Einstellungen versteckt zu bleiben. -->
+  <button class="nexus-float-btn" id="nexusFloatBtn" title="NEXUS-Pakete abholen">🛰️<span class="nexus-float-badge" id="nexusFloatBadge" style="display:none;"></span></button>
+
   <div class="toast" id="toast"></div>
 </div>
 
 <script>
 "use strict";
-const VERSION = "v0.06.106";
+const VERSION = "v0.06.107";
 
 /* Debug-Werkzeuge im Karten-Detail-Modal (Raster ein/aus + Zonen bearbeiten).
    Auf true setzen, um beim Nachjustieren von RACE_LAYOUT/RACE_ART_BOX wieder
@@ -13484,7 +13539,6 @@ document.getElementById('battlePauseBtn').addEventListener('click', ()=>{
 function renderSettings(){
   document.getElementById('settingsVersion').textContent = VERSION;
   renderDifficultyToggle();
-  nexusInboxRenderBody();
 }
 // v0.06.86 — Schwierigkeitsgrad-Auswahl. active-Klasse markiert die
 // aktuell gewählte Stufe, gleiches visuelles Muster wie die Markt-Tabs.
@@ -14376,94 +14430,170 @@ window.__cloudSyncOnLogin = async function(){
 // Gleiches Muster wie bei Aetheris, hier nur mit Astrions eigener Ressource (credits = AC).
 var NEXUS_RES_LABELS = { credits: "🪙 Sternenkredite" };
 
+// v2 (Einzelabholung): Pakete werden NICHT mehr serverseitig zu einer Summe
+// verklebt, sondern einzeln geladen und nach (resource_key, amount) gruppiert
+// -- eine Gruppe = eine Paketgroesse aus dem Shop (z.B. "Sternenkredite Klein").
+// So sieht man jede gekaufte Paketgroesse einzeln mit Anzahl und kann gezielt
+// nur einen Teil abholen (Checkbox je Gruppe) statt immer alles auf einmal.
+var nexusInboxLastPending = [];
+
 async function nexusInboxFetchPending(){
   if(!window.__cloudUser || !window.__cloudSupabase) return [];
   var res = await window.__cloudSupabase.schema('platform').from('resource_grants')
-    .select('resource_key,amount')
+    .select('id,resource_key,amount')
     .eq('game_scope', 'astrion')
-    .is('claimed_at', null);
+    .is('claimed_at', null)
+    .order('resource_key').order('amount');
   if(res.error){ console.warn('NEXUS-Pakete laden fehlgeschlagen:', res.error.message); return []; }
-  var totals = {};
+  var groups = {};
   (res.data || []).forEach(function(row){
-    totals[row.resource_key] = (totals[row.resource_key] || 0) + Number(row.amount);
+    var k = row.resource_key + '::' + row.amount;
+    if(!groups[k]) groups[k] = { resource_key: row.resource_key, amount: Number(row.amount), count: 0, ids: [] };
+    groups[k].count++;
+    groups[k].ids.push(row.id);
   });
-  return Object.keys(totals).map(function(key){ return { resource_key: key, amount: totals[key] }; });
+  return Object.keys(groups).map(function(k){ return groups[k]; });
 }
 
+// GEÄNDERT (NEXUS-Pakete-Popup): steuert zusätzlich den schwebenden Button (#nexusFloatBtn) --
+// blinkt bei offenen Paketen, statt dass man erst in den Einstellungen danach suchen muss.
 async function nexusInboxRefreshBadge(){
   var badge = document.getElementById('nexusInboxBadge');
-  if(!badge) return;
+  var floatBtn = document.getElementById('nexusFloatBtn');
+  var floatBadge = document.getElementById('nexusFloatBadge');
   var pending = await nexusInboxFetchPending();
-  if(pending.length > 0){
-    badge.textContent = String(pending.length);
-    badge.style.display = 'inline-block';
-  } else {
-    badge.style.display = 'none';
+  var totalCount = pending.reduce(function(sum, g){ return sum + g.count; }, 0);
+  if(badge){
+    if(totalCount > 0){ badge.textContent = String(totalCount); badge.style.display = 'inline-block'; }
+    else badge.style.display = 'none';
+  }
+  if(floatBtn && floatBadge){
+    if(totalCount > 0){
+      floatBadge.textContent = String(totalCount);
+      floatBadge.style.display = 'block';
+      floatBtn.classList.add('has-pending');
+    } else {
+      floatBadge.style.display = 'none';
+      floatBtn.classList.remove('has-pending');
+    }
   }
 }
 
+// NEU (NEXUS-Pakete-Popup): öffnet das eigenständige Popup (statt der versteckten trade-box in
+// den Einstellungen) -- Aufrufer sind der schwebende Button und der Kurz-Link in den
+// Einstellungen. Lädt die Pakete bei jedem Öffnen neu, damit die Liste aktuell ist.
+async function openNexusPopup(){
+  document.getElementById('nexusPopupOverlay').classList.remove('hidden');
+  await nexusInboxRenderBody();
+}
+function closeNexusPopup(){
+  document.getElementById('nexusPopupOverlay').classList.add('hidden');
+}
+document.getElementById('nexusFloatBtn').addEventListener('click', openNexusPopup);
+document.getElementById('nexusInboxOpenFromSettingsBtn').addEventListener('click', openNexusPopup);
+document.getElementById('nexusPopupCloseBtn').addEventListener('click', closeNexusPopup);
+document.getElementById('nexusPopupOverlay').addEventListener('click', function(e){
+  if(e.target.id === 'nexusPopupOverlay') closeNexusPopup();
+});
+// Periodischer Check alle 90s, damit der schwebende Button auch aufblinkt, wenn während einer
+// laufenden Sitzung im Hintergrund (anderer Tab/Gerät) etwas Neues im NEXUS-Shop gekauft wurde.
+setInterval(function(){ nexusInboxRefreshBadge(); }, 90000);
+
 async function nexusInboxRenderBody(){
   var body = document.getElementById('nexusInboxBody');
-  var claimBtn = document.getElementById('nexusInboxClaimBtn');
+  var claimAllBtn = document.getElementById('nexusInboxClaimBtn');
+  var claimSelBtn = document.getElementById('nexusInboxClaimSelectedBtn');
   if(!body) return;
   if(!window.__cloudUser){
     body.innerHTML = '<div class="mtype" style="opacity:0.7;">Nur mit Cloud-Konto verfügbar -- erst oben einloggen.</div>';
-    claimBtn.style.display = 'none';
+    claimAllBtn.style.display = 'none';
+    claimSelBtn.style.display = 'none';
     return;
   }
   body.innerHTML = '<div class="mtype" style="opacity:0.7;">Lade …</div>';
   var pending = await nexusInboxFetchPending();
+  nexusInboxLastPending = pending;
   if(pending.length === 0){
     body.innerHTML = '<div class="mtype" style="opacity:0.7;">Keine offenen Pakete. Käufe aus dem NEXUS-Shop tauchen hier auf.</div>';
-    claimBtn.style.display = 'none';
+    claimAllBtn.style.display = 'none';
+    claimSelBtn.style.display = 'none';
     return;
   }
-  body.innerHTML = pending.map(function(p){
-    var label = NEXUS_RES_LABELS[p.resource_key] || p.resource_key;
-    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.12);font-size:13px;">'
-      + '<span>' + label + '</span><span style="color:var(--accent, #fff);">' + Math.floor(p.amount).toLocaleString('de-DE') + '</span></div>';
+  body.innerHTML = pending.map(function(g, i){
+    var label = NEXUS_RES_LABELS[g.resource_key] || g.resource_key;
+    var total = g.amount * g.count;
+    return '<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.12);font-size:13px;cursor:pointer;">'
+      + '<span style="display:flex;align-items:center;gap:6px;"><input type="checkbox" class="nexusInboxChk" data-idx="' + i + '" checked style="margin:0;">' + label + ' × ' + g.count + '</span>'
+      + '<span style="color:var(--accent, #fff);">' + Math.floor(total).toLocaleString('de-DE') + '</span></label>';
   }).join('');
-  claimBtn.style.display = 'block';
+  claimAllBtn.style.display = 'block';
+  claimSelBtn.style.display = 'block';
 }
 
-async function nexusInboxClaim(){
-  var claimBtn = document.getElementById('nexusInboxClaimBtn');
-  if(!window.__cloudUser || !window.__cloudSupabase) return;
-  claimBtn.disabled = true;
-  claimBtn.textContent = 'Wird abgeholt …';
-  try{
-    var res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants', { p_game_scope: 'astrion' });
-    if(res.error) throw res.error;
-    var totalCredits = 0;
-    (res.data || []).forEach(function(row){
-      var amount = Number(row.total_amount) || 0;
-      if(amount <= 0) return;
-      if(row.resource_key === 'credits'){
-        state.credits = (state.credits || 0) + amount;
-        totalCredits += amount;
-      }
-    });
-    if(totalCredits > 0){
-      saveState();
-      var hubEl = document.getElementById('hubCredits');
-      if(hubEl) hubEl.textContent = state.credits;
-      var marketEl = document.getElementById('marketCredits');
-      if(marketEl) marketEl.textContent = state.credits;
-      showToast(`📦 Abgeholt: +${totalCredits.toLocaleString('de-DE')} 🪙 Sternenkredite!`);
-      SFX.click();
+function nexusInboxApplyClaimed(claimedRows){
+  var totalCredits = 0;
+  (claimedRows || []).forEach(function(row){
+    var amount = Number(row.total_amount) || 0;
+    if(amount <= 0) return;
+    if(row.resource_key === 'credits'){
+      state.credits = (state.credits || 0) + amount;
+      totalCredits += amount;
     }
+  });
+  if(totalCredits > 0){
+    saveState();
+    var hubEl = document.getElementById('hubCredits');
+    if(hubEl) hubEl.textContent = state.credits;
+    var marketEl = document.getElementById('marketCredits');
+    if(marketEl) marketEl.textContent = state.credits;
+    showToast(`📦 Abgeholt: +${totalCredits.toLocaleString('de-DE')} 🪙 Sternenkredite!`);
+    SFX.click();
+  }
+}
+
+async function nexusInboxClaimIds(ids, busyBtn){
+  if(!window.__cloudUser || !window.__cloudSupabase || !ids || ids.length === 0) return;
+  var claimAllBtn = document.getElementById('nexusInboxClaimBtn');
+  var claimSelBtn = document.getElementById('nexusInboxClaimSelectedBtn');
+  claimAllBtn.disabled = true;
+  claimSelBtn.disabled = true;
+  if(busyBtn) busyBtn.textContent = 'Wird abgeholt …';
+  try{
+    var res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants_by_ids', { p_grant_ids: ids });
+    if(res.error) throw res.error;
+    nexusInboxApplyClaimed(res.data || []);
   }catch(err){
     console.warn('NEXUS-Pakete abholen fehlgeschlagen:', err.message);
     showToast('⚠️ Abholen fehlgeschlagen.');
   }finally{
-    claimBtn.disabled = false;
-    claimBtn.textContent = 'Alles abholen';
+    claimAllBtn.disabled = false;
+    claimSelBtn.disabled = false;
+    claimAllBtn.textContent = 'Alle abholen';
+    claimSelBtn.textContent = 'Ausgewählte abholen';
     await nexusInboxRenderBody();
     await nexusInboxRefreshBadge();
   }
 }
 
+async function nexusInboxClaim(){
+  var ids = [];
+  nexusInboxLastPending.forEach(function(g){ ids = ids.concat(g.ids); });
+  await nexusInboxClaimIds(ids, document.getElementById('nexusInboxClaimBtn'));
+}
+
+async function nexusInboxClaimSelected(){
+  var checked = document.querySelectorAll('#nexusInboxBody .nexusInboxChk:checked');
+  var ids = [];
+  checked.forEach(function(chk){
+    var g = nexusInboxLastPending[Number(chk.getAttribute('data-idx'))];
+    if(g) ids = ids.concat(g.ids);
+  });
+  if(ids.length === 0){ showToast('Keine Pakete ausgewählt.'); return; }
+  await nexusInboxClaimIds(ids, document.getElementById('nexusInboxClaimSelectedBtn'));
+}
+
 document.getElementById('nexusInboxClaimBtn').addEventListener('click', nexusInboxClaim);
+document.getElementById('nexusInboxClaimSelectedBtn').addEventListener('click', nexusInboxClaimSelected);
 
 // Badge-Check: einmal beim Laden (falls schon eingeloggt) und nach jedem Login-Trigger.
 setTimeout(function(){ nexusInboxRefreshBadge(); }, 2000);

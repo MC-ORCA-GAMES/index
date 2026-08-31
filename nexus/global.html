@@ -144,6 +144,23 @@
   .chart-note{ text-align:center; font-size:11.5px; color:var(--fg-faint); margin:10px 0 0; }
   .chart-empty-hint{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12.5px; color:var(--fg-faint); padding:0 20px; }
 
+  /* ---------- Zentralbank ---------- */
+  .bank-panel{ margin:32px 0 12px; border:1px solid var(--line); border-radius:16px; padding:22px 24px 20px; background:var(--panel); }
+  .bank-panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .bank-panel-head .t{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; }
+  .bank-panel-head .hint{ font-size:11.5px; color:var(--fg-faint); }
+  .bank-track{ position:relative; height:9px; border-radius:999px; background:rgba(212,175,55,0.1); overflow:hidden; margin:6px 0 8px; }
+  .bank-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg,#8a6c1c,var(--gold)); box-shadow:0 0 12px rgba(212,175,55,0.55); transition:width .8s cubic-bezier(.2,.8,.2,1); }
+  .bank-sub{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--fg-faint); }
+  .bank-payouts{ margin-top:18px; }
+  .bank-payouts-title{ font-size:11.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--fg-faint); margin-bottom:10px; }
+  .bank-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .bank-payout-row:last-child{ border-bottom:none; }
+  .bank-payout-rank{ color:var(--gold); font-family:'Space Grotesk'; font-weight:600; width:26px; }
+  .bank-payout-name{ flex:1; color:var(--fg-dim); }
+  .bank-payout-amount{ color:var(--fg); font-family:'JetBrains Mono',monospace; }
+  .bank-empty{ font-size:12.5px; color:var(--fg-faint); text-align:center; padding:8px 0; }
+
   /* ---------- miners row ---------- */
   .miners-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:30px 0 8px; font-size:13px; color:var(--fg-dim); }
   .miners-row b{ color:var(--blue); font-family:'Space Grotesk'; }
@@ -261,6 +278,19 @@
     <div class="stat-card">
       <div class="sc-label">Letzte 30 Tage</div>
       <div class="sc-value" id="statMonth">–</div>
+    </div>
+  </section>
+
+  <section class="bank-panel reveal in">
+    <div class="bank-panel-head">
+      <span class="t">🏦 Zentralbank</span>
+      <span class="hint">1% jedes Mining-Ertrags, gestuft ausgeschüttet an die Top 10 der Rangliste</span>
+    </div>
+    <div class="bank-track"><div class="bank-fill" id="bankFill"></div></div>
+    <div class="bank-sub" id="bankSub">wird geladen …</div>
+    <div class="bank-payouts">
+      <div class="bank-payouts-title">Letzte Ausschüttungen</div>
+      <div id="bankPayouts"><div class="bank-empty">wird geladen …</div></div>
     </div>
   </section>
 
@@ -402,6 +432,40 @@
     else{ periodChart = new Chart(ctx, { type:'bar', data:data, options:opts }); }
   }
 
+  async function loadBank(){
+    const BANK_THRESHOLD = 500000;
+    try{
+      const { data, error } = await sb.schema('platform').rpc('get_bank_status', { p_limit: 8 });
+      if(error || !data || !data.length){
+        document.getElementById('bankSub').textContent = 'Bank-Status nicht verfügbar';
+        document.getElementById('bankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+        return;
+      }
+      const reserve = Number(data[0].reserve_balance) || 0;
+      const pct = Math.min(100, (reserve / BANK_THRESHOLD) * 100);
+      document.getElementById('bankFill').style.width = pct + '%';
+      document.getElementById('bankSub').textContent =
+        fmtCredits(reserve, 0) + ' / ' + fmtCredits(BANK_THRESHOLD, 0) + ' NRC in der Reserve';
+
+      const payouts = data.filter(function(row){ return row.payout_id != null; });
+      const list = document.getElementById('bankPayouts');
+      if(!payouts.length){
+        list.innerHTML = '<div class="bank-empty">Noch keine Ausschüttung — die Reserve füllt sich mit jedem Mining-Tick.</div>';
+        return;
+      }
+      list.innerHTML = payouts.map(function(row){
+        return '<div class="bank-payout-row">'
+          + '<span class="bank-payout-rank">#' + row.rank_no + '</span>'
+          + '<span class="bank-payout-name">' + (row.username || 'Unbenannt') + '</span>'
+          + '<span class="bank-payout-amount">+' + fmtCredits(row.amount, 0) + ' NRC</span>'
+          + '</div>';
+      }).join('');
+    }catch(e){
+      document.getElementById('bankSub').textContent = 'Bank-Status nicht verfügbar';
+      document.getElementById('bankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+    }
+  }
+
   async function loadStats(){
     try{
       const res = await sb.schema('crypto_farm').rpc('get_global_mining_stats');
@@ -511,8 +575,10 @@
 
   loadStats();
   loadHistory();
+  loadBank();
   setInterval(loadStats, 60000);
   setInterval(loadHistory, 60000);
+  setInterval(loadBank, 60000);
 })();
 </script>
 

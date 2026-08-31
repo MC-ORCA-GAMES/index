@@ -2,6 +2,13 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.4: Bugfix "Gesamt gemined (all-time)" -- Stat-Karte zeigte vor dem ersten
+    Prestige immer 0, weil nur platform.wallets.lifetime_mined_alltime (der reine
+    Prestige-Akkumulator) angezeigt wurde, ohne den laufenden Durchlauf
+    (crypto_farm.player_state.total_mined) einzurechnen. Jetzt Summe aus beiden,
+    genau wie serverseitig in platform.nexus_points()/nexus_leaderboard_rows()
+    (siehe raenge.html) -- der Wert faellt dadurch nie zurueck auf 0 und laeuft
+    kontinuierlich weiter, auch ueber Prestige-Resets hinweg.
   - v3.3: Neuer erster Tab "Übersicht" (kompakte Wallet-Zeilen statt grosser
     Stat-Karten, alles auf einen Blick) -- ersetzt die bisher immer sichtbare
     Stat-Karten-Zeile ueber den Tabs. Haupt-Tabs sitzen jetzt ganz oben (vor
@@ -232,6 +239,9 @@
   #bankBar .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, #8a6c1c, var(--gold)); box-shadow:0 0 12px rgba(212,175,55,0.65), 0 0 2px rgba(212,175,55,0.9); transition:width .8s cubic-bezier(.2,.8,.2,1); animation:bbPulse 2.6s ease-in-out infinite; }
   @keyframes bbPulse{ 0%,100%{ filter:brightness(1); } 50%{ filter:brightness(1.28); } }
   #bankBar .bb-sub{ font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-top:6px; }
+  #bankBar .bb-divider{ height:1px; background:var(--line); margin:12px 0; }
+  #bankBar .bb-incident{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; font-family:var(--mono); font-size:11.5px; }
+  #bankBar .bb-incident .bb-inc-label{ color:var(--fg-faint); display:flex; align-items:center; gap:7px; }
 
   /* ---------- farm overview (icon grid) ---------- */
   .farm-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr)); gap:10px; margin-bottom:6px; }
@@ -325,20 +335,21 @@
   .wr-tab.active{ background:#2F8CFF; border-color:#2F8CFF; color:#fff; }
 
   /* ---------- Haupt-Tabs ---------- */
-  .main-tabs{ display:flex; gap:8px; margin:22px 0 18px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  .main-tabs{ display:flex; gap:10px; margin:22px 0 18px; overflow-x:auto; -webkit-overflow-scrolling:touch;
     scrollbar-width:none; padding-bottom:2px; }
   .main-tabs::-webkit-scrollbar{ display:none; }
-  .main-tab-btn{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:13.5px; white-space:nowrap;
-    padding:10px 18px; border-radius:12px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
-    cursor:pointer; display:flex; align-items:center; gap:8px; transition:background .15s, color .15s, border-color .15s; }
-  .main-tab-btn .mt-icon{ font-size:15px; line-height:1; }
+  .main-tab-btn{ font-family:'Space Grotesk', sans-serif; font-weight:600; white-space:nowrap;
+    width:62px; height:62px; flex:0 0 auto; padding:0; border-radius:14px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
+    cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s, border-color .15s; }
+  .main-tab-btn .mt-icon{ width:36px; height:36px; object-fit:contain; flex:0 0 auto; }
   .main-tab-btn:hover{ border-color:rgba(232,230,227,0.25); color:var(--fg); }
   .main-tab-btn.active{ background:var(--blue); border-color:var(--blue); color:#fff; }
   .tab-page{ display:none; }
   .tab-page.active{ display:block; }
   @media (max-width:600px){
-    .main-tabs{ margin:16px 0 14px; }
-    .main-tab-btn{ padding:9px 14px; font-size:12.5px; }
+    .main-tabs{ margin:16px 0 14px; gap:8px; }
+    .main-tab-btn{ width:54px; height:54px; border-radius:12px; }
+    .main-tab-btn .mt-icon{ width:30px; height:30px; }
   }
 
   /* ---------- prestige ---------- */
@@ -507,12 +518,12 @@
     <div id="statusMsg"></div>
 
     <nav class="main-tabs" id="mainTabs">
-      <button type="button" class="main-tab-btn active" data-tab="uebersicht"><span class="mt-icon">📋</span> Übersicht</button>
-      <button type="button" class="main-tab-btn" data-tab="wallet"><span class="mt-icon">👛</span> Wallet</button>
-      <button type="button" class="main-tab-btn" data-tab="farm"><span class="mt-icon">⛏</span> Farm</button>
-      <button type="button" class="main-tab-btn" data-tab="markt"><span class="mt-icon">📈</span> Markt</button>
-      <button type="button" class="main-tab-btn" data-tab="prestige"><span class="mt-icon">♻</span> Prestige</button>
-      <button type="button" class="main-tab-btn" data-tab="shop"><span class="mt-icon">🛒</span> Shop</button>
+      <button type="button" class="main-tab-btn active" data-tab="uebersicht" title="Übersicht" aria-label="Übersicht"><img class="mt-icon" src="art/tabs/overview.png" alt="Übersicht"></button>
+      <button type="button" class="main-tab-btn" data-tab="wallet" title="Wallet" aria-label="Wallet"><img class="mt-icon" src="art/tabs/wallet.png" alt="Wallet"></button>
+      <button type="button" class="main-tab-btn" data-tab="farm" title="Farm" aria-label="Farm"><img class="mt-icon" src="art/tabs/farm.png" alt="Farm"></button>
+      <button type="button" class="main-tab-btn" data-tab="markt" title="Markt" aria-label="Markt"><img class="mt-icon" src="art/tabs/market.png" alt="Markt"></button>
+      <button type="button" class="main-tab-btn" data-tab="prestige" title="Prestige" aria-label="Prestige"><img class="mt-icon" src="art/tabs/prestige.png" alt="Prestige"></button>
+      <button type="button" class="main-tab-btn" data-tab="shop" title="Shop" aria-label="Shop"><img class="mt-icon" src="art/tabs/shop.png" alt="Shop"></button>
     </nav>
 
     <div class="tab-page active" id="tabPage-uebersicht">
@@ -526,7 +537,7 @@
         </div>
         <div class="stat-card">
           <div class="label">MC ORCA GAMES Coins (MOGC)</div>
-          <div class="value coin-value"><span class="sc-icon">💠</span><span id="storeBalanceDisplay" class="js-balance-mogc">–</span></div>
+          <div class="value coin-value"><img class="coin-icon" src="art/mogc-coin-32.png" alt=""><span id="storeBalanceDisplay" class="js-balance-mogc">–</span></div>
         </div>
         <div class="stat-card">
           <div class="label">Lifetime gemined</div>
@@ -574,7 +585,7 @@
         </div>
         <div class="stat-card">
           <div class="label">MC ORCA GAMES Coins (MOGC)</div>
-          <div class="value coin-value"><span class="sc-icon">💠</span><span class="js-balance-mogc">–</span></div>
+          <div class="value coin-value"><img class="coin-icon" src="art/mogc-coin-32.png" alt=""><span class="js-balance-mogc">–</span></div>
         </div>
       </div>
     </div>
@@ -682,7 +693,7 @@
       <div class="top-row">
         <div class="stat-card">
           <div class="label">MC ORCA GAMES Coins (MOGC)</div>
-          <div class="value coin-value"><span class="sc-icon">💠</span><span class="js-balance-mogc">–</span></div>
+          <div class="value coin-value"><img class="coin-icon" src="art/mogc-coin-32.png" alt=""><span class="js-balance-mogc">–</span></div>
         </div>
       </div>
     </div>
@@ -1188,7 +1199,13 @@ async function loadEverything(){
   });
   document.querySelectorAll('.js-balance-mogc').forEach(el => { el.textContent = fmtCoin(storeBalance); });
   document.querySelectorAll('.js-lifetime-mined').forEach(el => { el.textContent = fmtCoin(state?.total_mined ?? 0); });
-  document.querySelectorAll('.js-alltime-mined').forEach(el => { el.textContent = fmtCoin(wallet?.lifetime_mined_alltime ?? 0); });
+  // "Gesamt gemined (all-time)" = permanenter Prestige-Akkumulator + laufender
+  // Durchlauf. So faellt der Wert nie auf 0 zurueck (auch vor dem ersten
+  // Prestige nicht) und laeuft einfach kontinuierlich weiter. Nach einem
+  // Prestige ist der Zuwachs logischerweise erstmal wieder langsamer, weil
+  // total_mined dann bei 0 neu startet -- die Summe selbst sinkt aber nie.
+  const allTimeMined = Number(wallet?.lifetime_mined_alltime ?? 0) + Number(state?.total_mined ?? 0);
+  document.querySelectorAll('.js-alltime-mined').forEach(el => { el.textContent = fmtCoin(allTimeMined); });
   document.querySelectorAll('.js-prestige-level').forEach(el => { el.textContent = `Prestige-Stufe ${prestigeLevel}`; });
   document.getElementById('prestigePointsDisplay').textContent = fmtCoin(prestigePoints);
 
@@ -1208,29 +1225,38 @@ async function loadEverything(){
     spawnFly('+' + fmtCoin(collectedAmt) + ' <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">', getVisibleBalanceEl('.js-balance-nova'), true);
   }
 
-  // Zentralbank-Reserve + laufendes Kurs-Event (Bonus/Malus), live aus get_market_status()
+  // Zentralbank-Reserve (gespeist aus 1% jedes Mining-Ertrags, unabhaengig
+  // von Netzwerk-Zwischenfaellen) + Netzwerk-Zwischenfall (Bonus/Malus,
+  // wirkt nur auf die Ertragsrate, hat mit der Bank nichts zu tun)
   const reserveVal = Number(bank?.reserve_balance ?? 0);
+  const BANK_THRESHOLD = 500000;
+  const bankPct = Math.min(100, (reserveVal / BANK_THRESHOLD) * 100);
+
+  const bankRowHtml = `
+    <div class="bb-top">
+      <span class="bb-label"><span class="bb-icon">🏦</span> Zentralbank-Reserve</span>
+      <span class="bb-value">${fmtCoin(reserveVal)} / ${fmtCoin(BANK_THRESHOLD)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""></span>
+    </div>
+    <div class="bb-track"><div class="bb-fill" style="width:${bankPct}%"></div></div>
+    <div class="bb-sub">1% jedes Mining-Ertrags fließt hier ein · bei ${fmtCoin(BANK_THRESHOLD)} wird gestuft an die Top 10 der Rangliste ausgeschüttet</div>`;
+
   const eventActive = !!(marketStatus && marketStatus.event_type);
+  let incidentHtml;
   if (eventActive) {
     const isBonus = marketStatus.event_type === 'bonus';
     const expiresMs = new Date(marketStatus.event_expires_at).getTime();
     const secsLeft = Math.max(0, Math.round((expiresMs - Date.now()) / 1000));
     const mins = Math.floor(secsLeft / 60), secs = secsLeft % 60;
-    document.getElementById('bankBar').innerHTML = `
-      <div class="bb-top">
-        <span class="bb-label"><span class="bb-icon">${isBonus ? '⚡' : '⚠️'}</span> ${marketStatus.event_label}</span>
-        <span class="bb-value" style="color:${isBonus ? 'var(--up)' : 'var(--down)'}">×${Number(marketStatus.event_multiplier).toFixed(2)} Ertrag</span>
-      </div>
-      <div class="bb-track"><div class="bb-fill" style="width:100%;background:linear-gradient(90deg, ${isBonus ? '#1c6a45, var(--up)' : '#7a1c1c, var(--down)'})"></div></div>
-      <div class="bb-sub">🏦 Reserve: ${fmtCoin(reserveVal)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> · Event endet in ${mins}:${String(secs).padStart(2,'0')}</div>`;
+    incidentHtml = `
+      <div class="bb-incident">
+        <span class="bb-inc-label">${isBonus ? '⚡' : '⚠️'} ${marketStatus.event_label} <span style="opacity:.7">(Netzwerk-Zwischenfall, endet in ${mins}:${String(secs).padStart(2,'0')})</span></span>
+        <span style="color:${isBonus ? 'var(--up)' : 'var(--down)'}">×${Number(marketStatus.event_multiplier).toFixed(2)} Ertrag</span>
+      </div>`;
   } else {
-    document.getElementById('bankBar').innerHTML = `
-      <div class="bb-top">
-        <span class="bb-label"><span class="bb-icon">🏦</span> Zentralbank-Reserve</span>
-        <span class="bb-value">${fmtCoin(reserveVal)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""></span>
-      </div>
-      <div class="bb-sub">Kein aktives Kurs-Event · starke Kursausschläge können jederzeit einen Bonus- oder Malus-Event auslösen</div>`;
+    incidentHtml = `<div class="bb-incident"><span class="bb-inc-label">Kein aktiver Netzwerk-Zwischenfall · starke Kursausschläge können jederzeit einen Bonus- oder Malus-Zwischenfall auslösen</span></div>`;
   }
+
+  document.getElementById('bankBar').innerHTML = bankRowHtml + `<div class="bb-divider"></div>` + incidentHtml;
 
   // Offline-Earnings-Popup (nur beim ersten Laden nach Login/Session-Start).
   // Da Coins jetzt auch im Hintergrund (Cron, jede Minute, fuer alle Spieler)
@@ -1418,7 +1444,7 @@ function updateSellPreview(){
   }
   const amount = Math.min(raw, currentBalance);
   const gained = amount * (latestPrice / 100);
-  preview.innerHTML = `${fmtCoin(amount)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> → ≈ ${fmtCoin(gained)} <span class="sc-icon-sm">💠</span> MOGC zum aktuellen Kurs`;
+  preview.innerHTML = `${fmtCoin(amount)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt=""> → ≈ ${fmtCoin(gained)} <img class="coin-icon-sm" src="art/mogc-coin-32.png" alt=""> MOGC zum aktuellen Kurs`;
 }
 document.getElementById('sellAmountInput').addEventListener('input', updateSellPreview);
 document.getElementById('sellMaxBtn').addEventListener('click', () => {
@@ -1439,7 +1465,7 @@ window.sellNovaRift = async function(){
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg',
     `Verkauft: ${fmtCoin(amount)} Nova-Rift für ${fmtCoin(row?.premium_gained ?? 0)} MOGC (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
-  spawnFly('+' + fmtCoin(row?.premium_gained ?? 0) + ' <span class="sc-icon-sm">💠</span>', getVisibleBalanceEl('.js-balance-mogc'), true);
+  spawnFly('+' + fmtCoin(row?.premium_gained ?? 0) + ' <img class="coin-icon-sm" src="art/mogc-coin-32.png" alt="">', getVisibleBalanceEl('.js-balance-mogc'), true);
   input.value = '';
   await loadEverything();
 };
@@ -1488,7 +1514,7 @@ function renderShop(){
         <div>
           <div class="rig-name">${item.name}</div>
           <div class="rig-desc">${item.description ?? ''}</div>
-          <div class="rig-meta">${fmtCoin(item.price)} <span class="sc-icon-sm">💠</span> MOGC · ${item.effect_type}</div>
+          <div class="rig-meta">${fmtCoin(item.price)} <img class="coin-icon-sm" src="art/mogc-coin-32.png" alt=""> MOGC · ${item.effect_type}</div>
         </div>`;
       const btn = document.createElement('button');
       if (owned) {
@@ -1509,7 +1535,7 @@ window.buyShopItem = async function(itemId, price, btnEl){
   const { error } = await sb.schema('platform').rpc('purchase_shop_item', { p_item_id: itemId });
   if (error) { showMsg('statusMsg', error.message, false); btnEl.disabled = false; return; }
   showMsg('statusMsg', 'Kauf erfolgreich.', true);
-  spawnFly('-' + fmtCoin(price) + ' <span class="sc-icon-sm">💠</span>', btnEl, false);
+  spawnFly('-' + fmtCoin(price) + ' <img class="coin-icon-sm" src="art/mogc-coin-32.png" alt="">', btnEl, false);
   await loadEverything();
 };
 

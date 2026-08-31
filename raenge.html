@@ -40,6 +40,8 @@
     --violet:#B23AFF;
     --violet-dim:rgba(178,58,255,0.14);
     --orange:#FF6A2B;
+    --blue:#2F8CFF;
+    --blue-dim:rgba(47,140,255,0.14);
     --orange-dim:rgba(255,106,43,0.14);
   }
   *{ box-sizing:border-box; }
@@ -329,6 +331,14 @@
         var money = data.money || 0;
         return Math.round(achievements*50 + reputation*8 + money/100);
       }
+    },
+    {
+      id:'nexus', label:'Nexus', accent:'var(--blue)'
+      /* Nexus liegt nicht im generischen Save-Blob (saves-Tabelle) wie die
+         anderen vier Spiele, sondern in platform.wallets -- kommt separat
+         über platform.nexus_leaderboard_rows() rein, siehe loadNexus() unten.
+         Formel identisch zur serverseitigen platform.nexus_points():
+         prestige_points*50 + prestige_level*30 + lifetime_mined_alltime/50 */
     }
   ];
 
@@ -432,7 +442,7 @@
     var rows = res.data || [];
     players = {};
     rows.forEach(function(row){
-      var game = GAMES.filter(function(g){ return g.match(row.key); })[0];
+      var game = GAMES.filter(function(g){ return g.match && g.match(row.key); })[0];
       if(!game) return;
       var data;
       try{ data = JSON.parse(row.value); }catch(e){ return; }
@@ -447,6 +457,30 @@
       // pro Spiel zählt der beste Spielstand (falls mehrere Speicherstände existieren)
       pl.perGame[game.id] = Math.max(pl.perGame[game.id] || 0, pts);
     });
+    // Nexus liegt nicht in der generischen saves-Tabelle, sondern separat in
+    // platform.wallets -- eigener RPC-Aufruf, gleiche Punkteformel wie
+    // serverseitig platform.nexus_points() (siehe zentrale-bank-Migration).
+    try{
+      var nexusRes = await supabaseClient.schema('platform').rpc('nexus_leaderboard_rows');
+      if(!nexusRes.error){
+        (nexusRes.data || []).forEach(function(row){
+          var pts = Math.round(
+            (Number(row.prestige_points) || 0) * 50
+            + (Number(row.prestige_level) || 0) * 30
+            + (Number(row.lifetime_mined_alltime) || 0) / 50
+          );
+          if(pts <= 0) return;
+          if(!players[row.user_id]){
+            players[row.user_id] = { id: row.user_id, name: row.username, avatar: row.avatar, perGame: {}, total: 0 };
+          }
+          var pl = players[row.user_id];
+          if(!pl.name && row.username) pl.name = row.username;
+          if(!pl.avatar && row.avatar) pl.avatar = row.avatar;
+          pl.perGame.nexus = Math.max(pl.perGame.nexus || 0, pts);
+        });
+      }
+    }catch(e){ /* Nexus-Werte fehlen dann einfach, Rest der Rangliste laeuft weiter */ }
+
     Object.keys(players).forEach(function(id){
       var pl = players[id];
       pl.total = GAMES.reduce(function(sum, g){ return sum + (pl.perGame[g.id] || 0); }, 0);
