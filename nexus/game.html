@@ -2,6 +2,17 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.5: Neuer Tab "Kryptos" -- drei zusaetzliche Waehrungen neben Nova-Rift/MOGC:
+    STBL (Sparkonto, kaum Schwankung, stuendlicher Mini-Zins), VOLT (eigener,
+    deutlich volatilerer Spekulationsmarkt, eigener Kursverlauf/Chart, Kauf/
+    Verkauf gegen MOGC) und GOV (wird nicht gemined, sondern per Klick aus
+    bereits verdienten Prestige-Punkten umgewandelt, Kurs 1:2). Backend liegt
+    komplett in einem neuen, generischen Mehrwaehrungssystem (platform.currencies
+    + platform.wallet_balances + credit_currency()/debit_currency()/
+    transfer_currency()) -- Nova-Rift/MOGC selbst wurden NICHT angefasst, laufen
+    unveraendert ueber die alten Spalten in platform.wallets weiter. Neue Coins
+    kuenftig einfach per INSERT in platform.currencies, ohne Schema-Aenderung.
+    transfer_currency() ist schon die Basis fuer den geplanten Spieler-Markt.
   - v3.4: Bugfix "Gesamt gemined (all-time)" -- Stat-Karte zeigte vor dem ersten
     Prestige immer 0, weil nur platform.wallets.lifetime_mined_alltime (der reine
     Prestige-Akkumulator) angezeigt wurde, ohne den laufenden Durchlauf
@@ -342,6 +353,9 @@
     width:62px; height:62px; flex:0 0 auto; padding:0; border-radius:14px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
     cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s, border-color .15s; }
   .main-tab-btn .mt-icon{ width:36px; height:36px; object-fit:contain; flex:0 0 auto; }
+  /* Emoji-Fallback fuer Tabs ohne eigenes art/tabs/*.png (z.B. Kryptos, neu) --
+     gleiche Groesse/Zentrierung wie .mt-icon, nur Text statt Bild. */
+  .main-tab-btn .mt-icon-emoji{ font-size:28px; line-height:1; flex:0 0 auto; }
   .main-tab-btn:hover{ border-color:rgba(232,230,227,0.25); color:var(--fg); }
   .main-tab-btn.active{ background:var(--blue); border-color:var(--blue); color:#fff; }
   .tab-page{ display:none; }
@@ -350,7 +364,22 @@
     .main-tabs{ margin:16px 0 14px; gap:8px; }
     .main-tab-btn{ width:54px; height:54px; border-radius:12px; }
     .main-tab-btn .mt-icon{ width:30px; height:30px; }
+    .main-tab-btn .mt-icon-emoji{ font-size:22px; }
   }
+
+  /* ---------- Kryptos-Tab (STBL/VOLT/GOV) ---------- */
+  .krypto-card{ border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--bg-alt); }
+  .krypto-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; }
+  .krypto-card .kc-label{ font-size:12px; color:var(--fg-dim); margin-bottom:4px; }
+  .krypto-card .kc-value{ font-family:var(--mono); font-size:20px; font-weight:600; }
+  .krypto-card .kc-sub{ font-size:11px; color:var(--fg-faint); margin-top:4px; }
+  .krypto-stable .kc-value{ color:var(--fg); }
+  .krypto-volt .kc-value{ color:var(--orange); }
+  .krypto-gov .kc-value{ color:var(--violet); }
+  .krypto-trade-box{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  .krypto-trade-box input[type=number]{ flex:1; min-width:140px; background:var(--panel); border:1px solid var(--line);
+    color:var(--fg); border-radius:8px; padding:9px 12px; font-family:var(--mono); font-size:14px; }
+  .krypto-hint{ font-size:12px; color:var(--fg-dim); margin-top:8px; }
 
   /* ---------- prestige ---------- */
   .prestige-box{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
@@ -522,6 +551,7 @@
       <button type="button" class="main-tab-btn" data-tab="wallet" title="Wallet" aria-label="Wallet"><img class="mt-icon" src="art/tabs/wallet.png" alt="Wallet"></button>
       <button type="button" class="main-tab-btn" data-tab="farm" title="Farm" aria-label="Farm"><img class="mt-icon" src="art/tabs/farm.png" alt="Farm"></button>
       <button type="button" class="main-tab-btn" data-tab="markt" title="Markt" aria-label="Markt"><img class="mt-icon" src="art/tabs/market.png" alt="Markt"></button>
+      <button type="button" class="main-tab-btn" data-tab="kryptos" title="Kryptos" aria-label="Kryptos"><span class="mt-icon-emoji">🪙</span></button>
       <button type="button" class="main-tab-btn" data-tab="prestige" title="Prestige" aria-label="Prestige"><img class="mt-icon" src="art/tabs/prestige.png" alt="Prestige"></button>
       <button type="button" class="main-tab-btn" data-tab="shop" title="Shop" aria-label="Shop"><img class="mt-icon" src="art/tabs/shop.png" alt="Shop"></button>
     </nav>
@@ -662,6 +692,64 @@
     </div>
     </div>
 
+    <div class="tab-page" id="tabPage-kryptos">
+    <div class="panel">
+      <h3>Deine Kryptos <span class="tag">— zusätzlich zu Nova-Rift & MOGC, unabhängig davon</span></h3>
+      <div class="krypto-grid">
+        <div class="krypto-card krypto-stable">
+          <div class="kc-label">STBL — Stabil-Credits</div>
+          <div class="kc-value" id="stblBalanceDisplay">–</div>
+          <div class="kc-sub">kaum Schwankung · +0,05&nbsp;% Zins/Std. automatisch</div>
+        </div>
+        <div class="krypto-card krypto-volt">
+          <div class="kc-label">VOLT — Spekulation</div>
+          <div class="kc-value" id="voltBalanceDisplay">–</div>
+          <div class="kc-sub">eigener, sehr volatiler Markt</div>
+        </div>
+        <div class="krypto-card krypto-gov">
+          <div class="kc-label">GOV — Governance</div>
+          <div class="kc-value" id="govBalanceDisplay">–</div>
+          <div class="kc-sub">verdient über Prestige, nicht über Mining</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3><span class="live-dot"></span>VOLT-Kurs <span class="tag">— eigener Markt, deutlich wilder als Nova-Rift</span></h3>
+      <div class="market-price-big" id="voltPriceDisplay">Kurs: –</div>
+      <div class="chart-box"><canvas id="voltChart"></canvas></div>
+      <div class="krypto-trade-box">
+        <input type="number" id="voltBuyInput" min="0" step="any" placeholder="MOGC einsetzen">
+        <button type="button" class="btn btn-primary" id="voltBuyBtn">VOLT kaufen</button>
+      </div>
+      <div class="krypto-trade-box">
+        <input type="number" id="voltSellInput" min="0" step="any" placeholder="Menge VOLT">
+        <button type="button" class="btn btn-ghost" id="voltSellMaxBtn">Alles</button>
+        <button type="button" class="btn btn-primary" id="voltSellBtn">VOLT verkaufen</button>
+      </div>
+      <div class="krypto-hint">Kauf/Verkauf laufen über deine MOGC — Nova-Rift ist davon nicht betroffen.</div>
+    </div>
+
+    <div class="panel">
+      <h3>STBL-Sparkonto <span class="tag">— bewusst langweilig, dafür sicher</span></h3>
+      <div class="krypto-trade-box">
+        <input type="number" id="stblDepositInput" min="0" step="any" placeholder="MOGC einzahlen">
+        <button type="button" class="btn btn-primary" id="stblDepositBtn">Einzahlen</button>
+      </div>
+      <div class="krypto-trade-box">
+        <input type="number" id="stblWithdrawInput" min="0" step="any" placeholder="Menge STBL">
+        <button type="button" class="btn btn-primary" id="stblWithdrawBtn">Auszahlen</button>
+      </div>
+      <div class="krypto-hint">Auszahlung kostet 1&nbsp;% Gebühr (fließt in die Zentralbank-Reserve) — Einzahlen ist gebührenfrei.</div>
+    </div>
+
+    <div class="panel">
+      <h3>GOV — Prestige umwandeln <span class="tag">— Umtauschkurs: 1 Prestige-Punkt = 2 GOV</span></h3>
+      <div class="krypto-hint" id="govClaimHint">–</div>
+      <button type="button" class="btn btn-primary" id="govClaimBtn" style="margin-top:10px;">GOV abholen</button>
+    </div>
+    </div>
+
     <div class="tab-page" id="tabPage-prestige">
     <div class="panel">
       <h3>Prestige <span class="tag">— Farm zurücksetzen für permanente Skill-Punkte</span></h3>
@@ -793,6 +881,15 @@ let scChartMini = null;
 let marketChartMini = null;
 let currentWalletHours = 24;
 let currentWalletBucket = 15;
+
+/* ---------- Kryptos-Tab: STBL/VOLT/GOV (eigenes System, siehe platform.currencies) ---------- */
+let stblBalance = 0;
+let voltBalance = 0;
+let govBalance = 0;
+let voltLatestPrice = 100;
+let govUnclaimedPoints = 0;
+let voltChart = null;
+let voltChartMini = null;
 
 /* ---------- Live-Balance-Ticker ---------- */
 let displayedBalance = 0;
@@ -966,6 +1063,9 @@ function enterGame(){
       if (novaChart) novaChart.resize();
       if (scChart) scChart.resize();
     }
+    if (tabId === 'kryptos') {
+      if (voltChart) voltChart.resize();
+    }
     if (tabId === 'uebersicht') {
       if (novaChartMini) novaChartMini.resize();
       if (scChartMini) scChartMini.resize();
@@ -1069,6 +1169,11 @@ function initCharts(){
   marketChart = new Chart(document.getElementById('marketChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: commonOpts
+  });
+  voltChart = new Chart(document.getElementById('voltChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#FF6A2B', backgroundColor: 'rgba(255,106,43,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: commonOpts
   });
 
@@ -1301,7 +1406,127 @@ async function loadEverything(){
   renderShop();
   renderInventory();
   updateSellPreview();
+  await loadKryptos();
 }
+
+/* ---------- Kryptos-Tab: STBL/VOLT/GOV ---------- */
+async function loadKryptos(){
+  const [{ data: balances }, { data: voltStatusRows }, { data: voltHist },
+         { data: claimRow }] = await Promise.all([
+    sb.schema('platform').rpc('get_my_wallet_balances'),
+    sb.schema('platform').rpc('get_volt_status'),
+    sb.schema('platform').from('volt_price_history').select('price, recorded_at').order('recorded_at', { ascending: false }).limit(120),
+    sb.schema('platform').from('governance_claims').select('claimed_prestige_points').eq('player_id', currentUser.id).maybeSingle()
+  ]);
+
+  const bySymbol = {};
+  (balances || []).forEach(row => { bySymbol[row.symbol] = Number(row.balance) || 0; });
+  stblBalance = bySymbol['STBL'] ?? 0;
+  voltBalance = bySymbol['VOLT'] ?? 0;
+  govBalance = bySymbol['GOV'] ?? 0;
+
+  document.getElementById('stblBalanceDisplay').textContent = fmtCoin(stblBalance) + ' STBL';
+  document.getElementById('voltBalanceDisplay').textContent = fmtCoin(voltBalance) + ' VOLT';
+  document.getElementById('govBalanceDisplay').textContent = fmtCoin(govBalance) + ' GOV';
+
+  const voltStatus = (voltStatusRows && voltStatusRows[0]) || null;
+  const voltHistOrdered = (voltHist || []).slice().reverse();
+  const lastVolt = voltHistOrdered.length ? voltHistOrdered[voltHistOrdered.length - 1].price : null;
+  const prevVolt = voltHistOrdered.length > 1 ? voltHistOrdered[voltHistOrdered.length - 2].price : lastVolt;
+  const voltTrendUp = lastVolt != null && prevVolt != null && lastVolt >= prevVolt;
+  if (lastVolt != null) voltLatestPrice = Number(lastVolt);
+  else if (voltStatus) voltLatestPrice = Number(voltStatus.price);
+  document.getElementById('voltPriceDisplay').innerHTML =
+    lastVolt != null
+      ? `Kurs: ${Number(lastVolt).toFixed(2)} <span style="color:${voltTrendUp ? 'var(--up)' : 'var(--down)'}">${voltTrendUp ? '▲' : '▼'}</span>`
+      : 'Kurs: –';
+  updateChart(voltChart, voltHistOrdered, 'price');
+
+  const claimedPoints = Number(claimRow?.claimed_prestige_points ?? 0);
+  govUnclaimedPoints = Math.max(0, prestigePoints - claimedPoints);
+  const govClaimBtn = document.getElementById('govClaimBtn');
+  if (govUnclaimedPoints > 0) {
+    document.getElementById('govClaimHint').textContent =
+      `${fmtCoin(govUnclaimedPoints)} Prestige-Punkte noch nicht umgewandelt → ${fmtCoin(govUnclaimedPoints * 2)} GOV abholbar.`;
+    govClaimBtn.disabled = false;
+  } else {
+    document.getElementById('govClaimHint').textContent = 'Aktuell nichts Neues zum Abholen — verdien mehr Prestige-Punkte über Prestigen.';
+    govClaimBtn.disabled = true;
+  }
+
+}
+
+document.getElementById('voltSellMaxBtn').addEventListener('click', () => {
+  document.getElementById('voltSellInput').value = voltBalance > 0 ? voltBalance : '';
+});
+
+document.getElementById('voltBuyBtn').addEventListener('click', async () => {
+  const input = document.getElementById('voltBuyInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige MOGC-Menge eingeben.', false); return; }
+  const btn = document.getElementById('voltBuyBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('buy_volt', { p_premium_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → VOLT (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer VOLT-Bestand: ${fmtCoin(row?.volt_balance ?? 0)}.`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('voltSellBtn').addEventListener('click', async () => {
+  const input = document.getElementById('voltSellInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige VOLT-Menge eingeben.', false); return; }
+  const btn = document.getElementById('voltSellBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('sell_volt', { p_volt_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} VOLT → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('stblDepositBtn').addEventListener('click', async () => {
+  const input = document.getElementById('stblDepositInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige MOGC-Menge eingeben.', false); return; }
+  const btn = document.getElementById('stblDepositBtn');
+  btn.disabled = true;
+  const { error } = await sb.schema('platform').rpc('deposit_to_stable', { p_premium_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  showMsg('statusMsg', `${fmtCoin(amount)} MOGC ins STBL-Sparkonto eingezahlt.`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('stblWithdrawBtn').addEventListener('click', async () => {
+  const input = document.getElementById('stblWithdrawInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige STBL-Menge eingeben.', false); return; }
+  const btn = document.getElementById('stblWithdrawBtn');
+  btn.disabled = true;
+  const { error } = await sb.schema('platform').rpc('withdraw_from_stable', { p_stbl_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  showMsg('statusMsg', `${fmtCoin(amount)} STBL ausgezahlt (1% Gebühr abgezogen).`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('govClaimBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('govClaimBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('claim_governance_reward');
+  if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `+${fmtCoin(row?.gov_gained ?? 0)} GOV abgeholt.`, true);
+  await loadEverything();
+});
 
 /* ---------- Starter-Rig (Opt-in-Claim statt Auto-Vergabe) ---------- */
 async function claimStarterRig(){
