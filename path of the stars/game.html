@@ -446,6 +446,21 @@
   }
   #dockBadge.show{display:block;}
 
+  /* ---------- NEXUS-BADGE (Zeitsprung/Credits/Forschungspunkte-Pakete, nur Offene Galaxie) ----------
+     NEU: gleiches Muster wie #dockBadge/#storyBeacon (schon vorhandener rechts-oben-Stapel), plus
+     dezentes Pulsieren, damit offene Pakete auffallen, ohne wie ein Fehler/Alarm zu wirken. Nur
+     in der Sandbox relevant (introMode===false) -- die Story "Drifting Worlds" kennt weder
+     Credits/Forschungspunkte noch das Empire-System, das NEXUS-Popup bleibt dort daher versteckt. */
+  #nexusBadge{
+    background:rgba(30,22,6,0.92); border:1px solid #D4AF37; color:#ffe9a8;
+    padding:6px 10px; border-radius:7px; font-size:16px; display:none; cursor:pointer;
+  }
+  #nexusBadge.show{display:block; animation:nexusBadgePulse 1.8s ease-in-out infinite;}
+  @keyframes nexusBadgePulse{
+    0%,100%{ box-shadow:0 0 0 rgba(212,175,55,0); border-color:#D4AF37; }
+    50%{ box-shadow:0 0 12px rgba(212,175,55,.8); border-color:#fff; }
+  }
+
   /* ---------- STORY-BEACON (Hauptquest-Ping) ---------- */
   #storyBeacon{
     background:rgba(25,10,15,0.92); border:1px solid #ff4d6a; color:#ffd4dc;
@@ -2469,6 +2484,9 @@
       <div id="sovereigntyLegend"></div>
       <div id="dockBadge"></div>
       <div id="storyBeacon"></div>
+      <!-- NEU (NEXUS-Popup, nur Offene Galaxie): siehe #panelNexus -- Sichtbarkeit/Blinken wird
+           per JS (nexusInboxRefreshBadge) über die Klasse "show" gesteuert. -->
+      <div id="nexusBadge" title="NEXUS-Pakete abholen">🛰️ NEXUS-Pakete</div>
     </div>
     <button class="iconbtn" id="storyNotifyBtn">✉ Neue Nachricht</button>
     <div id="introCollectPanel">
@@ -2587,6 +2605,22 @@
     <div class="panel-inner">
       <h2>Job-Tafel<span class="maxP" data-maximize title="Vollbild umschalten">⛶</span><span class="closeP" data-close>Schließen ✕</span></h2>
       <div id="jobsBody"></div>
+    </div>
+  </div>
+
+  <!-- NEU (NEXUS-Popup, nur Offene Galaxie): Zeitsprung-/Credits-/Forschungspunkte-Pakete aus
+       dem NEXUS-Shop. Gleiches Panel-Muster wie Job-Tafel/Imperium usw., zusätzlich erreichbar
+       über den blinkenden #nexusBadge oben rechts, damit es "nicht versteckt" ist. Bewusst KEIN
+       Auto-Claim -- Abholen nur per Klick, gleiches Prinzip wie bei den anderen drei Spielen. -->
+  <div class="panel" id="panelNexus">
+    <div class="panel-inner">
+      <h2>📦 NEXUS-Pakete<span class="maxP" data-maximize title="Vollbild umschalten">⛶</span><span class="closeP" data-close>Schließen ✕</span></h2>
+      <div class="shipCardBuy">
+        <div class="desc">Zeitsprünge, Credits und Forschungspunkte, die du im NEXUS-Shop gekauft hast, landen erst hier — du holst sie dir manuell ab.</div>
+        <div id="nexusInboxBody" style="text-align:left;"></div>
+        <button id="nexusInboxClaimBtn" style="width:100%;margin-top:8px;display:none;">Alle abholen</button>
+        <button id="nexusInboxClaimSelectedBtn" style="width:100%;margin-top:6px;display:none;">Ausgewählte abholen</button>
+      </div>
     </div>
   </div>
 
@@ -3537,14 +3571,20 @@ function buildInSystem(sid, buildingKey, layout){
    - Spürbarer Ertrag beim gelegentlichen Nachschauen: kurzer Toast.
    - Ertrag nach längerer Abwesenheit beim Laden (announce:true): eigenes
      Willkommens-Overlay mit Gesamtsumme, Kolonienzahl und Deckel-Hinweis. */
+// GEÄNDERT (NEXUS-Zeitsprung): opts.capHours überschreibt optional die normale
+// EMPIRE_MAX_OFFLINE_HOURS-Deckelung für genau diesen einen Aufruf -- genutzt vom
+// NEXUS-Popup, damit ein gekauftes "Empire-Zeitsprung"-Paket auch wirklich mehr bringt
+// als das normale 24h-Offline-Limit. Ganz normale Online-/Offline-Ticks (ohne capHours)
+// verhalten sich exakt wie vorher.
 function tickEmpireIncome(opts){
   opts = opts || {};
+  const cap = opts.capHours!=null ? opts.capHours : EMPIRE_MAX_OFFLINE_HOURS;
   if(!player) return;
   if(player.empireLastTick==null) player.empireLastTick = Date.now();
   const now = Date.now();
   let elapsedHours = (now - player.empireLastTick) / 3600000;
   if(elapsedHours <= 0) return;
-  const capped = Math.min(elapsedHours, EMPIRE_MAX_OFFLINE_HOURS);
+  const capped = Math.min(elapsedHours, cap);
   const perHour = empireIncomePerHour() * (1 + totalPassiveBonuses().incomeMultPct/100);
   player.empireLastTick = now;
   if(perHour<=0) return;
@@ -3552,9 +3592,9 @@ function tickEmpireIncome(opts){
   if(gained<=0) return;
   player.credits += gained;
   recordTransaction(gained, 'empire', 'Kolonien-Einkommen');
-  if(elapsedHours <= 0.05) return; // kurzer Online-Tick — keine Meldung nötig
-  const capNote = elapsedHours > EMPIRE_MAX_OFFLINE_HOURS
-    ? ` (auf ${EMPIRE_MAX_OFFLINE_HOURS}h Offline-Zeit gedeckelt)`
+  if(elapsedHours <= 0.05 && !opts.capHours) return; // kurzer Online-Tick — keine Meldung nötig
+  const capNote = elapsedHours > cap
+    ? ` (auf ${cap}h ${opts.capHours!=null ? 'NEXUS-Zeitsprung' : 'Offline-Zeit'} gedeckelt)`
     : '';
   addLog(`Deine Kolonien haben ${gained.toLocaleString('de-DE')} Cr. erwirtschaftet${capNote}.`, 'empire');
   if(opts.announce && elapsedHours > 0.2){
@@ -15255,7 +15295,8 @@ const panels = {
   faction: document.getElementById('panelFaction'),
   jobs: document.getElementById('panelJobs'),
   achieve: document.getElementById('panelAchieve'),
-  audio: document.getElementById('panelAudio')
+  audio: document.getElementById('panelAudio'),
+  nexus: document.getElementById('panelNexus')
 };
 function openTab(name){
   tabButtons.forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
@@ -15271,6 +15312,7 @@ function openTab(name){
   if(name==='jobs') renderJobsPanel();
   if(name==='achieve') renderAchievePanel();
   if(name==='audio') renderAudioPanel();
+  if(name==='nexus') nexusInboxRenderBody();
 }
 /* Das Intro-Szenario "Drifting Worlds" kennt weder Handel noch Werft,
    Flotte oder Imperium (die Erde ist kein Handelsschiff mit Fracht/Crew,
@@ -16417,13 +16459,16 @@ function unlockBlueprint(key){
    normales Credits-Einkommen (unverändert), zusätzlich aber echte
    Forschungspunkte - der eigentliche Unterschied zu "nur passivem
    Credits-Einkommen", den die Roadmap hier verlangt. */
+// GEÄNDERT (NEXUS-Zeitsprung): opts.capHours überschreibt optional die hart codierte
+// 24h-Deckelung, siehe tickEmpireIncome() weiter oben für die Begründung.
 function tickResearchPoints(opts){
   opts = opts || {};
+  const cap = opts.capHours!=null ? opts.capHours : 24;
   if(!player) return;
   if(player.researchPoints==null) player.researchPoints = 0;
   const now = Date.now();
   if(player.researchLastTick==null) player.researchLastTick = now;
-  const hours = Math.min(24, (now-player.researchLastTick)/3600000);
+  const hours = Math.min(cap, (now-player.researchLastTick)/3600000);
   player.researchLastTick = now;
   if(hours<=0) return;
   let stationCount = 0;
@@ -16439,6 +16484,174 @@ function tickResearchPoints(opts){
   }
   refreshTopbar();
 }
+
+/* =========================================================================
+   NEXUS-POPUP (nur Offene Galaxie) -- Postfach für Zeitsprung-/Credits-/
+   Forschungspunkte-Pakete aus dem NEXUS-Shop (platform.resource_grants,
+   game_scope 'path_of_the_stars'). Gleiches Muster wie bei Aetheris/Astrion/
+   Deep Anchor: bewusst KEIN Auto-Claim, Abholen nur per Klick. Die Story
+   "Drifting Worlds" kennt weder Credits/Forschungspunkte noch das Empire-
+   System -- das Popup bleibt dort daher komplett unsichtbar (introMode-Check
+   in nexusInboxRefreshBadge()).
+   ========================================================================= */
+const NEXUS_RES_LABELS = {
+  empire_hours:   { unit: h => `${h} Std. Empire-Zeitsprung`, group: 'Empire-Zeitsprung' },
+  credits:        { unit: n => `${n.toLocaleString('de-DE')} Credits`, group: 'Credits' },
+  research_points:{ unit: n => `${n.toLocaleString('de-DE')} Forschungspunkte`, group: 'Forschungspunkte' }
+};
+
+async function nexusInboxFetchPending(){
+  if(!window.__cloudUser || !window.__cloudSupabase) return [];
+  const res = await window.__cloudSupabase.schema('platform').from('resource_grants')
+    .select('id,resource_key,amount')
+    .eq('game_scope', 'path_of_the_stars')
+    .is('claimed_at', null)
+    .order('resource_key').order('amount');
+  if(res.error){ console.warn('NEXUS-Pakete laden fehlgeschlagen:', res.error.message); return []; }
+  const groups = {};
+  (res.data || []).forEach(row=>{
+    const k = row.resource_key + '::' + row.amount;
+    if(!groups[k]) groups[k] = { resource_key: row.resource_key, amount: Number(row.amount), count: 0, ids: [] };
+    groups[k].count++;
+    groups[k].ids.push(row.id);
+  });
+  return Object.keys(groups).map(k=>groups[k]);
+}
+
+// Steuert die Sichtbarkeit/das Blinken von #nexusBadge -- läuft absichtlich leer (versteckt
+// den Button), solange introMode aktiv ist oder gar kein Spiel geladen ist, damit die Story
+// "Drifting Worlds" davon nichts mitbekommt.
+async function nexusInboxRefreshBadge(){
+  const badge = document.getElementById('nexusBadge');
+  if(!badge) return;
+  if(introMode || !player){ badge.classList.remove('show'); return; }
+  const pending = await nexusInboxFetchPending();
+  const totalCount = pending.reduce((sum,g)=>sum+g.count, 0);
+  if(totalCount > 0){
+    badge.textContent = `🛰️ NEXUS-Pakete (${totalCount})`;
+    badge.classList.add('show');
+  } else {
+    badge.classList.remove('show');
+  }
+}
+
+async function nexusInboxRenderBody(){
+  const body = document.getElementById('nexusInboxBody');
+  const claimAllBtn = document.getElementById('nexusInboxClaimBtn');
+  const claimSelBtn = document.getElementById('nexusInboxClaimSelectedBtn');
+  if(!body) return;
+  if(!window.__cloudUser){
+    body.innerHTML = '<div class="desc">Nicht eingeloggt — Login läuft über ☁ Konto &amp; Cloud-Sync in den Einstellungen.</div>';
+    claimAllBtn.style.display = 'none';
+    claimSelBtn.style.display = 'none';
+    return;
+  }
+  const groups = await nexusInboxFetchPending();
+  if(groups.length === 0){
+    body.innerHTML = '<div class="desc">Aktuell nichts abzuholen.</div>';
+    claimAllBtn.style.display = 'none';
+    claimSelBtn.style.display = 'none';
+    return;
+  }
+  body.innerHTML = groups.map((g,i)=>{
+    const meta = NEXUS_RES_LABELS[g.resource_key] || { unit: n=>`${n} × ${g.resource_key}` };
+    const label = meta.unit(g.amount);
+    return `<label style="display:flex; align-items:center; gap:8px; padding:5px 0; cursor:pointer;">
+      <input type="checkbox" class="nexusInboxChk" data-idx="${i}" checked style="width:18px;height:18px;">
+      <span>${label} × ${g.count}</span>
+    </label>`;
+  }).join('');
+  body.dataset.groups = JSON.stringify(groups);
+  claimAllBtn.style.display = 'block';
+  claimSelBtn.style.display = 'block';
+}
+
+function nexusInboxGetGroups(){
+  const body = document.getElementById('nexusInboxBody');
+  try{ return JSON.parse(body.dataset.groups || '[]'); }catch(e){ return []; }
+}
+
+// Simuliert `hours` zusätzliche Empire-Stunden über die normale 24h-Deckelung hinaus -- indem
+// die "LastTick"-Zeitstempel exakt um `hours` zurückversetzt werden und dann die ECHTEN Tick-
+// Funktionen (mit capHours-Override) genau diese Menge verrechnen. So laufen Einkommen und
+// Forschungspunkte über dieselbe Formel wie beim normalen Offline-Fortschritt, nur eben ohne
+// den Deckel für diesen einen Aufruf.
+function nexusApplyEmpireHours(hours){
+  if(!player || hours<=0) return;
+  const now = Date.now();
+  player.empireLastTick = now - hours*3600000;
+  tickEmpireIncome({announce:false, capHours:hours});
+  player.researchLastTick = now - hours*3600000;
+  tickResearchPoints({announce:false, capHours:hours});
+}
+
+async function nexusInboxApplyClaimed(claimedRows){
+  if(!claimedRows || claimedRows.length===0) return;
+  const parts = [];
+  claimedRows.forEach(row=>{
+    const key = row.resource_key, amt = Number(row.total_amount);
+    if(amt<=0) return;
+    if(key==='empire_hours'){
+      nexusApplyEmpireHours(amt);
+      parts.push(`${amt} Std. Empire-Zeitsprung`);
+    } else if(key==='credits'){
+      player.credits += amt;
+      recordTransaction(amt, 'nexus', 'NEXUS-Paket abgeholt');
+      parts.push(`${amt.toLocaleString('de-DE')} Credits`);
+    } else if(key==='research_points'){
+      player.researchPoints = Math.round(((player.researchPoints||0) + amt)*10)/10;
+      parts.push(`${amt.toLocaleString('de-DE')} Forschungspunkte`);
+    }
+  });
+  if(parts.length===0) return;
+  addLog(`NEXUS-Pakete abgeholt: ${parts.join(', ')}.`, 'empire');
+  showToast(`NEXUS-Pakete abgeholt: ${parts.join(', ')}.`);
+  refreshTopbar();
+  await saveGame(false);
+  document.getElementById('panelNexus').classList.remove('show');
+  await nexusInboxRefreshBadge();
+}
+
+document.getElementById('nexusInboxClaimBtn').addEventListener('click', async ()=>{
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  const btn = document.getElementById('nexusInboxClaimBtn');
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Wird abgeholt …';
+  try{
+    const res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants', { p_game_scope: 'path_of_the_stars' });
+    if(res.error){ showToast('Abholen fehlgeschlagen: ' + res.error.message); return; }
+    await nexusInboxApplyClaimed(res.data || []);
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+});
+
+document.getElementById('nexusInboxClaimSelectedBtn').addEventListener('click', async ()=>{
+  if(!window.__cloudUser || !window.__cloudSupabase) return;
+  const checked = document.querySelectorAll('#nexusInboxBody .nexusInboxChk:checked');
+  if(checked.length===0){ showToast('Nichts ausgewählt.'); return; }
+  const groups = nexusInboxGetGroups();
+  let ids = [];
+  checked.forEach(chk=>{
+    const g = groups[Number(chk.dataset.idx)];
+    if(g) ids = ids.concat(g.ids);
+  });
+  if(ids.length===0) return;
+  const btn = document.getElementById('nexusInboxClaimSelectedBtn');
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Wird abgeholt …';
+  try{
+    const res = await window.__cloudSupabase.schema('platform').rpc('claim_resource_grants_by_ids', { p_grant_ids: ids });
+    if(res.error){ showToast('Abholen fehlgeschlagen: ' + res.error.message); return; }
+    await nexusInboxApplyClaimed(res.data || []);
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+});
+
+document.getElementById('nexusBadge').addEventListener('click', ()=>{
+  playSfx('click');
+  openTab('nexus');
+});
+
 function startProduction(sid, key){
   const sys = systems[sid];
   const bp = BLUEPRINT_TYPES[key];
@@ -18082,6 +18295,9 @@ function hideStartScreen(){
   if(startAudioCtx && startAudioCtx.state!=='closed'){
     try{ startAudioCtx.close(); }catch(e){}
   }
+  // NEU (NEXUS-Popup): sofort prüfen statt auf den nächsten 60s-Tick zu warten, damit der
+  // Badge gleich beim Spielstart korrekt ein-/ausgeblendet wird (Story vs. Offene Galaxie).
+  if(window.nexusInboxRefreshBadge) nexusInboxRefreshBadge();
 }
 
 /* =========================================================================
@@ -19233,7 +19449,7 @@ function importSaveFile(file){
 function startAutosave(){
   if(autosaveTimer) clearInterval(autosaveTimer);
   autosaveTimer = setInterval(()=>saveGame(false), 40000);
-  setInterval(()=>{ if(introMode) return; tickEmpireIncome(); tickShipyardProduction(); tickProductionStations(); tickPIExtraction(); tickResearchPoints(); tickReputationDrift(); tickFactionRelations(); if(panels.empire && panels.empire.classList.contains('show')) renderEmpirePanel(); if(panels.faction && panels.faction.classList.contains('show')) renderFactionPanel(); }, 60000);
+  setInterval(()=>{ if(introMode) return; tickEmpireIncome(); tickShipyardProduction(); tickProductionStations(); tickPIExtraction(); tickResearchPoints(); tickReputationDrift(); tickFactionRelations(); if(panels.empire && panels.empire.classList.contains('show')) renderEmpirePanel(); if(panels.faction && panels.faction.classList.contains('show')) renderFactionPanel(); nexusInboxRefreshBadge(); }, 60000);
 }
 
 async function newGame(confirmNeeded, preferredFactionKey){

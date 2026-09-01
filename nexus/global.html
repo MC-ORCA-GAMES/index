@@ -2,6 +2,23 @@
   MC ORCA GAMES — NEXUS — Globale Wallet
 
   Changelog:
+  - v3.1: MOGC-Farbe von Violett auf Rot korrigiert (Violett war schon von GOV belegt
+    -- Farben sollen 1:1 zu game.html passen, dort ist scChart bereits #D6303F/Rot).
+    NRC- und MOGC-Verlauf jetzt nebeneinander in einem Panel (2-spaltig, wie der
+    Wallet-Tab in game.html) statt zwei getrennte volle Panels untereinander.
+  - v3: Die 10 neuen Nexus-Wirtschaft-Waehrungen (STBL, VOLT, GOV, QNTM, DRIFT,
+    CYCLE, PULSE, IONX, ANCH, GRID -- siehe game.html "Alle Sprungmärkte & Ressourcen")
+    waren hier komplett unsichtbar, obwohl seit einer Weile ein grosser Teil der
+    Spielwirtschaft. Neue Sektion "Weitere Waehrungen (global)", gruppiert wie im
+    Wallet-Tab von game.html (Bank/Sprungmärkte/Farm), pro Waehrung eine Live-Zahl
+    (aktueller Gesamtbestand ueber alle Accounts, platform.get_global_currency_totals(),
+    kein Warten auf den naechsten Minuten-Snapshot) PLUS Verlaufs-Chart
+    (platform.get_global_currency_history(symbol), gebuckett, gleiche Snapshot-Quelle
+    wie die Nova/MOGC-Charts). Backend-seitig neu: Tabelle
+    platform.global_currency_history + Erweiterung von
+    platform.snapshot_currency_balances() (schreibt jetzt zusaetzlich einen
+    aggregierten Snapshot je Waehrung, gleicher Cron-Job wie bisher, kein neuer Job).
+    Farben 1:1 aus game.html uebernommen, damit beide Seiten konsistent aussehen.
   - v2.1: "Kontostand-Verlauf" in zwei getrennte Diagramme (novaHistoryChart,
     scHistoryChart) aufgeteilt statt einem Chart mit zwei Linien/Y-Achsen --
     gleiche Begruendung wie beim persoenlichen Pendant in game.html v3.2.
@@ -26,7 +43,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEXUS — Globale Wallet · MC ORCA Games</title>
-<meta name="description" content="Wie viele Nova-Rift Coins (NRC) alle Spieler zusammen im NEXUS-Idle-Mining-Spiel geminet haben — live, pro Stunde, Tag, Woche, Monat und insgesamt.">
+<meta name="description" content="Wie viele Nova-Rift Coins (NRC) alle Spieler zusammen im NEXUS-Idle-Mining-Spiel gefördert haben — live, pro Stunde, Tag, Woche, Monat und insgesamt.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -137,12 +154,26 @@
   .chart-legend{ display:flex; gap:18px; font-size:11.5px; color:var(--fg-dim); margin:-4px 0 10px; }
   .chart-legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:-1px; }
   .chart-legend .dot-nova{ background:#3ddc84; }
-  .chart-legend .dot-sc{ background:var(--violet); }
+  .chart-legend .dot-sc{ background:var(--red); }
   .chart-panel-head .t .dot-nova, .chart-panel-head .t .dot-sc{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:2px; vertical-align:1px; }
   .chart-panel-head .t .dot-nova{ background:#3ddc84; }
-  .chart-panel-head .t .dot-sc{ background:var(--violet); }
+  .chart-panel-head .t .dot-sc{ background:var(--red); }
   .chart-note{ text-align:center; font-size:11.5px; color:var(--fg-faint); margin:10px 0 0; }
   .chart-empty-hint{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12.5px; color:var(--fg-faint); padding:0 20px; }
+
+  /* ---------- weitere Waehrungen (global) — Grid wie Wallet-Tab in game.html,
+     aber mit Live-Zahl pro Karte (statt nur nacktem Chart ohne jede Zahl) ---------- */
+  .currency-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:14px; }
+  @media (max-width:640px){ .currency-grid{ grid-template-columns:1fr; } }
+  .currency-card{ border:1px solid var(--line); border-radius:12px; padding:16px 16px 12px; background:var(--bg-alt); }
+  .currency-card-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:2px; flex-wrap:wrap; }
+  .currency-card-name{ font-family:'Space Grotesk'; font-weight:600; font-size:13px; display:flex; align-items:center; gap:7px; }
+  .currency-card-name .cdot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .currency-card-full{ font-size:10.5px; color:var(--fg-faint); font-weight:500; }
+  .currency-card-value{ font-family:'Space Grotesk'; font-weight:700; font-size:19px; margin:6px 0 10px; }
+  .currency-card-value small{ font-size:11px; color:var(--fg-dim); font-weight:600; margin-left:4px; }
+  .currency-card .chart-box{ height:110px; }
+  .currency-card .chart-empty-hint{ font-size:11px; }
 
   /* ---------- Zentralbank ---------- */
   .bank-panel{ margin:32px 0 12px; border:1px solid var(--line); border-radius:16px; padding:22px 24px 20px; background:var(--panel); }
@@ -202,8 +233,7 @@
       MC ORCA GAMES <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Globale Wallet</span>
     </div>
     <div style="display:flex; align-items:center; gap:10px;">
-      <a class="back-link" href="../index.html">← Alle Spiele</a>
-      <a class="nav-cta" href="game.html">Jetzt minen →</a>
+      <a class="nav-cta" href="game.html">Jetzt spielen →</a>
       <div class="burger-wrap">
         <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
           <span></span><span></span><span></span>
@@ -257,7 +287,7 @@
   <section class="hero reveal in">
     <img src="art/nova-rift-coin-96.png" alt="" aria-hidden="true" class="hero-coin">
     <div class="eyebrow"><span class="dot"></span> Live · von allen Spielern zusammen</div>
-    <h1>Insgesamt im NEXUS geminte Nova-Rift Coins (NRC)</h1>
+    <h1>Insgesamt im NEXUS geförderte Nova-Rift Coins (NRC)</h1>
     <div><span class="lifetime-value" id="lifetimeValue">–</span><img class="lifetime-unit-icon" src="art/nova-rift-coin-32.png" alt="" aria-hidden="true"></div>
     <p class="lifetime-sub">Seit Spielstart, über alle Accounts hinweg · <span id="minersLine">wird geladen …</span></p>
   </section>
@@ -297,27 +327,118 @@
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
       <span class="t">Zeiträume im Vergleich</span>
-      <span class="hint">Nova-Rift Coins (NRC), global gemint</span>
+      <span class="hint">Nova-Rift Coins (NRC), global gefördert</span>
     </div>
     <div class="chart-box"><canvas id="periodChart"></canvas></div>
   </section>
 
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
-      <span class="t"><i class="dot-nova"></i> Nova-Rift Coins (NRC) — Verlauf <span class="dot" style="display:inline-block;margin-left:6px;vertical-align:middle;"></span></span>
-      <span class="hint">Aktuelle Summe über alle Accounts, gehalten (volatil)</span>
+      <span class="t">Kontostand-Verlauf</span>
+      <span class="hint">Aktuelle Summe über alle Accounts, gehalten</span>
     </div>
-    <div class="chart-box"><canvas id="novaHistoryChart"></canvas></div>
-    <p class="chart-note" id="novaHistoryChartNote"></p>
+    <div class="currency-grid">
+      <div>
+        <h4 style="font-family:'Space Grotesk'; font-size:13px; font-weight:600; margin:0 0 8px; display:flex; align-items:center; gap:7px;"><i style="width:9px; height:9px; border-radius:50%; background:#3ddc84; flex-shrink:0;"></i> Nova-Rift Coins (NRC) <span style="font-size:10.5px; color:var(--fg-faint); font-weight:500;">volatil</span></h4>
+        <div class="chart-box"><canvas id="novaHistoryChart"></canvas></div>
+        <p class="chart-note" id="novaHistoryChartNote"></p>
+      </div>
+      <div>
+        <h4 style="font-family:'Space Grotesk'; font-size:13px; font-weight:600; margin:0 0 8px; display:flex; align-items:center; gap:7px;"><i style="width:9px; height:9px; border-radius:50%; background:var(--red); flex-shrink:0;"></i> MC ORCA GAMES Coins (MOGC) <span style="font-size:10.5px; color:var(--fg-faint); font-weight:500;">spielübergreifend</span></h4>
+        <div class="chart-box"><canvas id="scHistoryChart"></canvas></div>
+        <p class="chart-note" id="scHistoryChartNote"></p>
+      </div>
+    </div>
   </section>
 
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
-      <span class="t"><i class="dot-sc"></i> MC ORCA GAMES Coins (MOGC) — Verlauf</span>
-      <span class="hint">Aktuelle Summe über alle Accounts, spielübergreifend</span>
+      <span class="t">Weitere Währungen — global</span>
+      <span class="hint">Aktueller Gesamtbestand über alle Accounts, live</span>
     </div>
-    <div class="chart-box"><canvas id="scHistoryChart"></canvas></div>
-    <p class="chart-note" id="scHistoryChartNote"></p>
+
+    <div class="currency-grid">
+      <div class="currency-card" data-symbol="STBL">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#3ddc84;"></i>STBL</span>
+          <span class="currency-card-full">Stabil-Credits</span>
+        </div>
+        <div class="currency-card-value" id="cur-STBL-value">–</div>
+        <div class="chart-box"><canvas id="cur-STBL-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="ANCH">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#2DD4A7;"></i>ANCH</span>
+          <span class="currency-card-full">Anker-Credits</span>
+        </div>
+        <div class="currency-card-value" id="cur-ANCH-value">–</div>
+        <div class="chart-box"><canvas id="cur-ANCH-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="VOLT">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#FF6A2B;"></i>VOLT</span>
+          <span class="currency-card-full">Volt-Spekulation</span>
+        </div>
+        <div class="currency-card-value" id="cur-VOLT-value">–</div>
+        <div class="chart-box"><canvas id="cur-VOLT-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="GOV">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#B23AFF;"></i>GOV</span>
+          <span class="currency-card-full">Nexus-Governance</span>
+        </div>
+        <div class="currency-card-value" id="cur-GOV-value">–</div>
+        <div class="chart-box"><canvas id="cur-GOV-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="QNTM">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#D4AF37;"></i>QNTM</span>
+          <span class="currency-card-full">Quantum-Sprungmarkt</span>
+        </div>
+        <div class="currency-card-value" id="cur-QNTM-value">–</div>
+        <div class="chart-box"><canvas id="cur-QNTM-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="DRIFT">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#4C8DFF;"></i>DRIFT</span>
+          <span class="currency-card-full">Drift-Hedge</span>
+        </div>
+        <div class="currency-card-value" id="cur-DRIFT-value">–</div>
+        <div class="chart-box"><canvas id="cur-DRIFT-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="CYCLE">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#3ddc84;"></i>CYCLE</span>
+          <span class="currency-card-full">Zyklus-Credits</span>
+        </div>
+        <div class="currency-card-value" id="cur-CYCLE-value">–</div>
+        <div class="chart-box"><canvas id="cur-CYCLE-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="IONX">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#FF4FA3;"></i>IONX</span>
+          <span class="currency-card-full">Ionen-Spekulation</span>
+        </div>
+        <div class="currency-card-value" id="cur-IONX-value">–</div>
+        <div class="chart-box"><canvas id="cur-IONX-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="GRID">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#B4E61D;"></i>GRID</span>
+          <span class="currency-card-full">Grid-Utility</span>
+        </div>
+        <div class="currency-card-value" id="cur-GRID-value">–</div>
+        <div class="chart-box"><canvas id="cur-GRID-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="PULSE">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#22D3EE;"></i>PULSE</span>
+          <span class="currency-card-full">Pulse-Feld</span>
+        </div>
+        <div class="currency-card-value" id="cur-PULSE-value">–</div>
+        <div class="chart-box"><canvas id="cur-PULSE-chart"></canvas></div>
+      </div>
+    </div>
   </section>
 
   <p class="refresh-note" id="refreshNote">Aktualisiert sich automatisch alle 60 Sekunden.</p>
@@ -539,7 +660,7 @@
 
   function renderHistoryCharts(rows){
     renderSingleHistoryChart(novaChartRef, 'novaHistoryChart', rows, 'total_nova_rift', '#3ddc84', '61,220,132');
-    renderSingleHistoryChart(scChartRef, 'scHistoryChart', rows, 'total_premium', '#B23AFF', '178,58,255');
+    renderSingleHistoryChart(scChartRef, 'scHistoryChart', rows, 'total_premium', '#D6303F', '214,48,63');
     const note = rows.length < 4 ? 'Noch am Sammeln — alle 60 Sekunden kommt ein neuer Datenpunkt dazu.' : '';
     document.getElementById('novaHistoryChartNote').textContent = note;
     document.getElementById('scHistoryChartNote').textContent = note;
@@ -573,12 +694,81 @@
     }
   }
 
+  /* ---------- Weitere Waehrungen (global): Live-Zahl + Verlaufs-Chart pro
+     Waehrung, Farben 1:1 aus game.html uebernommen. ---------- */
+  const CUR_META = {
+    STBL:  { color:'#3ddc84', rgb:'61,220,132' },
+    ANCH:  { color:'#2DD4A7', rgb:'45,212,167' },
+    VOLT:  { color:'#FF6A2B', rgb:'255,106,43' },
+    GOV:   { color:'#B23AFF', rgb:'178,58,255' },
+    QNTM:  { color:'#D4AF37', rgb:'212,175,55' },
+    DRIFT: { color:'#4C8DFF', rgb:'76,141,255' },
+    CYCLE: { color:'#3ddc84', rgb:'61,220,132' },
+    IONX:  { color:'#FF4FA3', rgb:'255,79,163' },
+    GRID:  { color:'#B4E61D', rgb:'180,230,29' },
+    PULSE: { color:'#22D3EE', rgb:'34,211,238' }
+  };
+  const curChartRefs = {};
+
+  function fmtSmart(n){
+    n = Number(n) || 0;
+    if(Math.abs(n) >= 1000) return fmtCompact(n);
+    return n.toLocaleString('de-DE', { maximumFractionDigits: n < 1 ? 4 : 2 });
+  }
+
+  async function loadCurrencyTotals(){
+    try{
+      const { data, error } = await sb.schema('platform').rpc('get_global_currency_totals');
+      if(error) throw error;
+      (data || []).forEach(function(row){
+        const el = document.getElementById('cur-' + row.symbol + '-value');
+        if(el) el.textContent = fmtSmart(row.total_balance);
+      });
+    }catch(e){
+      console.warn('Globale Waehrungs-Bestaende konnten nicht geladen werden', e);
+    }
+  }
+
+  async function loadCurrencyHistory(symbol){
+    const meta = CUR_META[symbol];
+    if(!meta) return;
+    const canvasId = 'cur-' + symbol + '-chart';
+    try{
+      const { data, error } = await sb.schema('platform').rpc('get_global_currency_history', {
+        p_symbol: symbol, p_bucket_minutes: 15
+      });
+      if(error) throw error;
+      const rows = data || [];
+      if(!rows.length){
+        const canvas = document.getElementById(canvasId);
+        canvas.style.visibility = 'hidden';
+        const box = canvas.closest('.chart-box');
+        let hint = box.querySelector('.chart-empty-hint');
+        if(!hint){ hint = document.createElement('div'); hint.className = 'chart-empty-hint'; box.appendChild(hint); }
+        hint.textContent = 'Noch am Sammeln …';
+        return;
+      }
+      if(!curChartRefs[symbol]) curChartRefs[symbol] = {};
+      renderSingleHistoryChart(curChartRefs[symbol], canvasId, rows, 'total_balance', meta.color, meta.rgb);
+    }catch(e){
+      console.warn('Verlauf fuer ' + symbol + ' konnte nicht geladen werden', e);
+    }
+  }
+
+  function loadAllCurrencyHistories(){
+    return Promise.all(Object.keys(CUR_META).map(loadCurrencyHistory));
+  }
+
   loadStats();
   loadHistory();
   loadBank();
+  loadCurrencyTotals();
+  loadAllCurrencyHistories();
   setInterval(loadStats, 60000);
   setInterval(loadHistory, 60000);
   setInterval(loadBank, 60000);
+  setInterval(loadCurrencyTotals, 60000);
+  setInterval(loadAllCurrencyHistories, 60000);
 })();
 </script>
 

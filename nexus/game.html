@@ -2,7 +2,45 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
-  - v3.5: Neuer Tab "Kryptos" -- drei zusaetzliche Waehrungen neben Nova-Rift/MOGC:
+  - v3.9: EGRESS-FIX -- ein offen gelassener Tab verursachte ~178.000 Requests/
+    250 MB an einem Tag (bei 5 GB Freikontingent/Monat kritisch). Ursache: der
+    5s-Tick feuerte kaskadierend ~30-40 einzelne REST/RPC-Calls (Haupt-Query,
+    loadWalletHistory inkl. 10 Waehrungs-Charts, loadSprungmaerkte 9x, loadPulse
+    8x, loadBonds + 3 weitere Charts) -- JEDE Anfrage zusaetzlich verdoppelt durch
+    CORS-Preflight-OPTIONS (Frontend auf mc-orca-games1.de, API auf supabase.co).
+    Fix: neue serverseitige RPC platform.get_full_game_state() buendelt den
+    kompletten Tick in EINEM Call (JSON mit allen Daten), Frontend liest nur
+    noch daraus (applyFullGameState/applyPulseState/applySprungmaerkteState).
+    Zusaetzlich: Poll-Intervall 5s -> 20s, und im Hintergrund-Tab (visibility-
+    change) auf 90s verlangsamt statt stur weiterzulaufen -- Ertraege laufen
+    serverseitig per Cron sowieso weiter, kein Gameplay-Verlust. Ergebnis:
+    ~1 Request statt ~30-40 pro Tick, plus deutlich selteneres Polling.
+  - v3.8: Bugfix Chart-Achsen im Wallet-/Sprungmärkte-Tab (Diagramme ohne Zahlen/
+    Linien wirkten "kaputt"). Zwei vertauschte Optionsobjekte: volt/qntm/drift/
+    ionx/gridChart sitzen in einer 92px "chart-box compact" liefen aber mit
+    commonOpts (Achsen-Zahlen an) -- quetschten sich rein, ueberlagerten
+    teils die Linie. Die 10 Charts im Wallet-Tab-Grid ("Alle Sprungmärkte &
+    Ressourcen", walletStblChart etc.) sitzen dagegen in einer vollen 190px
+    chart-box, liefen aber mit compactOpts (Achsen aus) -- deshalb komplett
+    ohne Zahlen, im Gegensatz zu novaChart/scChart direkt daneben im selben
+    Grid. Jetzt beide vertauscht: klein=compactOpts, gross=commonOpts.
+  - v3.7: Alle 6 zusaetzlichen Sprungmärkte (STBL/VOLT/GOV/QNTM/DRIFT/CYCLE) fehlten
+    bisher komplett auf der Uebersicht -- neues kompaktes Sprungmärkte-Kaertchen-Grid
+    dort ergaenzt (nur Bestand + Hinweis, in welchem Tab man kaufen/verkaufen
+    kann; keine Buy/Sell-Buttons dort, um die Uebersicht schlank zu halten).
+    Balance-Anzeigen laufen jetzt ueber CSS-Klassen (js-balance-stbl/volt/gov/
+    qntm/drift/cycle) statt einzelner IDs, exakt wie beim bestehenden NRC/MOGC-
+    Muster -- aktualisiert automatisch alle Vorkommen (Uebersicht, Sprungmärkte-Tab,
+    Bank-Tab) gleichzeitig, auch wenn spaeter weitere Anzeigeorte dazukommen.
+  - v3.6: CYCLE-Tageswechsel laeuft jetzt ueber 'Europe/Berlin' statt UTC
+    (DST/Sommer-Winter-Zeit automatisch korrekt) in claim_daily_cycle()/
+    get_my_cycle_streak(). Sprungmärkte-Tab umgebaut: CYCLE-Panel steht jetzt
+    direkt nach der Sprungmärkte-Uebersicht (vorher ganz unten, kaum sichtbar),
+    STBL-Sparkonto zog in einen neuen eigenen "Bank"-Tab (eigener Nav-Button),
+    VOLT/QNTM/DRIFT-Kurs-Panels liegen jetzt in einem responsiven 2-3-Spalten-
+    Grid (sm-market-grid) statt einzeln volle Breite untereinander --
+    kompakter und skaliert besser, wenn weitere Sprungmärkte/Diagramme dazukommen.
+  - v3.5: Neuer Tab "Sprungmärkte" -- drei zusaetzliche Waehrungen neben Nova-Rift/MOGC:
     STBL (Sparkonto, kaum Schwankung, stuendlicher Mini-Zins), VOLT (eigener,
     deutlich volatilerer Spekulationsmarkt, eigener Kursverlauf/Chart, Kauf/
     Verkauf gegen MOGC) und GOV (wird nicht gemined, sondern per Klick aus
@@ -109,6 +147,7 @@
     /* fuenfte Akzentfarbe: Blau -- fuer NEXUS / den uebergreifenden Markt */
     --blue:#2F8CFF; --blue-dim:rgba(47,140,255,0.14);
     --up:#3ddc84; --down:#ff5d5d; --mono:'JetBrains Mono', monospace;
+    --cyan:#22D3EE; --pink:#FF4FA3; --teal:#2DD4A7; --lime:#B4E61D;
   }
   *{ box-sizing:border-box; }
   html{ scroll-behavior:smooth; }
@@ -330,20 +369,41 @@
     display:flex; align-items:center; gap:6px; color:var(--fg-dim); }
   .dot-kurs{ background:#D4AF37; }
   @media (max-width:640px){ .mini-chart-grid{ grid-template-columns:1fr; } }
+  /* NEU (Wallet-Übersicht "genauso wie NRC/MOGC"): 2-spaltiges Grid mit voller Chart-Höhe
+     (kein .compact mehr) für die restlichen Sprungmärkte/Ressourcen -- läuft über dieselben
+     Zeitraum-Tabs (walletRangeTabs) wie novaChart/scChart, statt fest auf 24 Std. */
+  .wallet-chart-grid-2col{ display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; }
+  .wallet-chart-grid-2col .mc-item h4{ font-family:'Space Grotesk'; font-size:12.5px; font-weight:600; margin:0 0 8px;
+    display:flex; align-items:center; gap:6px; color:var(--fg-dim); }
+  @media (max-width:640px){ .wallet-chart-grid-2col{ grid-template-columns:1fr; } }
   .chart-empty-hint{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     text-align:center; font-size:12.5px; color:var(--fg-faint); padding:0 20px; }
   .wallet-range-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 12px; }
   .chart-legend{ display:flex; gap:18px; font-size:11.5px; color:var(--fg-dim); margin:0 0 10px; }
   .chart-legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:-1px; }
   .chart-legend .dot-nova{ background:#3ddc84; }
-  .chart-legend .dot-sc{ background:#B23AFF; }
-  h3 .dot-nova, h3 .dot-sc{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:2px; vertical-align:1px; }
-  h3 .dot-nova{ background:#3ddc84; }
-  h3 .dot-sc{ background:#B23AFF; }
+  .chart-legend .dot-sc{ background:var(--red); }
+  h3 .dot-nova, h3 .dot-sc, h4 .dot-nova, h4 .dot-sc, h4 .dot-kurs, h4 .dot-volt, h4 .dot-qntm, h4 .dot-drift{
+    display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:2px; vertical-align:1px; }
+  h3 .dot-nova, h4 .dot-nova{ background:#3ddc84; }
+  h3 .dot-sc, h4 .dot-sc{ background:var(--red); }
+  h4 .dot-kurs{ background:var(--gold); }
+  h4 .dot-volt{ background:var(--orange); }
+  h4 .dot-qntm{ background:var(--gold); }
+  h4 .dot-drift{ background:#4C8DFF; }
   .wr-tab{ font-family:'JetBrains Mono', monospace; font-size:11px; padding:5px 10px; border-radius:999px;
     border:1px solid rgba(232,230,227,0.14); background:transparent; color:#8b8fa3; cursor:pointer; }
   .wr-tab:hover{ border-color:rgba(232,230,227,0.3); color:#e8e6e3; }
   .wr-tab.active{ background:#2F8CFF; border-color:#2F8CFF; color:#fff; }
+
+  /* ---------- Unter-Tabs (z.B. Farm: NRC / Pulse) ---------- */
+  .sub-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 18px; }
+  .sub-tab{ font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600; padding:8px 16px; border-radius:10px;
+    border:1px solid var(--line); background:var(--panel); color:var(--fg-dim); cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .sub-tab:hover{ border-color:rgba(232,230,227,0.3); color:var(--fg); }
+  .sub-tab.active{ background:var(--blue); border-color:var(--blue); color:#fff; }
+  .sub-tab-page{ display:none; }
+  .sub-tab-page.active{ display:block; }
 
   /* ---------- Haupt-Tabs ---------- */
   .main-tabs{ display:flex; gap:10px; margin:22px 0 18px; overflow-x:auto; -webkit-overflow-scrolling:touch;
@@ -353,7 +413,7 @@
     width:62px; height:62px; flex:0 0 auto; padding:0; border-radius:14px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
     cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s, border-color .15s; }
   .main-tab-btn .mt-icon{ width:36px; height:36px; object-fit:contain; flex:0 0 auto; }
-  /* Emoji-Fallback fuer Tabs ohne eigenes art/tabs/*.png (z.B. Kryptos, neu) --
+  /* Emoji-Fallback fuer Tabs ohne eigenes art/tabs/*.png (z.B. Sprungmärkte, neu) --
      gleiche Groesse/Zentrierung wie .mt-icon, nur Text statt Bild. */
   .main-tab-btn .mt-icon-emoji{ font-size:28px; line-height:1; flex:0 0 auto; }
   .main-tab-btn:hover{ border-color:rgba(232,230,227,0.25); color:var(--fg); }
@@ -367,19 +427,54 @@
     .main-tab-btn .mt-icon-emoji{ font-size:22px; }
   }
 
-  /* ---------- Kryptos-Tab (STBL/VOLT/GOV) ---------- */
-  .krypto-card{ border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--bg-alt); }
-  .krypto-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; }
-  .krypto-card .kc-label{ font-size:12px; color:var(--fg-dim); margin-bottom:4px; }
-  .krypto-card .kc-value{ font-family:var(--mono); font-size:20px; font-weight:600; }
-  .krypto-card .kc-sub{ font-size:11px; color:var(--fg-faint); margin-top:4px; }
-  .krypto-stable .kc-value{ color:var(--fg); }
-  .krypto-volt .kc-value{ color:var(--orange); }
-  .krypto-gov .kc-value{ color:var(--violet); }
-  .krypto-trade-box{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; }
-  .krypto-trade-box input[type=number]{ flex:1; min-width:140px; background:var(--panel); border:1px solid var(--line);
+  /* ---------- Sprungmärkte-Tab (STBL/VOLT/GOV) ---------- */
+  .sm-card{ border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--bg-alt); }
+  .sm-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; }
+  .sm-grid.compact-grid{ grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:10px; }
+  .sm-grid.compact-grid .sm-card{ padding:10px 12px; }
+  .sm-grid.compact-grid .kc-value{ font-size:15px; }
+  .kc-tab-hint{ float:right; font-size:10px; color:var(--fg-faint); font-weight:400; }
+  .sm-card .kc-label{ font-size:12px; color:var(--fg-dim); margin-bottom:4px; }
+  .sm-card .kc-value{ font-family:var(--mono); font-size:20px; font-weight:600; }
+  .sm-card .kc-sub{ font-size:11px; color:var(--fg-faint); margin-top:4px; }
+  .sm-stable .kc-value{ color:var(--fg); }
+  .sm-volt .kc-value{ color:var(--orange); }
+  .sm-gov .kc-value{ color:var(--violet); }
+  .sm-qntm .kc-value{ color:var(--gold); }
+  .sm-drift .kc-value{ color:var(--blue); }
+  .sm-cycle .kc-value{ color:var(--up); }
+  .sm-pulse .kc-value{ color:var(--cyan); }
+  .sm-ionx .kc-value{ color:var(--pink); }
+  .sm-anch .kc-value{ color:var(--teal); }
+  .sm-gridcoin .kc-value{ color:var(--lime); }
+  .cycle-streak-row{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-top:10px; }
+  .cycle-streak-num{ font-family:'Space Grotesk'; font-weight:700; font-size:26px; color:var(--up); }
+  .cycle-streak-days{ display:flex; gap:4px; flex-wrap:wrap; }
+  .cycle-day-dot{ width:14px; height:14px; border-radius:4px; background:var(--panel); border:1px solid var(--line); }
+  .cycle-day-dot.filled{ background:var(--up); border-color:var(--up); box-shadow:0 0 6px rgba(61,220,132,0.5); }
+  .sm-market-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:14px; align-items:start; }
+  .sm-market-grid .panel{ margin-bottom:0; }
+  .sm-cycle-panel{ border-color:rgba(61,220,132,0.35); }
+  .sm-trade-box{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  .sm-trade-box input[type=number]{ flex:1; min-width:140px; background:var(--panel); border:1px solid var(--line);
     color:var(--fg); border-radius:8px; padding:9px 12px; font-family:var(--mono); font-size:14px; }
-  .krypto-hint{ font-size:12px; color:var(--fg-dim); margin-top:8px; }
+  .sm-trade-box select{ background:var(--panel); border:1px solid var(--line); color:var(--fg); border-radius:8px;
+    padding:9px 12px; font-family:var(--mono); font-size:13px; }
+  .sm-hint{ font-size:12px; color:var(--fg-dim); margin-top:8px; }
+
+  /* ---------- BOND (Festgeld auf STBL) ---------- */
+  .bond-section{ margin-top:22px; padding-top:18px; border-top:1px solid var(--line); }
+  .bond-list{ display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+  .bond-item{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 14px;
+    font-family:var(--mono); font-size:12.5px; }
+  .bond-item .bi-main{ color:var(--fg); }
+  .bond-item .bi-sub{ color:var(--fg-faint); font-size:11.5px; margin-top:2px; }
+  .bond-item .bi-status{ font-size:11px; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .bond-item .bi-status.ready{ background:rgba(61,220,132,0.15); color:var(--up); border:1px solid rgba(61,220,132,0.4); }
+  .bond-item .bi-status.waiting{ background:rgba(212,175,55,0.12); color:var(--gold); border:1px solid rgba(212,175,55,0.35); }
+  .bond-item .bi-claim{ padding:6px 14px; font-size:12px; }
+  .bond-empty-hint{ font-size:12px; color:var(--fg-faint); margin-top:14px; font-style:italic; }
 
   /* ---------- prestige ---------- */
   .prestige-box{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
@@ -460,6 +555,54 @@
     .stat-card{ flex-basis:100%; }
     .buy-btn-group{ flex-direction:column; }
   }
+
+  /* ---------- NEXUS global tap-on badge (Header, ersetzt frueheren "NEXUS-Uebersicht"-Link) ---------- */
+  .nexus-tap{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12.5px; font-weight:600; padding:8px 14px 8px 12px; border-radius:999px;
+    border:1px solid rgba(47,140,255,0.35); color:var(--fg);
+    background:var(--blue-dim);
+    transition:border-color .15s, background .15s, transform .15s;
+    white-space:nowrap;
+  }
+  .nexus-tap:hover{ border-color:var(--blue); background:rgba(47,140,255,0.22); transform:translateY(-1px); }
+  .nexus-tap .nt-dot{
+    width:7px; height:7px; border-radius:50%; background:var(--blue);
+    box-shadow:0 0 8px var(--blue); flex-shrink:0;
+    animation:nt-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes nt-pulse{ 0%,100%{ opacity:0.5; } 50%{ opacity:1; } }
+  .nexus-tap .nt-label{ color:var(--fg-dim); font-weight:500; }
+  .nexus-tap .nt-label b{ color:var(--blue); font-weight:700; }
+  .nexus-tap .nt-value{ font-family:'Space Grotesk'; color:var(--fg); }
+  .nexus-tap .nt-coin{ width:13px; height:13px; object-fit:contain; flex-shrink:0; }
+  @media (max-width:600px){ .nexus-tap .nt-label{ display:none; } }
+
+  /* ---------- Musik-Widget (kleiner Einstellungs-Button unten rechts) ---------- */
+  .music-widget{ position:fixed; right:18px; bottom:18px; z-index:90; }
+  .music-btn{
+    width:44px; height:44px; border-radius:50%; border:1px solid var(--line);
+    background:var(--panel); color:var(--fg); display:flex; align-items:center;
+    justify-content:center; font-size:18px; cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:border-color .15s, transform .15s;
+  }
+  .music-btn:hover{ border-color:var(--blue); transform:translateY(-1px); }
+  .music-btn.playing{ border-color:rgba(47,140,255,0.45); }
+  .music-panel{
+    position:absolute; right:0; bottom:calc(100% + 10px); width:230px;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:14px 16px; box-shadow:0 10px 30px rgba(0,0,0,0.45); display:none;
+  }
+  .music-panel.open{ display:block; }
+  .music-panel .mp-title{ font-size:12px; font-weight:600; color:var(--fg-dim); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .music-panel .mp-title span.mp-state{ color:var(--blue); font-weight:700; }
+  .music-panel .mp-track{ font-size:11.5px; color:var(--fg-faint); margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .music-panel .mp-row{ display:flex; align-items:center; gap:10px; }
+  .music-panel input[type=range]{ flex:1; accent-color:var(--blue); }
+  .music-panel .mp-val{ font-family:var(--mono); font-size:11.5px; color:var(--fg-dim); min-width:32px; text-align:right; }
+  .music-panel .mp-actions{ display:flex; gap:8px; margin-top:12px; }
+  .music-panel .mp-actions button{ flex:1; padding:6px 0; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-size:12px; cursor:pointer; }
+  .music-panel .mp-actions button:hover{ border-color:var(--blue); }
 </style>
 </head>
 <body>
@@ -473,7 +616,12 @@
       MC ORCA GAMES <span class="divider"></span> <span class="sub">NEXUS</span>
     </div>
     <div style="display:flex; align-items:center; gap:14px;">
-      <a class="back-link" href="index.html">← <span class="txt">NEXUS-Übersicht</span></a>
+      <a class="nexus-tap" href="global.html" title="Globale NEXUS-Wallet — von allen Spielern zusammen geminte Nova-Rift">
+        <span class="nt-dot"></span>
+        <span class="nt-label">NEXUS <b>global gemined</b></span>
+        <img class="nt-coin" src="art/nova-rift-coin-32.png" alt="" aria-hidden="true">
+        <span class="nt-value" id="nexusGlobalTap">…</span>
+      </a>
       <a class="nav-cta" href="../raenge.html">🏆 Ränge</a>
       <div class="burger-wrap">
         <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
@@ -551,7 +699,8 @@
       <button type="button" class="main-tab-btn" data-tab="wallet" title="Wallet" aria-label="Wallet"><img class="mt-icon" src="art/tabs/wallet.png" alt="Wallet"></button>
       <button type="button" class="main-tab-btn" data-tab="farm" title="Farm" aria-label="Farm"><img class="mt-icon" src="art/tabs/farm.png" alt="Farm"></button>
       <button type="button" class="main-tab-btn" data-tab="markt" title="Markt" aria-label="Markt"><img class="mt-icon" src="art/tabs/market.png" alt="Markt"></button>
-      <button type="button" class="main-tab-btn" data-tab="kryptos" title="Kryptos" aria-label="Kryptos"><span class="mt-icon-emoji">🪙</span></button>
+      <button type="button" class="main-tab-btn" data-tab="sprungmaerkte" title="Sprungmärkte" aria-label="Sprungmärkte"><span class="mt-icon-emoji">🪙</span></button>
+      <button type="button" class="main-tab-btn" data-tab="bank" title="Bank" aria-label="Bank"><span class="mt-icon-emoji">🏦</span></button>
       <button type="button" class="main-tab-btn" data-tab="prestige" title="Prestige" aria-label="Prestige"><img class="mt-icon" src="art/tabs/prestige.png" alt="Prestige"></button>
       <button type="button" class="main-tab-btn" data-tab="shop" title="Shop" aria-label="Shop"><img class="mt-icon" src="art/tabs/shop.png" alt="Shop"></button>
     </nav>
@@ -596,6 +745,64 @@
           <h4><i class="dot-kurs"></i> Kurs</h4>
           <div class="chart-box compact"><canvas id="marketChartMini"></canvas></div>
         </div>
+        <div class="mc-item">
+          <h4><i class="dot-volt"></i> VOLT</h4>
+          <div class="chart-box compact"><canvas id="voltChartMini"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-qntm"></i> QNTM</h4>
+          <div class="chart-box compact"><canvas id="qntmChartMini"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-drift"></i> DRIFT</h4>
+          <div class="chart-box compact"><canvas id="driftChartMini"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Sprungmärkte <span class="tag">— kompakt, Details & Kauf/Verkauf in den Tabs Sprungmärkte/Bank</span></h3>
+      <div class="sm-grid compact-grid">
+        <div class="sm-card sm-stable">
+          <div class="kc-label">STBL <span class="kc-tab-hint">🏦 Bank</span></div>
+          <div class="kc-value js-balance-stbl">–</div>
+        </div>
+        <div class="sm-card sm-volt">
+          <div class="kc-label">VOLT <span class="kc-tab-hint">🪙 Sprungmärkte</span></div>
+          <div class="kc-value js-balance-volt">–</div>
+        </div>
+        <div class="sm-card sm-gov">
+          <div class="kc-label">GOV <span class="kc-tab-hint">🪙 Sprungmärkte</span></div>
+          <div class="kc-value js-balance-gov">–</div>
+        </div>
+        <div class="sm-card sm-qntm">
+          <div class="kc-label">QNTM <span class="kc-tab-hint">🪙 Sprungmärkte</span></div>
+          <div class="kc-value js-balance-qntm">–</div>
+        </div>
+        <div class="sm-card sm-drift">
+          <div class="kc-label">DRIFT <span class="kc-tab-hint">🪙 Sprungmärkte</span></div>
+          <div class="kc-value js-balance-drift">–</div>
+        </div>
+        <div class="sm-card sm-cycle">
+          <div class="kc-label">CYCLE <span class="kc-tab-hint">🪙 Sprungmärkte</span></div>
+          <div class="kc-value js-balance-cycle">–</div>
+        </div>
+        <div class="sm-card sm-pulse">
+          <div class="kc-label">PULSE <span class="kc-tab-hint">⛏️ Farm</span></div>
+          <div class="kc-value js-balance-pulse">–</div>
+        </div>
+        <div class="sm-card sm-ionx">
+          <div class="kc-label">IONX <span class="kc-tab-hint">🪙 Sprungmärkte</span></div>
+          <div class="kc-value js-balance-ionx">–</div>
+        </div>
+        <div class="sm-card sm-anch">
+          <div class="kc-label">ANCH <span class="kc-tab-hint">🏦 Bank</span></div>
+          <div class="kc-value js-balance-anch">–</div>
+        </div>
+        <div class="sm-card sm-gridcoin">
+          <div class="kc-label">GRID <span class="kc-tab-hint">🪙 Sprungmärkte</span></div>
+          <div class="kc-value js-balance-grid">–</div>
+        </div>
       </div>
     </div>
 
@@ -606,7 +813,7 @@
 
     <div class="tab-page" id="tabPage-wallet">
     <div class="panel">
-      <h3>Wallet <span class="tag">— deine beiden Währungen</span></h3>
+      <h3>Wallet <span class="tag">— alle deine Währungen im Verlauf</span></h3>
       <div class="top-row">
         <div class="stat-card">
           <div class="label">Nova-Rift Coins (NRC)</div>
@@ -632,45 +839,124 @@
     </div>
 
     <div class="panel">
-      <h3><i class="dot-nova"></i> Nova-Rift Coins (NRC) <span class="tag">— volatil, Kurs wirkt weiter darauf</span></h3>
-      <div class="chart-box"><canvas id="novaChart"></canvas></div>
-    </div>
-
-    <div class="panel">
-      <h3><i class="dot-sc"></i> MC ORCA GAMES Coins (MOGC) <span class="tag">— stabil, spielübergreifendes Guthaben</span></h3>
-      <div class="chart-box"><canvas id="scChart"></canvas></div>
-    </div>
-    </div>
-
-    <div class="tab-page" id="tabPage-farm">
-    <div class="panel">
-      <h3>Fortschritt <span class="tag">— prestige-relevant</span></h3>
-      <div class="top-row">
-        <div class="stat-card">
-          <div class="label">Nova-Rift Coins (NRC)</div>
-          <div class="value up coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-balance-nova">–</span></div>
-          <div class="sub js-rate-nova">–</div>
+      <div class="wallet-chart-grid-2col">
+        <div class="mc-item">
+          <h4 style="font-size:15px;"><i class="dot-nova"></i> Nova-Rift Coins (NRC) <span class="tag" style="font-size:10px;">volatil, Kurs wirkt weiter darauf</span></h4>
+          <div class="chart-box"><canvas id="novaChart"></canvas></div>
         </div>
-        <div class="stat-card">
-          <div class="label">Lifetime gemined</div>
-          <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-lifetime-mined">–</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Gesamt gemined (all-time)</div>
-          <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-alltime-mined">–</span></div>
-          <div class="sub js-prestige-level">–</div>
+        <div class="mc-item">
+          <h4 style="font-size:15px;"><i class="dot-sc"></i> MC ORCA GAMES Coins (MOGC) <span class="tag" style="font-size:10px;">stabil, spielübergreifend</span></h4>
+          <div class="chart-box"><canvas id="scChart"></canvas></div>
         </div>
       </div>
     </div>
 
     <div class="panel">
-      <h3>Deine Farm <span class="tag">— alle Rigs auf einen Blick</span></h3>
-      <div id="farmOverview"></div>
+      <h3>Alle Sprungmärkte & Ressourcen <span class="tag">— gleicher Zeitraum wie oben, dein persönlicher Bestand, kein Marktkurs</span></h3>
+      <div class="wallet-chart-grid-2col">
+        <div class="mc-item">
+          <h4><i class="dot-nova" style="background:var(--fg);"></i> STBL <span class="kc-tab-hint">🏦 Bank</span></h4>
+          <div class="chart-box"><canvas id="walletStblChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-volt"></i> VOLT <span class="kc-tab-hint">🪙 Sprungmärkte</span></h4>
+          <div class="chart-box"><canvas id="walletVoltChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-nova" style="background:var(--violet);"></i> GOV <span class="kc-tab-hint">🪙 Sprungmärkte</span></h4>
+          <div class="chart-box"><canvas id="walletGovChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-qntm"></i> QNTM <span class="kc-tab-hint">🪙 Sprungmärkte</span></h4>
+          <div class="chart-box"><canvas id="walletQntmChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-drift"></i> DRIFT <span class="kc-tab-hint">🪙 Sprungmärkte</span></h4>
+          <div class="chart-box"><canvas id="walletDriftChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-nova"></i> CYCLE <span class="kc-tab-hint">🪙 Sprungmärkte</span></h4>
+          <div class="chart-box"><canvas id="walletCycleChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-nova" style="background:var(--cyan);"></i> PULSE <span class="kc-tab-hint">⛏️ Farm</span></h4>
+          <div class="chart-box"><canvas id="walletPulseChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-nova" style="background:var(--pink);"></i> IONX <span class="kc-tab-hint">🪙 Sprungmärkte</span></h4>
+          <div class="chart-box"><canvas id="walletIonxChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-nova" style="background:var(--teal);"></i> ANCH <span class="kc-tab-hint">🏦 Bank</span></h4>
+          <div class="chart-box"><canvas id="walletAnchChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-nova" style="background:var(--lime);"></i> GRID <span class="kc-tab-hint">🪙 Sprungmärkte</span></h4>
+          <div class="chart-box"><canvas id="walletGridChart"></canvas></div>
+        </div>
+      </div>
+    </div>
     </div>
 
-    <div class="panel">
-      <h3>Mining-Rigs</h3>
-      <div id="rigList"></div>
+    <div class="tab-page" id="tabPage-farm">
+    <div class="sub-tabs" id="farmSubTabs">
+      <button type="button" class="sub-tab active" data-subtab="nrc">⛏️ NRC</button>
+      <button type="button" class="sub-tab" data-subtab="pulse">⚡ Pulse</button>
+    </div>
+
+    <div class="sub-tab-page active" id="farmSub-nrc">
+      <div class="panel">
+        <h3>Fortschritt <span class="tag">— prestige-relevant</span></h3>
+        <div class="top-row">
+          <div class="stat-card">
+            <div class="label">Nova-Rift Coins (NRC)</div>
+            <div class="value up coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-balance-nova">–</span></div>
+            <div class="sub js-rate-nova">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Lifetime gemined</div>
+            <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-lifetime-mined">–</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Gesamt gemined (all-time)</div>
+            <div class="value coin-value"><img class="coin-icon" src="art/nova-rift-coin-32.png" alt=""><span class="js-alltime-mined">–</span></div>
+            <div class="sub js-prestige-level">–</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Deine Farm <span class="tag">— alle NRC-Rigs auf einen Blick</span></h3>
+        <div id="farmOverview"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Mining-Rigs</h3>
+        <div id="rigList"></div>
+      </div>
+    </div>
+
+    <div class="sub-tab-page" id="farmSub-pulse">
+      <div class="panel">
+        <h3>⚡ Pulse-Feld <span class="tag">— zweite Förder-Ressource, unabhängig von Nova-Rift</span></h3>
+        <div class="top-row">
+          <div class="stat-card">
+            <div class="label">Pulse</div>
+            <div class="value coin-value"><span class="js-balance-pulse">–</span></div>
+            <div class="sub" id="pulseRateDisplay">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Boost</div>
+            <div class="value" id="pulseBoostDisplay">–</div>
+          </div>
+        </div>
+        <div class="sm-hint">Pulse läuft passiv über ein Ambient-Feld (auch ganz ohne Rigs) plus aktiv über eigene Rigs unten — komplett getrennt von Nova-Rift/MOGC. IONX/GRID (eigene Sprungmärkte darauf) findest du drüben im 🪙 Sprungmärkte-Tab, das ANCH-Sparkonto im 🏦 Bank-Tab.</div>
+      </div>
+
+      <div class="panel">
+        <h3>Pulse-Rigs</h3>
+        <div id="pulseRigList"></div>
+      </div>
     </div>
     </div>
 
@@ -692,61 +978,223 @@
     </div>
     </div>
 
-    <div class="tab-page" id="tabPage-kryptos">
+    <div class="tab-page" id="tabPage-sprungmaerkte">
     <div class="panel">
-      <h3>Deine Kryptos <span class="tag">— zusätzlich zu Nova-Rift & MOGC, unabhängig davon</span></h3>
-      <div class="krypto-grid">
-        <div class="krypto-card krypto-stable">
-          <div class="kc-label">STBL — Stabil-Credits</div>
-          <div class="kc-value" id="stblBalanceDisplay">–</div>
-          <div class="kc-sub">kaum Schwankung · +0,05&nbsp;% Zins/Std. automatisch</div>
-        </div>
-        <div class="krypto-card krypto-volt">
+      <h3>Deine Sprungmärkte <span class="tag">— zusätzlich zu Nova-Rift & MOGC, unabhängig davon</span></h3>
+      <div class="sm-hint" style="margin-bottom:14px;">STBL (Stabil-Credits) und ANCH (Pulse-Sparkonto) verwaltest du drüben im 🏦 Bank-Tab — Guthaben, Einzahlen/Auszahlen und Festgeld gehören da jetzt zusammen. Die Pulse-Rigs selbst (zweite Förder-Ressource) findest du im ⛏️ Farm-Tab unter dem Reiter ⚡ Pulse — IONX und GRID (die Sprungmärkte, die darauf aufbauen) handelst du hier unten.</div>
+      <div class="sm-grid">
+        <div class="sm-card sm-volt">
           <div class="kc-label">VOLT — Spekulation</div>
-          <div class="kc-value" id="voltBalanceDisplay">–</div>
+          <div class="kc-value js-balance-volt" id="voltBalanceDisplay">–</div>
           <div class="kc-sub">eigener, sehr volatiler Markt</div>
         </div>
-        <div class="krypto-card krypto-gov">
+        <div class="sm-card sm-gov">
           <div class="kc-label">GOV — Governance</div>
-          <div class="kc-value" id="govBalanceDisplay">–</div>
+          <div class="kc-value js-balance-gov" id="govBalanceDisplay">–</div>
           <div class="kc-sub">verdient über Prestige, nicht über Mining</div>
+        </div>
+        <div class="sm-card sm-qntm">
+          <div class="kc-label">QNTM — Quantum</div>
+          <div class="kc-value js-balance-qntm" id="qntmBalanceDisplay">–</div>
+          <div class="kc-sub">springt zwischen festen Kurs-Zuständen</div>
+        </div>
+        <div class="sm-card sm-drift">
+          <div class="kc-label">DRIFT — Hedge</div>
+          <div class="kc-value js-balance-drift" id="driftBalanceDisplay">–</div>
+          <div class="kc-sub">Absicherung gegen Nova-Rift-Inflation</div>
+        </div>
+        <div class="sm-card sm-cycle">
+          <div class="kc-label">CYCLE — Zyklus-Credits</div>
+          <div class="kc-value js-balance-cycle" id="cycleBalanceDisplay">–</div>
+          <div class="kc-sub">nur durch täglichen Login verdienbar</div>
+        </div>
+        <div class="sm-card sm-pulse">
+          <div class="kc-label">PULSE — Pulse-Feld</div>
+          <div class="kc-value js-balance-pulse">–</div>
+          <div class="kc-sub">zweite Förder-Ressource, siehe ⛏️ Farm-Tab</div>
+        </div>
+        <div class="sm-card sm-ionx">
+          <div class="kc-label">IONX — Ionen-Spekulation</div>
+          <div class="kc-value js-balance-ionx">–</div>
+          <div class="kc-sub">Kurs invers zur Pulse-Förderrate</div>
+        </div>
+        <div class="sm-card sm-gridcoin">
+          <div class="kc-label">GRID — Utility</div>
+          <div class="kc-value js-balance-grid">–</div>
+          <div class="kc-sub">schaltet Förder-Boost frei</div>
         </div>
       </div>
     </div>
 
-    <div class="panel">
-      <h3><span class="live-dot"></span>VOLT-Kurs <span class="tag">— eigener Markt, deutlich wilder als Nova-Rift</span></h3>
-      <div class="market-price-big" id="voltPriceDisplay">Kurs: –</div>
-      <div class="chart-box"><canvas id="voltChart"></canvas></div>
-      <div class="krypto-trade-box">
-        <input type="number" id="voltBuyInput" min="0" step="any" placeholder="MOGC einsetzen">
-        <button type="button" class="btn btn-primary" id="voltBuyBtn">VOLT kaufen</button>
+    <div class="panel sm-cycle-panel">
+      <h3>🔥 CYCLE — Täglicher Login-Bonus <span class="tag">— nicht käuflich, nur durch Einloggen verdienbar</span></h3>
+      <div class="cycle-streak-row">
+        <div>
+          <div class="cycle-streak-num" id="cycleStreakNum">0</div>
+          <div class="sm-hint" style="margin-top:2px;">Tage in Folge</div>
+        </div>
+        <div class="cycle-streak-days" id="cycleDayDots"></div>
       </div>
-      <div class="krypto-trade-box">
-        <input type="number" id="voltSellInput" min="0" step="any" placeholder="Menge VOLT">
-        <button type="button" class="btn btn-ghost" id="voltSellMaxBtn">Alles</button>
-        <button type="button" class="btn btn-primary" id="voltSellBtn">VOLT verkaufen</button>
-      </div>
-      <div class="krypto-hint">Kauf/Verkauf laufen über deine MOGC — Nova-Rift ist davon nicht betroffen.</div>
-    </div>
-
-    <div class="panel">
-      <h3>STBL-Sparkonto <span class="tag">— bewusst langweilig, dafür sicher</span></h3>
-      <div class="krypto-trade-box">
-        <input type="number" id="stblDepositInput" min="0" step="any" placeholder="MOGC einzahlen">
-        <button type="button" class="btn btn-primary" id="stblDepositBtn">Einzahlen</button>
-      </div>
-      <div class="krypto-trade-box">
-        <input type="number" id="stblWithdrawInput" min="0" step="any" placeholder="Menge STBL">
-        <button type="button" class="btn btn-primary" id="stblWithdrawBtn">Auszahlen</button>
-      </div>
-      <div class="krypto-hint">Auszahlung kostet 1&nbsp;% Gebühr (fließt in die Zentralbank-Reserve) — Einzahlen ist gebührenfrei.</div>
+      <div class="sm-hint" id="cycleClaimHint" style="margin-top:10px;">–</div>
+      <button type="button" class="btn btn-primary" id="cycleClaimBtn" style="margin-top:10px;">CYCLE abholen</button>
+      <h4 style="margin-top:16px;"><i class="dot-nova" style="background:var(--up);"></i> Bestandsverlauf</h4>
+      <div class="chart-box compact"><canvas id="cycleChart"></canvas></div>
     </div>
 
     <div class="panel">
       <h3>GOV — Prestige umwandeln <span class="tag">— Umtauschkurs: 1 Prestige-Punkt = 2 GOV</span></h3>
-      <div class="krypto-hint" id="govClaimHint">–</div>
+      <div class="sm-hint" id="govClaimHint">–</div>
       <button type="button" class="btn btn-primary" id="govClaimBtn" style="margin-top:10px;">GOV abholen</button>
+      <h4 style="margin-top:16px;"><i class="dot-nova" style="background:var(--violet);"></i> Bestandsverlauf</h4>
+      <div class="chart-box compact"><canvas id="govChart"></canvas></div>
+    </div>
+
+    <div class="sm-market-grid">
+      <div class="panel">
+        <h3><span class="live-dot"></span>VOLT-Kurs <span class="tag">— eigener Markt, deutlich wilder als Nova-Rift</span></h3>
+        <div class="market-price-big" id="voltPriceDisplay">Kurs: –</div>
+        <div class="chart-box compact"><canvas id="voltChart"></canvas></div>
+        <div class="sm-trade-box">
+          <input type="number" id="voltBuyInput" min="0" step="any" placeholder="MOGC einsetzen">
+          <button type="button" class="btn btn-primary" id="voltBuyBtn">VOLT kaufen</button>
+        </div>
+        <div class="sm-trade-box">
+          <input type="number" id="voltSellInput" min="0" step="any" placeholder="Menge VOLT">
+          <button type="button" class="btn btn-ghost" id="voltSellMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="voltSellBtn">VOLT verkaufen</button>
+        </div>
+        <div class="sm-hint">Kauf/Verkauf laufen über deine MOGC — Nova-Rift ist davon nicht betroffen.</div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="live-dot"></span>QNTM-Kurs <span class="tag">— springt alle 2 Min. zwischen 6 Zuständen</span></h3>
+        <div class="market-price-big" id="qntmPriceDisplay">Kurs: –</div>
+        <div class="sm-hint" id="qntmStateDisplay">Zustand: –</div>
+        <div class="chart-box compact"><canvas id="qntmChart"></canvas></div>
+        <div class="sm-trade-box">
+          <input type="number" id="qntmBuyInput" min="0" step="any" placeholder="MOGC einsetzen">
+          <button type="button" class="btn btn-primary" id="qntmBuyBtn">QNTM kaufen</button>
+        </div>
+        <div class="sm-trade-box">
+          <input type="number" id="qntmSellInput" min="0" step="any" placeholder="Menge QNTM">
+          <button type="button" class="btn btn-ghost" id="qntmSellMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="qntmSellBtn">QNTM verkaufen</button>
+        </div>
+        <div class="sm-hint">Kollabiert sprunghaft auf einen von 6 Preis-Leveln (Kollaps · Tiefzustand · Grundzustand · Angeregt · Überlagerung · Singularität), kein sanfter Verlauf wie VOLT.</div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="live-dot"></span>DRIFT-Kurs <span class="tag">— Hedge gegen Nova-Rift-Inflation</span></h3>
+        <div class="market-price-big" id="driftPriceDisplay">Kurs: –</div>
+        <div class="sm-hint" id="driftRateDisplay">Förderrate-Index: –</div>
+        <div class="chart-box compact"><canvas id="driftChart"></canvas></div>
+        <div class="sm-trade-box">
+          <input type="number" id="driftBuyInput" min="0" step="any" placeholder="MOGC einsetzen">
+          <button type="button" class="btn btn-primary" id="driftBuyBtn">DRIFT kaufen</button>
+        </div>
+        <div class="sm-trade-box">
+          <input type="number" id="driftSellInput" min="0" step="any" placeholder="Menge DRIFT">
+          <button type="button" class="btn btn-ghost" id="driftSellMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="driftSellBtn">DRIFT verkaufen</button>
+        </div>
+        <div class="sm-hint">Folgt der globalen Nova-Rift-Förderrate aller Spieler: viel Förderung → DRIFT steigt als Absicherung, wenig Aktivität → sinkt wieder.</div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="live-dot"></span>IONX-Kurs <span class="tag">— invers zur globalen Pulse-Förderrate</span></h3>
+        <div class="market-price-big" id="ionxPriceDisplay">Kurs: –</div>
+        <div class="sm-hint" id="ionxRateDisplay">Förderrate-Index: –</div>
+        <div class="chart-box compact"><canvas id="ionxChart"></canvas></div>
+        <div class="sm-trade-box">
+          <input type="number" id="ionxBuyInput" min="0" step="any" placeholder="Pulse einsetzen">
+          <button type="button" class="btn btn-primary" id="ionxBuyBtn">IONX kaufen</button>
+        </div>
+        <div class="sm-trade-box">
+          <input type="number" id="ionxSellInput" min="0" step="any" placeholder="Menge IONX">
+          <button type="button" class="btn btn-ghost" id="ionxSellMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="ionxSellBtn">IONX verkaufen</button>
+        </div>
+        <div class="sm-hint">Kauf/Verkauf laufen über deinen Pulse-Bestand (⛏️ Farm-Tab, Reiter ⚡ Pulse). Viel Förderung aller Spieler → Angebot steigt → Kurs sinkt, und umgekehrt.</div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="live-dot"></span>GRID-Kurs <span class="tag">— Utility gegen MOGC, schaltet Förder-Boost frei</span></h3>
+        <div class="market-price-big" id="gridPriceDisplay">Kurs: –</div>
+        <div class="chart-box compact"><canvas id="gridChart"></canvas></div>
+        <div class="sm-trade-box">
+          <input type="number" id="gridBuyInput" min="0" step="any" placeholder="MOGC einsetzen">
+          <button type="button" class="btn btn-primary" id="gridBuyBtn">GRID kaufen</button>
+        </div>
+        <div class="sm-trade-box">
+          <input type="number" id="gridSellInput" min="0" step="any" placeholder="Menge GRID">
+          <button type="button" class="btn btn-ghost" id="gridSellMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="gridSellBtn">GRID verkaufen</button>
+        </div>
+        <div class="sm-hint" id="gridBoostHint">40 GRID → +25&nbsp;% Pulse-Förderrate für 2 Std.</div>
+        <button type="button" class="btn btn-primary" id="gridBoostBtn" style="margin-top:8px;">Boost aktivieren</button>
+      </div>
+    </div>
+    </div>
+
+    <div class="tab-page" id="tabPage-bank">
+    <div class="panel">
+      <h3>🏦 STBL-Sparkonto <span class="tag">— bewusst langweilig, dafür sicher</span></h3>
+      <div class="sm-grid" style="grid-template-columns:1fr; max-width:260px; margin-bottom:14px;">
+        <div class="sm-card sm-stable">
+          <div class="kc-label">STBL — Stabil-Credits</div>
+          <div class="kc-value js-balance-stbl" id="stblBalanceDisplayBank">–</div>
+          <div class="kc-sub">kaum Schwankung · +0,05&nbsp;% Zins/Std. automatisch</div>
+        </div>
+      </div>
+      <div class="sm-trade-box">
+        <input type="number" id="stblDepositInput" min="0" step="any" placeholder="MOGC einzahlen">
+        <button type="button" class="btn btn-primary" id="stblDepositBtn">Einzahlen</button>
+      </div>
+      <div class="sm-trade-box">
+        <input type="number" id="stblWithdrawInput" min="0" step="any" placeholder="Menge STBL">
+        <button type="button" class="btn btn-primary" id="stblWithdrawBtn">Auszahlen</button>
+      </div>
+      <div class="sm-hint">Auszahlung kostet 1&nbsp;% Gebühr (fließt in die Zentralbank-Reserve) — Einzahlen ist gebührenfrei.</div>
+      <h4 style="margin-top:16px;"><i class="dot-nova"></i> Bestandsverlauf</h4>
+      <div class="chart-box compact"><canvas id="stblChart"></canvas></div>
+
+      <div class="bond-section">
+        <h3>🔒 BOND <span class="tag">— STBL fest anlegen, deutlich höherer Zins</span></h3>
+        <div class="sm-trade-box">
+          <input type="number" id="bondAmountInput" min="0" step="any" placeholder="Menge STBL sperren">
+          <select id="bondTermSelect">
+            <option value="3">3 Tage · +6&nbsp;% gesamt</option>
+            <option value="7">7 Tage · +15&nbsp;% gesamt</option>
+            <option value="14">14 Tage · +34&nbsp;% gesamt</option>
+          </select>
+          <button type="button" class="btn btn-primary" id="bondLockBtn">Sperren</button>
+        </div>
+        <div class="sm-hint">Läuft die Laufzeit ab, gibt's Kapital + vollen Zins zurück. Vorzeitige Auflösung ist jederzeit möglich, kostet aber 15&nbsp;% Strafgebühr auf den eingezahlten Betrag (kein Zins) — die Gebühr fließt in die Zentralbank-Reserve.</div>
+        <div class="bond-list" id="bondList"></div>
+        <div class="bond-empty-hint" id="bondEmptyHint" style="display:none;">Aktuell keine laufenden BONDs.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>🔒 ANCH — Pulse-Sparkonto <span class="tag">— eigener Pool, getrennt von STBL</span></h3>
+      <div class="sm-grid" style="grid-template-columns:1fr; max-width:260px; margin-bottom:14px;">
+        <div class="sm-card sm-anch">
+          <div class="kc-label">ANCH — Anker-Credits</div>
+          <div class="kc-value js-balance-anch">–</div>
+          <div class="kc-sub">kaum Schwankung · +0,03&nbsp;% Zins/Std. automatisch</div>
+        </div>
+      </div>
+      <div class="sm-trade-box">
+        <input type="number" id="anchDepositInput" min="0" step="any" placeholder="Pulse einzahlen">
+        <button type="button" class="btn btn-primary" id="anchDepositBtn">Einzahlen</button>
+      </div>
+      <div class="sm-trade-box">
+        <input type="number" id="anchWithdrawInput" min="0" step="any" placeholder="Menge ANCH">
+        <button type="button" class="btn btn-primary" id="anchWithdrawBtn">Auszahlen</button>
+      </div>
+      <div class="sm-hint">Einzahlen läuft über deinen Pulse-Bestand (⛏️ Farm-Tab, Reiter ⚡ Pulse). Auszahlung kostet 1&nbsp;% Gebühr (wird verbrannt, kein Nova-Rift-Transfer, da andere Währung) — Einzahlen ist gebührenfrei.</div>
+      <h4 style="margin-top:16px;"><i class="dot-nova" style="background:var(--teal);"></i> Bestandsverlauf</h4>
+      <div class="chart-box compact"><canvas id="anchChart"></canvas></div>
     </div>
     </div>
 
@@ -873,6 +1321,13 @@ let prestigePoints = 0;
 let prestigeLevel = 0;
 const PRESTIGE_THRESHOLD = 100000;
 let refreshTimer = null;
+// NEU (Egress-Fix): Poll-Intervall deutlich hochgesetzt (5s -> 20s) und im
+// Hintergrund-Tab nochmal drastisch verlangsamt (-> 90s). Ein Tab, der im
+// Hintergrund offen bleibt, war die Hauptursache fuer den Egress-Verbrauch
+// (vgl. get_full_game_state) -- Ertraege laufen serverseitig per Cron sowieso
+// weiter, hier geht es nur um UI-Frische, kein Gameplay-Verlust.
+const POLL_MS_ACTIVE = 20000;
+const POLL_MS_HIDDEN = 90000;
 let novaChart = null;
 let scChart = null;
 let marketChart = null;
@@ -882,14 +1337,58 @@ let marketChartMini = null;
 let currentWalletHours = 24;
 let currentWalletBucket = 15;
 
-/* ---------- Kryptos-Tab: STBL/VOLT/GOV (eigenes System, siehe platform.currencies) ---------- */
+/* ---------- Sprungmärkte-Tab: STBL/VOLT/GOV/QNTM/DRIFT/CYCLE (eigenes System, siehe platform.currencies) ---------- */
 let stblBalance = 0;
 let voltBalance = 0;
 let govBalance = 0;
+let qntmBalance = 0;
+let driftBalance = 0;
+let cycleBalance = 0;
 let voltLatestPrice = 100;
+let qntmLatestPrice = 100;
+let driftLatestPrice = 100;
 let govUnclaimedPoints = 0;
 let voltChart = null;
 let voltChartMini = null;
+let qntmChart = null;
+let qntmChartMini = null;
+let driftChart = null;
+let driftChartMini = null;
+/* STBL/GOV/CYCLE/ANCH haben keinen eigenen Markt-Kurs, nur einen
+   Bestandsverlauf ueber platform.get_my_currency_history() (siehe unten). */
+let stblChart = null;
+let govChart = null;
+let cycleChart = null;
+
+/* ---------- Farm-Tab (Reiter Pulse): PULSE/IONX/ANCH/GRID (Pulse-Farm, siehe crypto_farm.pulse_* + platform.*) ---------- */
+let pulseBalance = 0;
+let pulseRate = 0;
+let pulseBoostActive = false;
+let pulseBoostExpiresAt = null;
+let ionxBalance = 0;
+let anchBalance = 0;
+let gridBalance = 0;
+let ionxLatestPrice = 100;
+let gridLatestPrice = 100;
+let pulseRigTypes = [];
+let pulsePlayerRigs = {};
+let ionxChart = null;
+let gridChart = null;
+let anchChart = null;
+
+/* ---------- Wallet-Tab: kompakte Zweit-Charts fuer ALLE Sprungmärkte/Ressourcen
+   (gleiche Daten wie oben, nur eigene Canvas-Instanzen, da Chart.js pro
+   Canvas genau ein Chart braucht -- daher keine Wiederverwendung moeglich). */
+let walletStblChart = null;
+let walletVoltChart = null;
+let walletGovChart = null;
+let walletQntmChart = null;
+let walletDriftChart = null;
+let walletCycleChart = null;
+let walletPulseChart = null;
+let walletIonxChart = null;
+let walletAnchChart = null;
+let walletGridChart = null;
 
 /* ---------- Live-Balance-Ticker ---------- */
 let displayedBalance = 0;
@@ -1062,14 +1561,30 @@ function enterGame(){
     if (tabId === 'wallet') {
       if (novaChart) novaChart.resize();
       if (scChart) scChart.resize();
+      [walletStblChart, walletVoltChart, walletGovChart, walletQntmChart, walletDriftChart,
+       walletCycleChart, walletPulseChart, walletIonxChart, walletAnchChart, walletGridChart]
+        .forEach(c => { if (c) c.resize(); });
     }
-    if (tabId === 'kryptos') {
+    if (tabId === 'sprungmaerkte') {
       if (voltChart) voltChart.resize();
+      if (qntmChart) qntmChart.resize();
+      if (driftChart) driftChart.resize();
+      if (ionxChart) ionxChart.resize();
+      if (gridChart) gridChart.resize();
+      if (govChart) govChart.resize();
+      if (cycleChart) cycleChart.resize();
+    }
+    if (tabId === 'bank') {
+      if (stblChart) stblChart.resize();
+      if (anchChart) anchChart.resize();
     }
     if (tabId === 'uebersicht') {
       if (novaChartMini) novaChartMini.resize();
       if (scChartMini) scChartMini.resize();
       if (marketChartMini) marketChartMini.resize();
+      if (voltChartMini) voltChartMini.resize();
+      if (qntmChartMini) qntmChartMini.resize();
+      if (driftChartMini) driftChartMini.resize();
     }
     if (!(opts && opts.skipSave)) {
       try { localStorage.setItem('nexusActiveTab', tabId); } catch (e) {}
@@ -1086,6 +1601,35 @@ function enterGame(){
   try { savedTab = localStorage.getItem('nexusActiveTab'); } catch (e) {}
   if (savedTab && btns.some(b => b.dataset.tab === savedTab)) {
     activateTab(savedTab, { skipSave: true });
+  }
+})();
+
+/* ---------- Farm-Unter-Tabs (NRC / Pulse) ---------- */
+(function initFarmSubTabs(){
+  const nav = document.getElementById('farmSubTabs');
+  if (!nav) return;
+  const btns = Array.from(nav.querySelectorAll('.sub-tab'));
+
+  function activateSubTab(subId, opts){
+    btns.forEach(b => b.classList.toggle('active', b.dataset.subtab === subId));
+    document.querySelectorAll('#tabPage-farm .sub-tab-page').forEach(p => {
+      p.classList.toggle('active', p.id === 'farmSub-' + subId);
+    });
+    if (!(opts && opts.skipSave)) {
+      try { localStorage.setItem('nexusFarmSubTab', subId); } catch (e) {}
+    }
+  }
+
+  nav.addEventListener('click', (e) => {
+    const btn = e.target.closest('.sub-tab');
+    if (!btn) return;
+    activateSubTab(btn.dataset.subtab);
+  });
+
+  let savedSub = null;
+  try { savedSub = localStorage.getItem('nexusFarmSubTab'); } catch (e) {}
+  if (savedSub && btns.some(b => b.dataset.subtab === savedSub)) {
+    activateSubTab(savedSub, { skipSave: true });
   }
 })();
 
@@ -1111,6 +1655,25 @@ document.getElementById('sendOtpBtn').addEventListener('click', async () => {
   }
 });
 
+/* ---------- Polling-Steuerung (Egress-Fix): ein einzelner Timer, dessen
+   Intervall sich an document.visibilitychange anpasst, statt stur alle 5s
+   zu feuern -- egal ob der Tab sichtbar ist oder seit Stunden im Hintergrund
+   liegt. ---------- */
+function startPolling(){
+  if (refreshTimer) clearInterval(refreshTimer);
+  const ms = document.hidden ? POLL_MS_HIDDEN : POLL_MS_ACTIVE;
+  refreshTimer = setInterval(loadEverything, ms);
+}
+
+if (!document.__pollingVisibilityWired) {
+  document.__pollingVisibilityWired = true;
+  document.addEventListener('visibilitychange', () => {
+    if (!refreshTimer) return; // noch nicht eingeloggt / kein aktiver Timer
+    startPolling(); // neu aufsetzen mit dem passenden Intervall
+    if (!document.hidden) loadEverything(); // beim Zurueckkommen sofort auffrischen
+  });
+}
+
 document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
   const email = document.getElementById('emailInput').value.trim();
   const token = document.getElementById('otpInput').value.trim();
@@ -1124,7 +1687,7 @@ document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
     await sb.schema('platform').rpc('ensure_player_ready'); // liegt im 'platform'-Schema
     initCharts();
     await loadEverything();
-    refreshTimer = setInterval(loadEverything, 5000);
+    startPolling();
   } catch (err) {
     console.error('verifyOtp fehlgeschlagen:', err);
     showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
@@ -1139,7 +1702,7 @@ document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
     await sb.schema('platform').rpc('ensure_player_ready');
     initCharts();
     await loadEverything();
-    refreshTimer = setInterval(loadEverything, 5000);
+    startPolling();
   }
 })();
 
@@ -1156,6 +1719,15 @@ function initCharts(){
     },
     elements: { point: { radius: 0 } }
   };
+  // ---- kompakte Chart-Optionen (fuer sparkline-artige Mini-Charts in kleinen
+  // "chart-box compact"-Boxen -- keine Achsen-Zahlen, die haetten in 92px eh keinen Platz) ----
+  const compactOpts = {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { display: false }, y: { display: false } },
+    elements: { point: { radius: 0 } }
+  };
+
   novaChart = new Chart(document.getElementById('novaChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
@@ -1163,7 +1735,7 @@ function initCharts(){
   });
   scChart = new Chart(document.getElementById('scChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#B23AFF', backgroundColor: 'rgba(178,58,255,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#D6303F', backgroundColor: 'rgba(214,48,63,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: commonOpts
   });
   marketChart = new Chart(document.getElementById('marketChart'), {
@@ -1171,19 +1743,81 @@ function initCharts(){
     data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: commonOpts
   });
+  // FIX: voltChart/qntmChart/driftChart/ionxChart/gridChart stecken alle in einer
+  // "chart-box compact" (92px, siehe HTML) -- liefen bisher aber mit commonOpts
+  // (Achsen-Zahlen an), dadurch quetschten sich Ticks in die 92px und ueberlagerten
+  // teils die Linie/wirkten wie "kaputt". Jetzt compactOpts, wie die anderen
+  // Einzel-Waehrungs-Panels (stblChart/anchChart/govChart/cycleChart) direkt darunter.
   voltChart = new Chart(document.getElementById('voltChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#FF6A2B', backgroundColor: 'rgba(255,106,43,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
-    options: commonOpts
+    options: compactOpts
+  });
+  qntmChart = new Chart(document.getElementById('qntmChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.14)', fill: true, tension: 0, stepped: true, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  driftChart = new Chart(document.getElementById('driftChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#4C8DFF', backgroundColor: 'rgba(76,141,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  ionxChart = new Chart(document.getElementById('ionxChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#FF4FA3', backgroundColor: 'rgba(255,79,163,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  gridChart = new Chart(document.getElementById('gridChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#B4E61D', backgroundColor: 'rgba(180,230,29,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
   });
 
-  // ---- kompakte Mini-Charts fuer die Übersicht (gleiche Daten, sparkline-artig) ----
-  const compactOpts = {
-    responsive: true, maintainAspectRatio: false, animation: false,
-    plugins: { legend: { display: false } },
-    scales: { x: { display: false }, y: { display: false } },
-    elements: { point: { radius: 0 } }
-  };
+  // ---- STBL/GOV/CYCLE/ANCH: kein Markt-Kurs, nur Bestandsverlauf (compact) ----
+  stblChart = new Chart(document.getElementById('stblChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  anchChart = new Chart(document.getElementById('anchChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2DD4A7', backgroundColor: 'rgba(45,212,167,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  govChart = new Chart(document.getElementById('govChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#B23AFF', backgroundColor: 'rgba(178,58,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  cycleChart = new Chart(document.getElementById('cycleChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+
+  // ---- Wallet-Tab: "Alle Sprungmärkte & Ressourcen" -- eigene Canvas-Instanzen,
+  // zeigen dieselben Daten wie die Charts oben in ihrem jeweiligen Tab.
+  // FIX: sitzen in einer vollen "chart-box" (190px, NICHT .compact) -- liefen aber
+  // mit compactOpts (keine Achse), deshalb fehlten hier Zahlen und die Linie wirkte
+  // "leer", waehrend novaChart/scChart direkt daneben im selben Grid ganz normal
+  // Achsen-Zahlen zeigten. Jetzt commonOpts, wie novaChart/scChart.
+  const makeCompact = (canvasId, color, bg, opts) => new Chart(document.getElementById(canvasId), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: bg, fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: opts || compactOpts
+  });
+  walletStblChart = makeCompact('walletStblChart', '#3ddc84', 'rgba(61,220,132,0.14)', commonOpts);
+  walletVoltChart = makeCompact('walletVoltChart', '#FF6A2B', 'rgba(255,106,43,0.14)', commonOpts);
+  walletGovChart = makeCompact('walletGovChart', '#B23AFF', 'rgba(178,58,255,0.14)', commonOpts);
+  walletQntmChart = makeCompact('walletQntmChart', '#D4AF37', 'rgba(212,175,55,0.14)', commonOpts);
+  walletDriftChart = makeCompact('walletDriftChart', '#4C8DFF', 'rgba(76,141,255,0.14)', commonOpts);
+  walletCycleChart = makeCompact('walletCycleChart', '#3ddc84', 'rgba(61,220,132,0.14)', commonOpts);
+  walletPulseChart = makeCompact('walletPulseChart', '#22D3EE', 'rgba(34,211,238,0.14)', commonOpts);
+  walletIonxChart = makeCompact('walletIonxChart', '#FF4FA3', 'rgba(255,79,163,0.14)', commonOpts);
+  walletAnchChart = makeCompact('walletAnchChart', '#2DD4A7', 'rgba(45,212,167,0.14)', commonOpts);
+  walletGridChart = makeCompact('walletGridChart', '#B4E61D', 'rgba(180,230,29,0.14)', commonOpts);
+
   novaChartMini = new Chart(document.getElementById('novaChartMini'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
@@ -1191,12 +1825,27 @@ function initCharts(){
   });
   scChartMini = new Chart(document.getElementById('scChartMini'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#B23AFF', backgroundColor: 'rgba(178,58,255,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#D6303F', backgroundColor: 'rgba(214,48,63,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: compactOpts
   });
   marketChartMini = new Chart(document.getElementById('marketChartMini'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  voltChartMini = new Chart(document.getElementById('voltChartMini'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#FF6A2B', backgroundColor: 'rgba(255,106,43,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  qntmChartMini = new Chart(document.getElementById('qntmChartMini'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.14)', fill: true, tension: 0, stepped: true, borderWidth: 2 }] },
+    options: compactOpts
+  });
+  driftChartMini = new Chart(document.getElementById('driftChartMini'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#4C8DFF', backgroundColor: 'rgba(76,141,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: compactOpts
   });
 
@@ -1228,6 +1877,9 @@ async function loadWalletHistory(){
   updateChart(scChart, rows, 'premium_balance', { bucket_start: true, showDate });
   updateChart(novaChartMini, rows, 'nova_rift_balance', { bucket_start: true, showDate });
   updateChart(scChartMini, rows, 'premium_balance', { bucket_start: true, showDate });
+  // NEU (Wallet-Übersicht "genauso wie NRC/MOGC"): zieht alle 10 restlichen Sprungmärkte/
+  // Ressourcen im selben Zeitraum nach, den die Tabs oben gerade auswählen.
+  await loadAllWalletCurrencyCharts();
 }
 
 function setMarketChartTrend(trendUp){
@@ -1251,39 +1903,36 @@ function setMarketChartTrend(trendUp){
   });
 }
 
-/* ---------- Hauptladefunktion ---------- */
+/* ---------- Hauptladefunktion ----------
+   NEU (Egress-Fix, siehe get_full_game_state RPC): frueher feuerte dieser Tick
+   ~30-40 einzelne REST/RPC-Calls (Haupt-Promise.all + loadWalletHistory mit
+   10 Waehrungs-Charts + loadSprungmaerkte 9x + loadPulse 8x + loadBonds + 3x
+   Waehrungs-Charts). Jetzt buendelt platform.get_full_game_state() serverseitig
+   ALLES in eine Antwort -- 1 Request statt ~30-40 pro Tick. Logik/Werte sind
+   identisch, nur die Datenbeschaffung ist zusammengefasst. */
 async function loadEverything(){
   clearMsg('statusMsg');
+  const { data: gs, error } = await sb.schema('platform').rpc('get_full_game_state');
+  if (error) { console.error('get_full_game_state fehlgeschlagen:', error); return; }
+  await applyFullGameState(gs || {});
+}
 
-  // Ertrag abrechnen -- rein serverseitig berechnet (siehe Kommentar oben).
-  // Hinweis: laeuft zusaetzlich jede Minute im Hintergrund per Cron fuer ALLE
-  // Spieler (crypto_farm.collect_all_earnings), auch wenn niemand eingeloggt
-  // ist. Dieser Aufruf hier holt nur die letzten paar Sekunden seit dem
-  // letzten Cron-Tick nach.
-  const { data: collectedNow } = await sb.schema('crypto_farm').rpc('collect_earnings');
+async function applyFullGameState(gs){
+  const wallet = gs.wallet;
+  const state = gs.player_state;
+  const rigs = gs.rig_types;
+  const playerRigRows = gs.player_rigs;
+  const shop = gs.shop_items;
+  const bank = gs.central_bank;
+  const marketHist = gs.market_price_history;
+  const collectedNow = gs.collected_now;
 
-  const [{ data: wallet }, { data: state }, { data: rigs }, { data: playerRigRows },
-         { data: shop }, { data: inventory }, { data: bank },
-         { data: marketHist }, { data: marketStatusRows },
-         { data: mySkillRows }] = await Promise.all([
-    sb.schema('platform').from('wallets').select('nova_rift_balance, premium_balance, lifetime_mined_alltime, prestige_points, prestige_level').eq('player_id', currentUser.id).maybeSingle(),
-    sb.schema('crypto_farm').from('player_state').select('total_mined').eq('player_id', currentUser.id).maybeSingle(),
-    sb.schema('crypto_farm').from('rig_types').select('*').order('sort_order'),
-    sb.schema('crypto_farm').from('player_rigs').select('rig_type_id, quantity').eq('player_id', currentUser.id),
-    sb.schema('platform').from('shop_items').select('*').eq('active', true).order('sort_order'),
-    sb.schema('platform').from('player_inventory').select('item_id').eq('player_id', currentUser.id),
-    sb.schema('platform').from('central_bank').select('reserve_balance').eq('id', 1).maybeSingle(),
-    sb.schema('crypto_farm').from('market_price_history').select('price, recorded_at').order('recorded_at', { ascending: false }).limit(120),
-    sb.schema('crypto_farm').rpc('get_market_status'),
-    sb.schema('platform').from('player_skills').select('node_id').eq('player_id', currentUser.id)
-  ]);
   if (skillNodes.length === 0) {
     const { data: nodes } = await sb.schema('platform').from('skill_nodes').select('*').order('branch').order('tier');
     skillNodes = nodes || [];
   }
   const marketHistOrdered = (marketHist || []).slice().reverse(); // wieder chronologisch (älteste zuerst) fürs Chart
-  loadWalletHistory(); // eigener RPC-Call, unabhängig vom Zeitfenster der anderen Panels
-  const marketStatus = (marketStatusRows && marketStatusRows[0]) || null;
+  const marketStatus = gs.market_status || null;
 
   currentBalance = wallet?.nova_rift_balance ?? 0;
   storeBalance = wallet?.premium_balance ?? 0;
@@ -1292,8 +1941,8 @@ async function loadEverything(){
   (playerRigRows || []).forEach(r => { playerRigs[r.rig_type_id] = r.quantity; });
   currentRate = rigTypes.reduce((sum, rt) => sum + (playerRigs[rt.id] || 0) * Number(rt.base_rate), 0);
   shopItems = shop || [];
-  inventoryItemIds = new Set((inventory || []).map(i => i.item_id));
-  ownedSkillIds = new Set((mySkillRows || []).map(r => r.node_id));
+  inventoryItemIds = new Set(gs.player_inventory || []);
+  ownedSkillIds = new Set(gs.player_skills || []);
   prestigePoints = Number(wallet?.prestige_points ?? 0);
   prestigeLevel = Number(wallet?.prestige_level ?? 0);
 
@@ -1406,31 +2055,274 @@ async function loadEverything(){
   renderShop();
   renderInventory();
   updateSellPreview();
-  await loadKryptos();
+
+  // ---- Wallet-Verlauf (nur bei Default-Zeitfenster automatisch mitziehen;
+  // bei individuell gewaehltem Zeitraum uebernimmt der Range-Tab-Klick das,
+  // ohne dass jeder Tick unnoetig die 10-Waehrungen-Charts mitzieht) ----
+  const walletHist = gs.wallet_history || [];
+  if (currentWalletHours === 24 && currentWalletBucket === 15) {
+    updateChart(novaChart, walletHist, 'nova_rift_balance', { bucket_start: true, showDate: false });
+    updateChart(scChart, walletHist, 'premium_balance', { bucket_start: true, showDate: false });
+  }
+  updateChart(novaChartMini, walletHist, 'nova_rift_balance', { bucket_start: true, showDate: false });
+  updateChart(scChartMini, walletHist, 'premium_balance', { bucket_start: true, showDate: false });
+
+  applyPulseState(gs);
+  applySprungmaerkteState(gs);
 }
 
-/* ---------- Kryptos-Tab: STBL/VOLT/GOV ---------- */
-async function loadKryptos(){
-  const [{ data: balances }, { data: voltStatusRows }, { data: voltHist },
-         { data: claimRow }] = await Promise.all([
-    sb.schema('platform').rpc('get_my_wallet_balances'),
-    sb.schema('platform').rpc('get_volt_status'),
-    sb.schema('platform').from('volt_price_history').select('price, recorded_at').order('recorded_at', { ascending: false }).limit(120),
-    sb.schema('platform').from('governance_claims').select('claimed_prestige_points').eq('player_id', currentUser.id).maybeSingle()
-  ]);
+/* ---------- Pulse-Tab: PULSE (Farm) + IONX/ANCH/GRID (eigene Sprungmärkte darauf) ----------
+   NEU: liest jetzt aus dem gebuendelten gs-Objekt statt eigener Requests. loadPulse()
+   bleibt als Alias erhalten fuer bestehende Aufrufstellen (z.B. nach Rig-Kauf). */
+async function loadPulse(){
+  await loadEverything();
+}
+
+function applyPulseState(gs){
+  const pulseStatus = gs.pulse_status || null;
+  pulseBalance = Number(pulseStatus?.pulse_balance ?? 0);
+  pulseRate = Number(pulseStatus?.production_rate ?? 0);
+  pulseBoostActive = !!pulseStatus?.boost_active;
+  pulseBoostExpiresAt = pulseStatus?.boost_expires_at ?? null;
+
+  document.querySelectorAll('.js-balance-pulse').forEach(el => { el.textContent = fmtCoin(pulseBalance) + ' PULSE'; });
+  const pulseRateEl = document.getElementById('pulseRateDisplay');
+  if (pulseRateEl) pulseRateEl.textContent = `+${pulseRate.toFixed(4)} PULSE/s${pulseBoostActive ? ' (⚡ Boost aktiv)' : ''}`;
+  const boostEl = document.getElementById('pulseBoostDisplay');
+  if (boostEl) {
+    if (pulseBoostActive && pulseBoostExpiresAt) {
+      const msLeft = new Date(pulseBoostExpiresAt).getTime() - Date.now();
+      boostEl.textContent = msLeft > 0 ? `Aktiv · ${fmtDuration(Math.max(msLeft, 0))} übrig` : 'Aktiv';
+    } else {
+      boostEl.textContent = 'Inaktiv';
+    }
+  }
+
+  pulseRigTypes = gs.pulse_rig_types || [];
+  pulsePlayerRigs = {};
+  (gs.pulse_player_rigs || []).forEach(r => { pulsePlayerRigs[r.rig_type_id] = r.quantity; });
+  renderPulseRigs();
 
   const bySymbol = {};
-  (balances || []).forEach(row => { bySymbol[row.symbol] = Number(row.balance) || 0; });
+  (gs.wallet_balances || []).forEach(row => { bySymbol[row.symbol] = Number(row.balance) || 0; });
+  ionxBalance = bySymbol['IONX'] ?? 0;
+  anchBalance = bySymbol['ANCH'] ?? 0;
+  gridBalance = bySymbol['GRID'] ?? 0;
+  document.querySelectorAll('.js-balance-ionx').forEach(el => { el.textContent = fmtCoin(ionxBalance) + ' IONX'; });
+  document.querySelectorAll('.js-balance-anch').forEach(el => { el.textContent = fmtCoin(anchBalance) + ' ANCH'; });
+  document.querySelectorAll('.js-balance-grid').forEach(el => { el.textContent = fmtCoin(gridBalance) + ' GRID'; });
+
+  // ---- IONX: invers zur globalen Pulse-Foerderrate ----
+  const ionxStatus = gs.ionx_status || null;
+  const ionxHistOrdered = (gs.ionx_price_history || []).slice().reverse();
+  const lastIonx = ionxHistOrdered.length ? ionxHistOrdered[ionxHistOrdered.length - 1].price : null;
+  const prevIonx = ionxHistOrdered.length > 1 ? ionxHistOrdered[ionxHistOrdered.length - 2].price : lastIonx;
+  const ionxTrendUp = lastIonx != null && prevIonx != null && lastIonx >= prevIonx;
+  if (lastIonx != null) ionxLatestPrice = Number(lastIonx);
+  else if (ionxStatus) ionxLatestPrice = Number(ionxStatus.price);
+  document.getElementById('ionxPriceDisplay').innerHTML =
+    lastIonx != null
+      ? `Kurs: ${Number(lastIonx).toFixed(2)} <span style="color:${ionxTrendUp ? 'var(--up)' : 'var(--down)'}">${ionxTrendUp ? '▲' : '▼'}</span>`
+      : 'Kurs: –';
+  document.getElementById('ionxRateDisplay').textContent =
+    ionxStatus ? `Förderrate-Index: ${Number(ionxStatus.pulse_rate_index).toFixed(2)}× (relativ zum 24h-Schnitt) — hoch = Kurs sinkt` : 'Förderrate-Index: –';
+  updateChart(ionxChart, ionxHistOrdered, 'price');
+
+  // ---- GRID: Utility gegen MOGC ----
+  const gridStatus = gs.grid_status || null;
+  const gridHistOrdered = (gs.grid_price_history || []).slice().reverse();
+  const lastGrid = gridHistOrdered.length ? gridHistOrdered[gridHistOrdered.length - 1].price : null;
+  const prevGrid = gridHistOrdered.length > 1 ? gridHistOrdered[gridHistOrdered.length - 2].price : lastGrid;
+  const gridTrendUp = lastGrid != null && prevGrid != null && lastGrid >= prevGrid;
+  if (lastGrid != null) gridLatestPrice = Number(lastGrid);
+  else if (gridStatus) gridLatestPrice = Number(gridStatus.price);
+  document.getElementById('gridPriceDisplay').innerHTML =
+    lastGrid != null
+      ? `Kurs: ${Number(lastGrid).toFixed(2)} <span style="color:${gridTrendUp ? 'var(--up)' : 'var(--down)'}">${gridTrendUp ? '▲' : '▼'}</span>`
+      : 'Kurs: –';
+  updateChart(gridChart, gridHistOrdered, 'price');
+
+  const gridBoostBtn = document.getElementById('gridBoostBtn');
+  if (gridBoostBtn) gridBoostBtn.disabled = gridBalance < 40;
+
+  updateChart(anchChart, gs.anch_history || [], 'balance', { bucket_start: true, showDate: false });
+}
+
+/* ---------- Pulse-Rigs (eigener, kleinerer Rig-Baum, separat von Nova-Rift-Rigs) ---------- */
+function renderPulseRigs(){
+  const el = document.getElementById('pulseRigList');
+  if (!el) return;
+  el.innerHTML = '';
+  pulseRigTypes.forEach(rt => {
+    const owned = pulsePlayerRigs[rt.id] || 0;
+    const cost1 = rigCost(rt, owned, 1);
+    const cost10 = rigCost(rt, owned, 10);
+    const row = document.createElement('div');
+    row.className = 'rig-row';
+    row.innerHTML = `
+      <div class="rig-row-main">
+        <div class="rig-icon-tile">⚡</div>
+        <div>
+          <div class="rig-name">${rt.name} <span class="qty-badge">×${owned}</span></div>
+          <div class="rig-desc">${rt.description ?? ''}</div>
+          <div class="rig-meta">${Number(rt.base_rate)} PULSE/s pro Einheit</div>
+        </div>
+      </div>
+      <div class="buy-btn-group">
+        <button data-qty="1" data-cost="${cost1}">+1 (${fmtCoin(cost1)} PULSE)</button>
+        <button data-qty="10" data-cost="${cost10}">+10 (${fmtCoin(cost10)} PULSE)</button>
+      </div>`;
+    row.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => buyPulseRig(rt.id, parseInt(btn.dataset.qty, 10), btn));
+    });
+    el.appendChild(row);
+  });
+}
+
+window.buyPulseRig = async function(rigTypeId, qty, btnEl){
+  const { data, error } = await sb.schema('crypto_farm').rpc('buy_pulse_rig', { p_rig_type_id: rigTypeId, p_quantity: qty });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${qty}× Pulse-Rig für ${fmtCoin(row?.total_cost ?? 0)} PULSE.`, true);
+  spawnFly('-' + fmtCoin(row?.total_cost ?? 0) + ' PULSE', btnEl, false);
+  await loadPulse();
+};
+
+/* ---------- IONX: Kauf/Verkauf (gegen Pulse) ---------- */
+document.getElementById('ionxSellMaxBtn').addEventListener('click', () => {
+  document.getElementById('ionxSellInput').value = ionxBalance > 0 ? ionxBalance : '';
+});
+
+document.getElementById('ionxBuyBtn').addEventListener('click', async () => {
+  const input = document.getElementById('ionxBuyInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige Pulse-Menge eingeben.', false); return; }
+  const btn = document.getElementById('ionxBuyBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('buy_ionx', { p_pulse_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} PULSE → IONX (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer IONX-Bestand: ${fmtCoin(row?.ionx_balance ?? 0)}.`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('ionxSellBtn').addEventListener('click', async () => {
+  const input = document.getElementById('ionxSellInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige IONX-Menge eingeben.', false); return; }
+  const btn = document.getElementById('ionxSellBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('sell_ionx', { p_ionx_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} IONX → ${fmtCoin(row?.pulse_balance ?? 0)} PULSE-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+/* ---------- GRID: Kauf/Verkauf (gegen MOGC) + Boost ---------- */
+document.getElementById('gridSellMaxBtn').addEventListener('click', () => {
+  document.getElementById('gridSellInput').value = gridBalance > 0 ? gridBalance : '';
+});
+
+document.getElementById('gridBuyBtn').addEventListener('click', async () => {
+  const input = document.getElementById('gridBuyInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige MOGC-Menge eingeben.', false); return; }
+  const btn = document.getElementById('gridBuyBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('buy_grid', { p_premium_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → GRID (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer GRID-Bestand: ${fmtCoin(row?.grid_balance ?? 0)}.`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('gridSellBtn').addEventListener('click', async () => {
+  const input = document.getElementById('gridSellInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige GRID-Menge eingeben.', false); return; }
+  const btn = document.getElementById('gridSellBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('sell_grid', { p_grid_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} GRID → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('gridBoostBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('gridBoostBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('grid_boost_activate');
+  if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+  const until = new Date(data).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  showMsg('statusMsg', `Boost aktiviert: +25% Pulse-Förderrate bis ${until}.`, true);
+  await loadEverything();
+});
+
+/* ---------- ANCH: Ein-/Auszahlen (Pulse-Sparkonto) ---------- */
+document.getElementById('anchDepositBtn').addEventListener('click', async () => {
+  const input = document.getElementById('anchDepositInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige Pulse-Menge eingeben.', false); return; }
+  const btn = document.getElementById('anchDepositBtn');
+  btn.disabled = true;
+  const { error } = await sb.schema('platform').rpc('deposit_to_anchor', { p_pulse_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  showMsg('statusMsg', `${fmtCoin(amount)} PULSE ins ANCH-Sparkonto eingezahlt.`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('anchWithdrawBtn').addEventListener('click', async () => {
+  const input = document.getElementById('anchWithdrawInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige ANCH-Menge eingeben.', false); return; }
+  const btn = document.getElementById('anchWithdrawBtn');
+  btn.disabled = true;
+  const { error } = await sb.schema('platform').rpc('withdraw_from_anchor', { p_anch_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  showMsg('statusMsg', `${fmtCoin(amount)} ANCH ausgezahlt (1% Gebühr abgezogen).`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+/* ---------- Sprungmärkte-Tab: STBL/VOLT/GOV/QNTM/DRIFT/CYCLE ---------- */
+/* NEU: liest jetzt aus dem gebuendelten gs-Objekt statt eigener Requests.
+   loadSprungmaerkte() bleibt als Alias erhalten fuer eventuelle Aufrufstellen. */
+async function loadSprungmaerkte(){
+  await loadEverything();
+}
+
+function applySprungmaerkteState(gs){
+  const bySymbol = {};
+  (gs.wallet_balances || []).forEach(row => { bySymbol[row.symbol] = Number(row.balance) || 0; });
   stblBalance = bySymbol['STBL'] ?? 0;
   voltBalance = bySymbol['VOLT'] ?? 0;
   govBalance = bySymbol['GOV'] ?? 0;
+  qntmBalance = bySymbol['QNTM'] ?? 0;
+  driftBalance = bySymbol['DRIFT'] ?? 0;
+  cycleBalance = bySymbol['CYCLE'] ?? 0;
 
-  document.getElementById('stblBalanceDisplay').textContent = fmtCoin(stblBalance) + ' STBL';
-  document.getElementById('voltBalanceDisplay').textContent = fmtCoin(voltBalance) + ' VOLT';
-  document.getElementById('govBalanceDisplay').textContent = fmtCoin(govBalance) + ' GOV';
+  document.querySelectorAll('.js-balance-stbl').forEach(el => { el.textContent = fmtCoin(stblBalance) + ' STBL'; });
+  document.querySelectorAll('.js-balance-volt').forEach(el => { el.textContent = fmtCoin(voltBalance) + ' VOLT'; });
+  document.querySelectorAll('.js-balance-gov').forEach(el => { el.textContent = fmtCoin(govBalance) + ' GOV'; });
+  document.querySelectorAll('.js-balance-qntm').forEach(el => { el.textContent = fmtCoin(qntmBalance) + ' QNTM'; });
+  document.querySelectorAll('.js-balance-drift').forEach(el => { el.textContent = fmtCoin(driftBalance) + ' DRIFT'; });
+  document.querySelectorAll('.js-balance-cycle').forEach(el => { el.textContent = fmtCoin(cycleBalance) + ' CYCLE'; });
 
-  const voltStatus = (voltStatusRows && voltStatusRows[0]) || null;
-  const voltHistOrdered = (voltHist || []).slice().reverse();
+  const voltStatus = gs.volt_status || null;
+  const voltHistOrdered = (gs.volt_price_history || []).slice().reverse();
   const lastVolt = voltHistOrdered.length ? voltHistOrdered[voltHistOrdered.length - 1].price : null;
   const prevVolt = voltHistOrdered.length > 1 ? voltHistOrdered[voltHistOrdered.length - 2].price : lastVolt;
   const voltTrendUp = lastVolt != null && prevVolt != null && lastVolt >= prevVolt;
@@ -1441,8 +2333,65 @@ async function loadKryptos(){
       ? `Kurs: ${Number(lastVolt).toFixed(2)} <span style="color:${voltTrendUp ? 'var(--up)' : 'var(--down)'}">${voltTrendUp ? '▲' : '▼'}</span>`
       : 'Kurs: –';
   updateChart(voltChart, voltHistOrdered, 'price');
+  updateChart(voltChartMini, voltHistOrdered, 'price');
 
-  const claimedPoints = Number(claimRow?.claimed_prestige_points ?? 0);
+  // ---- QNTM: springt zwischen festen Zustaenden ----
+  const qntmStatus = gs.qntm_status || null;
+  const qntmHistOrdered = (gs.qntm_price_history || []).slice().reverse();
+  const lastQntm = qntmHistOrdered.length ? qntmHistOrdered[qntmHistOrdered.length - 1].price : null;
+  const prevQntm = qntmHistOrdered.length > 1 ? qntmHistOrdered[qntmHistOrdered.length - 2].price : lastQntm;
+  const qntmTrendUp = lastQntm != null && prevQntm != null && lastQntm >= prevQntm;
+  if (lastQntm != null) qntmLatestPrice = Number(lastQntm);
+  else if (qntmStatus) qntmLatestPrice = Number(qntmStatus.price);
+  document.getElementById('qntmPriceDisplay').innerHTML =
+    lastQntm != null
+      ? `Kurs: ${Number(lastQntm).toFixed(2)} <span style="color:${qntmTrendUp ? 'var(--up)' : 'var(--down)'}">${qntmTrendUp ? '▲' : '▼'}</span>`
+      : 'Kurs: –';
+  document.getElementById('qntmStateDisplay').textContent =
+    qntmStatus ? `Zustand: ${qntmStatus.state_label} (${qntmStatus.state_index + 1}/6)` : 'Zustand: –';
+  updateChart(qntmChart, qntmHistOrdered, 'price');
+  updateChart(qntmChartMini, qntmHistOrdered, 'price');
+
+  // ---- DRIFT: Hedge gegen Nova-Rift-Foerderrate ----
+  const driftStatus = gs.drift_status || null;
+  const driftHistOrdered = (gs.drift_price_history || []).slice().reverse();
+  const lastDrift = driftHistOrdered.length ? driftHistOrdered[driftHistOrdered.length - 1].price : null;
+  const prevDrift = driftHistOrdered.length > 1 ? driftHistOrdered[driftHistOrdered.length - 2].price : lastDrift;
+  const driftTrendUp = lastDrift != null && prevDrift != null && lastDrift >= prevDrift;
+  if (lastDrift != null) driftLatestPrice = Number(lastDrift);
+  else if (driftStatus) driftLatestPrice = Number(driftStatus.price);
+  document.getElementById('driftPriceDisplay').innerHTML =
+    lastDrift != null
+      ? `Kurs: ${Number(lastDrift).toFixed(2)} <span style="color:${driftTrendUp ? 'var(--up)' : 'var(--down)'}">${driftTrendUp ? '▲' : '▼'}</span>`
+      : 'Kurs: –';
+  document.getElementById('driftRateDisplay').textContent =
+    driftStatus ? `Förderrate-Index: ${Number(driftStatus.mining_rate_index).toFixed(2)}× (relativ zum 24h-Schnitt)` : 'Förderrate-Index: –';
+  updateChart(driftChart, driftHistOrdered, 'price');
+  updateChart(driftChartMini, driftHistOrdered, 'price');
+
+  // ---- CYCLE: taeglicher Streak-Claim ----
+  const streak = gs.cycle_streak || { current_streak: 0, longest_streak: 0, claimed_today: false };
+  document.getElementById('cycleStreakNum').textContent = streak.current_streak ?? 0;
+  const dotsWrap = document.getElementById('cycleDayDots');
+  dotsWrap.innerHTML = '';
+  for (let i = 1; i <= 14; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'cycle-day-dot' + (i <= (streak.current_streak ?? 0) ? ' filled' : '');
+    dotsWrap.appendChild(dot);
+  }
+  const cycleClaimBtn = document.getElementById('cycleClaimBtn');
+  if (streak.claimed_today) {
+    document.getElementById('cycleClaimHint').textContent =
+      `Heute schon abgeholt — bis morgen! Längste Streak bisher: ${streak.longest_streak ?? 0} Tage.`;
+    cycleClaimBtn.disabled = true;
+  } else {
+    const nextReward = 5 + Math.min((streak.current_streak ?? 0) + 1, 14) * 2;
+    document.getElementById('cycleClaimHint').textContent =
+      `Heute noch nicht abgeholt — nächste Belohnung: ${fmtCoin(nextReward)} CYCLE.`;
+    cycleClaimBtn.disabled = false;
+  }
+
+  const claimedPoints = Number(gs.governance_claims?.claimed_prestige_points ?? 0);
   govUnclaimedPoints = Math.max(0, prestigePoints - claimedPoints);
   const govClaimBtn = document.getElementById('govClaimBtn');
   if (govUnclaimedPoints > 0) {
@@ -1454,7 +2403,94 @@ async function loadKryptos(){
     govClaimBtn.disabled = true;
   }
 
+  renderBonds(gs.bonds || []);
+  updateChart(stblChart, gs.stbl_history || [], 'balance', { bucket_start: true, showDate: false });
+  updateChart(govChart, gs.gov_history || [], 'balance', { bucket_start: true, showDate: false });
+  updateChart(cycleChart, gs.cycle_history || [], 'balance', { bucket_start: true, showDate: false });
 }
+
+/* ---------- BOND: Festgeld auf STBL (Sperren/Claim) ---------- */
+function fmtBondRemaining(ms){
+  if (ms <= 0) return 'fällig';
+  const totalMin = Math.ceil(ms / 60000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  if (days > 0) return `noch ${days} T. ${hours} Std.`;
+  return `noch ${fmtDuration(ms)}`;
+}
+
+async function loadBonds(){
+  // NEU: nur noch als Fallback fuer eventuelle Direktaufrufe -- der periodische
+  // Tick nutzt renderBonds(gs.bonds) mit den bereits gebuendelten Daten.
+  const { data: bonds, error } = await sb.schema('platform').rpc('get_my_bonds');
+  if (error) { renderBonds([]); return; }
+  renderBonds(bonds || []);
+}
+
+function renderBonds(rows){
+  const listEl = document.getElementById('bondList');
+  const emptyHint = document.getElementById('bondEmptyHint');
+  if (rows.length === 0) {
+    listEl.innerHTML = '';
+    emptyHint.style.display = 'block';
+    return;
+  }
+  emptyHint.style.display = 'none';
+
+  listEl.innerHTML = rows.map(b => {
+    const maturesMs = new Date(b.matures_at).getTime();
+    const remainingMs = maturesMs - Date.now();
+    const ready = remainingMs <= 0;
+    const payoutIfMature = Number(b.principal_stbl) * (1 + Number(b.reward_rate));
+    const payoutIfEarly = Number(b.principal_stbl) * 0.85;
+    return `
+      <div class="bond-item" data-bond-id="${b.id}">
+        <div>
+          <div class="bi-main">${fmtCoin(b.principal_stbl)} STBL gesperrt · ${b.term_days} Tage · +${(Number(b.reward_rate) * 100).toFixed(0)}%</div>
+          <div class="bi-sub">${ready ? `Bereit: ${fmtCoin(payoutIfMature)} STBL abholbar` : `${fmtBondRemaining(remainingMs)} · bei jetziger Auflösung: ${fmtCoin(payoutIfEarly)} STBL (15% Strafe)`}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="bi-status ${ready ? 'ready' : 'waiting'}">${ready ? 'fällig' : 'läuft'}</span>
+          <button type="button" class="btn btn-primary bi-claim" data-claim-id="${b.id}" data-ready="${ready}">${ready ? 'Abholen' : 'Vorzeitig auflösen'}</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+document.getElementById('bondLockBtn').addEventListener('click', async () => {
+  const input = document.getElementById('bondAmountInput');
+  const amount = parseFloat(input.value);
+  const termDays = parseInt(document.getElementById('bondTermSelect').value, 10);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige STBL-Menge eingeben.', false); return; }
+  const btn = document.getElementById('bondLockBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('bond_lock', { p_stbl_amount: amount, p_term_days: termDays });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `${fmtCoin(amount)} STBL für ${termDays} Tage gesperrt (Zins ${(Number(row?.reward_rate ?? 0) * 100).toFixed(0)}%).`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('bondList').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('.bi-claim');
+  if (!btn) return;
+  const bondId = parseInt(btn.dataset.claimId, 10);
+  const isReady = btn.dataset.ready === 'true';
+  if (!isReady && !confirm('Vorzeitig auflösen kostet 15% Strafgebühr auf den eingezahlten Betrag und es gibt keinen Zins. Wirklich fortfahren?')) return;
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('bond_claim', { p_bond_id: bondId });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (row?.was_early) {
+    showMsg('statusMsg', `Vorzeitig aufgelöst: ${fmtCoin(row?.payout ?? 0)} STBL zurück (${fmtCoin(row?.penalty ?? 0)} STBL Strafe einbehalten).`, true);
+  } else {
+    showMsg('statusMsg', `BOND fällig: ${fmtCoin(row?.payout ?? 0)} STBL inkl. Zins gutgeschrieben.`, true);
+  }
+  await loadEverything();
+});
 
 document.getElementById('voltSellMaxBtn').addEventListener('click', () => {
   document.getElementById('voltSellInput').value = voltBalance > 0 ? voltBalance : '';
@@ -1487,6 +2523,88 @@ document.getElementById('voltSellBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} VOLT → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
   input.value = '';
+  await loadEverything();
+});
+
+/* ---------- QNTM: Kauf/Verkauf ---------- */
+document.getElementById('qntmSellMaxBtn').addEventListener('click', () => {
+  document.getElementById('qntmSellInput').value = qntmBalance > 0 ? qntmBalance : '';
+});
+
+document.getElementById('qntmBuyBtn').addEventListener('click', async () => {
+  const input = document.getElementById('qntmBuyInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige MOGC-Menge eingeben.', false); return; }
+  const btn = document.getElementById('qntmBuyBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('buy_qntm', { p_premium_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → QNTM (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer QNTM-Bestand: ${fmtCoin(row?.qntm_balance ?? 0)}.`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('qntmSellBtn').addEventListener('click', async () => {
+  const input = document.getElementById('qntmSellInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige QNTM-Menge eingeben.', false); return; }
+  const btn = document.getElementById('qntmSellBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('sell_qntm', { p_qntm_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} QNTM → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+/* ---------- DRIFT: Kauf/Verkauf ---------- */
+document.getElementById('driftSellMaxBtn').addEventListener('click', () => {
+  document.getElementById('driftSellInput').value = driftBalance > 0 ? driftBalance : '';
+});
+
+document.getElementById('driftBuyBtn').addEventListener('click', async () => {
+  const input = document.getElementById('driftBuyInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige MOGC-Menge eingeben.', false); return; }
+  const btn = document.getElementById('driftBuyBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('buy_drift', { p_premium_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → DRIFT (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer DRIFT-Bestand: ${fmtCoin(row?.drift_balance ?? 0)}.`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+document.getElementById('driftSellBtn').addEventListener('click', async () => {
+  const input = document.getElementById('driftSellInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige DRIFT-Menge eingeben.', false); return; }
+  const btn = document.getElementById('driftSellBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('sell_drift', { p_drift_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} DRIFT → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  input.value = '';
+  await loadEverything();
+});
+
+/* ---------- CYCLE: taeglicher Claim ---------- */
+document.getElementById('cycleClaimBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('cycleClaimBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('claim_daily_cycle');
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `+${fmtCoin(row?.reward ?? 0)} CYCLE abgeholt! Streak: ${row?.current_streak ?? 0} Tage.`, true);
   await loadEverything();
 });
 
@@ -1574,6 +2692,43 @@ function renderFarmOverview(){
       <div class="ft-swarm">${swarm}${more}</div>`;
     grid.appendChild(tile);
   });
+}
+
+/* STBL/GOV/CYCLE/ANCH/... haben keinen Markt-Kurs -- stattdessen Bestandsverlauf ueber
+   platform.get_my_currency_history() (Cron-Snapshot jede Minute, siehe
+   platform.snapshot_currency_balances()), gebuckett wie beim Wallet-Verlauf.
+   GEÄNDERT: p_hours/p_bucketMinutes sind jetzt optional -- ohne Angabe weiterhin die alten
+   festen 24 Std./15 Min. (für die kompakten Charts im Sprungmärkte-/Bank-Tab), die Wallet-Charts
+   unten übergeben jetzt aber currentWalletHours/currentWalletBucket, damit sie genau wie
+   novaChart/scChart auf dieselben Zeitraum-Tabs (walletRangeTabs) reagieren. */
+async function loadCurrencyBalanceChart(symbol, charts, p_hours, p_bucketMinutes){
+  const chartList = Array.isArray(charts) ? charts : [charts];
+  if (!chartList.some(Boolean)) return;
+  const hours = p_hours !== undefined ? p_hours : 24;
+  const bucketMinutes = p_bucketMinutes !== undefined ? p_bucketMinutes : 15;
+  const { data, error } = await sb.schema('platform').rpc('get_my_currency_history', {
+    p_symbol: symbol, p_hours: hours, p_bucket_minutes: bucketMinutes
+  });
+  if (error) { console.error(`get_my_currency_history(${symbol}) fehlgeschlagen:`, error); return; }
+  const showDate = hours === null || hours > 24;
+  chartList.forEach(chart => { if (chart) updateChart(chart, data || [], 'balance', { bucket_start: true, showDate }); });
+}
+
+/* NEU (Wallet-Übersicht "genauso wie NRC/MOGC"): läuft über dieselben Zeitraum-Tabs wie
+   novaChart/scChart -- wird von loadWalletHistory() bei jedem Tab-Wechsel mit aufgerufen. */
+async function loadAllWalletCurrencyCharts(){
+  await Promise.all([
+    loadCurrencyBalanceChart('STBL', [walletStblChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('VOLT', [walletVoltChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('GOV', [walletGovChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('QNTM', [walletQntmChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('DRIFT', [walletDriftChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('CYCLE', [walletCycleChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('PULSE', [walletPulseChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('IONX', [walletIonxChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('ANCH', [walletAnchChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('GRID', [walletGridChart], currentWalletHours, currentWalletBucket)
+  ]);
 }
 
 function updateChart(chart, rows, field, opts){
@@ -1839,6 +2994,218 @@ function renderInventory(){
   }
   el.innerHTML = owned.map(i => `<div class="rig-row"><div class="rig-name">${i.name}</div></div>`).join('');
 }
+</script>
+
+<!-- ---------- NEXUS global gemined -- Badge im Header ---------- -->
+<script>
+(function(){
+  'use strict';
+
+  function fmtCredits(n){
+    n = Number(n) || 0;
+    if(n >= 1e6) return (n/1e6).toLocaleString('de-DE',{maximumFractionDigits:2}) + 'M';
+    if(n >= 1e3) return (n/1e3).toLocaleString('de-DE',{maximumFractionDigits:2}) + 'k';
+    return n.toLocaleString('de-DE',{maximumFractionDigits:2});
+  }
+
+  var nexusTapValue = 0;
+
+  function animateTapTo(target){
+    var start = nexusTapValue;
+    var diff = target - start;
+    var el = document.getElementById('nexusGlobalTap');
+    if (!el) return;
+    if (Math.abs(diff) < 0.0001) { nexusTapValue = target; el.textContent = fmtCredits(target); return; }
+    var duration = 900;
+    var t0 = performance.now();
+    (function step(now){
+      var t = Math.min((now - t0) / duration, 1);
+      var eased = 1 - Math.pow(1 - t, 3);
+      nexusTapValue = start + diff * eased;
+      el.textContent = fmtCredits(nexusTapValue);
+      if (t < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
+  async function loadGlobalTap(){
+    var el = document.getElementById('nexusGlobalTap');
+    if(!el) return;
+    if(typeof sb === 'undefined' || !sb){ el.textContent = '—'; return; }
+    try{
+      var res = await sb.schema('crypto_farm').rpc('get_global_mining_stats');
+      if(res.error) throw res.error;
+      var row = (res.data && res.data[0]) || null;
+      if(!row){ el.textContent = '—'; return; }
+      var target = Number(row.lifetime_total) || 0;
+      if (el.textContent === '…' || el.textContent === '—') {
+        nexusTapValue = target;
+        el.textContent = fmtCredits(target);
+      } else {
+        animateTapTo(target);
+      }
+    }catch(e){
+      el.textContent = '—';
+    }
+  }
+
+  loadGlobalTap();
+  setInterval(loadGlobalTap, 20000);
+})();
+</script>
+
+<!-- ---------- Musik-Widget ---------- -->
+<div class="music-widget" id="musicWidget">
+  <button type="button" class="music-btn" id="musicBtn" title="Musik" aria-label="Musik-Einstellungen">🎵</button>
+  <div class="music-panel" id="musicPanel">
+    <div class="mp-title">Musik <span class="mp-state" id="musicToggleState">an</span></div>
+    <div class="mp-track" id="musicTrackName">–</div>
+    <div class="mp-row">
+      <span style="font-size:14px;">🔈</span>
+      <input type="range" id="musicVolume" min="0" max="100" step="1" value="5">
+      <span class="mp-val" id="musicVolumeVal">5%</span>
+    </div>
+    <div class="mp-actions">
+      <button type="button" id="musicPlayPause">⏸ Pause</button>
+      <button type="button" id="musicNext">⏭ Weiter</button>
+    </div>
+  </div>
+</div>
+<audio id="bgMusic" preload="none"></audio>
+<script>
+(function(){
+  'use strict';
+
+  // Playlist: alle 10 NEXUS-Score-Tracks aus art/music/ (NEXUS Gateway.mp3 ist
+  // reserviert fuer nexus/index.html, laeuft hier nicht mit).
+  var TRACKS = [
+    "01 NEXUS Idle Core.mp3",
+    "02 NEXUS Silent Mining.mp3",
+    "03 NEXUS Data Flow.mp3",
+    "04 NEXUS Market Drift.mp3",
+    "05 NEXUS Nova-Rift.mp3",
+    "06 NEXUS Deep Reserve.mp3",
+    "07 NEXUS Network Pulse.mp3",
+    "08 NEXUS Eclipse Protocol.mp3",
+    "09 NEXUS Ascension.mp3",
+    "10 NEXUS Rebirth.mp3"
+  ];
+  var VOL_KEY = 'nexusMusicVolume';
+  var MUTE_KEY = 'nexusMusicMuted';
+  var DEFAULT_VOL = 5;
+
+  var audio = document.getElementById('bgMusic');
+  var btn = document.getElementById('musicBtn');
+  var panel = document.getElementById('musicPanel');
+  var volSlider = document.getElementById('musicVolume');
+  var volVal = document.getElementById('musicVolumeVal');
+  var trackNameEl = document.getElementById('musicTrackName');
+  var playPauseBtn = document.getElementById('musicPlayPause');
+  var nextBtn = document.getElementById('musicNext');
+  var stateEl = document.getElementById('musicToggleState');
+  if (!audio || !btn) return;
+
+  // Zufaellige Wiedergabe-Reihenfolge, damit nicht jede Session identisch startet.
+  var order = TRACKS.map(function(_, i){ return i; });
+  for (var i = order.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+  }
+  var pos = 0;
+
+  function trackTitle(filename){
+    return filename.replace(/^\d+\s*/, '').replace(/\.mp3$/i, '');
+  }
+
+  function loadTrack(idx){
+    var filename = TRACKS[order[idx]];
+    audio.src = 'art/music/' + encodeURIComponent(filename);
+    if (trackNameEl) trackNameEl.textContent = trackTitle(filename);
+  }
+
+  function playCurrent(){
+    var p = audio.play();
+    if (p && typeof p.catch === 'function') p.catch(function(){});
+  }
+
+  audio.addEventListener('ended', function(){
+    pos = (pos + 1) % order.length;
+    loadTrack(pos);
+    playCurrent();
+  });
+
+  // Lautstaerke wiederherstellen -- Default 5 %.
+  var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
+  if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
+  var savedMuted = localStorage.getItem(MUTE_KEY) === '1';
+  audio.volume = savedVol / 100;
+  audio.muted = savedMuted;
+  if (volSlider) volSlider.value = savedVol;
+  if (volVal) volVal.textContent = Math.round(savedVol) + '%';
+
+  function updatePlayIcon(){
+    if (playPauseBtn) playPauseBtn.textContent = audio.paused ? '▶ Play' : '⏸ Pause';
+    if (stateEl) stateEl.textContent = audio.paused ? 'aus' : 'an';
+    if (btn) btn.classList.toggle('playing', !audio.paused);
+  }
+
+  loadTrack(pos);
+
+  // Autoplay-Policies: erst versuchen, sonst beim ersten Klick/Touch/Tastendruck nachholen.
+  (function tryAutoplay(){
+    var p = audio.play();
+    if (p && typeof p.then === 'function') {
+      p.then(updatePlayIcon).catch(function(){
+        var startOnce = function(){
+          audio.play().then(updatePlayIcon).catch(function(){});
+        };
+        document.addEventListener('click', startOnce, { once:true });
+        document.addEventListener('keydown', startOnce, { once:true });
+        document.addEventListener('touchstart', startOnce, { once:true });
+      });
+    }
+  })();
+
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) {
+      panel.classList.remove('open');
+    }
+  });
+
+  if (volSlider) {
+    volSlider.addEventListener('input', function(){
+      var v = Number(volSlider.value);
+      audio.volume = v / 100;
+      audio.muted = false;
+      if (volVal) volVal.textContent = v + '%';
+      localStorage.setItem(VOL_KEY, String(v));
+      localStorage.setItem(MUTE_KEY, '0');
+    });
+  }
+
+  if (playPauseBtn) {
+    playPauseBtn.addEventListener('click', function(){
+      if (audio.paused) { audio.play().then(updatePlayIcon).catch(function(){}); }
+      else { audio.pause(); updatePlayIcon(); }
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', function(){
+      pos = (pos + 1) % order.length;
+      loadTrack(pos);
+      playCurrent();
+      updatePlayIcon();
+    });
+  }
+
+  audio.addEventListener('play', updatePlayIcon);
+  audio.addEventListener('pause', updatePlayIcon);
+  updatePlayIcon();
+})();
 </script>
 </body>
 </html>

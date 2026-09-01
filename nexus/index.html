@@ -183,6 +183,32 @@
   .acct-panel.open{ display:block; }
   .acct-panel .lbl{ font-size:12.5px; line-height:1.55; color:var(--fg-dim); margin-bottom:10px; }
   .acct-panel input{ width:100%; box-sizing:border-box; padding:9px 11px; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; color:var(--fg); font-family:'Inter'; font-size:13.5px; margin:6px 0; }
+
+  /* ---------- Musik-Widget (kleiner Einstellungs-Button unten rechts) ---------- */
+  .music-widget{ position:fixed; right:18px; bottom:18px; z-index:90; }
+  .music-btn{
+    width:44px; height:44px; border-radius:50%; border:1px solid var(--line);
+    background:var(--panel); color:var(--fg); display:flex; align-items:center;
+    justify-content:center; font-size:18px; cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:border-color .15s, transform .15s;
+  }
+  .music-btn:hover{ border-color:var(--blue); transform:translateY(-1px); }
+  .music-btn.playing{ border-color:rgba(47,140,255,0.45); }
+  .music-panel{
+    position:absolute; right:0; bottom:calc(100% + 10px); width:230px;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:14px 16px; box-shadow:0 10px 30px rgba(0,0,0,0.45); display:none;
+  }
+  .music-panel.open{ display:block; }
+  .music-panel .mp-title{ font-size:12px; font-weight:600; color:var(--fg-dim); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .music-panel .mp-title span.mp-state{ color:var(--blue); font-weight:700; }
+  .music-panel .mp-track{ font-size:11.5px; color:var(--fg-faint); margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .music-panel .mp-row{ display:flex; align-items:center; gap:10px; }
+  .music-panel input[type=range]{ flex:1; accent-color:var(--blue); }
+  .music-panel .mp-val{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--fg-dim); min-width:32px; text-align:right; }
+  .music-panel .mp-actions{ display:flex; gap:8px; margin-top:12px; }
+  .music-panel .mp-actions button{ flex:1; padding:6px 0; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-size:12px; cursor:pointer; }
+  .music-panel .mp-actions button:hover{ border-color:var(--blue); }
   .acct-panel input:focus{ outline:none; border-color:var(--fg-faint); }
   .acct-panel input#cloudCodeInput{ letter-spacing:4px; text-align:center; }
   .acct-btn{ width:100%; margin-top:9px; padding:9px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg); font-family:'Inter'; font-size:13px; font-weight:600; cursor:pointer; transition:border-color .15s, background .15s; }
@@ -289,7 +315,7 @@
   <section class="hero reveal in">
     <div class="hero-grid">
       <div>
-        <div class="eyebrow"><span class="dot"></span> NEXUS · Idle-Mining-Spiel</div>
+        <div class="eyebrow"><span class="dot"></span> NEXUS · Idle-Mining &amp; Wirtschaftssimulation</div>
         <div class="live-ticker" id="liveTicker"><span class="lt-dot"></span> Kurs: <span class="lt-price" id="ltPrice">–</span> <span id="ltTrend"></span></div>
         <h1>Bau deine Mining-Farm auf. <span class="accent">Tausch deine Nova-Rift im ganzen MC ORCA GAMES Universum ein.</span></h1>
         <p>NEXUS ist ein eigenständiges Idle-Mining-Spiel: Rigs kaufen, passiv Nova-Rift minen,
@@ -297,9 +323,12 @@
            Nova-Rift in <strong>MC ORCA GAMES Coins</strong> — eine stabile Währung fürs gesamte
            MC ORCA GAMES Universum. Damit kaufst du im NEXUS-Shop Premium-Items für Aetheris,
            Deep Anchor, Path of the Stars und Astrion und aktivierst sie direkt im jeweiligen
-           Spiel. Alles rein virtuell: <strong>es wird zu keinem Zeitpunkt echtes Geld
-           eingesetzt</strong> — nirgendwo im Spiel gibt es einen Kaufen-Button für echte
-           Währung.</p>
+           Spiel. Wer tiefer einsteigen will, findet dahinter eine kleine Wirtschaftssimulation:
+           spekulative Sprungmärkte, ein Bank-Sparkonto mit Zins, eine zweite Förder-Ressource,
+           einen Skillbaum mit Prestige-Resets und eine Zentralbank-Reserve, die an die
+           Rangliste ausgeschüttet wird. Alles rein virtuell: <strong>es wird zu keinem
+           Zeitpunkt echtes Geld eingesetzt</strong> — nirgendwo im Spiel gibt es einen
+           Kaufen-Button für echte Währung.</p>
         <div class="hero-ctas">
           <a class="btn btn-primary" href="game.html">Jetzt spielen</a>
           <a class="btn btn-ghost" href="../index.html">Zurück zur Übersicht</a>
@@ -325,10 +354,44 @@
     </div>
     <div class="feature">
       <div class="fi">⬡</div>
-      <h4>Zwei Währungen, ein Konto</h4>
+      <h4>Zwei Kern-Währungen</h4>
       <p>Nova-Rift sind deine volatile Mining-Währung, ihr Wert schwankt mit dem Kurs.
          Verkaufst du sie, werden sie zu <strong>MC ORCA GAMES Coins</strong> — stabil
          und gültig im Premium-Shop im gesamten MC ORCA GAMES Universum, für alle vier Spiele.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">📈</div>
+      <h4>Sprungmärkte</h4>
+      <p>Fünf zusätzliche, spekulative Währungen mit eigenem Charakter — von sanft
+         schwankend bis sprunghaft kollabierend zwischen festen Preis-Leveln. Für alle,
+         die neben dem Mining noch etwas zum Traden wollen.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">🏦</div>
+      <h4>Bank &amp; Festgeld</h4>
+      <p>Ein Sparkonto mit stündlichem Mini-Zins, dazu Festgeld mit deutlich höherem
+         Zinssatz (aber Sperrfrist). Bewusst ruhig gehalten — als Gegenpol zu den
+         schwankenden Kursen.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">⚡</div>
+      <h4>Zweite Förder-Ressource</h4>
+      <p>Neben Nova-Rift gibt's eine eigenständige zweite Ressource mit eigenen Rigs,
+         eigenem Ambient-Feld und eigenen Sprungmärkten obendrauf — ein komplett
+         separater Fortschrittspfad.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">🌳</div>
+      <h4>Skillbaum &amp; Prestige</h4>
+      <p>Farm zurücksetzen, dafür permanente Skill-Punkte kassieren, die jeden
+         weiteren Reset überleben. Wer öfter prestiget, baut sich einen dauerhaften
+         Vorteil auf.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">🏛</div>
+      <h4>Zentralbank-Ausschüttung</h4>
+      <p>1&nbsp;% jedes Mining-Ertrags fließt automatisch in eine gemeinsame Reserve.
+         Ist sie voll, wird gestuft an die Top&nbsp;10 der Rangliste ausgeschüttet.</p>
     </div>
     <div class="feature">
       <div class="fi">⛨</div>
@@ -341,8 +404,8 @@
       <div class="fi">∅</div>
       <h4>Kein Echtgeld, nirgends</h4>
       <p>NEXUS und der Premium-Shop laufen komplett ohne echte Zahlungen — es gibt
-         keinen Bezahlvorgang, keine Kreditkarte, kein Echtgeld-Guthaben. Sowohl
-         Nova-Rift als auch MC ORCA GAMES Coins werden ausschließlich im Spiel erspielt.</p>
+         keinen Bezahlvorgang, keine Kreditkarte, kein Echtgeld-Guthaben. Alle Währungen
+         werden ausschließlich im Spiel erspielt.</p>
     </div>
   </section>
 
@@ -396,6 +459,10 @@
            und dort aktivieren.</p>
       </div>
     </div>
+    <p style="text-align:center; font-size:12.5px; color:var(--fg-faint); margin-top:26px;">
+      Das ist der schnelle Einstieg. Sprungmärkte, Bank, Skillbaum und die zweite
+      Förder-Ressource entdeckst du direkt im Spiel, sobald du Lust drauf hast.
+    </p>
   </section>
 
   <section class="closing reveal in">
@@ -587,6 +654,104 @@
 
   loadTicker();
   setInterval(loadTicker, 20000);
+})();
+</script>
+
+<!-- ---------- Musik-Widget ---------- -->
+<div class="music-widget" id="musicWidget">
+  <button type="button" class="music-btn" id="musicBtn" title="Musik" aria-label="Musik-Einstellungen">🎵</button>
+  <div class="music-panel" id="musicPanel">
+    <div class="mp-title">Musik <span class="mp-state" id="musicToggleState">an</span></div>
+    <div class="mp-track" id="musicTrackName">NEXUS Gateway</div>
+    <div class="mp-row">
+      <span style="font-size:14px;">🔈</span>
+      <input type="range" id="musicVolume" min="0" max="100" step="1" value="5">
+      <span class="mp-val" id="musicVolumeVal">5%</span>
+    </div>
+    <div class="mp-actions">
+      <button type="button" id="musicPlayPause">⏸ Pause</button>
+    </div>
+  </div>
+</div>
+<audio id="bgMusic" src="art/music/NEXUS%20Gateway.mp3" preload="none" loop></audio>
+<script>
+(function(){
+  'use strict';
+
+  // Gemeinsame Keys mit game.html -- Lautstaerke-Einstellung gilt fuers ganze NEXUS.
+  var VOL_KEY = 'nexusMusicVolume';
+  var MUTE_KEY = 'nexusMusicMuted';
+  var DEFAULT_VOL = 5;
+
+  var audio = document.getElementById('bgMusic');
+  var btn = document.getElementById('musicBtn');
+  var panel = document.getElementById('musicPanel');
+  var volSlider = document.getElementById('musicVolume');
+  var volVal = document.getElementById('musicVolumeVal');
+  var playPauseBtn = document.getElementById('musicPlayPause');
+  var stateEl = document.getElementById('musicToggleState');
+  if (!audio || !btn) return;
+
+  var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
+  if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
+  var savedMuted = localStorage.getItem(MUTE_KEY) === '1';
+  audio.volume = savedVol / 100;
+  audio.muted = savedMuted;
+  if (volSlider) volSlider.value = savedVol;
+  if (volVal) volVal.textContent = Math.round(savedVol) + '%';
+
+  function updatePlayIcon(){
+    if (playPauseBtn) playPauseBtn.textContent = audio.paused ? '▶ Play' : '⏸ Pause';
+    if (stateEl) stateEl.textContent = audio.paused ? 'aus' : 'an';
+    if (btn) btn.classList.toggle('playing', !audio.paused);
+  }
+
+  // Autoplay-Policies: erst versuchen, sonst beim ersten Klick/Touch/Tastendruck nachholen.
+  (function tryAutoplay(){
+    var p = audio.play();
+    if (p && typeof p.then === 'function') {
+      p.then(updatePlayIcon).catch(function(){
+        var startOnce = function(){
+          audio.play().then(updatePlayIcon).catch(function(){});
+        };
+        document.addEventListener('click', startOnce, { once:true });
+        document.addEventListener('keydown', startOnce, { once:true });
+        document.addEventListener('touchstart', startOnce, { once:true });
+      });
+    }
+  })();
+
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) {
+      panel.classList.remove('open');
+    }
+  });
+
+  if (volSlider) {
+    volSlider.addEventListener('input', function(){
+      var v = Number(volSlider.value);
+      audio.volume = v / 100;
+      audio.muted = false;
+      if (volVal) volVal.textContent = v + '%';
+      localStorage.setItem(VOL_KEY, String(v));
+      localStorage.setItem(MUTE_KEY, '0');
+    });
+  }
+
+  if (playPauseBtn) {
+    playPauseBtn.addEventListener('click', function(){
+      if (audio.paused) { audio.play().then(updatePlayIcon).catch(function(){}); }
+      else { audio.pause(); updatePlayIcon(); }
+    });
+  }
+
+  audio.addEventListener('play', updatePlayIcon);
+  audio.addEventListener('pause', updatePlayIcon);
+  updatePlayIcon();
 })();
 </script>
 
