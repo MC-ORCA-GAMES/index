@@ -1564,6 +1564,10 @@ function enterGame(){
       [walletStblChart, walletVoltChart, walletGovChart, walletQntmChart, walletDriftChart,
        walletCycleChart, walletPulseChart, walletIonxChart, walletAnchChart, walletGridChart]
         .forEach(c => { if (c) c.resize(); });
+      // NEU (Egress-Fix): loadWalletHistory()/loadAllWalletCurrencyCharts() laufen
+      // nicht mehr automatisch bei jedem 5s-Tick, sondern nur noch on-demand beim
+      // Oeffnen des Wallet-Tabs -- sonst blieben die 10 Uebersichts-Charts leer.
+      loadWalletHistory();
     }
     if (tabId === 'sprungmaerkte') {
       if (voltChart) voltChart.resize();
