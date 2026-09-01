@@ -2,6 +2,49 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.12: EGRESS-FIX Teil 4 (reiner Supabase-Config-Change, kein Code hier) --
+    letzte 5 minuetlich laufende Cron-Jobs auf 5-Minuten-Takt umgestellt:
+    crypto_farm.tick_market, crypto_farm.collect_all_earnings,
+    platform.tick_volt_market, crypto_farm.collect_all_pulse_earnings,
+    platform.tick_grid_market. Kein einziger Cron-Job laeuft jetzt noch
+    minuetlich (schnellster verbleibender: tick_qntm_market alle 2 Min).
+    Gutschriften bleiben exakt gleich (collect_earnings() rechnet ueber
+    verstrichene Zeit, nicht ueber feste Ticks) -- betrifft nur, wie oft
+    OFFLINE-Spieler in der DB nachgebucht werden (max. 5 Min Verzoegerung,
+    fuer Leaderboard/globale Stats irrelevant). NEBENEFFEKT (bewusst in
+    Kauf genommen): Kursausschlaege bei Nova-Rift/VOLT/GRID passieren jetzt
+    seltener (alle 5 statt jede Minute) -- die Formeln (z.B. "+-6% pro Tick")
+    wurden NICHT an die neue Taktung angepasst, d.h. die Volatilitaet pro
+    Realzeit-Stunde sinkt spuerbar (weniger, aber unveraendert grosse Spruenge).
+    Falls das zu ruhig wirkt: Amplitude pro Tick um ca. sqrt(5) ~ 2.2x erhoehen,
+    um die alte Volatilitaet pro Stunde wiederherzustellen.
+  - v3.11: EGRESS-FIX Teil 3 -- zwei weitere Baustellen gefunden, die nicht das
+    Tick-Polling betrafen, sondern Rohdaten-Transfer bzw. DB-Wachstum:
+    (a) Offline-Popup lud bisher ALLE einzelnen mining_log-Zeilen seit dem
+    letzten Besuch und summierte im Client -- bei mining_log knapp 15.000
+    Zeilen (waechst 1x/Minute PRO SPIELER MIT RIGS, auch offline, via
+    collect_all_earnings-Cron) waere das bei laengerer Abwesenheit ein
+    potenziell riesiger Transfer fuer eine einzige Zahl gewesen. Neue RPC
+    crypto_farm.get_earnings_since() summiert jetzt per SQL, Client bekommt
+    nur noch das Ergebnis. (b) Drei Snapshot-Crons (snapshot_wallet_balances,
+    snapshot_global_balances, snapshot_currency_balances) liefen minuetlich,
+    obwohl alle Anzeigen (get_my_wallet_history etc.) die Daten sowieso nur in
+    15-Minuten-Buckets auswerten -- Cron-Schedule von "* * * * *" auf
+    "*/15 * * * *" umgestellt (in Supabase, nicht im Code sichtbar). Keine
+    Aenderung an angezeigten Werten, nur 15x weniger Zeilenwachstum in
+    wallet_balance_history/global_balance_history/currency_balance_history.
+  - v3.10: EGRESS-FIX Teil 2 -- get_full_game_state() sendet bei jedem Tick immer
+    noch die kompletten Verlaufs-Arrays neu (6x Preis-Historie a 120 Punkte + 5x
+    Kontostand-Bucket-Historie a bis zu 96 Punkte), obwohl sich serverseitig
+    (Cron) meist nur alle 1-5 Minuten ein einziger neuer Punkt dazugesellt.
+    Fix: get_full_game_state(p_light) -- bei p_light=true werden alle Verlaufs-
+    Arrays auf die letzten 1-2 Punkte gekappt. Client haelt die volle Historie
+    im historyCache (mergeHistory/reconcileHistories) und haengt bei jedem
+    Light-Tick nur wirklich neue Punkte an. Voll-Load (mit kompletten 120/96
+    Punkten) passiert nur noch beim Login/Session-Restore und wenn der Tab aus
+    dem Hintergrund zurueckkommt (Resync-Sicherheit); alle ~27 Refresh-Aufrufe
+    nach Kauf/Verkauf/Sammeln-Aktionen laufen jetzt mit { light: true }. Sonst
+    identisches Verhalten/identische Charts, nur deutlich kleinere Antworten.
   - v3.9: EGRESS-FIX -- ein offen gelassener Tab verursachte ~178.000 Requests/
     250 MB an einem Tag (bei 5 GB Freikontingent/Monat kritisch). Ursache: der
     5s-Tick feuerte kaskadierend ~30-40 einzelne REST/RPC-Calls (Haupt-Query,
@@ -1328,6 +1371,69 @@ let refreshTimer = null;
 // weiter, hier geht es nur um UI-Frische, kein Gameplay-Verlust.
 const POLL_MS_ACTIVE = 20000;
 const POLL_MS_HIDDEN = 90000;
+
+/* ---------- Egress-Fix Teil 2: Light-Ticks statt voller Verlaufs-Arrays ----------
+   get_full_game_state(p_light) liefert bei p_light=true nur noch die letzten 2
+   Punkte jeder Verlaufs-Reihe statt 120 (Preise) bzw. bis zu 96 (Kontostand-
+   Buckets). Wir halten die volle Historie hier im Speicher (newest-first, wie
+   vom Server geliefert) und haengen bei jedem Light-Tick nur Punkte an, deren
+   recorded_at neuer ist als der bisher juengste bekannte Punkt. Ein Voll-Load
+   (Login, Session-Restore, Tab wird nach Hintergrund wieder sichtbar) ersetzt
+   den Cache komplett -- so kann nichts dauerhaft auseinanderlaufen, selbst wenn
+   waehrend einer langen Hintergrundphase mehr als 2 neue Punkte entstanden. */
+const HIST_MAX = { price: 120, bucket: 100 };
+const historyCache = {
+  market_price_history: [], ionx_price_history: [], grid_price_history: [],
+  volt_price_history: [], qntm_price_history: [], drift_price_history: [],
+  wallet_history: [], anch_history: [], stbl_history: [], gov_history: [], cycle_history: []
+};
+const HIST_KIND = {
+  market_price_history: 'price', ionx_price_history: 'price', grid_price_history: 'price',
+  volt_price_history: 'price', qntm_price_history: 'price', drift_price_history: 'price',
+  wallet_history: 'bucket', anch_history: 'bucket', stbl_history: 'bucket',
+  gov_history: 'bucket', cycle_history: 'bucket'
+};
+let fullStateLoaded = false;
+
+// Preis-Historien kommen vom Server NEWEST-FIRST (order by recorded_at desc),
+// Kontostand-Bucket-Historien (wallet/anch/stbl/gov/cycle) kommen OLDEST-FIRST
+// (order by bucket_start asc, siehe get_my_wallet_history/get_my_currency_history).
+// Merge-Richtung muss dazu passen, sonst landen neue Punkte am falschen Ende.
+function mergeHistory(cacheArr, fresh, tsField, maxLen, newestFirst){
+  if (!fresh || !fresh.length) return cacheArr;
+  if (!cacheArr.length) return fresh.slice(newestFirst ? 0 : Math.max(0, fresh.length - maxLen));
+  const cacheLatestTs = newestFirst ? cacheArr[0][tsField] : cacheArr[cacheArr.length - 1][tsField];
+  const cacheLatestMs = new Date(cacheLatestTs).getTime();
+  const newOnes = fresh.filter(r => new Date(r[tsField]).getTime() > cacheLatestMs);
+  if (!newOnes.length) return cacheArr;
+  const merged = newestFirst ? newOnes.concat(cacheArr) : cacheArr.concat(newOnes);
+  return newestFirst ? merged.slice(0, maxLen) : merged.slice(Math.max(0, merged.length - maxLen));
+}
+
+// Wendet die Light-Merge-Logik auf alle bekannten Verlaufs-Felder in gs an und
+// ersetzt sie in-place durch die vollstaendigen (gemergten) Arrays, damit
+// applyFullGameState() sich um nichts kuemmern muss -- gs sieht danach genauso
+// aus wie bei einem Voll-Load, nur eben aus Cache + neuen Punkten zusammengesetzt.
+const HIST_ORDER = {
+  market_price_history: true, ionx_price_history: true, grid_price_history: true,
+  volt_price_history: true, qntm_price_history: true, drift_price_history: true,
+  wallet_history: false, anch_history: false, stbl_history: false,
+  gov_history: false, cycle_history: false
+};
+function reconcileHistories(gs, isLight){
+  for (const key of Object.keys(historyCache)) {
+    const newestFirst = HIST_ORDER[key];
+    const tsField = newestFirst ? 'recorded_at' : 'bucket_start';
+    const maxLen = HIST_KIND[key] === 'price' ? HIST_MAX.price : HIST_MAX.bucket;
+    if (isLight) {
+      historyCache[key] = mergeHistory(historyCache[key], gs[key] || [], tsField, maxLen, newestFirst);
+    } else {
+      const fresh = gs[key] || [];
+      historyCache[key] = newestFirst ? fresh.slice(0, maxLen) : fresh.slice(Math.max(0, fresh.length - maxLen));
+    }
+    gs[key] = historyCache[key];
+  }
+}
 let novaChart = null;
 let scChart = null;
 let marketChart = null;
@@ -1666,7 +1772,10 @@ document.getElementById('sendOtpBtn').addEventListener('click', async () => {
 function startPolling(){
   if (refreshTimer) clearInterval(refreshTimer);
   const ms = document.hidden ? POLL_MS_HIDDEN : POLL_MS_ACTIVE;
-  refreshTimer = setInterval(loadEverything, ms);
+  // Regulaere Ticks sind immer "light" (siehe get_full_game_state(p_light)) --
+  // die vollen Verlaufsarrays holt sich der Client nur noch beim Login und beim
+  // Zurueckkehren aus dem Hintergrund-Tab (s.u.), danach reichen 1-2 neue Punkte.
+  refreshTimer = setInterval(() => loadEverything({ light: true }), ms);
 }
 
 if (!document.__pollingVisibilityWired) {
@@ -1674,7 +1783,10 @@ if (!document.__pollingVisibilityWired) {
   document.addEventListener('visibilitychange', () => {
     if (!refreshTimer) return; // noch nicht eingeloggt / kein aktiver Timer
     startPolling(); // neu aufsetzen mit dem passenden Intervall
-    if (!document.hidden) loadEverything(); // beim Zurueckkommen sofort auffrischen
+    // Voll-Load beim Zurueckkommen: waehrend der Tab im Hintergrund war, koennten
+    // mehr als die 1-2 Light-Punkte entstanden sein -- ein Voll-Load resynct den
+    // Verlaufs-Cache zuverlaessig statt Luecken zu riskieren.
+    if (!document.hidden) loadEverything();
   });
 }
 
@@ -1914,11 +2026,15 @@ function setMarketChartTrend(trendUp){
    Waehrungs-Charts). Jetzt buendelt platform.get_full_game_state() serverseitig
    ALLES in eine Antwort -- 1 Request statt ~30-40 pro Tick. Logik/Werte sind
    identisch, nur die Datenbeschaffung ist zusammengefasst. */
-async function loadEverything(){
+async function loadEverything(opts){
+  const wantLight = !!(opts && opts.light) && fullStateLoaded;
   clearMsg('statusMsg');
-  const { data: gs, error } = await sb.schema('platform').rpc('get_full_game_state');
+  const { data: gs, error } = await sb.schema('platform').rpc('get_full_game_state', { p_light: wantLight });
   if (error) { console.error('get_full_game_state fehlgeschlagen:', error); return; }
-  await applyFullGameState(gs || {});
+  const safeGs = gs || {};
+  reconcileHistories(safeGs, wantLight);
+  fullStateLoaded = true;
+  await applyFullGameState(safeGs);
 }
 
 async function applyFullGameState(gs){
@@ -2021,16 +2137,20 @@ async function applyFullGameState(gs){
   // gutgeschrieben werden, waere eine reine Balance-Differenz beim Login fast
   // immer 0. Stattdessen: alles aufsummieren, was seit dem letzten Besuch im
   // mining_log gelandet ist -- egal ob durch den Cron oder durch collect_earnings.
+  // NEU (Egress-Fix): Server summiert per SQL (crypto_farm.get_earnings_since)
+  // statt alle einzelnen mining_log-Zeilen zu uebertragen und im Client zu
+  // summieren -- bei langer Abwesenheit waeren das sonst tausende Zeilen fuer
+  // eine einzige Zahl gewesen.
   if (!firstLoadDone) {
     firstLoadDone = true;
     const lastSeen = getLastSeenTs();
     if (lastSeen) {
       const elapsedMs = Date.now() - lastSeen;
       if (elapsedMs > 60000) {
-        const { data: sinceRows } = await sb.schema('crypto_farm').from('mining_log')
-          .select('amount').eq('player_id', currentUser.id)
-          .gte('recorded_at', new Date(lastSeen).toISOString());
-        const earned = (sinceRows || []).reduce((sum, r) => sum + Number(r.amount), 0);
+        const { data: earnedSince } = await sb.schema('crypto_farm').rpc('get_earnings_since', {
+          p_since: new Date(lastSeen).toISOString()
+        });
+        const earned = Number(earnedSince) || 0;
         if (earned > 0.005) {
           showOfflinePopup(earned, elapsedMs);
         }
@@ -2079,7 +2199,7 @@ async function applyFullGameState(gs){
    NEU: liest jetzt aus dem gebuendelten gs-Objekt statt eigener Requests. loadPulse()
    bleibt als Alias erhalten fuer bestehende Aufrufstellen (z.B. nach Rig-Kauf). */
 async function loadPulse(){
-  await loadEverything();
+  await loadEverything({ light: true });
 }
 
 function applyPulseState(gs){
@@ -2209,7 +2329,7 @@ document.getElementById('ionxBuyBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} PULSE → IONX (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer IONX-Bestand: ${fmtCoin(row?.ionx_balance ?? 0)}.`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('ionxSellBtn').addEventListener('click', async () => {
@@ -2224,7 +2344,7 @@ document.getElementById('ionxSellBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} IONX → ${fmtCoin(row?.pulse_balance ?? 0)} PULSE-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 /* ---------- GRID: Kauf/Verkauf (gegen MOGC) + Boost ---------- */
@@ -2244,7 +2364,7 @@ document.getElementById('gridBuyBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → GRID (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer GRID-Bestand: ${fmtCoin(row?.grid_balance ?? 0)}.`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('gridSellBtn').addEventListener('click', async () => {
@@ -2259,7 +2379,7 @@ document.getElementById('gridSellBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} GRID → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('gridBoostBtn').addEventListener('click', async () => {
@@ -2269,7 +2389,7 @@ document.getElementById('gridBoostBtn').addEventListener('click', async () => {
   if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
   const until = new Date(data).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   showMsg('statusMsg', `Boost aktiviert: +25% Pulse-Förderrate bis ${until}.`, true);
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 /* ---------- ANCH: Ein-/Auszahlen (Pulse-Sparkonto) ---------- */
@@ -2284,7 +2404,7 @@ document.getElementById('anchDepositBtn').addEventListener('click', async () => 
   if (error) { showMsg('statusMsg', error.message, false); return; }
   showMsg('statusMsg', `${fmtCoin(amount)} PULSE ins ANCH-Sparkonto eingezahlt.`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('anchWithdrawBtn').addEventListener('click', async () => {
@@ -2298,14 +2418,14 @@ document.getElementById('anchWithdrawBtn').addEventListener('click', async () =>
   if (error) { showMsg('statusMsg', error.message, false); return; }
   showMsg('statusMsg', `${fmtCoin(amount)} ANCH ausgezahlt (1% Gebühr abgezogen).`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 /* ---------- Sprungmärkte-Tab: STBL/VOLT/GOV/QNTM/DRIFT/CYCLE ---------- */
 /* NEU: liest jetzt aus dem gebuendelten gs-Objekt statt eigener Requests.
    loadSprungmaerkte() bleibt als Alias erhalten fuer eventuelle Aufrufstellen. */
 async function loadSprungmaerkte(){
-  await loadEverything();
+  await loadEverything({ light: true });
 }
 
 function applySprungmaerkteState(gs){
@@ -2474,7 +2594,7 @@ document.getElementById('bondLockBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `${fmtCoin(amount)} STBL für ${termDays} Tage gesperrt (Zins ${(Number(row?.reward_rate ?? 0) * 100).toFixed(0)}%).`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('bondList').addEventListener('click', async (ev) => {
@@ -2493,7 +2613,7 @@ document.getElementById('bondList').addEventListener('click', async (ev) => {
   } else {
     showMsg('statusMsg', `BOND fällig: ${fmtCoin(row?.payout ?? 0)} STBL inkl. Zins gutgeschrieben.`, true);
   }
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('voltSellMaxBtn').addEventListener('click', () => {
@@ -2512,7 +2632,7 @@ document.getElementById('voltBuyBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → VOLT (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer VOLT-Bestand: ${fmtCoin(row?.volt_balance ?? 0)}.`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('voltSellBtn').addEventListener('click', async () => {
@@ -2527,7 +2647,7 @@ document.getElementById('voltSellBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} VOLT → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 /* ---------- QNTM: Kauf/Verkauf ---------- */
@@ -2547,7 +2667,7 @@ document.getElementById('qntmBuyBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → QNTM (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer QNTM-Bestand: ${fmtCoin(row?.qntm_balance ?? 0)}.`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('qntmSellBtn').addEventListener('click', async () => {
@@ -2562,7 +2682,7 @@ document.getElementById('qntmSellBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} QNTM → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 /* ---------- DRIFT: Kauf/Verkauf ---------- */
@@ -2582,7 +2702,7 @@ document.getElementById('driftBuyBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → DRIFT (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer DRIFT-Bestand: ${fmtCoin(row?.drift_balance ?? 0)}.`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('driftSellBtn').addEventListener('click', async () => {
@@ -2597,7 +2717,7 @@ document.getElementById('driftSellBtn').addEventListener('click', async () => {
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} DRIFT → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 /* ---------- CYCLE: taeglicher Claim ---------- */
@@ -2609,7 +2729,7 @@ document.getElementById('cycleClaimBtn').addEventListener('click', async () => {
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `+${fmtCoin(row?.reward ?? 0)} CYCLE abgeholt! Streak: ${row?.current_streak ?? 0} Tage.`, true);
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('stblDepositBtn').addEventListener('click', async () => {
@@ -2623,7 +2743,7 @@ document.getElementById('stblDepositBtn').addEventListener('click', async () => 
   if (error) { showMsg('statusMsg', error.message, false); return; }
   showMsg('statusMsg', `${fmtCoin(amount)} MOGC ins STBL-Sparkonto eingezahlt.`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('stblWithdrawBtn').addEventListener('click', async () => {
@@ -2637,7 +2757,7 @@ document.getElementById('stblWithdrawBtn').addEventListener('click', async () =>
   if (error) { showMsg('statusMsg', error.message, false); return; }
   showMsg('statusMsg', `${fmtCoin(amount)} STBL ausgezahlt (1% Gebühr abgezogen).`, true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 document.getElementById('govClaimBtn').addEventListener('click', async () => {
@@ -2647,7 +2767,7 @@ document.getElementById('govClaimBtn').addEventListener('click', async () => {
   if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `+${fmtCoin(row?.gov_gained ?? 0)} GOV abgeholt.`, true);
-  await loadEverything();
+  await loadEverything({ light: true });
 });
 
 /* ---------- Starter-Rig (Opt-in-Claim statt Auto-Vergabe) ---------- */
@@ -2663,7 +2783,7 @@ async function claimStarterRig(){
   if (data) {
     showMsg('statusMsg', 'Starter-Miner abgeholt! 🎉', true);
   }
-  await loadEverything();
+  await loadEverything({ light: true });
 }
 
 /* ---------- Farm-Uebersicht (Icon-Grid) ---------- */
@@ -2814,7 +2934,7 @@ window.buyRig = async function(rigTypeId, qty, btnEl){
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Gekauft: ${qty}× Rig für ${fmtCoin(row?.total_cost ?? 0)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">.`, true);
   spawnFly('-' + fmtCoin(row?.total_cost ?? 0) + ' <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">', btnEl, false);
-  await loadEverything();
+  await loadEverything({ light: true });
 };
 
 /* ---------- Nova-Rift verkaufen ---------- */
@@ -2851,7 +2971,7 @@ window.sellNovaRift = async function(){
     `Verkauft: ${fmtCoin(amount)} Nova-Rift für ${fmtCoin(row?.premium_gained ?? 0)} MOGC (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
   spawnFly('+' + fmtCoin(row?.premium_gained ?? 0) + ' <img class="coin-icon-sm" src="art/mogc-coin-32.png" alt="">', getVisibleBalanceEl('.js-balance-mogc'), true);
   input.value = '';
-  await loadEverything();
+  await loadEverything({ light: true });
 };
 
 /* ---------- Premium-Shop ---------- */
@@ -2920,7 +3040,7 @@ window.buyShopItem = async function(itemId, price, btnEl){
   if (error) { showMsg('statusMsg', error.message, false); btnEl.disabled = false; return; }
   showMsg('statusMsg', 'Kauf erfolgreich.', true);
   spawnFly('-' + fmtCoin(price) + ' <img class="coin-icon-sm" src="art/mogc-coin-32.png" alt="">', btnEl, false);
-  await loadEverything();
+  await loadEverything({ light: true });
 };
 
 /* ---------- Prestige ---------- */
@@ -2936,7 +3056,7 @@ window.doPrestige = async function(){
   }
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg', `Prestige erfolgreich! +${fmtCoin(row?.points_earned ?? 0)} Prestige-Punkte, jetzt Stufe ${row?.prestige_level ?? '?'}.`, true);
-  await loadEverything();
+  await loadEverything({ light: true });
 };
 
 /* ---------- Skillbaum ---------- */
@@ -2986,7 +3106,7 @@ window.buySkillNode = async function(nodeId, btnEl){
     return;
   }
   showMsg('statusMsg', 'Skill freigeschaltet! 🎉', true);
-  await loadEverything();
+  await loadEverything({ light: true });
 };
 
 function renderInventory(){

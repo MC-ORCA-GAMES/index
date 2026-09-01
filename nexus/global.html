@@ -2,6 +2,14 @@
   MC ORCA GAMES — NEXUS — Globale Wallet
 
   Changelog:
+  - v3.2: EGRESS-FIX -- Bank-Status, Kontostand-Verlauf und alle 10 Waehrungs-
+    Charts/-Bestaende pollten bisher jede Minute (1440x/Tag), obwohl sich die
+    zugrunde liegenden 15-Minuten-Buckets viel seltener aendern. Umgestellt auf
+    ein taegliches Protokoll: Daten werden nur noch einmal pro Kalendertag um
+    00:00 Uhr (Europe/Berlin) neu geladen (loadDailyProtocol, Datums-Check alle
+    5 Min statt Netzwerk-Call). Klar per Banner ueber der Bank-Sektion kommuni-
+    ziert. loadStats() (geförderte Coins, oberer Bereich) bleibt bewusst live
+    im 60s-Takt, da das Mining serverseitig kontinuierlich weiterlaeuft.
   - v3.1: MOGC-Farbe von Violett auf Rot korrigiert (Violett war schon von GOV belegt
     -- Farben sollen 1:1 zu game.html passen, dort ist scChart bereits #D6303F/Rot).
     NRC- und MOGC-Verlauf jetzt nebeneinander in einem Panel (2-spaltig, wie der
@@ -311,10 +319,18 @@
     </div>
   </section>
 
+  <!-- NEU: Egress-Fix -- alles ab hier (Bank, Verlaufs-Charts, Waehrungs-Bestaende)
+       war frueher live und pollte jede Minute, obwohl sich die zugrunde liegenden
+       15-Minuten-Buckets viel seltener aendern. Jetzt: Protokoll, das nur einmal
+       taeglich um 00:00 Uhr (Europe/Berlin) aktualisiert wird -- klar per Banner
+       kommuniziert. Nur der Bereich oben ("geförderte Coins") bleibt live, weil
+       das Mining serverseitig kontinuierlich weiterlaeuft. -->
+  <div class="chart-note" id="protocolBanner" style="text-align:center; margin:-4px 0 4px; opacity:.85;">Protokoll wird geladen …</div>
+
   <section class="bank-panel reveal in">
     <div class="bank-panel-head">
       <span class="t">🏦 Zentralbank</span>
-      <span class="hint">1% jedes Mining-Ertrags, gestuft ausgeschüttet an die Top 10 der Rangliste</span>
+      <span class="hint">1% jedes Mining-Ertrags, gestuft ausgeschüttet an die Top 10 der Rangliste · Protokoll, 1×/Tag</span>
     </div>
     <div class="bank-track"><div class="bank-fill" id="bankFill"></div></div>
     <div class="bank-sub" id="bankSub">wird geladen …</div>
@@ -335,7 +351,7 @@
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
       <span class="t">Kontostand-Verlauf</span>
-      <span class="hint">Aktuelle Summe über alle Accounts, gehalten</span>
+      <span class="hint">Summe über alle Accounts, gehalten · Protokoll, 1×/Tag</span>
     </div>
     <div class="currency-grid">
       <div>
@@ -354,7 +370,7 @@
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
       <span class="t">Weitere Währungen — global</span>
-      <span class="hint">Aktueller Gesamtbestand über alle Accounts, live</span>
+      <span class="hint">Gesamtbestand über alle Accounts · Protokoll, 1×/Tag</span>
     </div>
 
     <div class="currency-grid">
@@ -759,16 +775,45 @@
     return Promise.all(Object.keys(CUR_META).map(loadCurrencyHistory));
   }
 
+  /* ---------- Egress-Fix: Tages-Protokoll statt Minuten-Polling ----------
+     Bank-Status, Kontostand-Verlauf und alle 10 Waehrungs-Charts/-Bestaende
+     aenderten sich zwischen den 60s-Ticks fast nie wirklich (die zugrunde
+     liegenden Buckets/Snapshots sind 15-Minuten- bzw. Cron-basiert), wurden
+     aber trotzdem 1440x/Tag komplett neu geladen. Jetzt: ein Protokoll, das
+     nur einmal pro Kalendertag (00:00 Uhr, Europe/Berlin) neu geholt wird --
+     klar per Banner kommuniziert. Nur loadStats() (das tatsaechlich Geförderte)
+     bleibt live und laeuft weiter im 60s-Takt, weil das Mining serverseitig
+     kontinuierlich weiterlaeuft und genau das sichtbar bleiben soll.
+
+     Technisch: kein einzelner langer setTimeout bis Mitternacht (unzuverlaessig,
+     wenn der Tab im Hintergrund gedrosselt wird oder der Rechner schlaeft),
+     sondern ein leichter 5-Minuten-Check, der nur einen lokalen Datums-String
+     vergleicht (keine Netzwerklast) und erst bei tatsaechlichem Tageswechsel
+     die vier Protokoll-Ladefunktionen erneut aufruft. */
+  function getBerlinDateStr(d){
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  }
+
+  let lastProtocolBerlinDate = null;
+
+  function updateProtocolBanner(dateStr){
+    const el = document.getElementById('protocolBanner');
+    if (!el) return;
+    el.textContent = `Protokoll-Stand: ${dateStr} · 00:00 Uhr (Europe/Berlin) — Bank, Kontostand-Verlauf und Währungsbestände unten aktualisieren sich einmal täglich. Nur die geförderten Coins oben laufen live weiter.`;
+  }
+
+  async function loadDailyProtocol(force){
+    const todayBerlin = getBerlinDateStr(new Date());
+    if (!force && lastProtocolBerlinDate === todayBerlin) return; // heutiger Stand schon geladen
+    lastProtocolBerlinDate = todayBerlin;
+    await Promise.all([loadHistory(), loadBank(), loadCurrencyTotals(), loadAllCurrencyHistories()]);
+    updateProtocolBanner(todayBerlin);
+  }
+
   loadStats();
-  loadHistory();
-  loadBank();
-  loadCurrencyTotals();
-  loadAllCurrencyHistories();
+  loadDailyProtocol(true); // initialer Load beim Seitenaufruf, unabhaengig von der Uhrzeit
   setInterval(loadStats, 60000);
-  setInterval(loadHistory, 60000);
-  setInterval(loadBank, 60000);
-  setInterval(loadCurrencyTotals, 60000);
-  setInterval(loadAllCurrencyHistories, 60000);
+  setInterval(() => loadDailyProtocol(false), 5 * 60000); // reiner Datums-Check, holt nur bei Tageswechsel wirklich Daten
 })();
 </script>
 
