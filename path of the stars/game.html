@@ -17834,9 +17834,9 @@ const SFX_DEF = {
    Echte SFX-Dateien statt der synthetischen Pieptöne (optional).
    Lege dazu einen Ordner "sfx" neben diese HTML-Datei und packe dort
    MP3-Dateien mit genau diesen Namen rein (nur die, die du ersetzen willst):
-   sfx/click.mp3, sfx/buy.mp3, sfx/sell.mp3, sfx/dock.mp3, sfx/jump.mp3,
-   sfx/shipBuy.mp3, sfx/error.mp3, sfx/lore.mp3, sfx/panelOpen.mp3,
-   sfx/panelClose.mp3, sfx/select.mp3, sfx/toggle.mp3
+   sfx/click.ogg, sfx/buy.ogg, sfx/sell.ogg, sfx/dock.ogg, sfx/jump.ogg,
+   sfx/shipBuy.ogg, sfx/error.ogg, sfx/lore.ogg, sfx/panelOpen.ogg,
+   sfx/panelClose.ogg, sfx/select.ogg, sfx/toggle.ogg
    Fehlt eine Datei, wird für genau diesen Effekt automatisch der eingebaute
    synthetische Sound verwendet — nichts bricht.
    --------------------------------------------------------------------- */
@@ -17850,7 +17850,7 @@ function preloadSfxFiles(){
     a.preload = 'auto';
     a.addEventListener('canplaythrough', ()=>{ sfxFileStatus[kind] = 'ready'; }, {once:true});
     a.addEventListener('error', ()=>{ sfxFileStatus[kind] = 'missing'; }, {once:true});
-    a.src = `sfx/${kind}.mp3`;
+    a.src = `sfx/${kind}.ogg`;
     sfxFileCache[kind] = a;
   }
 }
@@ -17967,43 +17967,43 @@ async function loadAudioSettings(){
    komplett vorbereitet werden, auch wenn noch nicht alle Dateien vorliegen.
    --------------------------------------------------------------------- */
 const PLAYLIST_SANDBOX = [
-  { name: "PATH OF THE STARS",       url: "musik/sandbox/Path of the Stars.mp3" },
-  { name: "FIRST JUMP",              url: "musik/sandbox/FIRST JUMP.mp3" },
-  { name: "DRIFTING WORLDS",         url: "musik/sandbox/DRIFTING WORLDS.mp3" },
-  { name: "TRADE WINDS",             url: "musik/sandbox/TRADE WINDS.mp3" },
-  { name: "FRONTIER STATION",        url: "musik/sandbox/FRONTIER STATION.mp3" },
-  { name: "SILENT NEBULA",           url: "musik/sandbox/SILENT NEBULA.mp3" },
-  { name: "GHOST SIGNALS",           url: "musik/sandbox/GHOST SIGNALS.mp3" },
-  { name: "FORGOTTEN FLEET",         url: "musik/sandbox/FORGOTTEN FLEET.mp3" },
-  { name: "DYSON REMNANTS",          url: "musik/sandbox/DYSON REMNANTS.mp3" },
-  { name: "ECHOES OF ASCENDANCY",    url: "musik/sandbox/ECHOES OF ASCENDANCY.mp3" },
-  { name: "WARP CORRIDOR",           url: "musik/sandbox/WARP CORRIDOR.mp3" },
-  { name: "THE LAST COORDINATES",    url: "musik/sandbox/THE LAST COORDINATES.mp3" },
-  { name: "THE ASCENDANCY AWAKENS",  url: "musik/sandbox/THE ASCENDANCY AWAKENS.mp3" },
-  { name: "NEW HORIZONS",            url: "musik/sandbox/NEW HORIZONS.mp3" },
-  { name: "ENDLESS STARS",           url: "musik/sandbox/ENDLESS STARS.mp3" }
+  { name: "PATH OF THE STARS",       url: "musik/sandbox/Path of the Stars.ogg" },
+  { name: "FIRST JUMP",              url: "musik/sandbox/FIRST JUMP.ogg" },
+  { name: "DRIFTING WORLDS",         url: "musik/sandbox/DRIFTING WORLDS.ogg" },
+  { name: "TRADE WINDS",             url: "musik/sandbox/TRADE WINDS.ogg" },
+  { name: "FRONTIER STATION",        url: "musik/sandbox/FRONTIER STATION.ogg" },
+  { name: "SILENT NEBULA",           url: "musik/sandbox/SILENT NEBULA.ogg" },
+  { name: "GHOST SIGNALS",           url: "musik/sandbox/GHOST SIGNALS.ogg" },
+  { name: "FORGOTTEN FLEET",         url: "musik/sandbox/FORGOTTEN FLEET.ogg" },
+  { name: "DYSON REMNANTS",          url: "musik/sandbox/DYSON REMNANTS.ogg" },
+  { name: "ECHOES OF ASCENDANCY",    url: "musik/sandbox/ECHOES OF ASCENDANCY.ogg" },
+  { name: "WARP CORRIDOR",           url: "musik/sandbox/WARP CORRIDOR.ogg" },
+  { name: "THE LAST COORDINATES",    url: "musik/sandbox/THE LAST COORDINATES.ogg" },
+  { name: "THE ASCENDANCY AWAKENS",  url: "musik/sandbox/THE ASCENDANCY AWAKENS.ogg" },
+  { name: "NEW HORIZONS",            url: "musik/sandbox/NEW HORIZONS.ogg" },
+  { name: "ENDLESS STARS",           url: "musik/sandbox/ENDLESS STARS.ogg" }
 ];
 const PLAYLIST_DRIFTING_WORLDS = [
-  { name: "MAIN THEME - THE LAST DAWN",               url: "musik/drifting_worlds/Main Theme –  The Last Dawn.mp3" },
-  { name: "OST 02 — The Dying Sun",                   url: "musik/drifting_worlds/OST 02 — The Dying Sun.mp3" },
-  { name: "OST 03 — The Journey Begins",              url: "musik/drifting_worlds/OST 03 — The Journey Begins.mp3" },
-  { name: "OST 04 — The Ancient Route",           url: "musik/drifting_worlds/OST 04 — The Ancient Route.mp3" },
-  { name: "OST 05 — The Wanderer",                 url: "musik/drifting_worlds/OST 05 — The Wanderer.mp3" },
-  { name: "OST 06 — Echoes Between Stars",             url: "musik/drifting_worlds/OST 06 — Echoes Between Stars.mp3" },
-  { name: "OST 07 — The Silent Archives",            url: "musik/drifting_worlds/OST 07 — The Silent Archives.mp3" },
-  { name: "OST 08 — The First Builders",          url: "musik/drifting_worlds/OST 08 — The First Builders.mp3" },
-  { name: "OST 09 — Beyond Forgotten Time",           url: "musik/drifting_worlds/OST 09 — Beyond Forgotten Time.mp3" },
-  { name: "OST 10 — The Construct",           url: "musik/drifting_worlds/OST 10 — The Construct.mp3" },
-  { name: "OST 11 — The Living Network",        url: "musik/drifting_worlds/OST 11 — The Living Network.mp3" },
-  { name: "OST 12 — The Heart of the Route",             url: "musik/drifting_worlds/OST 12 — The Heart of the Route.mp3" },
-  { name: "OST 13 — Voices of Eternity",              url: "musik/drifting_worlds/OST 13 — Voices of Eternity.mp3" },
-  { name: "OST 14 — Toward the Core",            url: "musik/drifting_worlds/OST 14 — Toward the Core.mp3" },
-  { name: "OST 15 — The Origin Calls",             url: "musik/drifting_worlds/OST 15 — The Origin Calls.mp3" },
-  { name: "OST 16 — The Final Pilgrimage",         url: "musik/drifting_worlds/OST 16 — The Final Pilgrimage.mp3" },
-  { name: "OST 17 — The Last Gate",    url: "musik/drifting_worlds/OST 17 — The Last Gate.mp3" },
-  { name: "OST 18 — Beyond Creation",               url: "musik/drifting_worlds/OST 18 — Beyond Creation.mp3" },
-  { name: "OST 19 — The Origin",       url: "musik/drifting_worlds/OST 19 — The Origin.mp3" },
-  { name: "OST 20 — Drifting Worlds (End Credits)",            url: "musik/drifting_worlds/OST 20 — Drifting Worlds (End Credits).mp3" }
+  { name: "MAIN THEME - THE LAST DAWN",               url: "musik/drifting_worlds/Main Theme –  The Last Dawn.ogg" },
+  { name: "OST 02 — The Dying Sun",                   url: "musik/drifting_worlds/OST 02 — The Dying Sun.ogg" },
+  { name: "OST 03 — The Journey Begins",              url: "musik/drifting_worlds/OST 03 — The Journey Begins.ogg" },
+  { name: "OST 04 — The Ancient Route",           url: "musik/drifting_worlds/OST 04 — The Ancient Route.ogg" },
+  { name: "OST 05 — The Wanderer",                 url: "musik/drifting_worlds/OST 05 — The Wanderer.ogg" },
+  { name: "OST 06 — Echoes Between Stars",             url: "musik/drifting_worlds/OST 06 — Echoes Between Stars.ogg" },
+  { name: "OST 07 — The Silent Archives",            url: "musik/drifting_worlds/OST 07 — The Silent Archives.ogg" },
+  { name: "OST 08 — The First Builders",          url: "musik/drifting_worlds/OST 08 — The First Builders.ogg" },
+  { name: "OST 09 — Beyond Forgotten Time",           url: "musik/drifting_worlds/OST 09 — Beyond Forgotten Time.ogg" },
+  { name: "OST 10 — The Construct",           url: "musik/drifting_worlds/OST 10 — The Construct.ogg" },
+  { name: "OST 11 — The Living Network",        url: "musik/drifting_worlds/OST 11 — The Living Network.ogg" },
+  { name: "OST 12 — The Heart of the Route",             url: "musik/drifting_worlds/OST 12 — The Heart of the Route.ogg" },
+  { name: "OST 13 — Voices of Eternity",              url: "musik/drifting_worlds/OST 13 — Voices of Eternity.ogg" },
+  { name: "OST 14 — Toward the Core",            url: "musik/drifting_worlds/OST 14 — Toward the Core.ogg" },
+  { name: "OST 15 — The Origin Calls",             url: "musik/drifting_worlds/OST 15 — The Origin Calls.ogg" },
+  { name: "OST 16 — The Final Pilgrimage",         url: "musik/drifting_worlds/OST 16 — The Final Pilgrimage.ogg" },
+  { name: "OST 17 — The Last Gate",    url: "musik/drifting_worlds/OST 17 — The Last Gate.ogg" },
+  { name: "OST 18 — Beyond Creation",               url: "musik/drifting_worlds/OST 18 — Beyond Creation.ogg" },
+  { name: "OST 19 — The Origin",       url: "musik/drifting_worlds/OST 19 — The Origin.ogg" },
+  { name: "OST 20 — Drifting Worlds (End Credits)",            url: "musik/drifting_worlds/OST 20 — Drifting Worlds (End Credits).ogg" }
 ];
 const PLAYLIST_CATEGORIES = {
   // v0_0240: Sandbox-Playlist war bisher bis zum Abschluss von "Drifting
@@ -18072,7 +18072,7 @@ function renderAudioPanel(){
     </div>
     <div class="shipCardBuy">
       <div class="title">▶ Startbildschirm-Musik</div>
-      <div class="desc">Eigener Musiktitel für den Startbildschirm (statt/zusätzlich zum generierten Ambient-Sound). Lege die Datei als <b>musik/main.mp3</b> neben diese HTML-Datei — sie wird automatisch erkannt.</div>
+      <div class="desc">Eigener Musiktitel für den Startbildschirm (statt/zusätzlich zum generierten Ambient-Sound). Lege die Datei als <b>musik/main.ogg</b> neben diese HTML-Datei — sie wird automatisch erkannt.</div>
     </div>`;
   body.innerHTML = html;
 
@@ -18105,7 +18105,7 @@ function renderAudioPanel(){
 }
 
 /* ---------------------------------------------------------------------
-   13b. START-BILDSCHIRM: Musikdatei (musik/Path_of_the_Stars.mp3) + Ambient-Fallback + Sternfeld-Canvas
+   13b. START-BILDSCHIRM: Musikdatei (musik/Path_of_the_Stars.ogg) + Ambient-Fallback + Sternfeld-Canvas
    --------------------------------------------------------------------- */
 /* v0_0242 Bugfix: war fälschlich mit dem Boolean "true" statt null
    initialisiert - dadurch griff die "!startAudioCtx"-Prüfung in
@@ -18470,9 +18470,9 @@ const CHANGELOG = [
   { version:'v0_0190', title:'Musik-Player überarbeitet: zwei feste Playlist-Kategorien statt Bedienelementen', desc:'Der Playlist-Player im Einstellungen-Panel wurde deutlich vereinfacht: die Knöpfe "Entfernen", "Zurück", "Weiter", "Pause" und "Shuffle" sind weg (die Wiedergabe läuft ohnehin automatisch weiter, die Lautstärke lässt sich per Regler auf 0 stellen). Stattdessen gibt es jetzt zwei feste Playlist-Kategorien als Reiter: "Drifting Worlds" (neue, ruhigere ~20-Titel-Liste fürs Intro-Szenario, beginnend mit dem neuen Main Theme "The Last Dawn" - spielbar sowohl im Intro als auch danach in der Sandbox) und "Sandbox" (die bisherige Liste, jetzt zusätzlich angeführt vom Titel "Path of the Stars" - schaltet sich aber erst frei, sobald das Intro-Szenario einmal abgeschlossen wurde). Fehlende MP3-Dateien werden beim Abspielversuch automatisch übersprungen, die Drifting-Worlds-Liste kann also schon jetzt vollständig vorbereitet sein, auch wenn noch nicht alle 20 Dateien vorliegen.' },
   { version:'v0_0191', title:'Bugfix: Galaktisches Zentrum & Schwarzes Loch als formloser schwarzer Klecks statt Bild + neues Spiel-Logo', desc:'Zwei Änderungen: (1) Bugfix - seit v0_0189 nutzten Schwarzes Loch (System-Ansicht) und galaktisches Zentrum (Galaxie-Übersicht) ein \"multiply\"-Compositing, um den weißen Hintergrund ihrer Bild-Vorlagen zu kaschieren. Auf dem fast schwarzen Hintergrund der Karte funktioniert \"multiply\" aber nicht wie gedacht: es drückt praktisch jede Bildfarbe (auch helle Glut-Töne) fast auf Null herunter, sichtbar blieb nur die grobe Silhouette des Bildes als formloser schwarzer Klecks (gemeldet als Darstellungsfehler am galaktischen Zentrum). Der weiße Hintergrund wird jetzt stattdessen einmalig beim Laden per Chroma-Key echt transparent gemacht (weiße Pixel -> Alpha 0, mit weichem Kantenübergang) - das Bild zeigt seine tatsächlichen Farben/Gluteffekte jetzt unabhängig vom Kartenhintergrund korrekt an. Schlägt die Verarbeitung ausnahmsweise fehl (z.B. Sicherheitsfehler bei manchen file://-Aufrufen), greift automatisch wieder die alte \"multiply\"-Notlösung als Fallback. (2) Das Spiel-Logo auf Vorspann und Startbildschirm wurde durch eine neue Version ersetzt.' },
   { version:'v0_0192', title:'Korrektur zu v0_0191: Chroma-Key wieder entfernt (Bilder hatten nie einen weißen Hintergrund) + Logo 25% größer + neuer Startbildschirm-Song', desc:'Drei Änderungen: (1) Korrektur - die Annahme aus v0_0191 war falsch: die Bild-Vorlagen für Schwarzes Loch und galaktisches Zentrum haben gar keinen weißen Hintergrund, sondern bereits echte Alpha-Transparenz. Der in v0_0191 eingebaute Chroma-Key-Schritt (weiße Pixel beim Laden transparent machen) war dadurch nicht nur überflüssig, sondern hat die Bilder sichtbar blass/weiß verfälscht. Der Chroma-Key ist komplett entfernt, Bilder werden wieder unverändert geladen. Der eigentliche Fehler (schwarzer Klecks statt Bild) lag ausschließlich am \"multiply\"-Compositing an den beiden Zeichenstellen selbst - das ist jetzt ersatzlos gestrichen, die Bilder werden ganz normal mit ihrer eigenen echten Transparenz gezeichnet. (2) Das Spiel-Logo auf Vorspannbildschirm und Startbildschirm ist um 25% größer dargestellt. (3) Der Hintergrundmusik-Track auf dem Startbildschirm wurde von \"Path of the Stars\" auf das neue Drifting-Worlds-Hauptthema \"Main Theme – The Last Dawn\" umgestellt.' },
-  { version:'v0_0193', title:'Korrektur zu v0_0192: Startbildschirm-Song nutzt jetzt denselben Pfad wie die Drifting-Worlds-Playlist', desc:'In v0_0192 wurde für den neuen Startbildschirm-Song ein eigens erfundener Pfad (music/drifting_worlds/...) eingetragen - es gibt aber gar keinen separaten Soundtrack-Ordner fürs Intro-Szenario. START_MUSIC_PATH verweist jetzt stattdessen direkt auf den ersten Titel der bereits bestehenden Drifting-Worlds-Playlist (musik/MAIN THEME - THE LAST DAWN.mp3, flach, ohne Unterordner) - eine einzige Quelle für den Dateinamen statt zweier unabhängig gepflegter Pfade, die auseinanderlaufen können.' },
+  { version:'v0_0193', title:'Korrektur zu v0_0192: Startbildschirm-Song nutzt jetzt denselben Pfad wie die Drifting-Worlds-Playlist', desc:'In v0_0192 wurde für den neuen Startbildschirm-Song ein eigens erfundener Pfad (music/drifting_worlds/...) eingetragen - es gibt aber gar keinen separaten Soundtrack-Ordner fürs Intro-Szenario. START_MUSIC_PATH verweist jetzt stattdessen direkt auf den ersten Titel der bereits bestehenden Drifting-Worlds-Playlist (musik/MAIN THEME - THE LAST DAWN.ogg, flach, ohne Unterordner) - eine einzige Quelle für den Dateinamen statt zweier unabhängig gepflegter Pfade, die auseinanderlaufen können.' },
   { version:'v0_0194', title:'Musik-Ordner aufgeteilt: Sandbox- und Drifting-Worlds-Playlist jetzt in getrennten Unterordnern', desc:'Die beiden Playlist-Kategorien lagen bisher gemeinsam flach im Ordner \"musik/\" - dadurch war auf einen Blick nicht erkennbar, welche Datei zu welcher Liste gehört, und Namenskollisionen wären möglich gewesen. Die 15 Sandbox-Titel erwarten ihre MP3-Dateien jetzt im Unterordner \"musik/sandbox/\", die 20 Drifting-Worlds-Titel im Unterordner \"musik/drifting_worlds/\" (Kleinschreibung, Unterstrich statt Leerzeichen, passend zum bestehenden Muster wie bilder/sonnen/schwarzes_loch). Der Startbildschirm-Song (siehe v0_0193, verweist automatisch auf den ersten Titel der Drifting-Worlds-Liste) zieht die neue Ordnerstruktur ohne weitere Änderung automatisch mit.' },
-  { version:'v0_0195', title:'Korrektur zu v0_0194: Startbildschirm-Musik spielte nicht, weil Dateiname nicht zur echten Datei passte', desc:'Der erste Titel der Drifting-Worlds-Playlist war im Code als \"MAIN THEME - THE LAST DAWN.mp3\" (Großbuchstaben, normaler Bindestrich) hinterlegt. Die tatsächlich abgelegte Datei heißt aber \"Main Theme –  The Last Dawn.mp3\" (gemischte Groß-/Kleinschreibung, Halbgeviertstrich, doppeltes Leerzeichen). Da Dateinamen meist exakt inklusive Groß-/Kleinschreibung übereinstimmen müssen, konnte die Datei nicht gefunden werden und die Startbildschirm-Musik blieb stumm. Der Pfad in PLAYLIST_DRIFTING_WORLDS zeigt jetzt exakt auf den echten Dateinamen.' },
+  { version:'v0_0195', title:'Korrektur zu v0_0194: Startbildschirm-Musik spielte nicht, weil Dateiname nicht zur echten Datei passte', desc:'Der erste Titel der Drifting-Worlds-Playlist war im Code als \"MAIN THEME - THE LAST DAWN.ogg\" (Großbuchstaben, normaler Bindestrich) hinterlegt. Die tatsächlich abgelegte Datei heißt aber \"Main Theme –  The Last Dawn.ogg\" (gemischte Groß-/Kleinschreibung, Halbgeviertstrich, doppeltes Leerzeichen). Da Dateinamen meist exakt inklusive Groß-/Kleinschreibung übereinstimmen müssen, konnte die Datei nicht gefunden werden und die Startbildschirm-Musik blieb stumm. Der Pfad in PLAYLIST_DRIFTING_WORLDS zeigt jetzt exakt auf den echten Dateinamen.' },
   { version:'v0_0196', title:'Startbildschirm: Text saß zu weit unten, weil das echte Logo-Bild viel zu groß eingestellt war', desc:'Sobald ein eigenes Logo-Bild (bilder/logo.png) gefunden wird, ersetzt es die eingebaute SVG-Grafik samt Titeltext. Die Breite dafür war auf bis zu 725px (117.5vw) eingestellt - deutlich mehr als die 320px der eingebauten Grafik. Dadurch nahm das Logo einen riesigen Teil der Bildschirmhöhe ein und drückte Tagline, Neues-Spiel-Button und Fußzeile weit nach unten, teils bis an den unteren Bildschirmrand. Die Logo-Bildgröße ist jetzt auf max. 360px begrenzt (ähnlich der eingebauten Grafik, aber etwas größer, da der Bildtext mit eingerechnet ist) und die Abstände um den Tagline-Text wurden leicht verringert - der gesamte Startbildschirm-Inhalt sitzt dadurch spürbar höher und wirkt kompakter.' },
   { version:'v0_0197', title:'Korrektur zu v0_0196: Logo-Bild war zu klein - jetzt wieder groß, Text zieht stattdessen näher heran', desc:'Die Verkleinerung des Logo-Bilds in v0_0196 hat zwar den Abstand zum Text behoben, aber das Logo selbst wirkte dadurch zu klein. Die Logo-Breite ist jetzt wieder größer (bis zu 600px statt 360px). Um den Text trotzdem nah am Logo zu halten, bekommt das Bild stattdessen einen negativen unteren Rand (margin-bottom:-50px), der den nachfolgenden Text in den vermutlich leeren/transparenten unteren Bereich der Bild-Grafik hineinzieht, statt das ganze Bild zu schrumpfen. Falls der Text dadurch zu nah an sichtbare Bildinhalte rückt oder zu weit reinragt, lässt sich dieser Wert (aktuell -50px) leicht nachjustieren.' },
   { version:'v0_0198', title:'Driftende Welten (Vorspann + Startbildschirm): echte Zufalls-Rotation statt Endlos-Loop derselben Bahn', desc:'Bisher bekam jede Welt beim Start einmal eine zufällige Flugbahn zugewiesen, die dann per CSS "infinite" für immer exakt gleich wiederholt wurde - dieselbe Welt sprang am Bahnende einfach unsichtbar zurück an ihren Startpunkt und flog erneut denselben Weg. Es kam also nie wirklich "eine neue" Welt rein. Jetzt läuft jede Flugbahn nur noch einmal durch; sobald eine Welt den Bildschirm komplett verlassen hat, wird sie entfernt und sofort durch eine brandneue Welt ersetzt - mit frisch ausgewürfeltem Bild (zufällig aus welt1.png bis welt7.png statt fest zugeordnet), neuer Richtung, neuer Geschwindigkeit und neuer Größe. Gilt für beide Ebenen, Vorspann (preSplashWorlds) und Startbildschirm (startWorlds), unabhängig voneinander. Fehlt eine der Bild-Dateien, wird nach kurzer Pause automatisch ein anderer Kandidat versucht statt endlos nachzuladen.' },

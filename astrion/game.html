@@ -514,8 +514,8 @@ v0.06.87
   (Millisekunden-Differenz zum Anker durch 7 Tage geteilt, `%4`, mit
   Vorzeichen-Korrektur für Daten VOR dem Anker).
   Dateinamen-Schema bewusst auf reine Ziffern reduziert
-  (`art/audio/ost/set1/01.mp3` .. `07.mp3`, `art/audio/
-  title_theme_set1.mp3` .. `_set4.mp3`) — keine Leerzeichen/Umlaute/
+  (`art/audio/ost/set1/01.ogg` .. `07.ogg`, `art/audio/
+  title_theme_set1.ogg` .. `_set4.ogg`) — keine Leerzeichen/Umlaute/
   Sonderzeichen mehr im Dateinamen selbst, schließt jedes Mismatch-
   Risiko aus (siehe frühere Erfahrung mit den ursprünglichen,
   beschreibend benannten OST-Dateien).
@@ -1726,7 +1726,7 @@ v0.06.25
   Titelsong, der beim Betreten des Hubs einfach pausiert wurde - jetzt läuft
   während des eigentlichen Spiels (Hub, Markt, Album, Gefecht, ...) eine
   gemischte Gameplay-Musik-Playlist weiter (neue MUSIC_OST_TRACKS-Liste,
-  Pfadkonvention art/audio/ost/<Name>.mp3 - analog zum Titelsong einfach dort
+  Pfadkonvention art/audio/ost/<Name>.ogg - analog zum Titelsong einfach dort
   ablegen, sobald Tracks komponiert sind, kein Code-Zutun nötig; Playlist
   mischt sich neu, sobald alle Tracks einmal dran waren, kein Track doppelt
   hintereinander). Titelsong bleibt wie gehabt, ist jetzt aber bewusst
@@ -1796,7 +1796,7 @@ v0.06.21
   IST diese Interaktion und erlaubt danach das automatische Abspielen des
   Titelsongs, sobald der (jetzt dahinter liegende) Titelbildschirm erscheint.
   Neues, von den Gefecht-SFX komplett unabhängiges Musiksystem: TITLE_MUSIC_
-  PATH = 'art/audio/title_theme.mp3' (analog zur Kartenbild-Ordner-Konvention
+  PATH = 'art/audio/title_theme.ogg' (analog zur Kartenbild-Ordner-Konvention
   einfach dort ablegen, sobald der Song fertig ist — kein Code-Zutun nötig).
   Fehlt die Datei noch (Song wird ja erst komponiert), bricht nichts: das
   audio 'error'-Event fängt das ab, Sound-Gate/Titelbildschirm/Start laufen
@@ -10297,7 +10297,7 @@ document.getElementById('soundSettingsToggleBtn').addEventListener('click', ()=>
    Fehlt eine Datei (noch), bricht nichts: das 'error'-Event fängt das ab
    und der Ablauf läuft normal weiter, nur eben (vorerst) ohne Musik.
    ============================================================ */
-const MUSIC_TITLE_TRACK = 'art/audio/title_theme.mp3'; // generischer Fallback, falls das Set-Theme (noch) fehlt
+const MUSIC_TITLE_TRACK = 'art/audio/title_theme.ogg'; // generischer Fallback, falls das Set-Theme (noch) fehlt
 // v0.06.87 — Wochen-Rotation (Absprache): jeden Montag 0 Uhr wechselt das
 // "Set der Woche" reihum (set1->set2->set3->set4->set1->...). Sowohl die
 // Gameplay-OST-Playlist als auch der Titelbildschirm-Song UND das
@@ -10305,55 +10305,55 @@ const MUSIC_TITLE_TRACK = 'art/audio/title_theme.mp3'; // generischer Fallback, 
 // Dateinamen-Schema (bewusst ohne Umlaute/Leerzeichen/Sonderzeichen im
 // Dateinamen selbst, um jedes Mismatch-Risiko auszuschließen — siehe
 // Lehre aus den ursprünglichen OST-Dateinamen):
-//   art/audio/title_theme_set1.mp3 .. _set4.mp3   (Titelbildschirm-Songs)
-//   art/audio/ost/set1/01.mp3 .. 07.mp3            (7 Gameplay-Tracks je Set)
+//   art/audio/title_theme_set1.ogg .. _set4.ogg   (Titelbildschirm-Songs)
+//   art/audio/ost/set1/01.ogg .. 07.ogg            (7 Gameplay-Tracks je Set)
 //   ... entsprechend set2/set3/set4.
 // ROTATION_SETS ordnet jeden Rotations-Slot (0-3) einem echten Set-ID aus
 // SETS zu (siehe SETS-Konstante weiter oben) — wird für das Coverbild auf
 // dem Titelbildschirm gebraucht (see renderTitleWeekBanner()).
 const ROTATION_SETS = ['erwachen', 'galaxie_chaos', 'the_void', 'the_shard'];
 const MUSIC_TITLE_TRACKS_BY_SET = [
-  'art/audio/title_theme_set1.mp3',
-  'art/audio/title_theme_set2.mp3',
-  'art/audio/title_theme_set3.mp3',
-  'art/audio/title_theme_set4.mp3',
+  'art/audio/title_theme_set1.ogg',
+  'art/audio/title_theme_set2.ogg',
+  'art/audio/title_theme_set3.ogg',
+  'art/audio/title_theme_set4.ogg',
 ];
 const MUSIC_OST_SETS = [
   [ // set1 — Erwachen der Sterne
-    { file: 'art/audio/ost/set1/01.mp3', title: 'Aufbruch' },
-    { file: 'art/audio/ost/set1/02.mp3', title: 'Erste Signale' },
-    { file: 'art/audio/ost/set1/03.mp3', title: 'Fremde Sterne' },
-    { file: 'art/audio/ost/set1/04.mp3', title: 'Erster Kontakt' },
-    { file: 'art/audio/ost/set1/05.mp3', title: 'Kollision der Kulturen' },
-    { file: 'art/audio/ost/set1/06.mp3', title: 'Bündnis' },
-    { file: 'art/audio/ost/set1/07.mp3', title: 'Erwachen der Sterne' },
+    { file: 'art/audio/ost/set1/01.ogg', title: 'Aufbruch' },
+    { file: 'art/audio/ost/set1/02.ogg', title: 'Erste Signale' },
+    { file: 'art/audio/ost/set1/03.ogg', title: 'Fremde Sterne' },
+    { file: 'art/audio/ost/set1/04.ogg', title: 'Erster Kontakt' },
+    { file: 'art/audio/ost/set1/05.ogg', title: 'Kollision der Kulturen' },
+    { file: 'art/audio/ost/set1/06.ogg', title: 'Bündnis' },
+    { file: 'art/audio/ost/set1/07.ogg', title: 'Erwachen der Sterne' },
   ],
   [ // set2 — Galaxie außer Rand und Band
-    { file: 'art/audio/ost/set2/01.mp3', title: 'Der Unfall' },
-    { file: 'art/audio/ost/set2/02.mp3', title: 'Kettenreaktion' },
-    { file: 'art/audio/ost/set2/03.mp3', title: 'Chaos-Karneval' },
-    { file: 'art/audio/ost/set2/04.mp3', title: 'Waschbär auf Abwegen' },
-    { file: 'art/audio/ost/set2/05.mp3', title: 'Spinnenfabrik außer Kontrolle' },
-    { file: 'art/audio/ost/set2/06.mp3', title: 'Lavaschlangen-Tango' },
-    { file: 'art/audio/ost/set2/07.mp3', title: 'Alles auf Anfang' },
+    { file: 'art/audio/ost/set2/01.ogg', title: 'Der Unfall' },
+    { file: 'art/audio/ost/set2/02.ogg', title: 'Kettenreaktion' },
+    { file: 'art/audio/ost/set2/03.ogg', title: 'Chaos-Karneval' },
+    { file: 'art/audio/ost/set2/04.ogg', title: 'Waschbär auf Abwegen' },
+    { file: 'art/audio/ost/set2/05.ogg', title: 'Spinnenfabrik außer Kontrolle' },
+    { file: 'art/audio/ost/set2/06.ogg', title: 'Lavaschlangen-Tango' },
+    { file: 'art/audio/ost/set2/07.ogg', title: 'Alles auf Anfang' },
   ],
   [ // set3 — The Void, Das unbekannte Signal
-    { file: 'art/audio/ost/set3/01.mp3', title: 'Stille' },
-    { file: 'art/audio/ost/set3/02.mp3', title: 'Das erste Rauschen' },
-    { file: 'art/audio/ost/set3/03.mp3', title: 'Wer hört zu?' },
-    { file: 'art/audio/ost/set3/04.mp3', title: 'Frequenz Null' },
-    { file: 'art/audio/ost/set3/05.mp3', title: 'Echo ohne Ursprung' },
-    { file: 'art/audio/ost/set3/06.mp3', title: 'Der Ruf' },
-    { file: 'art/audio/ost/set3/07.mp3', title: 'Leere Stimme' },
+    { file: 'art/audio/ost/set3/01.ogg', title: 'Stille' },
+    { file: 'art/audio/ost/set3/02.ogg', title: 'Das erste Rauschen' },
+    { file: 'art/audio/ost/set3/03.ogg', title: 'Wer hört zu?' },
+    { file: 'art/audio/ost/set3/04.ogg', title: 'Frequenz Null' },
+    { file: 'art/audio/ost/set3/05.ogg', title: 'Echo ohne Ursprung' },
+    { file: 'art/audio/ost/set3/06.ogg', title: 'Der Ruf' },
+    { file: 'art/audio/ost/set3/07.ogg', title: 'Leere Stimme' },
   ],
   [ // set4 — The Shard, Die Scherbenwelt
-    { file: 'art/audio/ost/set4/01.mp3', title: 'Der Riss' },
-    { file: 'art/audio/ost/set4/02.mp3', title: 'Gespiegelt' },
-    { file: 'art/audio/ost/set4/03.mp3', title: 'Zwei Echos' },
-    { file: 'art/audio/ost/set4/04.mp3', title: 'Scherbentanz' },
-    { file: 'art/audio/ost/set4/05.mp3', title: 'Rekursion' },
-    { file: 'art/audio/ost/set4/06.mp3', title: 'Fusion' },
-    { file: 'art/audio/ost/set4/07.mp3', title: 'Ganz in Scherben' },
+    { file: 'art/audio/ost/set4/01.ogg', title: 'Der Riss' },
+    { file: 'art/audio/ost/set4/02.ogg', title: 'Gespiegelt' },
+    { file: 'art/audio/ost/set4/03.ogg', title: 'Zwei Echos' },
+    { file: 'art/audio/ost/set4/04.ogg', title: 'Scherbentanz' },
+    { file: 'art/audio/ost/set4/05.ogg', title: 'Rekursion' },
+    { file: 'art/audio/ost/set4/06.ogg', title: 'Fusion' },
+    { file: 'art/audio/ost/set4/07.ogg', title: 'Ganz in Scherben' },
   ],
 ];
 // Referenz-Montag (0 Uhr) = Beginn von Rotations-Slot 0 (set1). Beliebiger
@@ -10390,19 +10390,19 @@ function activeOstTracks(){ return MUSIC_OST_SETS[currentRotationSlot()]; }
 // die Berechnung, aktuell die einzige bewegliche Regel).
 const SPECIAL_EVENTS = [
   { id: 'chinesisches_neujahr', icon: '🧧', label: 'Frühlingsfest-Special', movable: 'cny',
-    titleTrack: 'art/audio/events/cny_theme.mp3', ostTracks: [] },
+    titleTrack: 'art/audio/events/cny_theme.ogg', ostTracks: [] },
   { id: 'valentinstag', icon: '💝', label: 'Valentinsspecial', fixedMonth: 2,
-    titleTrack: 'art/audio/events/valentinstag_theme.mp3', ostTracks: [] },
+    titleTrack: 'art/audio/events/valentinstag_theme.ogg', ostTracks: [] },
   { id: 'weihnachten', icon: '🎄', label: 'Weihnachtsspecial', fixedMonth: 12,
-    titleTrack: 'art/audio/events/weihnachten_theme.mp3', ostTracks: [] },
+    titleTrack: 'art/audio/events/weihnachten_theme.ogg', ostTracks: [] },
   { id: 'ostern', icon: '🐣', label: 'Osterspecial', movable: 'ostern',
-    titleTrack: 'art/audio/events/ostern_theme.mp3', ostTracks: [] },
+    titleTrack: 'art/audio/events/ostern_theme.ogg', ostTracks: [] },
   { id: 'sommerspecial', icon: '☀️', label: 'Sommerspecial', fixedMonth: 8,
-    titleTrack: 'art/audio/events/sommer_theme.mp3', ostTracks: [] },
+    titleTrack: 'art/audio/events/sommer_theme.ogg', ostTracks: [] },
   { id: 'erntedank', icon: '🍂', label: 'Erntedankspecial', fixedMonth: 9,
-    titleTrack: 'art/audio/events/erntedank_theme.mp3', ostTracks: [] },
+    titleTrack: 'art/audio/events/erntedank_theme.ogg', ostTracks: [] },
   { id: 'halloween', icon: '🎃', label: 'Halloweenspecial', fixedMonth: 10,
-    titleTrack: 'art/audio/events/halloween_theme.mp3', ostTracks: [] },
+    titleTrack: 'art/audio/events/halloween_theme.ogg', ostTracks: [] },
 ];
 
 // Chinesisches Neujahr fällt (Mondkalender) mal Ende Januar, mal im

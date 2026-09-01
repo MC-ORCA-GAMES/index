@@ -2011,7 +2011,7 @@ v3.9-fix6 (deep_anchor_3_9_4.html)
   Betrifft nur die Darstellungsgröße — Zuschnitt (Sek. 25–45) und Fallback-Logik unverändert.
 
 v3.9-fix5 (deep_anchor_3_9_3.html)
-- Echter Explosions-Sound für fehlgeschlagenen Start ergänzt (art/audio/explosion.mp3, vom
+- Echter Explosions-Sound für fehlgeschlagenen Start ergänzt (art/audio/explosion.ogg, vom
   Nutzer lokal bereitzustellen). Sound.launchFail() lädt die Datei per fetch+decodeAudioData
   und spielt sie über den bestehenden Master-Gain ab (Mute/Lautstärke wirkt weiterhin).
   Fehlt die Datei oder lädt sie nicht, greift automatisch der bisherige synthetische
@@ -4412,8 +4412,8 @@ const Sound = (() => {
     if(explosionBuffer) return Promise.resolve(explosionBuffer);
     if(explosionLoading) return explosionLoading;
     const c = ensure();
-    explosionLoading = fetch('art/audio/explosion.mp3')
-      .then(r=>{ if(!r.ok) throw new Error('explosion.mp3 nicht gefunden'); return r.arrayBuffer(); })
+    explosionLoading = fetch('art/audio/explosion.ogg')
+      .then(r=>{ if(!r.ok) throw new Error('explosion.ogg nicht gefunden'); return r.arrayBuffer(); })
       .then(arr=>c.decodeAudioData(arr))
       .then(decoded=>{ explosionBuffer = decoded; return decoded; })
       .catch(err=>{ explosionLoading = null; throw err; });
@@ -4442,7 +4442,7 @@ const Sound = (() => {
       [523,659,784,1046].forEach((f,i)=>tone(f,0.3,'triangle',0.22,i*0.09));
     },
     launchFail(){
-      // Echter Explosions-Sound (art/audio/explosion.mp3); falls Datei fehlt/nicht lädt,
+      // Echter Explosions-Sound (art/audio/explosion.ogg); falls Datei fehlt/nicht lädt,
       // greift automatisch der alte synthetische Sound als Fallback.
       loadExplosionBuffer().then(()=>{
         playExplosionBuffer(0.9);
@@ -4487,16 +4487,16 @@ const Sound = (() => {
 const Music = (() => {
   const BASE = 'art/audio/ost/';
   const PLAYLIST = [
-    BASE + '01_Deep_Anchor_Main_Theme.mp3',
-    BASE + '02_Fertigungshalle.mp3',
-    BASE + '03_Countdown.mp3',
-    BASE + '04_Stille_Bahnen.mp3',
-    BASE + '05_Sonde_im_Dunkeln.mp3',
-    BASE + '06_Roter_Planet.mp3',
-    BASE + '07_Terraforming.mp3',
-    BASE + '08_Erstkontakt.mp3',
-    BASE + '09_Wartungsdrohnen.mp3',
-    BASE + '10_Kolonie_unter_fremden_Sternen.mp3',
+    BASE + '01_Deep_Anchor_Main_Theme.ogg',
+    BASE + '02_Fertigungshalle.ogg',
+    BASE + '03_Countdown.ogg',
+    BASE + '04_Stille_Bahnen.ogg',
+    BASE + '05_Sonde_im_Dunkeln.ogg',
+    BASE + '06_Roter_Planet.ogg',
+    BASE + '07_Terraforming.ogg',
+    BASE + '08_Erstkontakt.ogg',
+    BASE + '09_Wartungsdrohnen.ogg',
+    BASE + '10_Kolonie_unter_fremden_Sternen.ogg',
   ];
 
   const VOL = 0.35;
