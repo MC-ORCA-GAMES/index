@@ -2,6 +2,31 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.15: RELAY-Frontend (3. Mine, kooperativ, siehe relay_konzept.md) -- neuer
+    Farm-Unterreiter "🌐 Relay" neben NRC/Pulse: Status-Karte (Balance, eigene Rate,
+    Netzwerk-Rate, Anteil %, Exponent, Boost-Timer), Hinweis auf den fehlenden
+    Ambient-Sockel (0 Rigs = 0 Anteil, anders als bei Pulse), "Einsammeln"-Button
+    (Client-Trigger zusaetzlich zum 5-Min-Cron), Rig-Shop (Kosten in MOGC),
+    Signal-Verstaerker-UI (Slider 1-50%, Live-Kostenvorschau 25×Staerke^1.6,
+    boostet die Netzwerk-Rate netzwerkweit), Verkaufen-Box (fixer 1:1-Kurs gegen
+    MOGC, Platzhalter bis Phase-2-Orderbuch), eigener Relais-Netzwerk-Skillbaum
+    (3 Branches: Verstaerker/Boost-Kapazitaet/Alt-Netz-Bonus, bezahlt in RELAY
+    statt Prestige-Punkten, gleiche Tier-Gate-Logik wie der bestehende Skillbaum).
+    Neue RELAY-Reserve-Karte im Bank-Tab direkt neben der PULSE-Reserve (dritte
+    Karte im wallet-chart-grid-2col, wraps sauber in eigene Zeile). Serverseitig
+    musste zuerst platform.get_full_game_state(p_light) um relay_status/
+    relay_rig_types/relay_player_rigs/relay_skill_nodes/relay_player_skills/
+    relay_bank_recent_payouts sowie central_bank.relay_reserve_balance erweitert
+    werden (blockierender Schritt vor jedem Frontend-Code, siehe relay_konzept.md-
+    Uebergabe) -- die parameterlose Alt-Variante der Funktion bleibt unveraendert,
+    da nur die p_light-Version tatsaechlich vom Client aufgerufen wird. raenge.html
+    bekommt RELAY als drittes CURRENCY_BOARDS-Eintrag (neben CYCLE/SIGIL) --
+    lief ohne weitere Anpassung ueber die bereits generische
+    platform.get_currency_leaderboard()-RPC. Hinweis: central_bank_relay_
+    check_payout() zahlt die Dividende tatsaechlich in RELAY aus (nicht in MOGC,
+    wie im urspruenglichen Konzept unter §4.3 skizziert) -- Frontend-Text wurde
+    entsprechend an die tatsaechliche DB-Implementierung angepasst, nicht ans
+    Konzept-Dokument.
   - v3.14: Markt- und Sprungmärkte-Tab zu einem Tab verschmolzen (Jens' Wunsch) --
     der separate "Sprungmärkte"-Button (🪙-Emoji) ist weg, sein kompletter Inhalt
     (Deine Sprungmärkte, CYCLE-Claim, GOV-Claim, VOLT/QNTM/DRIFT/IONX/GRID-Karten)
@@ -1082,6 +1107,7 @@
     <div class="sub-tabs" id="farmSubTabs">
       <button type="button" class="sub-tab active" data-subtab="nrc">⛏️ NRC</button>
       <button type="button" class="sub-tab" data-subtab="pulse">⚡ Pulse</button>
+      <button type="button" class="sub-tab" data-subtab="relay">🌐 Relay</button>
     </div>
 
     <div class="sub-tab-page active" id="farmSub-nrc">
@@ -1136,6 +1162,60 @@
       <div class="panel">
         <h3>Pulse-Rigs</h3>
         <div id="pulseRigList"></div>
+      </div>
+    </div>
+
+    <div class="sub-tab-page" id="farmSub-relay">
+      <div class="panel">
+        <h3>🌐 Relay-Netzwerk <span class="tag">— kooperativ, alle Rigs speisen in einen gemeinsamen Topf</span></h3>
+        <div class="top-row">
+          <div class="stat-card">
+            <div class="label">Relay</div>
+            <div class="value coin-value"><span class="js-balance-relay">–</span></div>
+            <div class="sub" id="relayOwnRateDisplay">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Netzwerk-Rate</div>
+            <div class="value" id="relayNetworkRateDisplay">–</div>
+            <div class="sub" id="relayShareDisplay">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Boost</div>
+            <div class="value" id="relayBoostDisplay">–</div>
+          </div>
+        </div>
+        <div class="sm-hint" id="relayNoRigHint">Anders als bei Pulse gibt's hier <b>keinen Ambient-Sockel</b>: 0 Rigs → 0 Rate → 0&nbsp;% Anteil → 0 Ertrag. Das erste gekaufte Rig ist dein Mitgliedsausweis fürs Netzwerk — kauf es unten mit MOGC.</div>
+        <button type="button" class="btn btn-primary" id="relayCollectBtn" style="margin-top:10px;">Einsammeln</button>
+      </div>
+
+      <div class="panel">
+        <h3>Relay-Rigs <span class="tag">— Kosten in MOGC, nicht in Relay</span></h3>
+        <div id="relayRigList"></div>
+      </div>
+
+      <div class="panel">
+        <h3>📡 Signal-Verstärker <span class="tag">— boostet die Netzwerk-Rate für ALLE, nicht nur dich</span></h3>
+        <div class="sm-hint">Verbrennt Relay, um die Netzwerk-Rate netzwerkweit temporär zu erhöhen. Dein eigener Anteil profitiert mit, weil er weiter am (jetzt größeren) Topf hängt.</div>
+        <div class="sm-trade-box" style="margin-top:10px;">
+          <input type="range" id="relayBoostStrength" min="1" max="50" value="10" step="1" style="flex:1;">
+          <span id="relayBoostStrengthLabel" style="min-width:80px; text-align:right;">10 %</span>
+        </div>
+        <div class="sm-hint" id="relayBoostCostPreview" style="margin-top:6px;">–</div>
+        <button type="button" class="btn btn-primary" id="relayBoostBtn" style="margin-top:8px;">Boost aktivieren</button>
+      </div>
+
+      <div class="panel">
+        <h3>Relay verkaufen <span class="tag">— fixer Kurs 1:1 gegen MOGC (Platzhalter)</span></h3>
+        <div class="sell-box">
+          <input type="number" id="relaySellInput" min="0" step="any" placeholder="Menge Relay">
+          <button type="button" class="btn btn-ghost" id="relaySellMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="relaySellBtn">Verkaufen</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Relais-Netzwerk-Skillbaum <span class="tag">— bezahlt mit Relay, nicht mit Prestige-Punkten</span></h3>
+        <div class="skill-tree" id="relaySkillTree"></div>
       </div>
     </div>
     </div>
@@ -1388,6 +1468,10 @@
       <div class="panel">
         <h3>🏦 Zentralbank — PULSE-Reserve <span class="tag">— gespeist aus PULSE-Förderung & ANCH-Auszahlungsgebühr</span></h3>
         <div id="pulseBankBar"></div>
+      </div>
+      <div class="panel">
+        <h3>🏦 Zentralbank — RELAY-Reserve <span class="tag">— Netzwerk-Skim, ausgeschüttet an Top-10-Relay-Halter</span></h3>
+        <div id="relayBankBar"></div>
       </div>
     </div>
     <div class="panel">
@@ -1744,6 +1828,21 @@ let pulsePlayerRigs = {};
 let ionxChart = null;
 let gridChart = null;
 let anchChart = null;
+
+/* ---------- Farm-Tab (Reiter Relay): kooperative 3. Mine, siehe crypto_farm.relay_* + platform.*.
+   Anders als PULSE kein Ambient-Sockel -- 0 Rigs = 0 Anteil (siehe relay_konzept.md §2). */
+let relayBalance = 0;
+let relayOwnRate = 0;
+let relayNetworkRate = 0;
+let relaySharePct = 0;
+let relayExponent = 0.7;
+let relayBoostActive = false;
+let relayBoostExpiresAt = null;
+let relayBoostMultiplier = 1;
+let relayRigTypes = [];
+let relayPlayerRigs = {};
+let relaySkillNodes = [];
+let ownedRelaySkillIds = new Set();
 
 /* ---------- Wallet-Tab: kompakte Zweit-Charts fuer ALLE Sprungmärkte/Ressourcen
    (gleiche Daten wie oben, nur eigene Canvas-Instanzen, da Chart.js pro
@@ -2509,6 +2608,30 @@ async function applyFullGameState(gs){
     <div class="bb-sub">1&nbsp;% jeder PULSE-Förderung (beim Abholen) und 1&nbsp;% jeder ANCH-Auszahlung fließt hier ein · bei ${fmtCoin(PULSE_BANK_THRESHOLD)} wird gestuft an die Top 10 der Rangliste ausgeschüttet</div>
     ${pulsePayoutsHtml}`;
 
+  // Dritter Reiter: RELAY-Reserve (Netzwerk-Skim aus der kooperativen Mine,
+  // gestuft an die echten Top-10-RELAY-Halter ausgeschüttet, siehe relay_konzept.md §4.3)
+  const relayReserveVal = Number(bank?.relay_reserve_balance ?? 0);
+  const RELAY_BANK_THRESHOLD = 20000;
+  const relayBankPct = Math.min(100, (relayReserveVal / RELAY_BANK_THRESHOLD) * 100);
+  const relayPayouts = gs.relay_bank_recent_payouts || [];
+  const relayPayoutsHtml = relayPayouts.length
+    ? relayPayouts.map(p => `
+      <div class="bb-payout-row">
+        <span class="bb-payout-rank">#${p.rank_no}</span>
+        <span class="bb-payout-name">${p.username || 'Unbekannt'}</span>
+        <span class="bb-payout-amount">+${fmtCoin(p.amount)} RELAY</span>
+      </div>`).join('')
+    : `<div class="bb-sub" style="margin-top:10px;">Noch keine Ausschüttung — läuft erst bei ${fmtCoin(RELAY_BANK_THRESHOLD)} RELAY Reserve an.</div>`;
+  const relayBankBarEl = document.getElementById('relayBankBar');
+  if (relayBankBarEl) relayBankBarEl.innerHTML = `
+    <div class="bb-top">
+      <span class="bb-label"><span class="bb-icon">🌐</span> RELAY-Reserve</span>
+      <span class="bb-value">${fmtCoin(relayReserveVal)} / ${fmtCoin(RELAY_BANK_THRESHOLD)} RELAY</span>
+    </div>
+    <div class="bb-track"><div class="bb-fill" style="width:${relayBankPct}%"></div></div>
+    <div class="bb-sub">Netzwerk-Skim aus RELAY-Förderung fließt hier ein · bei ${fmtCoin(RELAY_BANK_THRESHOLD)} wird gestuft an die echten Top-10-RELAY-Halter ausgeschüttet (in RELAY)</div>
+    ${relayPayoutsHtml}`;
+
   // Offline-Earnings-Popup (nur beim ersten Laden nach Login/Session-Start).
   // Da Coins jetzt auch im Hintergrund (Cron, jede Minute, fuer alle Spieler)
   // gutgeschrieben werden, waere eine reine Balance-Differenz beim Login fast
@@ -2569,6 +2692,7 @@ async function applyFullGameState(gs){
   updateChart(scChartMini, walletHist, 'premium_balance', { bucket_start: true, showDate: false });
 
   applyPulseState(gs);
+  applyRelayState(gs);
   applySprungmaerkteState(gs);
 }
 
@@ -2650,6 +2774,211 @@ function applyPulseState(gs){
 
   updateChart(anchChart, gs.anch_history || [], 'balance', { bucket_start: true, showDate: false });
 }
+
+/* ---------- Relay-Tab: kooperative 3. Mine (crypto_farm.relay_*, siehe relay_konzept.md) ----------
+   Anders als PULSE liest applyRelayState() nichts ueber einen eigenen Request, sondern rein
+   aus dem gebuendelten gs-Objekt (relay_status/relay_rig_types/relay_player_rigs/relay_skill_nodes/
+   relay_player_skills), genau wie applyPulseState(). */
+function applyRelayState(gs){
+  const rs = gs.relay_status || null;
+  relayBalance = Number(rs?.relay_balance ?? 0);
+  relayOwnRate = Number(rs?.own_rate ?? 0);
+  relayNetworkRate = Number(rs?.network_rate ?? 0);
+  relaySharePct = Number(rs?.share_pct ?? 0);
+  relayExponent = Number(rs?.exponent ?? 0.7);
+  relayBoostActive = !!(rs?.boost_multiplier && Number(rs.boost_multiplier) > 1);
+  relayBoostExpiresAt = rs?.boost_expires_at ?? null;
+  relayBoostMultiplier = Number(rs?.boost_multiplier ?? 1);
+
+  document.querySelectorAll('.js-balance-relay').forEach(el => { el.textContent = fmtCoin(relayBalance) + ' RELAY'; });
+  const ownRateEl = document.getElementById('relayOwnRateDisplay');
+  if (ownRateEl) ownRateEl.textContent = `+${relayOwnRate.toFixed(4)} Relay/s eigene Rate`;
+  const netRateEl = document.getElementById('relayNetworkRateDisplay');
+  if (netRateEl) netRateEl.textContent = `${relayNetworkRate.toFixed(3)} Relay/s`;
+  const shareEl = document.getElementById('relayShareDisplay');
+  if (shareEl) shareEl.textContent = `${relaySharePct.toFixed(2)} % Anteil · Exponent ${relayExponent.toFixed(2)}`;
+  const boostEl = document.getElementById('relayBoostDisplay');
+  if (boostEl) {
+    if (relayBoostActive && relayBoostExpiresAt) {
+      const msLeft = new Date(relayBoostExpiresAt).getTime() - Date.now();
+      boostEl.textContent = msLeft > 0
+        ? `+${Math.round((relayBoostMultiplier - 1) * 100)} % · ${fmtDuration(Math.max(msLeft, 0))} übrig`
+        : `+${Math.round((relayBoostMultiplier - 1) * 100)} %`;
+    } else {
+      boostEl.textContent = 'Inaktiv';
+    }
+  }
+  const noRigHintEl = document.getElementById('relayNoRigHint');
+  if (noRigHintEl) noRigHintEl.style.display = relayOwnRate > 0 ? 'none' : 'block';
+
+  relayRigTypes = gs.relay_rig_types || [];
+  relayPlayerRigs = {};
+  (gs.relay_player_rigs || []).forEach(r => { relayPlayerRigs[r.rig_type_id] = r.quantity; });
+  renderRelayRigs();
+
+  relaySkillNodes = gs.relay_skill_nodes || [];
+  ownedRelaySkillIds = new Set(gs.relay_player_skills || []);
+  renderRelaySkillTree();
+
+  updateRelayBoostCostPreview();
+}
+
+/* ---------- Relay-Rigs (Kosten in MOGC, siehe crypto_farm.buy_relay_rig) ---------- */
+function renderRelayRigs(){
+  const el = document.getElementById('relayRigList');
+  if (!el) return;
+  el.innerHTML = '';
+  relayRigTypes.forEach(rt => {
+    const owned = relayPlayerRigs[rt.id] || 0;
+    const cost1 = rigCost(rt, owned, 1);
+    const cost10 = rigCost(rt, owned, 10);
+    const row = document.createElement('div');
+    row.className = 'rig-row';
+    row.innerHTML = `
+      <div class="rig-row-main">
+        <div class="rig-icon-tile">🌐</div>
+        <div>
+          <div class="rig-name">${rt.name} <span class="qty-badge">×${owned}</span></div>
+          <div class="rig-desc">${rt.description ?? ''}</div>
+          <div class="rig-meta">${Number(rt.base_rate)} Relay/s pro Einheit (fließt in den Netzwerk-Topf)</div>
+        </div>
+      </div>
+      <div class="buy-btn-group">
+        <button data-qty="1" data-cost="${cost1}">+1 (${fmtCoin(cost1)} MOGC)</button>
+        <button data-qty="10" data-cost="${cost10}">+10 (${fmtCoin(cost10)} MOGC)</button>
+      </div>`;
+    row.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => buyRelayRig(rt.id, parseInt(btn.dataset.qty, 10), btn));
+    });
+    el.appendChild(row);
+  });
+}
+
+window.buyRelayRig = async function(rigTypeId, qty, btnEl){
+  const { data, error } = await sb.schema('crypto_farm').rpc('buy_relay_rig', { p_rig_type_id: rigTypeId, p_quantity: qty });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${qty}× Relay-Rig für ${fmtCoin(row?.total_cost ?? 0)} MOGC.`, true);
+  spawnFly('-' + fmtCoin(row?.total_cost ?? 0) + ' MOGC', btnEl, false);
+  await loadEverything({ light: true });
+};
+
+/* ---------- Relay: Einsammeln (Client-Trigger, laeuft zusaetzlich zum 5-Min-Cron) ---------- */
+document.getElementById('relayCollectBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('relayCollectBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('crypto_farm').rpc('collect_relay_earnings');
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const amt = Number(data) || 0;
+  if (amt > 0.0001) spawnFly('+' + fmtCoin(amt) + ' RELAY', btn, true);
+  await loadEverything({ light: true });
+});
+
+/* ---------- Relay: Signal-Verstärker (Kosten 25 × Stärke^1.6, siehe trigger_relay_boost) ---------- */
+function relayBoostCost(pct){
+  return 25 * Math.pow(pct, 1.6);
+}
+function updateRelayBoostCostPreview(){
+  const slider = document.getElementById('relayBoostStrength');
+  const label = document.getElementById('relayBoostStrengthLabel');
+  const preview = document.getElementById('relayBoostCostPreview');
+  if (!slider) return;
+  const pct = parseInt(slider.value, 10);
+  if (label) label.textContent = `${pct} %`;
+  if (preview) {
+    const cost = relayBoostCost(pct);
+    preview.textContent = `Kosten: ${fmtCoin(cost)} RELAY · +${pct}% Netzwerk-Rate für 2 Std. (netzwerkweit)`;
+  }
+  const btn = document.getElementById('relayBoostBtn');
+  if (btn) btn.disabled = relayBalance < relayBoostCost(pct);
+}
+const relayBoostSlider = document.getElementById('relayBoostStrength');
+if (relayBoostSlider) relayBoostSlider.addEventListener('input', updateRelayBoostCostPreview);
+
+document.getElementById('relayBoostBtn').addEventListener('click', async () => {
+  const slider = document.getElementById('relayBoostStrength');
+  const pct = parseInt(slider.value, 10);
+  const btn = document.getElementById('relayBoostBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('crypto_farm').rpc('trigger_relay_boost', { p_strength_pct: pct });
+  if (error) { showMsg('statusMsg', error.message, false); updateRelayBoostCostPreview(); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Signal-Verstärker aktiv: +${Number(row?.strength_pct ?? pct)}% Netzwerk-Rate für 2 Std.`, true);
+  spawnFly('-' + fmtCoin(row?.cost ?? relayBoostCost(pct)) + ' RELAY', btn, false);
+  await loadEverything({ light: true });
+});
+
+/* ---------- Relay verkaufen (fixer 1:1-Kurs, siehe crypto_farm.sell_relay) ---------- */
+document.getElementById('relaySellMaxBtn').addEventListener('click', () => {
+  document.getElementById('relaySellInput').value = relayBalance > 0 ? relayBalance : '';
+});
+document.getElementById('relaySellBtn').addEventListener('click', async () => {
+  const input = document.getElementById('relaySellInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige Relay-Menge eingeben.', false); return; }
+  const btn = document.getElementById('relaySellBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('crypto_farm').rpc('sell_relay', { p_amount: amount });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} Relay für ${fmtCoin(row?.mogc_gained ?? amount)} MOGC.`, true, 'coin');
+  input.value = '';
+  spawnFly('+' + fmtCoin(row?.mogc_gained ?? amount) + ' MOGC', btn, true);
+  await loadEverything({ light: true });
+});
+
+/* ---------- Relais-Netzwerk-Skillbaum (bezahlt in RELAY, nicht Prestige-Punkte,
+   Tier-Gate-Logik 1:1 uebernommen von renderSkillTree()/buySkillNode()) ---------- */
+const RELAY_SKILL_BRANCH_LABELS = { verstaerker: 'Netzwerk-Verstärker', boost: 'Boost-Kapazität', altnetz: 'Alt-Netz-Bonus' };
+function renderRelaySkillTree(){
+  const el = document.getElementById('relaySkillTree');
+  if (!el) return;
+  el.innerHTML = '';
+  const branches = ['verstaerker', 'boost', 'altnetz'];
+  branches.forEach(branch => {
+    const nodes = relaySkillNodes.filter(n => n.branch === branch).sort((a, b) => a.tier - b.tier);
+    if (nodes.length === 0) return;
+    const col = document.createElement('div');
+    col.className = 'skill-branch';
+    col.innerHTML = `<h4>${RELAY_SKILL_BRANCH_LABELS[branch] || branch}</h4>`;
+    let prevOwned = true; // Tier 1 hat keine Voraussetzung
+    nodes.forEach(node => {
+      const owned = ownedRelaySkillIds.has(node.id);
+      const unlocked = prevOwned;
+      const affordable = relayBalance >= Number(node.cost_relay);
+      const card = document.createElement('div');
+      card.className = 'skill-node' + (owned ? ' owned' : (unlocked ? ' available' : ''));
+      card.innerHTML = `
+        <div class="sn-name"><span>${node.name}</span>${owned ? '<span class="sn-owned-tag">✓ aktiv</span>' : ''}</div>
+        <div class="sn-desc">${node.description}</div>
+        <div class="sn-cost">${fmtCoin(node.cost_relay)} RELAY</div>`;
+      if (!owned) {
+        const btn = document.createElement('button');
+        btn.textContent = !unlocked ? 'Vorstufe fehlt' : (!affordable ? 'Zu wenig Relay' : 'Freischalten');
+        btn.disabled = !unlocked || !affordable;
+        btn.addEventListener('click', () => buyRelaySkill(node.id, btn));
+        card.appendChild(btn);
+      }
+      col.appendChild(card);
+      prevOwned = owned;
+    });
+    el.appendChild(col);
+  });
+}
+
+window.buyRelaySkill = async function(nodeId, btnEl){
+  btnEl.disabled = true; btnEl.textContent = 'Wird freigeschaltet …';
+  const { error } = await sb.schema('crypto_farm').rpc('buy_relay_skill', { p_node_id: nodeId });
+  if (error) {
+    showMsg('statusMsg', error.message, false);
+    btnEl.disabled = false; btnEl.textContent = 'Freischalten';
+    return;
+  }
+  showMsg('statusMsg', 'Relay-Skill freigeschaltet! 🎉', true);
+  await loadEverything({ light: true });
+};
 
 /* ---------- Pulse-Rigs (eigener, kleinerer Rig-Baum, separat von Nova-Rift-Rigs) ---------- */
 function renderPulseRigs(){
