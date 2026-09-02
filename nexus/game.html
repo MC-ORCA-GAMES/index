@@ -860,6 +860,7 @@
       <button type="button" class="main-tab-btn" data-tab="wallet" title="Wallet" aria-label="Wallet"><img class="mt-icon" src="art/tabs/wallet.png" alt="Wallet"></button>
       <button type="button" class="main-tab-btn" data-tab="farm" title="Farm" aria-label="Farm"><img class="mt-icon" src="art/tabs/farm.png" alt="Farm"></button>
       <button type="button" class="main-tab-btn" data-tab="markt" title="Markt" aria-label="Markt"><img class="mt-icon" src="art/tabs/market.png" alt="Markt"></button>
+      <button type="button" class="main-tab-btn" data-tab="handelsplatz" title="Handelsplatz" aria-label="Handelsplatz"><span class="mt-icon-emoji">🤝</span></button>
       <button type="button" class="main-tab-btn" data-tab="bank" title="Bank" aria-label="Bank"><span class="mt-icon-emoji">🏦</span></button>
       <button type="button" class="main-tab-btn" data-tab="prestige" title="Prestige" aria-label="Prestige"><img class="mt-icon" src="art/tabs/prestige.png" alt="Prestige"></button>
       <button type="button" class="main-tab-btn" data-tab="shop" title="Shop" aria-label="Shop"><img class="mt-icon" src="art/tabs/shop.png" alt="Shop"></button>
@@ -965,6 +966,20 @@
           <div class="kc-value js-balance-grid">–</div>
         </div>
       </div>
+    </div>
+
+    <div class="panel sm-cycle-panel">
+      <h3 style="margin-bottom:8px;">🔥 CYCLE-Bonus <span class="tag">— täglich einloggen, sonst verfällt die Streak</span></h3>
+      <div class="cycle-streak-row" style="margin-top:0;">
+        <div>
+          <div class="cycle-streak-num" id="cycleStreakNum">0</div>
+          <div class="sm-hint" style="margin-top:2px;">Tage in Folge</div>
+        </div>
+        <div class="cycle-streak-days" id="cycleDayDots"></div>
+      </div>
+      <div class="sm-hint" id="cycleClaimHint" style="margin-top:8px;">–</div>
+      <button type="button" class="btn btn-primary" id="cycleClaimBtn" style="margin-top:8px;">CYCLE abholen</button>
+      <div class="chart-box compact hidden"><canvas id="cycleChart"></canvas></div>
     </div>
 
     <div class="panel">
@@ -1193,36 +1208,6 @@
       </div>
     </div>
 
-    <div class="panel sm-cycle-panel">
-      <h3>🔥 CYCLE — Täglicher Login-Bonus <span class="tag">— nicht käuflich, nur durch Einloggen verdienbar</span></h3>
-      <div class="cycle-streak-row">
-        <div>
-          <div class="cycle-streak-num" id="cycleStreakNum">0</div>
-          <div class="sm-hint" style="margin-top:2px;">Tage in Folge</div>
-        </div>
-        <div class="cycle-streak-days" id="cycleDayDots"></div>
-      </div>
-      <div class="sm-hint" id="cycleClaimHint" style="margin-top:10px;">–</div>
-      <button type="button" class="btn btn-primary" id="cycleClaimBtn" style="margin-top:10px;">CYCLE abholen</button>
-      <h4 style="margin-top:16px;"><i class="dot-nova" style="background:var(--up);"></i> Bestandsverlauf</h4>
-      <div class="chart-box compact"><canvas id="cycleChart"></canvas></div>
-    </div>
-
-    <div class="panel cycle-market-panel">
-      <h3><span class="live-dot"></span>CYCLE-Handelsplatz <span class="tag">— Spieler-Orderbuch, Preis wird von euch selbst gemacht — gehandelt gegen MOGC</span></h3>
-      <div class="market-price-big" id="cycleLastPriceDisplay">Letzter Kurs: –</div>
-      <div class="chart-box compact market-chart"><canvas id="cycleTradeChart"></canvas></div>
-
-      <div class="cycle-ob-grid">
-        <div class="cycle-ob-col buy">
-          <h5>Kauf-Gebote</h5>
-          <div id="cycleObBuySide"><div class="cycle-ob-empty">–</div></div>
-        </div>
-        <div class="cycle-ob-col sell">
-          <h5>Verkauf-Gebote</h5>
-          <div id="cycleObSellSide"><div class="cycle-ob-empty">–</div></div>
-        </div>
-      </div>
 
       <div class="cycle-side-toggle">
         <button type="button" class="cycle-side-btn buy active" id="cycleOrderBuyBtn">Kaufen (CYCLE holen)</button>
@@ -1276,6 +1261,8 @@
       <h4 style="margin-top:16px;">Meine offenen Orders</h4>
       <div id="sigilMyOrdersList"><div class="cycle-ob-empty">Keine offenen Orders.</div></div>
     </div>
+    </div>
+
 
     <div class="panel">
       <h3>GOV — Prestige umwandeln <span class="tag">— Umtauschkurs: 1 Prestige-Punkt = 2 GOV</span></h3>
@@ -1376,6 +1363,23 @@
       </div>
     </div>
     </div>
+
+    <div class="tab-page" id="tabPage-handelsplatz">
+    <div class="panel cycle-market-panel" style="margin-top:18px;">
+      <h3><span class="live-dot"></span>CYCLE-Handelsplatz <span class="tag">— Spieler-Orderbuch, Preis wird von euch selbst gemacht — gehandelt gegen MOGC</span></h3>
+      <div class="market-price-big" id="cycleLastPriceDisplay">Letzter Kurs: –</div>
+      <div class="chart-box compact market-chart"><canvas id="cycleTradeChart"></canvas></div>
+
+      <div class="cycle-ob-grid">
+        <div class="cycle-ob-col buy">
+          <h5>Kauf-Gebote</h5>
+          <div id="cycleObBuySide"><div class="cycle-ob-empty">–</div></div>
+        </div>
+        <div class="cycle-ob-col sell">
+          <h5>Verkauf-Gebote</h5>
+          <div id="cycleObSellSide"><div class="cycle-ob-empty">–</div></div>
+        </div>
+      </div>
 
     <div class="tab-page" id="tabPage-bank">
     <div class="wallet-chart-grid-2col" style="margin-bottom:18px;">
@@ -1542,6 +1546,17 @@
     <div class="om-away" id="omAway"></div>
     <div class="om-amount" id="omAmount"></div>
     <button class="btn-block" id="omCloseBtn">Weitermachen</button>
+  </div>
+</div>
+
+<!-- ---------- CYCLE-TAGES-BONUS-REMINDER-POPUP ---------- -->
+<div id="cycleReminderModal" class="offline-modal-backdrop hidden">
+  <div class="offline-modal-card">
+    <div class="om-icon">🔥</div>
+    <h3>CYCLE-Bonus wartet!</h3>
+    <div class="om-away">Heute noch nicht abgeholt — <span id="cycleReminderStreakNum">0</span> Tage Streak nicht verlieren.</div>
+    <button class="btn-block" id="cycleReminderClaimBtn" style="margin-bottom:8px;">Jetzt abholen</button>
+    <button class="btn-ghost" id="cycleReminderLaterBtn" style="width:100%; border-radius:10px; padding:11px 16px;">Später</button>
   </div>
 </div>
 
@@ -1874,12 +1889,34 @@ function spawnFly(text, atEl, positive){
   el.addEventListener('animationend', () => el.remove());
 }
 function showOfflinePopup(earned, elapsedMs){
+  window.__offlinePopupOpen = true;
   document.getElementById('omAway').textContent = `Du warst ${fmtDuration(elapsedMs)} weg`;
   document.getElementById('omAmount').innerHTML = `<span class="om-plus">+</span>${fmtCoin(earned)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">`;
   document.getElementById('offlineModal').classList.remove('hidden');
 }
 document.getElementById('omCloseBtn').addEventListener('click', () => {
   document.getElementById('offlineModal').classList.add('hidden');
+  window.__offlinePopupOpen = false;
+  maybeShowCycleReminder();
+});
+
+// ---------- CYCLE-Tages-Bonus-Reminder (Popup, falls heute noch nicht abgeholt) ----------
+let pendingCycleReminder = null;
+function maybeShowCycleReminder(){
+  if (window.__cycleReminderShown) return;
+  if (window.__offlinePopupOpen) return;
+  if (!pendingCycleReminder) return;
+  window.__cycleReminderShown = true;
+  document.getElementById('cycleReminderStreakNum').textContent = pendingCycleReminder.current_streak ?? 0;
+  document.getElementById('cycleReminderModal').classList.remove('hidden');
+}
+document.getElementById('cycleReminderClaimBtn').addEventListener('click', () => {
+  document.getElementById('cycleReminderModal').classList.add('hidden');
+  const claimBtn = document.getElementById('cycleClaimBtn');
+  if (claimBtn && !claimBtn.disabled) claimBtn.click();
+});
+document.getElementById('cycleReminderLaterBtn').addEventListener('click', () => {
+  document.getElementById('cycleReminderModal').classList.add('hidden');
 });
 
 function showMsg(elId, text, ok, kind){
@@ -1926,8 +1963,6 @@ function enterGame(){
       if (ionxChart) ionxChart.resize();
       if (gridChart) gridChart.resize();
       if (govChart) govChart.resize();
-      if (cycleChart) cycleChart.resize();
-      if (sigilTradeChart) sigilTradeChart.resize();
       // Alle 5 Sprungmarkt-Charts (VOLT/QNTM/DRIFT/IONX/GRID) rendern zusammen auf
       // diesem Tab -- einmal geoeffnet reicht fuer "markt_alle_kurven". Fire-and-forget,
       // Fehler (z.B. schon freigeschaltet) sind bewusst egal.
@@ -1935,6 +1970,10 @@ function enterGame(){
         window.__achMarktKurvenReported = true;
         Promise.resolve(sb.schema('platform').rpc('report_client_achievement', { p_key: 'markt_alle_kurven' })).catch(() => {});
       }
+    }
+    if (tabId === 'handelsplatz') {
+      if (cycleTradeChart) cycleTradeChart.resize();
+      if (sigilTradeChart) sigilTradeChart.resize();
     }
     if (tabId === 'erfolge') {
       loadAchievements();
@@ -1961,6 +2000,7 @@ function enterGame(){
       if (voltChartMini) voltChartMini.resize();
       if (qntmChartMini) qntmChartMini.resize();
       if (driftChartMini) driftChartMini.resize();
+      if (cycleChart) cycleChart.resize();
     }
     if (!(opts && opts.skipSave)) {
       try { localStorage.setItem('nexusActiveTab', tabId); } catch (e) {}
@@ -2885,11 +2925,14 @@ function applySprungmaerkteState(gs){
     document.getElementById('cycleClaimHint').textContent =
       `Heute schon abgeholt — bis morgen! Längste Streak bisher: ${streak.longest_streak ?? 0} Tage.`;
     cycleClaimBtn.disabled = true;
+    pendingCycleReminder = null;
   } else {
     const nextReward = 5 + Math.min((streak.current_streak ?? 0) + 1, 14) * 2;
     document.getElementById('cycleClaimHint').textContent =
       `Heute noch nicht abgeholt — nächste Belohnung: ${fmtCoin(nextReward)} CYCLE.`;
     cycleClaimBtn.disabled = false;
+    pendingCycleReminder = streak;
+    maybeShowCycleReminder();
   }
 
   const claimedPoints = Number(gs.governance_claims?.claimed_prestige_points ?? 0);
