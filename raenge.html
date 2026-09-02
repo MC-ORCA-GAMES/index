@@ -268,6 +268,7 @@
       <span id="boardTitle">Gesamtwertung</span>
       <span class="status"><span class="pulse"></span><span id="boardHint">lädt …</span></span>
     </div>
+    <div class="board-sub" id="boardSub" style="display:none; padding:0 18px 14px; font-size:12px; color:var(--fg-faint);"></div>
     <div id="boardBody"><div class="loading">Rangliste wird geladen …</div></div>
   </div>
 </div>
@@ -343,14 +344,25 @@
     }
   ];
 
+  /* ---------- CYCLE/SIGIL: eigene Ranglisten-Kategorien statt Teil der Nexus-
+     Gesamtpunktzahl. Zeigen die Top-Halter nach reinem Waehrungs-Bestand --
+     exakt dieselbe Sortierung/Quelle (platform.currency_holder_leaderboard()),
+     die auch serverseitig fuer die CYCLE-/SIGIL-Dividenden-Reserve-Ausschuettung
+     benutzt wird (Top 10 = die, die bei Erreichen des Schwellwerts MOGC aus der
+     jeweiligen Reserve bekommen -- siehe nexus/game.html Handelsplatz-Tab). */
+  var CURRENCY_BOARDS = [
+    { id:'cycle', symbol:'CYCLE', label:'CYCLE (Nexus)', boardTitle:'CYCLE — Top-Halter (Nexus-Dividenden-Reserve)', accent:'#3ddc84' },
+    { id:'sigil', symbol:'SIGIL', label:'SIGIL (Nexus)', boardTitle:'SIGIL — Top-Halter (Nexus-Dividenden-Reserve)', accent:'#F0B93A' }
+  ];
+
   function fmt(n){ try{ return Math.round(n).toLocaleString('de-DE'); }catch(e){ return String(Math.round(n)); } }
 
   /* ---------- Chips (Filter) ---------- */
   var activeFilter = 'total';
   var chipsEl = document.getElementById('chips');
-  var chipDefs = [{ id:'total', label:'Gesamt (alle Spiele)', accent:'var(--fg)' }].concat(
-    GAMES.map(function(g){ return { id:g.id, label:g.label, accent:g.accent }; })
-  );
+  var chipDefs = [{ id:'total', label:'Gesamt (alle Spiele)', accent:'var(--fg)', boardTitle:'Gesamtwertung' }]
+    .concat(GAMES.map(function(g){ return { id:g.id, label:g.label, accent:g.accent, boardTitle:g.label }; }))
+    .concat(CURRENCY_BOARDS.map(function(c){ return { id:c.id, label:c.label, accent:c.accent, boardTitle:c.boardTitle }; }));
   chipDefs.forEach(function(c){
     var btn = document.createElement('button');
     btn.className = 'chip' + (c.id === 'total' ? ' active' : '');
@@ -360,7 +372,15 @@
       activeFilter = c.id;
       Array.prototype.forEach.call(chipsEl.children, function(el){ el.classList.remove('active'); });
       btn.classList.add('active');
-      document.getElementById('boardTitle').textContent = c.id === 'total' ? 'Gesamtwertung' : c.label;
+      document.getElementById('boardTitle').textContent = c.boardTitle;
+      var sub = document.getElementById('boardSub');
+      var isCurrency = CURRENCY_BOARDS.some(function(cb){ return cb.id === c.id; });
+      if(isCurrency){
+        sub.innerHTML = 'Ingame-Währung aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — wer das Spiel nicht kennt, findet hier rein.';
+        sub.style.display = 'block';
+      } else {
+        sub.style.display = 'none';
+      }
       renderBoard();
     });
     chipsEl.appendChild(btn);
@@ -369,6 +389,7 @@
   /* ---------- Daten laden & auswerten ---------- */
   var players = {}; // user_id -> {name, avatar, perGame:{gameId:points}, total}
   var currentUserId = null;
+  var currencyBoards = {}; // id -> array of {rank_no, id, name, avatar, balance} | null (Fehler) | undefined (noch nicht geladen)
 
   function avatarHtml(avatar){
     if(avatar && /\.(png|jpg|jpeg|webp|gif)$/i.test(avatar)){
@@ -378,6 +399,9 @@
   }
 
   function renderBoard(){
+    var currencyBoard = CURRENCY_BOARDS.filter(function(c){ return c.id === activeFilter; })[0];
+    if(currencyBoard){ renderCurrencyBoard(currencyBoard); return; }
+
     var body = document.getElementById('boardBody');
     var list = Object.keys(players).map(function(id){ return players[id]; });
     list.forEach(function(pl){
@@ -404,6 +428,31 @@
         + (activeFilter === 'total' ? '<div class="r-badges">' + badges + '</div>' : '')
         + '</div>'
         + '<div class="r-points">' + fmt(pl.value) + '<span class="u">Pkt.</span></div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function renderCurrencyBoard(c){
+    var body = document.getElementById('boardBody');
+    var list = currencyBoards[c.id];
+    if(list === undefined){
+      body.innerHTML = '<div class="loading">Rangliste wird geladen …</div>';
+      return;
+    }
+    if(list === null){
+      body.innerHTML = '<div class="err">' + c.symbol + '-Rangliste konnte nicht geladen werden.</div>';
+      return;
+    }
+    if(list.length === 0){
+      body.innerHTML = '<div class="empty">Noch niemand hält ' + c.symbol + '.</div>';
+      return;
+    }
+    body.innerHTML = list.map(function(pl){
+      return '<div class="row' + (pl.id === currentUserId ? ' me' : '') + '">'
+        + '<div class="r-rank">' + pl.rank_no + '</div>'
+        + '<div class="r-avatar">' + avatarHtml(pl.avatar) + '</div>'
+        + '<div class="r-main"><div class="r-name">' + (pl.name || 'Unbenannt') + (pl.id === currentUserId ? ' (du)' : '') + '</div></div>'
+        + '<div class="r-points">' + fmt(pl.balance) + '<span class="u">' + c.symbol + '</span></div>'
         + '</div>';
     }).join('');
   }
@@ -481,6 +530,19 @@
         });
       }
     }catch(e){ /* Nexus-Werte fehlen dann einfach, Rest der Rangliste laeuft weiter */ }
+
+    // CYCLE-/SIGIL-Ranglisten laufen unabhaengig von der Punkte-basierten Auswertung
+    // oben -- eigener RPC, eigene Fehlerbehandlung, damit ein Problem hier nicht die
+    // restliche Rangliste (Gesamt/Aetheris/.../Nexus) mitreisst.
+    await Promise.all(CURRENCY_BOARDS.map(async function(c){
+      try{
+        var res = await supabaseClient.schema('platform').rpc('get_currency_leaderboard', { p_symbol: c.symbol, p_limit: 10 });
+        if(res.error){ currencyBoards[c.id] = null; return; }
+        currencyBoards[c.id] = (res.data || []).map(function(row){
+          return { rank_no: row.rank_no, id: row.user_id, name: row.username, avatar: row.avatar, balance: Number(row.balance) || 0 };
+        });
+      }catch(e){ currencyBoards[c.id] = null; }
+    }));
 
     Object.keys(players).forEach(function(id){
       var pl = players[id];
