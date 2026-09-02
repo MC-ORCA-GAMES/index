@@ -522,6 +522,27 @@
   .sm-stable .kc-value{ color:var(--fg); }
   .sm-volt .kc-value{ color:var(--orange); }
   .sm-gov .kc-value{ color:var(--violet); }
+  .sm-sigil .kc-value{ color:var(--gold); }
+
+  /* ---------- Erfolge ---------- */
+  .ach-summary{ font-family:var(--mono); font-size:14px; color:var(--fg-dim); }
+  .ach-category{ margin-top:18px; }
+  .ach-category h4{ font-size:14px; color:var(--fg-dim); text-transform:uppercase; letter-spacing:0.04em; margin:0 0 10px; }
+  .ach-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
+  .ach-card{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--bg-alt); position:relative; }
+  .ach-card.locked{ opacity:0.5; }
+  .ach-card.unlocked{ border-color:rgba(212,175,55,0.35); }
+  .ach-card .ach-name{ font-weight:600; font-size:14px; margin-bottom:4px; }
+  .ach-card .ach-desc{ font-size:12px; color:var(--fg-faint); line-height:1.4; }
+  .ach-card .ach-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:11px; }
+  .ach-tier{ font-family:var(--mono); text-transform:uppercase; letter-spacing:0.03em; padding:2px 7px; border-radius:6px; }
+  .ach-tier.bronze{ background:rgba(205,127,50,0.16); color:#CD7F32; }
+  .ach-tier.silber{ background:rgba(192,192,192,0.16); color:#C0C0C0; }
+  .ach-tier.gold{ background:rgba(212,175,55,0.16); color:var(--gold); }
+  .ach-tier.platin{ background:rgba(47,140,255,0.16); color:var(--blue); }
+  .ach-tier.geheim{ background:rgba(178,58,255,0.16); color:var(--violet); }
+  .ach-reward{ color:var(--gold); font-family:var(--mono); }
+  .ach-card .ach-check{ position:absolute; top:10px; right:12px; font-size:16px; }
   .sm-qntm .kc-value{ color:var(--gold); }
   .sm-drift .kc-value{ color:var(--blue); }
   .sm-cycle .kc-value{ color:var(--up); }
@@ -815,6 +836,7 @@
       <button type="button" class="main-tab-btn" data-tab="bank" title="Bank" aria-label="Bank"><span class="mt-icon-emoji">🏦</span></button>
       <button type="button" class="main-tab-btn" data-tab="prestige" title="Prestige" aria-label="Prestige"><img class="mt-icon" src="art/tabs/prestige.png" alt="Prestige"></button>
       <button type="button" class="main-tab-btn" data-tab="shop" title="Shop" aria-label="Shop"><img class="mt-icon" src="art/tabs/shop.png" alt="Shop"></button>
+      <button type="button" class="main-tab-btn" data-tab="erfolge" title="Erfolge" aria-label="Erfolge"><span class="mt-icon-emoji">🏆</span></button>
     </nav>
 
     <div class="tab-page active" id="tabPage-uebersicht">
@@ -1136,6 +1158,11 @@
           <div class="kc-value js-balance-grid">–</div>
           <div class="kc-sub">schaltet Förder-Boost frei</div>
         </div>
+        <div class="sm-card sm-sigil">
+          <div class="kc-label">SIGIL — Achievement-Credits</div>
+          <div class="kc-value js-balance-sigil" id="sigilBalanceDisplay">–</div>
+          <div class="kc-sub">nur durch Erfolge verdienbar, siehe 🏆 Erfolge-Tab</div>
+        </div>
       </div>
     </div>
 
@@ -1184,6 +1211,39 @@
 
       <h4 style="margin-top:16px;">Meine offenen Orders</h4>
       <div id="cycleMyOrdersList"><div class="cycle-ob-empty">Keine offenen Orders.</div></div>
+    </div>
+
+    <div class="panel cycle-market-panel">
+      <h3><span class="live-dot"></span>SIGIL-Handelsplatz <span class="tag">— Spieler-Orderbuch, Preis wird von euch selbst gemacht — gehandelt gegen MOGC</span></h3>
+      <div class="sm-hint" style="margin-bottom:10px;">SIGIL entsteht nur durch freigeschaltete 🏆 Erfolge, nicht durch Mining oder Claims. Gehandelt wird es hier genau wie CYCLE.</div>
+      <div class="market-price-big" id="sigilLastPriceDisplay">Letzter Kurs: –</div>
+      <div class="chart-box compact market-chart"><canvas id="sigilTradeChart"></canvas></div>
+
+      <div class="cycle-ob-grid">
+        <div class="cycle-ob-col buy">
+          <h5>Kauf-Gebote</h5>
+          <div id="sigilObBuySide"><div class="cycle-ob-empty">–</div></div>
+        </div>
+        <div class="cycle-ob-col sell">
+          <h5>Verkauf-Gebote</h5>
+          <div id="sigilObSellSide"><div class="cycle-ob-empty">–</div></div>
+        </div>
+      </div>
+
+      <div class="cycle-side-toggle">
+        <button type="button" class="cycle-side-btn buy active" id="sigilOrderBuyBtn">Kaufen (SIGIL holen)</button>
+        <button type="button" class="cycle-side-btn sell" id="sigilOrderSellBtn">Verkaufen (SIGIL anbieten)</button>
+      </div>
+      <div class="sm-trade-box" style="margin-top:8px;">
+        <input type="number" id="sigilOrderAmountInput" min="0" step="any" placeholder="Menge SIGIL">
+        <input type="number" id="sigilOrderPriceInput" min="0" step="any" placeholder="Preis je SIGIL (MOGC)">
+        <button type="button" class="btn btn-primary" id="sigilOrderSubmitBtn">Order platzieren</button>
+      </div>
+      <div class="cycle-total-hint" id="sigilOrderTotalHint">–</div>
+      <div class="sm-hint" style="margin-top:6px;">Kauf-Order: Order wird sofort gegen die günstigsten offenen Verkauf-Gebote ≤ deinem Limit ausgeführt, Rest bleibt offen im Buch. Verkauf-Order läuft spiegelbildlich. Preis darf max. ±20% vom mengengewichteten Durchschnittspreis der letzten 7 Tage abweichen.</div>
+
+      <h4 style="margin-top:16px;">Meine offenen Orders</h4>
+      <div id="sigilMyOrdersList"><div class="cycle-ob-empty">Keine offenen Orders.</div></div>
     </div>
 
     <div class="panel">
@@ -1431,6 +1491,14 @@
       <div id="inventoryList"></div>
     </div>
     </div>
+
+    <div class="tab-page" id="tabPage-erfolge">
+      <div class="panel">
+        <h3>🏆 Erfolge <span class="tag">— schaltet SIGIL frei, handelbar im Kryptos-Bereich vom 📈 Markt-Tab</span></h3>
+        <div class="ach-summary" id="achSummary">–</div>
+      </div>
+      <div id="achCategoriesWrap"><div class="sm-hint">Lade Erfolge…</div></div>
+    </div>
   </div>
 
 </div>
@@ -1611,6 +1679,10 @@ let govChart = null;
 let cycleChart = null;
 let cycleTradeChart = null;
 let cycleOrderSide = 'buy';
+let sigilTradeChart = null;
+let sigilOrderSide = 'buy';
+let sigilBalance = 0;
+let achievementsLoaded = false;
 
 /* ---------- Farm-Tab (Reiter Pulse): PULSE/IONX/ANCH/GRID (Pulse-Farm, siehe crypto_farm.pulse_* + platform.*) ---------- */
 let pulseBalance = 0;
@@ -1824,6 +1896,17 @@ function enterGame(){
       if (gridChart) gridChart.resize();
       if (govChart) govChart.resize();
       if (cycleChart) cycleChart.resize();
+      if (sigilTradeChart) sigilTradeChart.resize();
+      // Alle 5 Sprungmarkt-Charts (VOLT/QNTM/DRIFT/IONX/GRID) rendern zusammen auf
+      // diesem Tab -- einmal geoeffnet reicht fuer "markt_alle_kurven". Fire-and-forget,
+      // Fehler (z.B. schon freigeschaltet) sind bewusst egal.
+      if (!window.__achMarktKurvenReported) {
+        window.__achMarktKurvenReported = true;
+        sb.schema('platform').rpc('report_client_achievement', { p_key: 'markt_alle_kurven' }).catch(() => {});
+      }
+    }
+    if (tabId === 'erfolge') {
+      loadAchievements();
     }
     if (tabId === 'wallet') {
       if (novaChart) novaChart.resize();
@@ -2060,6 +2143,11 @@ function initCharts(){
   cycleTradeChart = new Chart(document.getElementById('cycleTradeChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: miniOpts
+  });
+  sigilTradeChart = new Chart(document.getElementById('sigilTradeChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#F0B93A', backgroundColor: 'rgba(240,185,58,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
 
@@ -2700,6 +2788,8 @@ function applySprungmaerkteState(gs){
   document.querySelectorAll('.js-balance-qntm').forEach(el => { el.textContent = fmtCoin(qntmBalance) + ' QNTM'; });
   document.querySelectorAll('.js-balance-drift').forEach(el => { el.textContent = fmtCoin(driftBalance) + ' DRIFT'; });
   document.querySelectorAll('.js-balance-cycle').forEach(el => { el.textContent = fmtCoin(cycleBalance) + ' CYCLE'; });
+  sigilBalance = bySymbol['SIGIL'] ?? 0;
+  document.querySelectorAll('.js-balance-sigil').forEach(el => { el.textContent = fmtCoin(sigilBalance) + ' SIGIL'; });
 
   const voltStatus = gs.volt_status || null;
   const voltHistOrdered = (gs.volt_price_history || []).slice().reverse();
@@ -2791,6 +2881,7 @@ function applySprungmaerkteState(gs){
   // CYCLE-Handelsplatz haengt nicht am gebuendelten gs-Objekt (eigene RPCs) --
   // separat laden, "fire and forget" damit der Rest der Anzeige nicht drauf wartet.
   loadCycleMarket();
+  loadSigilMarket();
 }
 
 /* ---------- CYCLE-Handelsplatz: Spieler-Orderbuch gegen MOGC ---------- */
@@ -2906,6 +2997,171 @@ document.getElementById('cycleOrderSubmitBtn').addEventListener('click', async (
   await loadCycleMarket();
   await loadEverything({ light: true });
 });
+
+/* ---------- SIGIL-Handelsplatz: Spieler-Orderbuch gegen MOGC (analog CYCLE) ---------- */
+let sigilMarketLoading = false;
+async function loadSigilMarket(){
+  if (sigilMarketLoading) return;
+  sigilMarketLoading = true;
+  try {
+    const [{ data: book, error: bookErr }, { data: mine, error: mineErr }, { data: hist, error: histErr }] = await Promise.all([
+      sb.schema('platform').rpc('get_sigil_order_book', { p_limit: 10 }),
+      sb.schema('platform').rpc('get_my_sigil_orders'),
+      sb.schema('platform').rpc('get_sigil_price_history', { p_hours: 24, p_bucket_minutes: 15 })
+    ]);
+    if (!bookErr) renderSigilOrderBook(book || []);
+    if (!mineErr) renderSigilMyOrders(mine || []);
+    if (!histErr) {
+      updateChart(sigilTradeChart, hist || [], 'price', { bucket_start: true, showDate: false });
+      const rows = hist || [];
+      const last = rows.length ? rows[rows.length - 1].price : null;
+      document.getElementById('sigilLastPriceDisplay').textContent =
+        last != null ? `Letzter Kurs: ${Number(last).toFixed(3)} MOGC/SIGIL` : 'Letzter Kurs: – (noch kein Trade)';
+    }
+  } finally {
+    sigilMarketLoading = false;
+  }
+}
+
+function renderSigilOrderBook(rows){
+  const buys = rows.filter(r => r.side === 'buy').sort((a, b) => b.price_per_unit - a.price_per_unit);
+  const sells = rows.filter(r => r.side === 'sell').sort((a, b) => a.price_per_unit - b.price_per_unit);
+  const buyWrap = document.getElementById('sigilObBuySide');
+  const sellWrap = document.getElementById('sigilObSellSide');
+  buyWrap.innerHTML = buys.length
+    ? buys.map(r => `<div class="cycle-ob-row buy"><span>${Number(r.price_per_unit).toFixed(3)}</span><span>${fmtCoin(r.total_amount)} SIGIL</span></div>`).join('')
+    : '<div class="cycle-ob-empty">Keine offenen Kauf-Gebote.</div>';
+  sellWrap.innerHTML = sells.length
+    ? sells.map(r => `<div class="cycle-ob-row sell"><span>${Number(r.price_per_unit).toFixed(3)}</span><span>${fmtCoin(r.total_amount)} SIGIL</span></div>`).join('')
+    : '<div class="cycle-ob-empty">Keine offenen Verkauf-Gebote.</div>';
+}
+
+function renderSigilMyOrders(rows){
+  const wrap = document.getElementById('sigilMyOrdersList');
+  if (!rows.length) { wrap.innerHTML = '<div class="cycle-ob-empty">Keine offenen Orders.</div>'; return; }
+  wrap.innerHTML = rows.map(r => `
+    <div class="cycle-order-row">
+      <span style="color:${r.side === 'buy' ? 'var(--up)' : 'var(--down)'}">${r.side === 'buy' ? 'Kauf' : 'Verkauf'}</span>
+      <span>${fmtCoin(r.amount_remaining)} / ${fmtCoin(r.amount_total)} SIGIL</span>
+      <span>@ ${Number(r.price_per_unit).toFixed(3)}</span>
+      <button type="button" class="btn btn-ghost cycle-cancel-order-btn" data-order-id="${r.id}">Zurückziehen</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.cycle-cancel-order-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('cancel_sigil_order', { p_order_id: btn.dataset.orderId });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Order zurückgezogen, Guthaben erstattet.', true);
+      await loadSigilMarket();
+      await loadEverything({ light: true });
+    });
+  });
+}
+
+function updateSigilOrderTotalHint(){
+  const amount = parseFloat(document.getElementById('sigilOrderAmountInput').value);
+  const price = parseFloat(document.getElementById('sigilOrderPriceInput').value);
+  const hint = document.getElementById('sigilOrderTotalHint');
+  if (!amount || !price || amount <= 0 || price <= 0) { hint.textContent = '–'; return; }
+  const total = amount * price;
+  hint.textContent = sigilOrderSide === 'buy'
+    ? `Escrow bei Order-Platzierung: ${fmtCoin(total)} MOGC (Rest wird bei besserem Ausführungskurs zurückerstattet).`
+    : `Escrow bei Order-Platzierung: ${fmtCoin(amount)} SIGIL. Erlös bei vollem Fill: ${fmtCoin(total)} MOGC.`;
+}
+document.getElementById('sigilOrderAmountInput').addEventListener('input', updateSigilOrderTotalHint);
+document.getElementById('sigilOrderPriceInput').addEventListener('input', updateSigilOrderTotalHint);
+
+document.getElementById('sigilOrderBuyBtn').addEventListener('click', () => {
+  sigilOrderSide = 'buy';
+  document.getElementById('sigilOrderBuyBtn').classList.add('active');
+  document.getElementById('sigilOrderSellBtn').classList.remove('active');
+  updateSigilOrderTotalHint();
+});
+document.getElementById('sigilOrderSellBtn').addEventListener('click', () => {
+  sigilOrderSide = 'sell';
+  document.getElementById('sigilOrderSellBtn').classList.add('active');
+  document.getElementById('sigilOrderBuyBtn').classList.remove('active');
+  updateSigilOrderTotalHint();
+});
+
+document.getElementById('sigilOrderSubmitBtn').addEventListener('click', async () => {
+  const amount = parseFloat(document.getElementById('sigilOrderAmountInput').value);
+  const price = parseFloat(document.getElementById('sigilOrderPriceInput').value);
+  if (!amount || amount <= 0 || !price || price <= 0) {
+    showMsg('statusMsg', 'Bitte gültige Menge und Preis eingeben.', false);
+    return;
+  }
+  const btn = document.getElementById('sigilOrderSubmitBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('place_sigil_order', {
+    p_side: sigilOrderSide, p_amount: amount, p_price_per_unit: price
+  });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  const filled = Number(row?.filled_amount ?? 0);
+  const msg = filled > 0
+    ? `Order platziert: ${fmtCoin(filled)} SIGIL sofort ausgeführt (Ø ${Number(row?.avg_fill_price ?? 0).toFixed(3)} MOGC), ${fmtCoin(row?.remaining_amount ?? 0)} bleibt offen.`
+    : `Order ins Buch gestellt: ${fmtCoin(amount)} SIGIL @ ${price.toFixed(3)} MOGC, noch keine Gegenseite gefunden.`;
+  showMsg('statusMsg', msg, true);
+  document.getElementById('sigilOrderAmountInput').value = '';
+  document.getElementById('sigilOrderPriceInput').value = '';
+  updateSigilOrderTotalHint();
+  await loadSigilMarket();
+  await loadEverything({ light: true });
+});
+
+/* ---------- Erfolge ---------- */
+const ACH_CATEGORY_LABELS = {
+  mining: 'Mining & Farm', pulse: 'Pulse-Farm', markt: 'Sprungmärkte',
+  cycle_markt: 'CYCLE-Handelsplatz', bank: 'Bank (STBL & BOND)', anch: 'ANCH-Sparen',
+  prestige: 'Prestige', gov: 'Governance', vermoegen: 'Vermögens-Meilensteine',
+  rigs: 'Rig-Ausbau & Sammlung', streak: 'Streak & Login', meta: 'Meta & Rangliste',
+  geheim: 'Geheime Erfolge', serie: 'Sammelserien'
+};
+const ACH_TIER_LABELS = { bronze: 'Bronze', silber: 'Silber', gold: 'Gold', platin: 'Platin', geheim: 'Geheim' };
+
+async function loadAchievements(){
+  if (achievementsLoaded) return;
+  const [{ data: allAch, error: achErr }, { data: mine, error: mineErr }] = await Promise.all([
+    sb.schema('platform').from('achievements').select('*').order('sort_order'),
+    sb.schema('platform').from('player_achievements').select('achievement_id, unlocked_at')
+  ]);
+  if (achErr) { document.getElementById('achCategoriesWrap').innerHTML = '<div class="sm-hint">Konnte Erfolge nicht laden.</div>'; return; }
+
+  const unlockedMap = {};
+  (mine || []).forEach(r => { unlockedMap[r.achievement_id] = r.unlocked_at; });
+
+  const rows = (allAch || []).map(a => ({ ...a, unlocked: !!unlockedMap[a.id], unlocked_at: unlockedMap[a.id] || null }));
+  const unlockedCount = rows.filter(r => r.unlocked).length;
+  document.getElementById('achSummary').textContent = `${unlockedCount} / ${rows.length} freigeschaltet (weitere geheime Erfolge sind erst nach Freischaltung sichtbar)`;
+
+  const byCategory = {};
+  rows.forEach(r => { (byCategory[r.category] = byCategory[r.category] || []).push(r); });
+
+  const wrap = document.getElementById('achCategoriesWrap');
+  wrap.innerHTML = Object.keys(byCategory).map(cat => `
+    <div class="ach-category">
+      <h4>${ACH_CATEGORY_LABELS[cat] || cat}</h4>
+      <div class="ach-grid">
+        ${byCategory[cat].map(a => `
+          <div class="ach-card ${a.unlocked ? 'unlocked' : 'locked'}">
+            ${a.unlocked ? '<span class="ach-check">✅</span>' : ''}
+            <div class="ach-name">${a.name}</div>
+            <div class="ach-desc">${a.description}</div>
+            <div class="ach-meta">
+              <span class="ach-tier ${a.tier}">${ACH_TIER_LABELS[a.tier] || a.tier}</span>
+              <span class="ach-reward">+${fmtCoin(a.reward_sigil)} SIGIL</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  achievementsLoaded = true;
+}
 
 /* ---------- BOND: Festgeld auf STBL (Sperren/Claim) ---------- */
 function fmtBondRemaining(ms){

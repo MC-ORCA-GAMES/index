@@ -830,6 +830,12 @@
     }
     updatePreview();
     renderAcct();
+    // Profilseite einmal vollstaendig geladen -> "meta_vollstaendiges_profil".
+    // Nur im NEXUS-Schema definiert, gilt aber spielübergreifend (gleiche Supabase-Session).
+    // Fire-and-forget, Fehler (z.B. schon freigeschaltet) sind bewusst egal.
+    try{
+      supabaseClient.schema('platform').rpc('report_client_achievement', { p_key: 'meta_vollstaendiges_profil' }).catch(function(){});
+    }catch(e){}
   }
 
   async function refreshView(){
