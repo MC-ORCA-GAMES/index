@@ -371,6 +371,33 @@
   #pulseBankBar .bb-payout-name{ color:var(--fg-faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #pulseBankBar .bb-payout-amount{ color:var(--fg); }
 
+  /* CYCLE/SIGIL-Dividenden-Reserve -- kompakte Variante (kleiner als PULSE-Reserve,
+     da hier oft mehrere Bloecke pro Panel sichtbar sind: Orderbuch + Reserve +
+     eigene Orders). Rang wandert mit in die bb-sub-Zeile statt eigener Zeile,
+     leere Ausschuettungsliste wird komplett weggelassen statt Platzhaltertext. */
+  #cycleBankBar, #sigilBankBar{ font-family:var(--mono); background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  #cycleBankBar .bb-top, #sigilBankBar .bb-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11.5px; margin-bottom:6px; }
+  #cycleBankBar .bb-label, #sigilBankBar .bb-label{ color:var(--fg-faint); display:flex; align-items:center; gap:6px; }
+  #cycleBankBar .bb-track, #sigilBankBar .bb-track{ position:relative; height:5px; border-radius:999px; overflow:hidden; }
+  #cycleBankBar .bb-fill, #sigilBankBar .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; transition:width .8s cubic-bezier(.2,.8,.2,1); }
+  #cycleBankBar .bb-sub, #sigilBankBar .bb-sub{ font-size:10px; color:var(--fg-faint); margin-top:5px; line-height:1.5; }
+  #cycleBankBar .bb-payout-row, #sigilBankBar .bb-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:10.5px; padding:3px 0; border-top:1px solid var(--line); }
+  #cycleBankBar .bb-payout-row:first-child, #sigilBankBar .bb-payout-row:first-child{ border-top:none; margin-top:4px; }
+  #cycleBankBar .bb-payout-name, #sigilBankBar .bb-payout-name{ color:var(--fg-faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #cycleBankBar .bb-payout-amount, #sigilBankBar .bb-payout-amount{ color:var(--fg); }
+
+  #cycleBankBar .bb-label .bb-icon, #cycleBankBar .bb-value, #cycleBankBar .bb-payout-rank{ color:#A78BFA; }
+  #cycleBankBar .bb-value{ font-weight:600; }
+  #cycleBankBar .bb-payout-rank{ font-weight:600; min-width:20px; }
+  #cycleBankBar .bb-track{ background:rgba(167,139,250,0.12); }
+  #cycleBankBar .bb-fill{ background:linear-gradient(90deg, #5b3fa0, #A78BFA); box-shadow:0 0 8px rgba(167,139,250,0.55); }
+
+  #sigilBankBar .bb-label .bb-icon, #sigilBankBar .bb-value, #sigilBankBar .bb-payout-rank{ color:#F472B6; }
+  #sigilBankBar .bb-value{ font-weight:600; }
+  #sigilBankBar .bb-payout-rank{ font-weight:600; min-width:20px; }
+  #sigilBankBar .bb-track{ background:rgba(244,114,182,0.12); }
+  #sigilBankBar .bb-fill{ background:linear-gradient(90deg, #9d3d70, #F472B6); box-shadow:0 0 8px rgba(244,114,182,0.55); }
+
   /* ---------- farm overview (icon grid) ---------- */
   .farm-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr)); gap:10px; margin-bottom:6px; }
   .farm-tile{ border:1px solid var(--line); border-radius:12px; padding:12px 10px 10px; background:radial-gradient(circle at 30% 0%, var(--blue-dim), transparent 70%); text-align:center; }
@@ -2920,7 +2947,9 @@ async function loadCycleMarket(){
 // Gemeinsame Render-Funktion fuer die CYCLE- und SIGIL-Dividenden-Reserve --
 // gespeist aus 2% Marktgebuehr, gestuft an Top-10-Halter ausgeschuettet
 // (analog Zentralbank/PULSE-Reserve, aber pro Waehrung eigener Topf + eigene
-// Rangliste nach Wallet-Bestand statt Plattform-Punkten).
+// Rangliste nach Wallet-Bestand statt Plattform-Punkten). Bewusst kompakt --
+// Rang in einer Zeile mit dem Mechanismus-Hinweis, keine Leerzeilen wenn noch
+// keine Ausschuettung stattgefunden hat.
 function renderCurrencyBankBar(elId, symbol, rows, myRank){
   const el = document.getElementById(elId);
   if (!el) return;
@@ -2936,18 +2965,17 @@ function renderCurrencyBankBar(elId, symbol, rows, myRank){
         <span class="bb-payout-name">${p.username || 'Unbekannt'}</span>
         <span class="bb-payout-amount">+${fmtCoin(p.amount)} MOGC</span>
       </div>`).join('')
-    : `<div class="bb-sub" style="margin-top:10px;">Noch keine Ausschüttung — läuft erst bei ${fmtCoin(threshold)} MOGC Reserve an.</div>`;
-  const rankHtml = myRank && myRank.rank_no
-    ? `<div class="bb-sub" style="margin-top:6px;">Dein Rang: #${myRank.rank_no} von ${myRank.total_holders} Haltern (${fmtCoin(myRank.balance)} ${symbol})</div>`
-    : `<div class="bb-sub" style="margin-top:6px;">Du hältst aktuell kein ${symbol} — kein Rang in der Halter-Rangliste.</div>`;
+    : '';
+  const rankTxt = myRank && myRank.rank_no
+    ? `Dein Rang #${myRank.rank_no}/${myRank.total_holders} (${fmtCoin(myRank.balance)} ${symbol})`
+    : `hältst aktuell kein ${symbol}`;
   el.innerHTML = `
     <div class="bb-top">
-      <span class="bb-label"><span class="bb-icon">💎</span> ${symbol}-Dividenden-Reserve</span>
+      <span class="bb-label"><span class="bb-icon">💎</span> ${symbol}-Reserve</span>
       <span class="bb-value">${fmtCoin(reserveVal)} / ${fmtCoin(threshold)} MOGC</span>
     </div>
     <div class="bb-track"><div class="bb-fill" style="width:${pct}%"></div></div>
-    <div class="bb-sub">2% Marktgebühr jedes ${symbol}-Trades fließt hier ein · bei ${fmtCoin(threshold)} wird gestuft an die Top 10 Halter (nach ${symbol}-Bestand) in MOGC ausgeschüttet</div>
-    ${rankHtml}
+    <div class="bb-sub">2% Gebühr → Top 10 Halter in MOGC · ${rankTxt}</div>
     ${payoutsHtml}`;
 }
 
