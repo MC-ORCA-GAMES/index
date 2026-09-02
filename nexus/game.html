@@ -1902,7 +1902,7 @@ function enterGame(){
       // Fehler (z.B. schon freigeschaltet) sind bewusst egal.
       if (!window.__achMarktKurvenReported) {
         window.__achMarktKurvenReported = true;
-        sb.schema('platform').rpc('report_client_achievement', { p_key: 'markt_alle_kurven' }).catch(() => {});
+        Promise.resolve(sb.schema('platform').rpc('report_client_achievement', { p_key: 'markt_alle_kurven' })).catch(() => {});
       }
     }
     if (tabId === 'erfolge') {
