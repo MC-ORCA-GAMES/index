@@ -185,24 +185,22 @@
   .currency-card .chart-empty-hint{ font-size:11px; }
 
   /* ---------- Zentralbank ---------- */
-  .bank-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:18px 0 10px; }
-  @media (max-width:640px){ .bank-grid{ grid-template-columns:1fr; } }
-  .bank-panel{ margin:0; border:1px solid var(--line); border-radius:12px; padding:12px 13px 12px; background:var(--panel); }
-  .bank-panel-head{ display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
-  .bank-panel-head .t{ font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; }
-  .bank-panel-head .hint{ font-size:10.5px; line-height:1.4; color:var(--fg-faint); }
-  .bank-track{ position:relative; height:6px; border-radius:999px; background:rgba(212,175,55,0.1); overflow:hidden; margin:4px 0 5px; }
+  .bank-panel{ margin:18px 0 10px; border:1px solid var(--line); border-radius:14px; padding:15px 16px 14px; background:var(--panel); }
+  .bank-panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; flex-wrap:wrap; gap:8px; }
+  .bank-panel-head .t{ font-family:'Space Grotesk'; font-weight:600; font-size:13px; }
+  .bank-panel-head .hint{ font-size:11.5px; color:var(--fg-faint); }
+  .bank-track{ position:relative; height:7px; border-radius:999px; background:rgba(212,175,55,0.1); overflow:hidden; margin:5px 0 6px; }
   .bank-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg,#8a6c1c,var(--gold)); box-shadow:0 0 12px rgba(212,175,55,0.55); transition:width .8s cubic-bezier(.2,.8,.2,1); }
-  .bank-sub{ font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--fg-faint); }
-  .bank-payouts{ margin-top:8px; }
-  .bank-payouts-title{ font-size:10px; letter-spacing:0.05em; text-transform:uppercase; color:var(--fg-faint); margin-bottom:6px; }
-  .bank-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid var(--line); font-size:11.5px; }
+  .bank-sub{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--fg-faint); }
+  .bank-payouts{ margin-top:12px; }
+  .bank-payouts-title{ font-size:11.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--fg-faint); margin-bottom:10px; }
+  .bank-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; }
   .bank-payout-row:last-child{ border-bottom:none; }
   .bank-payout-rank{ color:var(--gold); font-family:'Space Grotesk'; font-weight:600; width:26px; }
   .bank-payout-name{ flex:1; color:var(--fg-dim); }
   .bank-payout-amount{ color:var(--fg); font-family:'JetBrains Mono',monospace; }
-  .bank-empty{ font-size:11px; color:var(--fg-faint); text-align:center; padding:6px 0; }
-  .bank-chart-box{ position:relative; height:56px; margin:6px 0 4px; }
+  .bank-empty{ font-size:12.5px; color:var(--fg-faint); text-align:center; padding:8px 0; }
+  .bank-chart-box{ position:relative; height:78px; margin:10px 0 4px; }
   /* PULSE-Zentralbank -- gleiche Struktur wie die NRC-Bank oben, nur cyan statt gold */
   .bank-panel.pulse-bank .bank-track{ background:rgba(34,211,238,0.1); }
   .bank-panel.pulse-bank .bank-fill{ background:linear-gradient(90deg,#146a78,#22D3EE); box-shadow:0 0 12px rgba(34,211,238,0.55); }
@@ -343,11 +341,10 @@
        das Mining serverseitig kontinuierlich weiterlaeuft. -->
   <div class="chart-note" id="protocolBanner" style="text-align:center; margin:-4px 0 4px; opacity:.85;">Protokoll wird geladen …</div>
 
-  <div class="bank-grid">
   <section class="bank-panel reveal in">
     <div class="bank-panel-head">
       <span class="t">🏦 Zentralbank</span>
-      <span class="hint">1% jedes Mining-Ertrags → Top 10 der Rangliste · 1×/Tag</span>
+      <span class="hint">1% jedes Mining-Ertrags, gestuft ausgeschüttet an die Top 10 der Rangliste · Protokoll, 1×/Tag</span>
     </div>
     <div class="bank-track"><div class="bank-fill" id="bankFill"></div></div>
     <div class="bank-sub" id="bankSub">wird geladen …</div>
@@ -360,8 +357,8 @@
 
   <section class="bank-panel pulse-bank reveal in">
     <div class="bank-panel-head">
-      <span class="t">🏦 PULSE-Reserve</span>
-      <span class="hint">1% PULSE-Förderung + 1% ANCH-Auszahlung → Top 10</span>
+      <span class="t">🏦 Zentralbank — PULSE-Reserve</span>
+      <span class="hint">1% jeder PULSE-Förderung + 1% jeder ANCH-Auszahlung, gestuft ausgeschüttet an die Top 10 der Rangliste</span>
     </div>
     <div class="bank-track"><div class="bank-fill" id="pulseBankFill"></div></div>
     <div class="bank-sub" id="pulseBankSub">wird geladen …</div>
@@ -374,8 +371,8 @@
 
   <section class="bank-panel cycle-bank reveal in">
     <div class="bank-panel-head">
-      <span class="t">💎 CYCLE-Reserve</span>
-      <span class="hint">2% CYCLE-Handelsgebühr → Top 10 Halter, in MOGC</span>
+      <span class="t">💎 CYCLE-Dividenden-Reserve</span>
+      <span class="hint">2% jeder CYCLE-Handelsgebühr, gestuft in MOGC an die Top 10 Halter ausgeschüttet</span>
     </div>
     <div class="bank-track"><div class="bank-fill" id="cycleBankFill"></div></div>
     <div class="bank-sub" id="cycleBankSub">wird geladen …</div>
@@ -388,8 +385,8 @@
 
   <section class="bank-panel sigil-bank reveal in">
     <div class="bank-panel-head">
-      <span class="t">💎 SIGIL-Reserve</span>
-      <span class="hint">2% SIGIL-Handelsgebühr → Top 10 Halter, in MOGC</span>
+      <span class="t">💎 SIGIL-Dividenden-Reserve</span>
+      <span class="hint">2% jeder SIGIL-Handelsgebühr, gestuft in MOGC an die Top 10 Halter ausgeschüttet</span>
     </div>
     <div class="bank-track"><div class="bank-fill" id="sigilBankFill"></div></div>
     <div class="bank-sub" id="sigilBankSub">wird geladen …</div>
@@ -399,7 +396,6 @@
       <div id="sigilBankPayouts"><div class="bank-empty">wird geladen …</div></div>
     </div>
   </section>
-  </div>
 
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
