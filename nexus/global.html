@@ -115,6 +115,7 @@
     box-shadow:0 16px 40px rgba(0,0,0,0.5);
     opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
     transition:opacity .15s, transform .15s;
+    max-height:min(75vh, 520px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
   }
   .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
   .burger-group{ padding:6px 4px 10px; }
@@ -199,6 +200,11 @@
   .bank-payout-name{ flex:1; color:var(--fg-dim); }
   .bank-payout-amount{ color:var(--fg); font-family:'JetBrains Mono',monospace; }
   .bank-empty{ font-size:12.5px; color:var(--fg-faint); text-align:center; padding:8px 0; }
+  .bank-chart-box{ position:relative; height:100px; margin:14px 0 4px; }
+  /* PULSE-Zentralbank -- gleiche Struktur wie die NRC-Bank oben, nur cyan statt gold */
+  .bank-panel.pulse-bank .bank-track{ background:rgba(34,211,238,0.1); }
+  .bank-panel.pulse-bank .bank-fill{ background:linear-gradient(90deg,#146a78,#22D3EE); box-shadow:0 0 12px rgba(34,211,238,0.55); }
+  .bank-panel.pulse-bank .bank-payout-rank{ color:#22D3EE; }
 
   /* ---------- miners row ---------- */
   .miners-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:30px 0 8px; font-size:13px; color:var(--fg-dim); }
@@ -334,9 +340,24 @@
     </div>
     <div class="bank-track"><div class="bank-fill" id="bankFill"></div></div>
     <div class="bank-sub" id="bankSub">wird geladen …</div>
+    <div class="chart-box bank-chart-box"><canvas id="bankReserveChart"></canvas></div>
     <div class="bank-payouts">
       <div class="bank-payouts-title">Letzte Ausschüttungen</div>
       <div id="bankPayouts"><div class="bank-empty">wird geladen …</div></div>
+    </div>
+  </section>
+
+  <section class="bank-panel pulse-bank reveal in">
+    <div class="bank-panel-head">
+      <span class="t">🏦 Zentralbank — PULSE-Reserve</span>
+      <span class="hint">1% jeder PULSE-Förderung + 1% jeder ANCH-Auszahlung, gestuft ausgeschüttet an die Top 10 der Rangliste</span>
+    </div>
+    <div class="bank-track"><div class="bank-fill" id="pulseBankFill"></div></div>
+    <div class="bank-sub" id="pulseBankSub">wird geladen …</div>
+    <div class="chart-box bank-chart-box"><canvas id="pulseBankReserveChart"></canvas></div>
+    <div class="bank-payouts">
+      <div class="bank-payouts-title">Letzte Ausschüttungen</div>
+      <div id="pulseBankPayouts"><div class="bank-empty">wird geladen …</div></div>
     </div>
   </section>
 
@@ -603,6 +624,40 @@
     }
   }
 
+  async function loadPulseBank(){
+    const PULSE_BANK_THRESHOLD = 500000;
+    try{
+      const { data, error } = await sb.schema('platform').rpc('get_pulse_bank_status', { p_limit: 8 });
+      if(error || !data || !data.length){
+        document.getElementById('pulseBankSub').textContent = 'Bank-Status nicht verfügbar';
+        document.getElementById('pulseBankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+        return;
+      }
+      const reserve = Number(data[0].reserve_balance) || 0;
+      const pct = Math.min(100, (reserve / PULSE_BANK_THRESHOLD) * 100);
+      document.getElementById('pulseBankFill').style.width = pct + '%';
+      document.getElementById('pulseBankSub').textContent =
+        fmtCredits(reserve, 0) + ' / ' + fmtCredits(PULSE_BANK_THRESHOLD, 0) + ' PULSE in der Reserve';
+
+      const payouts = data.filter(function(row){ return row.id != null; });
+      const list = document.getElementById('pulseBankPayouts');
+      if(!payouts.length){
+        list.innerHTML = '<div class="bank-empty">Noch keine Ausschüttung — die Reserve füllt sich mit Förderung & ANCH-Auszahlungen.</div>';
+        return;
+      }
+      list.innerHTML = payouts.map(function(row){
+        return '<div class="bank-payout-row">'
+          + '<span class="bank-payout-rank">#' + row.rank_no + '</span>'
+          + '<span class="bank-payout-name">' + (row.username || 'Unbenannt') + '</span>'
+          + '<span class="bank-payout-amount">+' + fmtCredits(row.amount, 0) + ' PULSE</span>'
+          + '</div>';
+      }).join('');
+    }catch(e){
+      document.getElementById('pulseBankSub').textContent = 'Bank-Status nicht verfügbar';
+      document.getElementById('pulseBankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+    }
+  }
+
   async function loadStats(){
     try{
       const res = await sb.schema('crypto_farm').rpc('get_global_mining_stats');
@@ -673,6 +728,17 @@
 
   const novaChartRef = {};
   const scChartRef = {};
+  const bankReserveChartRef = {};
+  const pulseBankReserveChartRef = {};
+
+  async function loadReserveHistory(){
+    try{
+      const { data, error } = await sb.schema('platform').rpc('get_central_bank_reserve_history', { p_bucket_minutes: 60 });
+      if(error || !data) return;
+      renderSingleHistoryChart(bankReserveChartRef, 'bankReserveChart', data, 'reserve_balance', '#D4AF37', '212,175,55');
+      renderSingleHistoryChart(pulseBankReserveChartRef, 'pulseBankReserveChart', data, 'pulse_reserve_balance', '#22D3EE', '34,211,238');
+    }catch(e){ /* Chart bleibt einfach leer, kein kritischer Fehler */ }
+  }
 
   function renderHistoryCharts(rows){
     renderSingleHistoryChart(novaChartRef, 'novaHistoryChart', rows, 'total_nova_rift', '#3ddc84', '61,220,132');
@@ -806,7 +872,7 @@
     const todayBerlin = getBerlinDateStr(new Date());
     if (!force && lastProtocolBerlinDate === todayBerlin) return; // heutiger Stand schon geladen
     lastProtocolBerlinDate = todayBerlin;
-    await Promise.all([loadHistory(), loadBank(), loadCurrencyTotals(), loadAllCurrencyHistories()]);
+    await Promise.all([loadHistory(), loadBank(), loadPulseBank(), loadReserveHistory(), loadCurrencyTotals(), loadAllCurrencyHistories()]);
     updateProtocolBanner(todayBerlin);
   }
 

@@ -3081,6 +3081,8 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
     text.textContent = message;
     box.appendChild(text);
 
+    function __finish(result){ document.body.removeChild(overlay); resolve(result); }
+
     if(badges){
       // NEU (Versions-Zaehler statt/zusaetzlich zu Zeitstempel): wenn fuer beide Seiten ein
       // Versions-Zaehler bekannt ist und sie sich unterscheiden, entscheidet der Zaehler ueber
@@ -3097,10 +3099,14 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
         cloudNewer = (badges.cloudTs != null && (badges.localTs == null || badges.cloudTs > badges.localTs));
       }
       var badgeRow = document.createElement('div');
-      badgeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
-      function makeBadge(icon, label, ts, isNewer, ver){
+      badgeRow.style.cssText = 'display:flex;gap:8px;';
+      // NEU (UI-Vereinfachung): die Karten sind jetzt selbst die Auswahl -- kein separater
+      // Button-Balken mehr darunter. Ein Klick auf eine Karte entscheidet direkt, welcher
+      // Stand behalten wird; der jeweilige Button-Text wandert dafuer als Aktionszeile in die
+      // passende Karte (Geraet-Karte -> cancelLabel, Cloud-Karte -> okLabel).
+      function makeBadge(icon, label, ts, isNewer, ver, actionLabel, result, primary){
         var b = document.createElement('div');
-        b.style.cssText = 'flex:1;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.4;'
+        b.style.cssText = 'flex:1;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.4;cursor:pointer;transition:filter 0.15s ease;'
           + (isNewer ? 'background:rgba(120,180,255,0.14);border:1px solid rgba(120,180,255,0.65);' : 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.18);');
         var top = document.createElement('div');
         top.style.cssText = 'color:#ccc;font-weight:bold;';
@@ -3108,26 +3114,33 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
         var time = document.createElement('div');
         time.style.cssText = 'color:' + (isNewer ? '#a9cdff' : '#999') + ';margin-top:3px;';
         time.textContent = __relTime(ts) + (ver != null ? ' · v' + ver : '') + (isNewer ? ' · NEUER' : '');
-        b.appendChild(top); b.appendChild(time);
+        var action = document.createElement('div');
+        action.style.cssText = 'margin-top:8px;text-align:center;font-weight:bold;font-size:11.5px;border-radius:5px;padding:6px;'
+          + (primary ? 'background:#eee;color:#181022;' : 'border:1px solid #555;color:#eee;');
+        action.textContent = actionLabel;
+        b.appendChild(top); b.appendChild(time); b.appendChild(action);
+        b.addEventListener('mouseenter', function(){ b.style.filter = 'brightness(1.15)'; });
+        b.addEventListener('mouseleave', function(){ b.style.filter = ''; });
+        b.addEventListener('click', function(){ __finish(result); });
         return b;
       }
-      badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer, badges.localVer));
-      badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer, badges.cloudVer));
+      badgeRow.appendChild(makeBadge('🖥', 'Dieses Geraet', badges.localTs, localer, badges.localVer, cancelLabel, false, false));
+      badgeRow.appendChild(makeBadge('☁', 'Cloud', badges.cloudTs, cloudNewer, badges.cloudVer, okLabel, true, true));
       box.appendChild(badgeRow);
+    } else {
+      var btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;gap:8px;';
+      var okBtn = document.createElement('button');
+      okBtn.textContent = okLabel;
+      okBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #eee;background:#eee;color:#181022;font-weight:bold;font-size:12.5px;cursor:pointer;';
+      var cancelBtn = document.createElement('button');
+      cancelBtn.textContent = cancelLabel;
+      cancelBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;font-size:12.5px;cursor:pointer;';
+      okBtn.addEventListener('click', function(){ __finish(true); });
+      cancelBtn.addEventListener('click', function(){ __finish(false); });
+      btnRow.appendChild(okBtn); btnRow.appendChild(cancelBtn);
+      box.appendChild(btnRow);
     }
-
-    var btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex;gap:8px;';
-    var okBtn = document.createElement('button');
-    okBtn.textContent = okLabel;
-    okBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #eee;background:#eee;color:#181022;font-weight:bold;font-size:12.5px;cursor:pointer;';
-    var cancelBtn = document.createElement('button');
-    cancelBtn.textContent = cancelLabel;
-    cancelBtn.style.cssText = 'flex:1;padding:9px;border-radius:6px;border:1px solid #555;background:transparent;color:#eee;font-size:12.5px;cursor:pointer;';
-    okBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(true); });
-    cancelBtn.addEventListener('click', function(){ document.body.removeChild(overlay); resolve(false); });
-    btnRow.appendChild(okBtn); btnRow.appendChild(cancelBtn);
-    box.appendChild(btnRow);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
   });
