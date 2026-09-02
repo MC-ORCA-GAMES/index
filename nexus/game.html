@@ -1935,6 +1935,23 @@ function fmtCoin(n){
   return n.toFixed(2);
 }
 
+// NEU (Wallet-Chart-Fix NVLT/GRID): Chart.js-Achsen-Ticks nutzten bisher die Roh-Zahl
+// 1:1 -- bei Werten nahe 0 (Float-Rauschen wie 4.9999e-13) kam wissenschaftliche
+// Notation raus, bei fast identischen Werten (0.3111557431161913 vs. ...15) wollte
+// Chart.js trotzdem "praezise" zwischen ihnen skalieren und zeigte 16 Nachkommastellen.
+// Dieser Formatter rundet auf eine sinnvolle Anzahl Nachkommastellen und zeigt 0 statt
+// Mini-Rauschen.
+function fmtAxisTick(v){
+  v = Number(v);
+  if (!isFinite(v)) return '0';
+  if (Math.abs(v) < 1e-6) return '0';
+  if (Math.abs(v) >= 1000) return fmtCoin(v);
+  const decimals = Math.abs(v) >= 1 ? 2 : 4;
+  let s = v.toFixed(decimals);
+  s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s === '' || s === '-' ? '0' : s;
+}
+
 function enterGame(){
   document.getElementById('loginView').classList.add('hidden');
   document.getElementById('gameView').classList.remove('hidden');
@@ -2139,7 +2156,7 @@ function initCharts(){
     plugins: { legend: { display: false } },
     scales: {
       x: { display: false },
-      y: { ticks: { color: '#8b8fa3', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(232,230,227,0.06)' } }
+      y: { ticks: { color: '#8b8fa3', font: { family: 'JetBrains Mono', size: 10 }, callback: fmtAxisTick }, grid: { color: 'rgba(232,230,227,0.06)' } }
     },
     elements: { point: { radius: 0 } }
   };
@@ -2160,7 +2177,7 @@ function initCharts(){
     plugins: { legend: { display: false } },
     scales: {
       x: { display: false },
-      y: { ticks: { color: '#8b8fa3', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 3 }, grid: { color: 'rgba(232,230,227,0.06)' } }
+      y: { ticks: { color: '#8b8fa3', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 3, callback: fmtAxisTick }, grid: { color: 'rgba(232,230,227,0.06)' } }
     },
     elements: { point: { radius: 0 } }
   };
@@ -3628,7 +3645,15 @@ function updateChart(chart, rows, field, opts){
       ? d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
       : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   });
-  chart.data.datasets[0].data = rows.map(r => Number(r[field]));
+  chart.data.datasets[0].data = rows.map(r => {
+    let v = Number(r[field]);
+    if (!isFinite(v)) v = 0;
+    // Float-Rauschen (z.B. 4.9e-13 statt echter 0, oder 0.3111557431161913 vs. ...15)
+    // vor dem Chart-Autoscale glaetten, sonst waehlt Chart.js eine Achse mit 16
+    // Nachkommastellen bzw. wissenschaftlicher Notation fuer praktisch identische Werte.
+    if (Math.abs(v) < 1e-6) v = 0;
+    return Math.round(v * 1e6) / 1e6;
+  });
   // Bei sehr wenigen Punkten (z.B. neuer Account + grober Bucket bei "30 Tage"/"Immer")
   // zeichnet Chart.js sonst gar nichts, weil eine Linie mind. 2 Punkte braucht und der
   // Punkt-Radius global auf 0 steht. Also Punkte kurz sichtbar machen.
