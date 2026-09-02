@@ -205,6 +205,14 @@
   .bank-panel.pulse-bank .bank-track{ background:rgba(34,211,238,0.1); }
   .bank-panel.pulse-bank .bank-fill{ background:linear-gradient(90deg,#146a78,#22D3EE); box-shadow:0 0 12px rgba(34,211,238,0.55); }
   .bank-panel.pulse-bank .bank-payout-rank{ color:#22D3EE; }
+  /* CYCLE/SIGIL-Dividenden-Reserve -- eigene Farbtoene (violett/rosa) statt gold/cyan,
+     damit die zwei neuen Handelsplatz-Reserven optisch von NRC/PULSE unterscheidbar sind */
+  .bank-panel.cycle-bank .bank-track{ background:rgba(167,139,250,0.1); }
+  .bank-panel.cycle-bank .bank-fill{ background:linear-gradient(90deg,#5b3fa0,#A78BFA); box-shadow:0 0 12px rgba(167,139,250,0.55); }
+  .bank-panel.cycle-bank .bank-payout-rank{ color:#A78BFA; }
+  .bank-panel.sigil-bank .bank-track{ background:rgba(244,114,182,0.1); }
+  .bank-panel.sigil-bank .bank-fill{ background:linear-gradient(90deg,#9d3d70,#F472B6); box-shadow:0 0 12px rgba(244,114,182,0.55); }
+  .bank-panel.sigil-bank .bank-payout-rank{ color:#F472B6; }
 
   /* ---------- miners row ---------- */
   .miners-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:30px 0 8px; font-size:13px; color:var(--fg-dim); }
@@ -358,6 +366,34 @@
     <div class="bank-payouts">
       <div class="bank-payouts-title">Letzte Ausschüttungen</div>
       <div id="pulseBankPayouts"><div class="bank-empty">wird geladen …</div></div>
+    </div>
+  </section>
+
+  <section class="bank-panel cycle-bank reveal in">
+    <div class="bank-panel-head">
+      <span class="t">💎 CYCLE-Dividenden-Reserve</span>
+      <span class="hint">2% jeder CYCLE-Handelsgebühr, gestuft in MOGC an die Top 10 Halter ausgeschüttet</span>
+    </div>
+    <div class="bank-track"><div class="bank-fill" id="cycleBankFill"></div></div>
+    <div class="bank-sub" id="cycleBankSub">wird geladen …</div>
+    <div class="chart-box bank-chart-box"><canvas id="cycleBankReserveChart"></canvas></div>
+    <div class="bank-payouts">
+      <div class="bank-payouts-title">Letzte Ausschüttungen</div>
+      <div id="cycleBankPayouts"><div class="bank-empty">wird geladen …</div></div>
+    </div>
+  </section>
+
+  <section class="bank-panel sigil-bank reveal in">
+    <div class="bank-panel-head">
+      <span class="t">💎 SIGIL-Dividenden-Reserve</span>
+      <span class="hint">2% jeder SIGIL-Handelsgebühr, gestuft in MOGC an die Top 10 Halter ausgeschüttet</span>
+    </div>
+    <div class="bank-track"><div class="bank-fill" id="sigilBankFill"></div></div>
+    <div class="bank-sub" id="sigilBankSub">wird geladen …</div>
+    <div class="chart-box bank-chart-box"><canvas id="sigilBankReserveChart"></canvas></div>
+    <div class="bank-payouts">
+      <div class="bank-payouts-title">Letzte Ausschüttungen</div>
+      <div id="sigilBankPayouts"><div class="bank-empty">wird geladen …</div></div>
     </div>
   </section>
 
@@ -674,6 +710,79 @@
     }
   }
 
+  // CYCLE/SIGIL-Dividenden-Reserve -- eigener Rangliste-Typ (Top-Halter nach
+  // Wallet-Bestand statt Plattform-Punkte wie bank_leaderboard), Ausschuettung
+  // in MOGC statt in der jeweiligen Waehrung selbst, Schwelle bewusst kleiner
+  // (5.000 statt 500.000) weil gespeist aus 2% Handelsgebuehr statt 1% aus dem
+  // deutlich groesseren Mining-Ertragsstrom.
+  async function loadCycleBank(){
+    const THRESHOLD = 5000;
+    try{
+      const { data, error } = await sb.schema('platform').rpc('get_cycle_bank_status', { p_limit: 8 });
+      if(error || !data || !data.length){
+        document.getElementById('cycleBankSub').textContent = 'Bank-Status nicht verfügbar';
+        document.getElementById('cycleBankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+        return;
+      }
+      const reserve = Number(data[0].reserve_balance) || 0;
+      const pct = Math.min(100, (reserve / THRESHOLD) * 100);
+      document.getElementById('cycleBankFill').style.width = pct + '%';
+      document.getElementById('cycleBankSub').textContent =
+        fmtCredits(reserve, 0) + ' / ' + fmtCredits(THRESHOLD, 0) + ' MOGC in der Reserve';
+
+      const payouts = data.filter(function(row){ return row.payout_id != null; });
+      const list = document.getElementById('cycleBankPayouts');
+      if(!payouts.length){
+        list.innerHTML = '<div class="bank-empty">Noch keine Ausschüttung — die Reserve füllt sich mit jedem CYCLE-Trade.</div>';
+        return;
+      }
+      list.innerHTML = payouts.map(function(row){
+        return '<div class="bank-payout-row">'
+          + '<span class="bank-payout-rank">#' + row.rank_no + '</span>'
+          + '<span class="bank-payout-name">' + (row.username || 'Unbenannt') + '</span>'
+          + '<span class="bank-payout-amount">+' + fmtCredits(row.amount, 0) + ' MOGC</span>'
+          + '</div>';
+      }).join('');
+    }catch(e){
+      document.getElementById('cycleBankSub').textContent = 'Bank-Status nicht verfügbar';
+      document.getElementById('cycleBankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+    }
+  }
+
+  async function loadSigilBank(){
+    const THRESHOLD = 5000;
+    try{
+      const { data, error } = await sb.schema('platform').rpc('get_sigil_bank_status', { p_limit: 8 });
+      if(error || !data || !data.length){
+        document.getElementById('sigilBankSub').textContent = 'Bank-Status nicht verfügbar';
+        document.getElementById('sigilBankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+        return;
+      }
+      const reserve = Number(data[0].reserve_balance) || 0;
+      const pct = Math.min(100, (reserve / THRESHOLD) * 100);
+      document.getElementById('sigilBankFill').style.width = pct + '%';
+      document.getElementById('sigilBankSub').textContent =
+        fmtCredits(reserve, 0) + ' / ' + fmtCredits(THRESHOLD, 0) + ' MOGC in der Reserve';
+
+      const payouts = data.filter(function(row){ return row.payout_id != null; });
+      const list = document.getElementById('sigilBankPayouts');
+      if(!payouts.length){
+        list.innerHTML = '<div class="bank-empty">Noch keine Ausschüttung — die Reserve füllt sich mit jedem SIGIL-Trade.</div>';
+        return;
+      }
+      list.innerHTML = payouts.map(function(row){
+        return '<div class="bank-payout-row">'
+          + '<span class="bank-payout-rank">#' + row.rank_no + '</span>'
+          + '<span class="bank-payout-name">' + (row.username || 'Unbenannt') + '</span>'
+          + '<span class="bank-payout-amount">+' + fmtCredits(row.amount, 0) + ' MOGC</span>'
+          + '</div>';
+      }).join('');
+    }catch(e){
+      document.getElementById('sigilBankSub').textContent = 'Bank-Status nicht verfügbar';
+      document.getElementById('sigilBankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+    }
+  }
+
   async function loadStats(){
     try{
       const res = await sb.schema('crypto_farm').rpc('get_global_mining_stats');
@@ -746,6 +855,8 @@
   const scChartRef = {};
   const bankReserveChartRef = {};
   const pulseBankReserveChartRef = {};
+  const cycleBankReserveChartRef = {};
+  const sigilBankReserveChartRef = {};
 
   async function loadReserveHistory(){
     try{
@@ -753,6 +864,8 @@
       if(error || !data) return;
       renderSingleHistoryChart(bankReserveChartRef, 'bankReserveChart', data, 'reserve_balance', '#D4AF37', '212,175,55');
       renderSingleHistoryChart(pulseBankReserveChartRef, 'pulseBankReserveChart', data, 'pulse_reserve_balance', '#22D3EE', '34,211,238');
+      renderSingleHistoryChart(cycleBankReserveChartRef, 'cycleBankReserveChart', data, 'cycle_reserve_balance', '#A78BFA', '167,139,250');
+      renderSingleHistoryChart(sigilBankReserveChartRef, 'sigilBankReserveChart', data, 'sigil_reserve_balance', '#F472B6', '244,114,182');
     }catch(e){ /* Chart bleibt einfach leer, kein kritischer Fehler */ }
   }
 
@@ -890,7 +1003,7 @@
     const todayBerlin = getBerlinDateStr(new Date());
     if (!force && lastProtocolBerlinDate === todayBerlin) return; // heutiger Stand schon geladen
     lastProtocolBerlinDate = todayBerlin;
-    await Promise.all([loadHistory(), loadBank(), loadPulseBank(), loadReserveHistory(), loadCurrencyTotals(), loadAllCurrencyHistories()]);
+    await Promise.all([loadHistory(), loadBank(), loadPulseBank(), loadCycleBank(), loadSigilBank(), loadReserveHistory(), loadCurrencyTotals(), loadAllCurrencyHistories()]);
     updateProtocolBanner(todayBerlin);
   }
 
