@@ -3206,7 +3206,21 @@ function applyForgeState(gs){
 
 function forgeBuildingCost(bt, owned, qty){
   const g = Number(bt.cost_growth);
-  return Number(bt.base_cost) * Math.pow(g, owned) * (Math.pow(g, qty) - 1) / (g - 1);
+  // Die allererste Einheit eines Tier-1-Gebäudes ist gratis (Bootstrap für neue
+  // Spieler ohne Startressourcen) -- muss zur Server-Logik in forge.buy_building
+  // passen, sonst zeigt die Vorschau einen falschen Preis an.
+  const freeUnits = (Number(bt.tier) === 1 && owned === 0) ? Math.min(1, qty) : 0;
+  const paidQty = qty - freeUnits;
+  if (paidQty <= 0) return 0;
+  return Number(bt.base_cost) * Math.pow(g, owned + freeUnits) * (Math.pow(g, paidQty) - 1) / (g - 1);
+}
+
+function forgeBuyLabel(bt, owned, qty, sym){
+  const isFirstFree = Number(bt.tier) === 1 && owned === 0;
+  const cost = forgeBuildingCost(bt, owned, qty);
+  if (isFirstFree && qty === 1) return `+1 (GRATIS)`;
+  if (isFirstFree && qty > 1) return `+${qty} (1× GRATIS + ${fmtCoin(cost)} ${sym})`;
+  return `+${qty} (${fmtCoin(cost)} ${sym})`;
 }
 
 function renderForgeBuildings(){
@@ -3218,21 +3232,20 @@ function renderForgeBuildings(){
       .filter(bt => bt.resource_symbol === sym)
       .forEach(bt => {
         const owned = forgePlayerBuildings[bt.id] || 0;
-        const cost1 = forgeBuildingCost(bt, owned, 1);
-        const cost10 = forgeBuildingCost(bt, owned, 10);
+        const isFirstFree = Number(bt.tier) === 1 && owned === 0;
         const row = document.createElement('div');
         row.className = 'rig-row';
         row.innerHTML = `
           <div class="rig-row-main">
             <div class="rig-icon-tile">🏗️</div>
             <div>
-              <div class="rig-name">${bt.name} <span class="qty-badge">×${owned}</span></div>
+              <div class="rig-name">${bt.name} <span class="qty-badge">×${owned}</span>${isFirstFree ? ' <span class="qty-badge" style="background:#1e7d3c;">1. GRATIS</span>' : ''}</div>
               <div class="rig-meta">${Number(bt.base_rate)} ${sym}/min pro Einheit</div>
             </div>
           </div>
           <div class="buy-btn-group">
-            <button data-qty="1">+1 (${fmtCoin(cost1)} ${sym})</button>
-            <button data-qty="10">+10 (${fmtCoin(cost10)} ${sym})</button>
+            <button data-qty="1">${forgeBuyLabel(bt, owned, 1, sym)}</button>
+            <button data-qty="10">${forgeBuyLabel(bt, owned, 10, sym)}</button>
           </div>`;
         row.querySelectorAll('button').forEach(btn => {
           btn.addEventListener('click', () => buyForgeBuilding(bt.id, parseInt(btn.dataset.qty, 10), btn, sym));
@@ -3246,8 +3259,14 @@ window.buyForgeBuilding = async function(buildingTypeId, qty, btnEl, sym){
   const { data, error } = await sb.schema('forge').rpc('buy_building', { p_building_type_id: buildingTypeId, p_quantity: qty });
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Gekauft: ${qty}× Gebäude für ${fmtCoin(row?.total_cost ?? 0)} ${sym}.`, true);
-  spawnFly('-' + fmtCoin(row?.total_cost ?? 0) + ' ' + sym, btnEl, false);
+  const cost = row?.total_cost ?? 0;
+  if (cost <= 0) {
+    showMsg('statusMsg', `Gekauft: ${qty}× Gebäude -- die erste Einheit ist gratis.`, true);
+    spawnFly('GRATIS', btnEl, false);
+  } else {
+    showMsg('statusMsg', `Gekauft: ${qty}× Gebäude für ${fmtCoin(cost)} ${sym}.`, true);
+    spawnFly('-' + fmtCoin(cost) + ' ' + sym, btnEl, false);
+  }
   await loadEverything({ light: true });
 };
 
