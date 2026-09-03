@@ -2,6 +2,19 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.16: RELAY-Nachtrag -- zwei Stellen gefunden, die beim v3.15-Rollout
+    vergessen wurden: (1) platform.snapshot_currency_balances() hatte eine
+    hartcodierte Waehrungsliste ohne RELAY, dadurch waeren nie Bestandsverlauf-
+    Datenpunkte entstanden, egal was das Frontend macht -- RELAY zur Liste
+    ergaenzt (betrifft sowohl den Pro-Spieler- als auch den globalen Snapshot).
+    (2) RELAY fehlte komplett in den beiden generischen Bestandsuebersichten:
+    neue sm-relay-Karte im Uebersicht-Tab (Sprungmaerkte-Grid, direkt neben
+    PULSE) und neuer walletRelayChart im Wallet-Tab ("Alle Sprungmaerkte &
+    Ressourcen"-Grid) -- beide laufen ueber die bereits generischen RPCs
+    (get_my_wallet_balances/get_my_currency_history), kein weiterer Backend-
+    Code noetig. Neue Akzentfarbe --indigo (#8A63F5, gleicher Ton wie der
+    RELAY-Eintrag in raenge.html) ergaenzt, damit RELAY sich von GOV (beide
+    sonst violet) unterscheidet.
   - v3.15: RELAY-Frontend (3. Mine, kooperativ, siehe relay_konzept.md) -- neuer
     Farm-Unterreiter "🌐 Relay" neben NRC/Pulse: Status-Karte (Balance, eigene Rate,
     Netzwerk-Rate, Anteil %, Exponent, Boost-Timer), Hinweis auf den fehlenden
@@ -235,7 +248,7 @@
     /* fuenfte Akzentfarbe: Blau -- fuer NEXUS / den uebergreifenden Markt */
     --blue:#2F8CFF; --blue-dim:rgba(47,140,255,0.14);
     --up:#3ddc84; --down:#ff5d5d; --mono:'JetBrains Mono', monospace;
-    --cyan:#22D3EE; --pink:#FF4FA3; --teal:#2DD4A7; --lime:#B4E61D;
+    --cyan:#22D3EE; --pink:#FF4FA3; --teal:#2DD4A7; --lime:#B4E61D; --indigo:#8A63F5;
   }
   *{ box-sizing:border-box; }
   html{ scroll-behavior:smooth; }
@@ -599,6 +612,7 @@
   .sm-drift .kc-value{ color:var(--blue); }
   .sm-cycle .kc-value{ color:var(--up); }
   .sm-pulse .kc-value{ color:var(--cyan); }
+  .sm-relay .kc-value{ color:var(--indigo); }
   .sm-ionx .kc-value{ color:var(--pink); }
   .sm-anch .kc-value{ color:var(--teal); }
   .sm-gridcoin .kc-value{ color:var(--lime); }
@@ -978,6 +992,10 @@
           <div class="kc-label">PULSE <span class="kc-tab-hint">⛏️ Farm</span></div>
           <div class="kc-value js-balance-pulse">–</div>
         </div>
+        <div class="sm-card sm-relay">
+          <div class="kc-label">RELAY <span class="kc-tab-hint">⛏️ Farm</span></div>
+          <div class="kc-value js-balance-relay">–</div>
+        </div>
         <div class="sm-card sm-ionx">
           <div class="kc-label">IONX <span class="kc-tab-hint">🪙 Markt</span></div>
           <div class="kc-value js-balance-ionx">–</div>
@@ -1082,6 +1100,10 @@
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--cyan);"></i> PULSE <span class="kc-tab-hint">⛏️ Farm</span></h4>
           <div class="chart-box"><canvas id="walletPulseChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-nova" style="background:var(--indigo);"></i> RELAY <span class="kc-tab-hint">⛏️ Farm</span></h4>
+          <div class="chart-box"><canvas id="walletRelayChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--pink);"></i> IONX <span class="kc-tab-hint">🪙 Markt</span></h4>
@@ -1854,6 +1876,7 @@ let walletQntmChart = null;
 let walletDriftChart = null;
 let walletCycleChart = null;
 let walletPulseChart = null;
+let walletRelayChart = null;
 let walletIonxChart = null;
 let walletAnchChart = null;
 let walletNvltChart = null;
@@ -2092,7 +2115,7 @@ function enterGame(){
       if (novaChart) novaChart.resize();
       if (scChart) scChart.resize();
       [walletStblChart, walletVoltChart, walletGovChart, walletQntmChart, walletDriftChart,
-       walletCycleChart, walletPulseChart, walletIonxChart, walletAnchChart, walletNvltChart, walletGridChart]
+       walletCycleChart, walletPulseChart, walletRelayChart, walletIonxChart, walletAnchChart, walletNvltChart, walletGridChart]
         .forEach(c => { if (c) c.resize(); });
       // NEU (Egress-Fix): loadWalletHistory()/loadAllWalletCurrencyCharts() laufen
       // nicht mehr automatisch bei jedem 5s-Tick, sondern nur noch on-demand beim
@@ -2376,6 +2399,7 @@ function initCharts(){
   walletDriftChart = makeCompact('walletDriftChart', '#4C8DFF', 'rgba(76,141,255,0.14)', commonOpts);
   walletCycleChart = makeCompact('walletCycleChart', '#3ddc84', 'rgba(61,220,132,0.14)', commonOpts);
   walletPulseChart = makeCompact('walletPulseChart', '#22D3EE', 'rgba(34,211,238,0.14)', commonOpts);
+  walletRelayChart = makeCompact('walletRelayChart', '#8A63F5', 'rgba(138,99,245,0.14)', commonOpts);
   walletIonxChart = makeCompact('walletIonxChart', '#FF4FA3', 'rgba(255,79,163,0.14)', commonOpts);
   walletAnchChart = makeCompact('walletAnchChart', '#2DD4A7', 'rgba(45,212,167,0.14)', commonOpts);
   walletNvltChart = makeCompact('walletNvltChart', '#E8E6E3', 'rgba(232,230,227,0.14)', commonOpts);
@@ -3957,6 +3981,7 @@ async function loadAllWalletCurrencyCharts(){
     loadCurrencyBalanceChart('DRIFT', [walletDriftChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('CYCLE', [walletCycleChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('PULSE', [walletPulseChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('RELAY', [walletRelayChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('IONX', [walletIonxChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('ANCH', [walletAnchChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('NVLT', [walletNvltChart], currentWalletHours, currentWalletBucket),
