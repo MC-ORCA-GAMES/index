@@ -2,6 +2,37 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.26: Guter Fang von Jens -- die RELAY-Reserve-Bar im Bank-Tab hatte gar
+    kein eigenes CSS. #pulseBankBar/#cycleBankBar/#sigilBankBar haben jeweils
+    einen eigenen scoped Block fuer .bb-fill/.bb-track/.bb-label/.bb-value in
+    ihrer Marken-Farbe (Teal/Violett/Pink) -- #relayBankBar fehlte dieser Block
+    komplett, seit die Karte in v3.15 dazukam. Ohne id-Scope griff fuer diese
+    Klassen ueberhaupt keine Regel (es gibt keinen generischen .bb-fill-Fallback),
+    Balken/Werte liefen also komplett unstyled -- daher die "haessliche Farbe".
+    Neuer #relayBankBar-Block ergaenzt, 1:1 nach dem Muster von #pulseBankBar,
+    nur mit --indigo (#8A63F5) statt --teal, gleiche Farbe wie RELAY sonst
+    ueberall im UI (sm-relay-Kachel, RELAY-Waehrungspunkt etc.).
+  - v3.25: Bank-Tab-Reserve-Uebersicht (MOGC/PULSE/RELAY) sass in einem festen
+    2-Spalten-Grid (wallet-chart-grid-2col) -- mit 3 Karten drin ist die dritte
+    (RELAY) darum alleine in eine neue Zeile gerutscht, mit haesslicher leerer
+    Luecke daneben (v3.15 hatte das damals als "wraps sauber" durchgehen
+    lassen, sah in echt aber nicht sauber aus). Neue Klasse
+    wallet-chart-grid-3col ergaenzt (eigene Mobile-Fallback-Regel bei
+    max-width:640px, wie beim 2col-Pendant) und fuer dieses eine Panel
+    verwendet, statt die Spaltenzahl per Inline-Style zu erzwingen -- ein
+    Inline-Style haette die bestehende Mobile-Media-Query fuer diesen Block
+    ausgehebelt (Inline schlaegt jede Media-Query-Regel), also lieber eine
+    echte Klasse mit eigenem Fallback statt eines Hacks.
+  - v3.24: Auf Jens' Wunsch die kompakte "Sprungmaerkte"-Kachelreihe (13
+    Waehrungen, Name + aktueller Bestand + Tab-Hinweis wo man sie verwaltet)
+    zusaetzlich in den Wallet-Tab gesetzt, direkt zwischen dem obersten
+    "Wallet"-Panel (NRC/MOGC) und "Kontostand -- Verlauf" (dem Panel mit den
+    Zeitraum-Buttons 1 Std/24 Std/7 Tage/30 Tage/Immer) -- vorher stand die
+    Kachelreihe nur im Uebersicht-Tab, im Wallet-Tab gab's fuer den schnellen
+    Ueberblick nichts vor den grossen Verlaufs-Diagrammen weiter unten. Reine
+    Kopie derselben Kacheln inkl. dem gerade erst ergaenzten NVLT-Eintrag --
+    alle js-balance-X-Klassen sind global, kein neues JS noetig, auch nicht
+    fuers Refreshen (laeuft schon ueber die bestehenden querySelectorAll-Calls).
   - v3.23: Genau die Luecke, die v3.17 mal fuer RELAY gefunden hatte, gab's noch
     einmal fuer NVLT: das kompakte "Sprungmaerkte"-Panel im Uebersicht-Tab
     hatte 12 Karten (STBL/VOLT/GOV/QNTM/DRIFT/CYCLE/PULSE/RELAY/IONX/ANCH/
@@ -480,6 +511,20 @@
   #pulseBankBar .bb-payout-name{ color:var(--fg-faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #pulseBankBar .bb-payout-amount{ color:var(--fg); }
 
+  #relayBankBar{ font-family:var(--mono); }
+  #relayBankBar .bb-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:12px; margin-bottom:9px; }
+  #relayBankBar .bb-label{ color:var(--fg-faint); display:flex; align-items:center; gap:7px; }
+  #relayBankBar .bb-label .bb-icon{ color:var(--indigo); }
+  #relayBankBar .bb-value{ color:var(--indigo); font-weight:600; }
+  #relayBankBar .bb-track{ position:relative; height:8px; border-radius:999px; background:rgba(138,99,245,0.1); overflow:hidden; }
+  #relayBankBar .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, #4a3480, var(--indigo)); box-shadow:0 0 12px rgba(138,99,245,0.65), 0 0 2px rgba(138,99,245,0.9); transition:width .8s cubic-bezier(.2,.8,.2,1); }
+  #relayBankBar .bb-sub{ font-size:10.5px; color:var(--fg-faint); margin-top:6px; }
+  #relayBankBar .bb-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; padding:4px 0; border-top:1px solid var(--line); }
+  #relayBankBar .bb-payout-row:first-child{ border-top:none; }
+  #relayBankBar .bb-payout-rank{ color:var(--indigo); font-weight:600; min-width:22px; }
+  #relayBankBar .bb-payout-name{ color:var(--fg-faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #relayBankBar .bb-payout-amount{ color:var(--fg); }
+
   /* CYCLE/SIGIL-Dividenden-Reserve -- kompakte Variante (kleiner als PULSE-Reserve,
      da hier oft mehrere Bloecke pro Panel sichtbar sind: Orderbuch + Reserve +
      eigene Orders). Rang wandert mit in die bb-sub-Zeile statt eigener Zeile,
@@ -591,6 +636,8 @@
      (kein .compact mehr) für die restlichen Sprungmärkte/Ressourcen -- läuft über dieselben
      Zeitraum-Tabs (walletRangeTabs) wie novaChart/scChart, statt fest auf 24 Std. */
   .wallet-chart-grid-2col{ display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; }
+  .wallet-chart-grid-3col{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
+  @media (max-width:640px){ .wallet-chart-grid-3col{ grid-template-columns:1fr; } }
   .wallet-chart-grid-2col .mc-item h4{ font-family:'Space Grotesk'; font-size:12.5px; font-weight:600; margin:0 0 8px;
     display:flex; align-items:center; gap:6px; color:var(--fg-dim); }
   @media (max-width:640px){ .wallet-chart-grid-2col{ grid-template-columns:1fr; } }
@@ -1126,6 +1173,64 @@
     </div>
 
     <div class="panel">
+      <h3>Sprungmärkte <span class="tag">— kompakt, Details & Kauf/Verkauf in den Tabs Markt/Bank</span></h3>
+      <div class="sm-grid compact-grid">
+        <div class="sm-card sm-stable">
+          <div class="kc-label">STBL <span class="kc-tab-hint">🏦 Bank</span></div>
+          <div class="kc-value js-balance-stbl">–</div>
+        </div>
+        <div class="sm-card sm-volt">
+          <div class="kc-label">VOLT <span class="kc-tab-hint">🪙 Markt</span></div>
+          <div class="kc-value js-balance-volt">–</div>
+        </div>
+        <div class="sm-card sm-gov">
+          <div class="kc-label">GOV <span class="kc-tab-hint">🪙 Markt</span></div>
+          <div class="kc-value js-balance-gov">–</div>
+        </div>
+        <div class="sm-card sm-qntm">
+          <div class="kc-label">QNTM <span class="kc-tab-hint">🪙 Markt</span></div>
+          <div class="kc-value js-balance-qntm">–</div>
+        </div>
+        <div class="sm-card sm-drift">
+          <div class="kc-label">DRIFT <span class="kc-tab-hint">🪙 Markt</span></div>
+          <div class="kc-value js-balance-drift">–</div>
+        </div>
+        <div class="sm-card sm-cycle">
+          <div class="kc-label">CYCLE <span class="kc-tab-hint">🪙 Markt</span></div>
+          <div class="kc-value js-balance-cycle">–</div>
+        </div>
+        <div class="sm-card sm-pulse">
+          <div class="kc-label">PULSE <span class="kc-tab-hint">⛏️ Farm</span></div>
+          <div class="kc-value js-balance-pulse">–</div>
+        </div>
+        <div class="sm-card sm-relay">
+          <div class="kc-label">RELAY <span class="kc-tab-hint">⛏️ Farm</span></div>
+          <div class="kc-value js-balance-relay">–</div>
+        </div>
+        <div class="sm-card sm-ionx">
+          <div class="kc-label">IONX <span class="kc-tab-hint">🪙 Markt</span></div>
+          <div class="kc-value js-balance-ionx">–</div>
+        </div>
+        <div class="sm-card sm-anch">
+          <div class="kc-label">ANCH <span class="kc-tab-hint">🏦 Bank</span></div>
+          <div class="kc-value js-balance-anch">–</div>
+        </div>
+        <div class="sm-card sm-stable">
+          <div class="kc-label">NVLT <span class="kc-tab-hint">🏦 Bank</span></div>
+          <div class="kc-value js-balance-nvlt">–</div>
+        </div>
+        <div class="sm-card sm-gridcoin">
+          <div class="kc-label">GRID <span class="kc-tab-hint">🪙 Markt</span></div>
+          <div class="kc-value js-balance-grid">–</div>
+        </div>
+        <div class="sm-card sm-sigil">
+          <div class="kc-label">SIGIL <span class="kc-tab-hint">🏆 Erfolge</span></div>
+          <div class="kc-value js-balance-sigil">–</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
       <h3>Kontostand — Verlauf <span class="tag">— alle 60 Sek. ein neuer Punkt</span></h3>
       <div class="wallet-range-tabs" id="walletRangeTabs">
         <button type="button" class="wr-tab" data-hours="1" data-bucket="1">1 Std</button>
@@ -1574,7 +1679,7 @@
     </div>
 
     <div class="tab-page" id="tabPage-bank">
-    <div class="wallet-chart-grid-2col" style="margin-bottom:18px;">
+    <div class="wallet-chart-grid-3col" style="margin-bottom:18px;">
       <div class="panel">
         <h3>🏦 Zentralbank-Reserve <span class="tag">— aus 1&nbsp;% jedes Mining-Ertrags</span></h3>
         <div id="bankBarBankTab" class="bank-bar-box compact"></div>
