@@ -14088,6 +14088,13 @@ document.getElementById('startSettingsBtn').addEventListener('click', async ()=>
     : null;
   var supabaseClient = window.__cloudSupabase;
   window.__cloudUser = null;
+  // NEU (Gast-Sperre): geteilter Gast-Account (siehe nexus/game.html, Migration
+  // create_nexus_shared_guest_account) darf in den 4 anderen Spielen KEINE Cloud-Daten
+  // hoch- oder runterladen -- sonst wuerden sich alle Gast-Besucher gegenseitig die
+  // Spielstaende ueberschreiben. __isGuestAccount() wird von __cloudUpsert, dem manuellen
+  // Sync-Button und __cloudSyncOnLogin geprueft.
+  var GUEST_USER_ID = 'c0ffee00-0000-4000-8000-000000000001';
+  window.__isGuestAccount = function(){ return !!(window.__cloudUser && window.__cloudUser.id === GUEST_USER_ID); };
   // NEU (Bugfix Race-Condition): siehe __cloudUpsert / __cloudSyncOnLogin weiter unten.
   window.__cloudSyncLocked = false;
   window.__cloudSyncBusy = false;
@@ -14114,6 +14121,12 @@ document.getElementById('startSettingsBtn').addEventListener('click', async ()=>
     if(hudStatusVal) hudStatusVal.style.color = uiState === 'in' ? '#8fd18f' : '';
     var emailEl = document.getElementById('cloudUserEmail');
     if(emailEl) emailEl.textContent = window.__cloudUser ? window.__cloudUser.email : '—';
+    // NEU (Gast-Sperre): Button/Status im UI klar als gesperrt markieren, statt nur beim
+    // Klick eine Fehlermeldung zu zeigen.
+    var __isGuest = window.__isGuestAccount && window.__isGuestAccount();
+    var __syncBtn = document.getElementById('cloudManualSyncBtn');
+    if(__syncBtn) __syncBtn.textContent = __isGuest ? '🔒 Gast-Modus: kein Cloud-Sync' : '⟳ Jetzt synchronisieren';
+    if(__isGuest) setStatus('Gast-Modus: Spielstände werden nur lokal auf diesem Gerät gespeichert, nicht in der Cloud.', false);
   }
 
   if(hudStatus){
@@ -14182,6 +14195,8 @@ document.getElementById('startSettingsBtn').addEventListener('click', async ()=>
     // Konflikt-Dialog mit Badges zeigt, statt dass der Nutzer selbst die Richtung waehlen muss.
     document.getElementById('cloudManualSyncBtn').addEventListener('click', async function(){
       if(!window.__cloudUser || !window.__cloudSupabase){ setStatus('Nicht eingeloggt.', true); return; }
+      // NEU (Gast-Sperre): der geteilte Gast-Account darf hier weder herunter- noch hochladen.
+      if(window.__isGuestAccount && window.__isGuestAccount()){ setStatus('Cloud-Sync ist im Gast-Modus nicht verfügbar. Melde dich mit deiner eigenen E-Mail an, um deinen Fortschritt zu speichern.', true); return; }
       if(window.__cloudSyncBusy){ setStatus('Sync laeuft bereits — bitte kurz warten.', true); return; }
       window.__cloudSyncBusy = true;
       setStatus('Vergleiche …', false);
@@ -14253,6 +14268,8 @@ document.getElementById('startSettingsBtn').addEventListener('click', async ()=>
 <script>
 window.__cloudUpsert = async function(key, value){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Gast-Sperre): Gast-Account speichert nichts in der Cloud (siehe __isGuestAccount weiter oben).
+  if(window.__isGuestAccount && window.__isGuestAccount()) return;
   // NEU (Bugfix Race-Condition): Waehrend der initialen Sync-Entscheidung nach dem Login
   // laeuft, wird JEDER Upload blockiert -- __cloudUpsert ist der zentrale Fluchtpunkt aller
   // Schreibpfade (u.a. der direkte Aufruf beim normalen Spiel-Speichern), daher reicht die
@@ -14371,6 +14388,9 @@ function __cloudCustomConfirm(message, okLabel, cancelLabel, badges){
 }
 window.__cloudSyncOnLogin = async function(){
   if(!window.__cloudUser || !window.__cloudSupabase) return;
+  // NEU (Gast-Sperre): fuer den geteilten Gast-Account gibt es keinen automatischen Sync
+  // beim Login -- kein Download, kein Upload, kein Konflikt-Dialog.
+  if(window.__isGuestAccount && window.__isGuestAccount()) return;
   // NEU (Bugfix Doppel-Trigger): getSession() und onAuthStateChange koennen beide gleichzeitig
   // __cloudSyncOnLogin() ausloesen (z.B. direkt beim Laden, wenn schon eine Session besteht).
   // Ohne Schutz koennten dadurch zwei Dialoge gleichzeitig entstehen. Einfache Reentrancy-Sperre.
