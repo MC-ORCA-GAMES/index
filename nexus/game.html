@@ -2,6 +2,15 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.20: RELAY→MOGC-Verkaufskurs von 1:1 auf 100:1 runtergesetzt (Jens' Wunsch --
+    bei 1:1 war die Investition in ein Rig-Set in unter 4h wieder drin, reine
+    Premium-Waehrung querfinanziert ueber die kooperative Mine). Serverseitig
+    schon erledigt (crypto_farm.sell_relay: v_rate von 1.0 auf 0.01). Hier nur
+    die zwei Frontend-Textstellen nachgezogen, die den alten Platzhalter-Kurs
+    im UI behauptet haben ("Relay verkaufen"-Panel-Tag, JS-Kommentar drueber) --
+    die eigentliche Kauf-Logik hing nie an einem hartcodierten Kurs im Frontend,
+    sondern liest mogc_gained direkt aus der RPC-Antwort, war also schon vorher
+    automatisch korrekt.
   - v3.19: Zwei Nachzuegler von Jens' Screenshot-Rundgang. (1) NVLT-Chart-Achse
     zeigte -1 bis 1 bei durchgehend 0 (NVLT nie befuellt) -- Chart.js zentriert
     bei konstanten Werten standardmaessig symmetrisch um den Wert, statt bei 0
@@ -1284,7 +1293,7 @@
       </div>
 
       <div class="panel">
-        <h3>Relay verkaufen <span class="tag">— fixer Kurs 1:1 gegen MOGC (Platzhalter)</span></h3>
+        <h3>Relay verkaufen <span class="tag">— fixer Kurs 100:1 gegen MOGC</span></h3>
         <div class="sell-box">
           <input type="number" id="relaySellInput" min="0" step="any" placeholder="Menge Relay">
           <button type="button" class="btn btn-ghost" id="relaySellMaxBtn">Alles</button>
@@ -3006,7 +3015,7 @@ document.getElementById('relayBoostBtn').addEventListener('click', async () => {
   await loadEverything({ light: true });
 });
 
-/* ---------- Relay verkaufen (fixer 1:1-Kurs, siehe crypto_farm.sell_relay) ---------- */
+/* ---------- Relay verkaufen (fixer 100:1-Kurs, siehe crypto_farm.sell_relay) ---------- */
 document.getElementById('relaySellMaxBtn').addEventListener('click', () => {
   document.getElementById('relaySellInput').value = relayBalance > 0 ? relayBalance : '';
 });
