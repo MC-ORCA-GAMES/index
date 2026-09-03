@@ -1936,6 +1936,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 let currentUser = null;
+function isGuest(){ return currentUser?.email === 'gast@mc-orca-games.local'; }
 let rigTypes = [];
 let playerRigs = {};      // rig_type_id -> quantity
 let shopItems = [];
@@ -3575,7 +3576,12 @@ function applySprungmaerkteState(gs){
     dotsWrap.appendChild(dot);
   }
   const cycleClaimBtn = document.getElementById('cycleClaimBtn');
-  if (streak.claimed_today) {
+  if (isGuest()) {
+    document.getElementById('cycleClaimHint').textContent =
+      'Für Gast-Accounts nicht verfügbar — mach dir einen eigenen Account, um CYCLE zu sammeln.';
+    cycleClaimBtn.disabled = true;
+    pendingCycleReminder = null;
+  } else if (streak.claimed_today) {
     document.getElementById('cycleClaimHint').textContent =
       `Heute schon abgeholt — bis morgen! Längste Streak bisher: ${streak.longest_streak ?? 0} Tage.`;
     cycleClaimBtn.disabled = true;
