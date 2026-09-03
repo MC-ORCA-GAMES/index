@@ -2,6 +2,32 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.23: Genau die Luecke, die v3.17 mal fuer RELAY gefunden hatte, gab's noch
+    einmal fuer NVLT: das kompakte "Sprungmaerkte"-Panel im Uebersicht-Tab
+    hatte 12 Karten (STBL/VOLT/GOV/QNTM/DRIFT/CYCLE/PULSE/RELAY/IONX/ANCH/
+    GRID/SIGIL), NVLT fehlte komplett -- im Wallet-Tab ("Alle Sprungmaerkte
+    & Ressourcen") stand es dagegen schon laenger drin. Neue sm-card zwischen
+    ANCH und GRID ergaenzt, gleiche Reihenfolge wie im Wallet-Tab. Farbe
+    bewusst sm-stable (weiss) statt sm-anch (teal) gewaehlt, damit sie sich
+    optisch nicht mit dem ANCH-Kaertchen direkt daneben ueberschneidet --
+    passt auch zur Darstellung im Wallet-Tab, wo NVLT ebenfalls in --fg
+    (weiss) eingefaerbt ist. js-balance-nvlt wird schon laenger generisch
+    ueber querySelectorAll befuellt, also kein neues JS noetig.
+  - v3.22: "Relay verkaufen"-Panel vom Farm-Tab (Reiter Relay) in den Bank-Tab
+    verschoben, direkt unter die Reserve-Uebersicht (neben der eh schon dort
+    stehenden RELAY-Reserve-Karte) -- Jens' Logik: das ist kein Farming-Vorgang,
+    sondern eine Auszahlung/Umtausch-Funktion wie STBL/ANCH/NVLT-Auszahlen,
+    gehoert also zu den Bank-Funktionen statt zu den Rig-Kaeufen. Reines
+    Markup-Verschieben, keine neue Logik -- relaySellInput/-MaxBtn/-Btn und
+    ihre Event-Listener (Zeile ~3024) blieben unveraendert, die haengen nicht
+    am sichtbaren Tab, nur an den Element-IDs. Im Farm-Tab bleibt bei Relay
+    jetzt nur noch Status/Rigs/Signal-Verstaerker/Skillbaum.
+  - v3.21: GOV-Panel im Markt-Tab war ein eigenstaendiges volles .panel ueber der
+    ganzen Breite, obwohl VOLT/QNTM/DRIFT/IONX/GRID direkt drunter alle kompakt
+    im .sm-market-grid sitzen (auto-fit, min. 320px pro Karte). Einfach die
+    GOV-Karte als erstes Kind in denselben Grid-Container verschoben -- reiht
+    sich jetzt gleich gross neben den anderen Sprungmarkt-Karten ein, kein
+    CSS noetig, die Grid-Regel greift automatisch.
   - v3.20: RELAY→MOGC-Verkaufskurs von 1:1 auf 100:1 runtergesetzt (Jens' Wunsch --
     bei 1:1 war die Investition in ein Rig-Set in unter 4h wieder drin, reine
     Premium-Waehrung querfinanziert ueber die kooperative Mine). Serverseitig
@@ -1049,6 +1075,10 @@
           <div class="kc-label">ANCH <span class="kc-tab-hint">🏦 Bank</span></div>
           <div class="kc-value js-balance-anch">–</div>
         </div>
+        <div class="sm-card sm-stable">
+          <div class="kc-label">NVLT <span class="kc-tab-hint">🏦 Bank</span></div>
+          <div class="kc-value js-balance-nvlt">–</div>
+        </div>
         <div class="sm-card sm-gridcoin">
           <div class="kc-label">GRID <span class="kc-tab-hint">🪙 Markt</span></div>
           <div class="kc-value js-balance-grid">–</div>
@@ -1293,15 +1323,6 @@
       </div>
 
       <div class="panel">
-        <h3>Relay verkaufen <span class="tag">— fixer Kurs 100:1 gegen MOGC</span></h3>
-        <div class="sell-box">
-          <input type="number" id="relaySellInput" min="0" step="any" placeholder="Menge Relay">
-          <button type="button" class="btn btn-ghost" id="relaySellMaxBtn">Alles</button>
-          <button type="button" class="btn btn-primary" id="relaySellBtn">Verkaufen</button>
-        </div>
-      </div>
-
-      <div class="panel">
         <h3>Relais-Netzwerk-Skillbaum <span class="tag">— bezahlt mit Relay, nicht mit Prestige-Punkten</span></h3>
         <div class="skill-tree" id="relaySkillTree"></div>
       </div>
@@ -1381,15 +1402,15 @@
       </div>
     </div>
 
-    <div class="panel">
-      <h3>GOV — Prestige umwandeln <span class="tag">— Umtauschkurs: 1 Prestige-Punkt = 2 GOV</span></h3>
-      <div class="sm-hint" id="govClaimHint">–</div>
-      <button type="button" class="btn btn-primary" id="govClaimBtn" style="margin-top:10px;">GOV abholen</button>
-      <h4 style="margin-top:16px;"><i class="dot-nova" style="background:var(--violet);"></i> Bestandsverlauf</h4>
-      <div class="chart-box compact"><canvas id="govChart"></canvas></div>
-    </div>
-
     <div class="sm-market-grid">
+      <div class="panel">
+        <h3>GOV — Prestige umwandeln <span class="tag">— Umtauschkurs: 1 Prestige-Punkt = 2 GOV</span></h3>
+        <div class="sm-hint" id="govClaimHint">–</div>
+        <button type="button" class="btn btn-primary" id="govClaimBtn" style="margin-top:10px;">GOV abholen</button>
+        <h4 style="margin-top:16px;"><i class="dot-nova" style="background:var(--violet);"></i> Bestandsverlauf</h4>
+        <div class="chart-box compact"><canvas id="govChart"></canvas></div>
+      </div>
+
       <div class="panel">
         <h3><span class="live-dot"></span>VOLT-Kurs <span class="tag">— eigener Markt, deutlich wilder als Nova-Rift</span></h3>
         <div class="market-price-big" id="voltPriceDisplay">Kurs: –</div>
@@ -1565,6 +1586,15 @@
       <div class="panel">
         <h3>🏦 Zentralbank — RELAY-Reserve <span class="tag">— Netzwerk-Skim, ausgeschüttet an Top-10-Relay-Halter</span></h3>
         <div id="relayBankBar"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>🌐 Relay verkaufen <span class="tag">— fixer Kurs 100:1 gegen MOGC</span></h3>
+      <div class="sm-hint" style="margin-bottom:12px;">Relay selbst verdienst du weiter drüben im ⛏️ Farm-Tab, Reiter 🌐 Relay — hier tauschst du gehaltenes Relay in MOGC, quasi die Auszahlung aus dem Netzwerk-Topf über die Zentralbank-Reserve oben.</div>
+      <div class="sell-box">
+        <input type="number" id="relaySellInput" min="0" step="any" placeholder="Menge Relay">
+        <button type="button" class="btn btn-ghost" id="relaySellMaxBtn">Alles</button>
+        <button type="button" class="btn btn-primary" id="relaySellBtn">Verkaufen</button>
       </div>
     </div>
     <div class="panel">
