@@ -328,6 +328,14 @@
         sowie alle Cloud-Spielstände (Aetheris, Deep Anchor, Path of the Stars, Astrion). Lokal auf diesem
         Gerät gespeicherte Spielstände sind davon nicht betroffen. Das kann nicht rückgängig gemacht werden.</p>
 
+      <!-- NEU (Gast-Sperre): Der Gast-Account ist ein einziger geteilter Auth-User fuer alle
+           Besucher (siehe GUEST_USER_ID weiter unten) -- ein Loeschen wuerde den Login fuer
+           ALLE kaputt machen, nicht nur "das eigene Konto". Serverseitig blockiert die
+           Edge Function delete-account das zusaetzlich hart, hier nur die UI dafuer. -->
+      <p class="danger-text" id="dangerGuestNote" style="display:none;">Der Gast-Account ist ein
+        geteilter Account für alle Besucher und kann deshalb nicht gelöscht werden. Melde dich mit
+        deiner eigenen E-Mail an, um ein eigenes Konto zu haben, das du auch löschen kannst.</p>
+
       <div id="deleteStep1">
         <button class="btn btn-danger-outline" id="deleteAccountBtn" type="button" style="width:auto; padding:11px 20px;">Konto unwiderruflich löschen</button>
       </div>
@@ -342,6 +350,7 @@
       </div>
       <div class="fstatus" id="deleteStatus"></div>
     </div>
+
 
   </section>
 
@@ -830,12 +839,21 @@
       // Gast-Account: Name ist serverseitig per Trigger gesperrt (siehe Migration
       // create_nexus_shared_guest_account) -- Feld hier zusaetzlich sichtbar
       // deaktivieren, statt die Person erst beim Speichern ueberrascht zu lassen.
+      var dangerGuestNote = document.getElementById('dangerGuestNote');
+      var deleteStep1El = document.getElementById('deleteStep1');
+      var deleteStep2El = document.getElementById('deleteStep2');
       if(user.id === GUEST_USER_ID){
         usernameInput.disabled = true;
         usernameInput.title = 'Der Gast-Account ist ein geteilter Account — der Name kann nicht geändert werden.';
         setProfileStatus('Du bist als Gast eingeloggt — der Name "Gast" ist fest, da der Account von allen Besuchern geteilt wird.', false);
+        // NEU (Gast-Sperre): Loeschen-Buttons ausblenden, stattdessen Erklaerung zeigen.
+        if(dangerGuestNote) dangerGuestNote.style.display = '';
+        if(deleteStep1El) deleteStep1El.style.display = 'none';
+        if(deleteStep2El) deleteStep2El.style.display = 'none';
       } else {
         usernameInput.disabled = false;
+        if(dangerGuestNote) dangerGuestNote.style.display = 'none';
+        if(deleteStep1El) deleteStep1El.style.display = '';
       }
     }catch(e){
       console.warn('Profil konnte nicht geladen werden', e);
@@ -952,6 +970,13 @@
 
   document.getElementById('deleteConfirmBtn').addEventListener('click', async function(){
     if(!supabaseClient || !window.__cloudUser) return;
+    // NEU (Gast-Sperre, Defense-in-Depth): serverseitig blockiert die Edge Function
+    // delete-account das ohnehin hart -- diese Pruefung hier ist nur zusaetzlich, falls
+    // die UI umgangen wird (z. B. per DevTools-Klick auf den versteckten Button).
+    if(window.__cloudUser.id === GUEST_USER_ID){
+      setDeleteStatus('Der Gast-Account kann nicht gelöscht werden.', true);
+      return;
+    }
     if(deleteConfirmInput.value.trim().toUpperCase() !== 'LÖSCHEN'){
       setDeleteStatus('Bitte genau „LÖSCHEN" eingeben.', true);
       return;

@@ -585,6 +585,16 @@
   .offline-modal-card .om-away{ font-family:var(--mono); font-size:12px; color:var(--fg-dim); margin-bottom:16px; }
   .offline-modal-card .om-amount{ font-family:'Space Grotesk'; font-size:32px; font-weight:700; color:var(--up); margin-bottom:20px; }
   .offline-modal-card .om-amount .om-plus{ font-size:20px; opacity:0.8; margin-right:2px; }
+  /* NEU (Offline-Earnings, mehrere Waehrungen statt nur NRC): Liste aus einer Zeile pro
+     Waehrung mit verdientem Betrag seit dem letzten Besuch -- Pulse/Relay-Farmen und die
+     3 Sparkonten (STBL/ANCH/NVLT) aendern sich schliesslich auch waehrend man weg ist. */
+  .offline-modal-card .om-amount-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
+  .offline-modal-card .om-amount-row{ display:flex; align-items:center; justify-content:center; gap:8px; font-family:'Space Grotesk'; font-weight:700; color:var(--up); }
+  .offline-modal-card .om-amount-row .om-amount-icon{ font-size:17px; line-height:1; width:22px; text-align:center; flex-shrink:0; }
+  .offline-modal-card .om-amount-row .om-amount-icon img{ width:20px; height:20px; object-fit:contain; vertical-align:middle; }
+  .offline-modal-card .om-amount-row .om-amount-val{ font-size:22px; }
+  .offline-modal-card .om-amount-row:first-child .om-amount-val{ font-size:28px; }
+  .offline-modal-card .om-amount-row .om-plus{ font-size:16px; opacity:0.8; margin-right:1px; }
   .panel{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 22px; margin-bottom:18px; }
   .panel h3{ font-family:'Space Grotesk'; font-size:14px; font-weight:600; margin:0 0 16px; display:flex; align-items:center; gap:8px; }
   .panel h3 .tag{ font-weight:400; color:var(--fg-faint); font-size:12px; }
@@ -1862,7 +1872,7 @@
     <div class="om-icon"><img src="art/logo.png" alt="" aria-hidden="true"></div>
     <h3>Willkommen zurück!</h3>
     <div class="om-away" id="omAway"></div>
-    <div class="om-amount" id="omAmount"></div>
+    <div class="om-amount-list" id="omAmountList"></div>
     <button class="btn-block" id="omCloseBtn">Weitermachen</button>
   </div>
 </div>
@@ -2223,10 +2233,27 @@ function spawnFly(text, atEl, positive){
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove());
 }
-function showOfflinePopup(earned, elapsedMs){
+// NEU (Offline-Earnings, mehrere Waehrungen): earnings ist eine Liste aus
+// {currency, amount} (siehe crypto_farm.get_earnings_since_all), schon nach Betrag absteigend
+// sortiert und ohne 0-Eintraege. NRC bekommt weiterhin das Muenz-Icon aus dem Kartenspiel,
+// die anderen 5 Waehrungen ein passendes Emoji (identisch zu den Icons im Bank-/Farm-Tab).
+const OFFLINE_CURRENCY_ICON = {
+  NRC: '<img src="art/nova-rift-coin-32.png" alt="">',
+  PULSE: '⚡',
+  RELAY: '🌐',
+  STBL: '🏦',
+  ANCH: '🔒',
+  NVLT: '🌌'
+};
+function showOfflinePopup(earnings, elapsedMs){
   window.__offlinePopupOpen = true;
   document.getElementById('omAway').textContent = `Du warst ${fmtDuration(elapsedMs)} weg`;
-  document.getElementById('omAmount').innerHTML = `<span class="om-plus">+</span>${fmtCoin(earned)} <img class="coin-icon-sm" src="art/nova-rift-coin-32.png" alt="">`;
+  const listEl = document.getElementById('omAmountList');
+  listEl.innerHTML = earnings.map(e => `
+    <div class="om-amount-row">
+      <span class="om-amount-icon">${OFFLINE_CURRENCY_ICON[e.currency] || ''}</span>
+      <span class="om-amount-val"><span class="om-plus">+</span>${fmtCoin(e.amount)} ${e.currency}</span>
+    </div>`).join('');
   document.getElementById('offlineModal').classList.remove('hidden');
 }
 document.getElementById('omCloseBtn').addEventListener('click', () => {
@@ -2917,18 +2944,25 @@ async function applyFullGameState(gs){
   // statt alle einzelnen mining_log-Zeilen zu uebertragen und im Client zu
   // summieren -- bei langer Abwesenheit waeren das sonst tausende Zeilen fuer
   // eine einzige Zahl gewesen.
+  // NEU (Alle 6 Waehrungen statt nur NRC): get_earnings_since_all() fasst zusaetzlich Pulse-
+  // und Relay-Farm sowie STBL-/ANCH-/NVLT-Zinsen zusammen -- die aendern sich schliesslich
+  // genauso permanent im Hintergrund wie NRC. Alte get_earnings_since()-RPC bleibt fuer
+  // Abwaertskompatibilitaet unangetastet bestehen, wird hier aber nicht mehr aufgerufen.
   if (!firstLoadDone) {
     firstLoadDone = true;
     const lastSeen = getLastSeenTs();
     if (lastSeen) {
       const elapsedMs = Date.now() - lastSeen;
       if (elapsedMs > 60000) {
-        const { data: earnedSince } = await sb.schema('crypto_farm').rpc('get_earnings_since', {
+        const { data: earnedRows } = await sb.schema('crypto_farm').rpc('get_earnings_since_all', {
           p_since: new Date(lastSeen).toISOString()
         });
-        const earned = Number(earnedSince) || 0;
-        if (earned > 0.005) {
-          showOfflinePopup(earned, elapsedMs);
+        const earnings = (earnedRows || [])
+          .map(r => ({ currency: r.currency, amount: Number(r.amount) || 0 }))
+          .filter(r => r.amount > 0.005)
+          .sort((a, b) => (a.currency === 'NRC' ? -1 : b.currency === 'NRC' ? 1 : b.amount - a.amount));
+        if (earnings.length) {
+          showOfflinePopup(earnings, elapsedMs);
         }
       }
     }
