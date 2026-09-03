@@ -2,6 +2,29 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.19: Zwei Nachzuegler von Jens' Screenshot-Rundgang. (1) NVLT-Chart-Achse
+    zeigte -1 bis 1 bei durchgehend 0 (NVLT nie befuellt) -- Chart.js zentriert
+    bei konstanten Werten standardmaessig symmetrisch um den Wert, statt bei 0
+    zu bleiben. Betraf potenziell jeden Bestandsverlauf-Chart mit noch keiner
+    Bewegung. WICHTIG: kein globales beginAtZero auf commonOpts/miniOpts, weil
+    dieselben Options-Objekte auch von den Kurs-/Markt-Charts (Kurs/VOLT/QNTM/
+    DRIFT/IONX/GRID) genutzt werden -- die sollen bewusst eng um ihren
+    aktuellen Bereich zoomen und duerfen nicht auf 0 gezwungen werden. Deshalb
+    neuer zeroFloor(opts)-Helper (flache Kopie mit y.beginAtZero:true), gezielt
+    nur auf die reinen Bestandsverlauf-Charts angewendet: novaChart/scChart
+    (Wallet-Tab oben), alle 13 wallet*Chart im "Alle Sprungmaerkte"-Grid,
+    stblChart/anchChart/govChart/cycleChart (Bank-Tab) und novaChartMini/
+    scChartMini (Übersicht-Verlauf). (2) SIGIL fehlte in der Übersicht
+    ("Sprungmaerkte"-Kachel-Grid) -- war schon vor RELAY so, jetzt als 12.
+    Kachel neben GRID ergaenzt (Markt-Tab hatte die Karte schon laenger).
+  - v3.18: Wallet-Tab -- "Alle Sprungmaerkte & Ressourcen"-Grid zeigte bei allen
+    13 Waehrungen (STBL/VOLT/GOV/QNTM/DRIFT/CYCLE/SIGIL/PULSE/RELAY/IONX/ANCH/
+    NVLT/GRID) nur den Verlaufs-Chart, aber nirgends die aktuelle Zahl dazu --
+    im Gegensatz zu NRC/MOGC oben drueber, die beide Chart UND Zahl haben.
+    Jetzt hat jede Kachel eine kc-value-Zeile mit dem aktuellen Bestand direkt
+    unterm Titel. Kein neues JS noetig -- alle .js-balance-X-Klassen werden
+    schon laenger ueber querySelectorAll() befuellt, das neue Element wird
+    also automatisch mitversorgt.
   - v3.17: Vollstaendigkeits-Check "was ich besitze" (Jens' Frage: gehoert alles,
     was man haelt, in den Wallet-Tab?) -- dabei zwei echte, RELAY-unabhaengige
     Luecken gefunden: (1) SIGIL hatte nie einen Verlaufs-Chart im Wallet-Tab
@@ -1021,6 +1044,10 @@
           <div class="kc-label">GRID <span class="kc-tab-hint">🪙 Markt</span></div>
           <div class="kc-value js-balance-grid">–</div>
         </div>
+        <div class="sm-card sm-sigil">
+          <div class="kc-label">SIGIL <span class="kc-tab-hint">🏆 Erfolge</span></div>
+          <div class="kc-value js-balance-sigil">–</div>
+        </div>
       </div>
     </div>
 
@@ -1088,54 +1115,67 @@
       <div class="wallet-chart-grid-2col">
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--fg);"></i> STBL <span class="kc-tab-hint">🏦 Bank</span></h4>
+          <div class="kc-value js-balance-stbl" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletStblChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-volt"></i> VOLT <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <div class="kc-value js-balance-volt" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletVoltChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--violet);"></i> GOV <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <div class="kc-value js-balance-gov" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletGovChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-qntm"></i> QNTM <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <div class="kc-value js-balance-qntm" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletQntmChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-drift"></i> DRIFT <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <div class="kc-value js-balance-drift" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletDriftChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova"></i> CYCLE <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <div class="kc-value js-balance-cycle" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletCycleChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--gold);"></i> SIGIL <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <div class="kc-value js-balance-sigil" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletSigilChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--cyan);"></i> PULSE <span class="kc-tab-hint">⛏️ Farm</span></h4>
+          <div class="kc-value js-balance-pulse" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletPulseChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--indigo);"></i> RELAY <span class="kc-tab-hint">⛏️ Farm</span></h4>
+          <div class="kc-value js-balance-relay" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletRelayChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--pink);"></i> IONX <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <div class="kc-value js-balance-ionx" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletIonxChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--teal);"></i> ANCH <span class="kc-tab-hint">🏦 Bank</span></h4>
+          <div class="kc-value js-balance-anch" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletAnchChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--fg);"></i> NVLT <span class="kc-tab-hint">🏦 Bank</span></h4>
+          <div class="kc-value js-balance-nvlt" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletNvltChart"></canvas></div>
         </div>
         <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--lime);"></i> GRID <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <div class="kc-value js-balance-grid" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletGridChart"></canvas></div>
         </div>
       </div>
@@ -2326,16 +2366,25 @@ function initCharts(){
     },
     elements: { point: { radius: 0 } }
   };
+  // FIX (Bestandsverlauf-Charts): Chart.js zentriert bei durchgehend konstanten Werten
+  // (z.B. NVLT, das noch nie befuellt wurde -- alle Punkte 0) die Y-Achse standardmaessig
+  // symmetrisch um den Wert (-1 bis 1 bei lauter Nullen), statt einfach bei 0 zu bleiben.
+  // Bei Kurs-/Markt-Charts (VOLT/QNTM/DRIFT/IONX/GRID/Kurs) ist das NICHT gewuenscht --
+  // die sollen weiter eng um ihren aktuellen Bereich zoomen, damit man Bewegung sieht.
+  // Deshalb kein globales beginAtZero auf commonOpts/miniOpts (träfe auch die Kurs-Charts),
+  // sondern nur gezielt fuer reine Bestandsverlauf-Charts (Wallet-Tab, NRC/MOGC oben,
+  // Übersicht-Minis) per Kopie mit beginAtZero:true auf der Y-Achse.
+  const zeroFloor = (opts) => ({ ...opts, scales: { ...opts.scales, y: { ...opts.scales.y, beginAtZero: true } } });
 
   novaChart = new Chart(document.getElementById('novaChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
-    options: commonOpts
+    options: zeroFloor(commonOpts)
   });
   scChart = new Chart(document.getElementById('scChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#D6303F', backgroundColor: 'rgba(214,48,63,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
-    options: commonOpts
+    options: zeroFloor(commonOpts)
   });
   marketChart = new Chart(document.getElementById('marketChart'), {
     type: 'line',
@@ -2386,22 +2435,22 @@ function initCharts(){
   stblChart = new Chart(document.getElementById('stblChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
-    options: compactOpts
+    options: zeroFloor(compactOpts)
   });
   anchChart = new Chart(document.getElementById('anchChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#2DD4A7', backgroundColor: 'rgba(45,212,167,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
-    options: compactOpts
+    options: zeroFloor(compactOpts)
   });
   govChart = new Chart(document.getElementById('govChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#B23AFF', backgroundColor: 'rgba(178,58,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
-    options: compactOpts
+    options: zeroFloor(compactOpts)
   });
   cycleChart = new Chart(document.getElementById('cycleChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
-    options: compactOpts
+    options: zeroFloor(compactOpts)
   });
 
   // ---- Wallet-Tab: "Alle Sprungmärkte & Ressourcen" -- eigene Canvas-Instanzen,
@@ -2415,29 +2464,29 @@ function initCharts(){
     data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: bg, fill: true, tension: 0.25, borderWidth: 2 }] },
     options: opts || compactOpts
   });
-  walletStblChart = makeCompact('walletStblChart', '#3ddc84', 'rgba(61,220,132,0.14)', commonOpts);
-  walletVoltChart = makeCompact('walletVoltChart', '#FF6A2B', 'rgba(255,106,43,0.14)', commonOpts);
-  walletGovChart = makeCompact('walletGovChart', '#B23AFF', 'rgba(178,58,255,0.14)', commonOpts);
-  walletQntmChart = makeCompact('walletQntmChart', '#D4AF37', 'rgba(212,175,55,0.14)', commonOpts);
-  walletDriftChart = makeCompact('walletDriftChart', '#4C8DFF', 'rgba(76,141,255,0.14)', commonOpts);
-  walletCycleChart = makeCompact('walletCycleChart', '#3ddc84', 'rgba(61,220,132,0.14)', commonOpts);
-  walletSigilChart = makeCompact('walletSigilChart', '#D4AF37', 'rgba(212,175,55,0.14)', commonOpts);
-  walletPulseChart = makeCompact('walletPulseChart', '#22D3EE', 'rgba(34,211,238,0.14)', commonOpts);
-  walletRelayChart = makeCompact('walletRelayChart', '#8A63F5', 'rgba(138,99,245,0.14)', commonOpts);
-  walletIonxChart = makeCompact('walletIonxChart', '#FF4FA3', 'rgba(255,79,163,0.14)', commonOpts);
-  walletAnchChart = makeCompact('walletAnchChart', '#2DD4A7', 'rgba(45,212,167,0.14)', commonOpts);
-  walletNvltChart = makeCompact('walletNvltChart', '#E8E6E3', 'rgba(232,230,227,0.14)', commonOpts);
-  walletGridChart = makeCompact('walletGridChart', '#B4E61D', 'rgba(180,230,29,0.14)', commonOpts);
+  walletStblChart = makeCompact('walletStblChart', '#3ddc84', 'rgba(61,220,132,0.14)', zeroFloor(commonOpts));
+  walletVoltChart = makeCompact('walletVoltChart', '#FF6A2B', 'rgba(255,106,43,0.14)', zeroFloor(commonOpts));
+  walletGovChart = makeCompact('walletGovChart', '#B23AFF', 'rgba(178,58,255,0.14)', zeroFloor(commonOpts));
+  walletQntmChart = makeCompact('walletQntmChart', '#D4AF37', 'rgba(212,175,55,0.14)', zeroFloor(commonOpts));
+  walletDriftChart = makeCompact('walletDriftChart', '#4C8DFF', 'rgba(76,141,255,0.14)', zeroFloor(commonOpts));
+  walletCycleChart = makeCompact('walletCycleChart', '#3ddc84', 'rgba(61,220,132,0.14)', zeroFloor(commonOpts));
+  walletSigilChart = makeCompact('walletSigilChart', '#D4AF37', 'rgba(212,175,55,0.14)', zeroFloor(commonOpts));
+  walletPulseChart = makeCompact('walletPulseChart', '#22D3EE', 'rgba(34,211,238,0.14)', zeroFloor(commonOpts));
+  walletRelayChart = makeCompact('walletRelayChart', '#8A63F5', 'rgba(138,99,245,0.14)', zeroFloor(commonOpts));
+  walletIonxChart = makeCompact('walletIonxChart', '#FF4FA3', 'rgba(255,79,163,0.14)', zeroFloor(commonOpts));
+  walletAnchChart = makeCompact('walletAnchChart', '#2DD4A7', 'rgba(45,212,167,0.14)', zeroFloor(commonOpts));
+  walletNvltChart = makeCompact('walletNvltChart', '#E8E6E3', 'rgba(232,230,227,0.14)', zeroFloor(commonOpts));
+  walletGridChart = makeCompact('walletGridChart', '#B4E61D', 'rgba(180,230,29,0.14)', zeroFloor(commonOpts));
 
   novaChartMini = new Chart(document.getElementById('novaChartMini'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
-    options: miniOpts
+    options: zeroFloor(miniOpts)
   });
   scChartMini = new Chart(document.getElementById('scChartMini'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#D6303F', backgroundColor: 'rgba(214,48,63,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
-    options: miniOpts
+    options: zeroFloor(miniOpts)
   });
   marketChartMini = new Chart(document.getElementById('marketChartMini'), {
     type: 'line',
