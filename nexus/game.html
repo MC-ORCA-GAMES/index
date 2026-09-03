@@ -1045,6 +1045,7 @@
       <button type="button" class="main-tab-btn active" data-tab="uebersicht" title="Übersicht" aria-label="Übersicht"><img class="mt-icon" src="art/tabs/overview.png" alt="Übersicht"></button>
       <button type="button" class="main-tab-btn" data-tab="wallet" title="Wallet" aria-label="Wallet"><img class="mt-icon" src="art/tabs/wallet.png" alt="Wallet"></button>
       <button type="button" class="main-tab-btn" data-tab="farm" title="Farm" aria-label="Farm"><img class="mt-icon" src="art/tabs/farm.png" alt="Farm"></button>
+      <button type="button" class="main-tab-btn" data-tab="aussenposten" title="Außenposten" aria-label="Außenposten"><span class="mt-icon-emoji">🏗️</span></button>
       <button type="button" class="main-tab-btn" data-tab="markt" title="Markt" aria-label="Markt"><img class="mt-icon" src="art/tabs/market.png" alt="Markt"></button>
       <button type="button" class="main-tab-btn" data-tab="handelsplatz" title="Handelsplatz" aria-label="Handelsplatz"><span class="mt-icon-emoji">🤝</span></button>
       <button type="button" class="main-tab-btn" data-tab="bank" title="Bank" aria-label="Bank"><span class="mt-icon-emoji">🏦</span></button>
@@ -1461,6 +1462,142 @@
         <div class="skill-tree" id="relaySkillTree"></div>
       </div>
     </div>
+    </div>
+
+    <div class="tab-page" id="tabPage-aussenposten">
+      <div class="panel">
+        <h3>🏗️ Außenposten <span class="tag">— Vorbereitung für „Nexus Singularity" (Arbeitstitel)</span></h3>
+        <div class="sm-hint">Metall, Kristall, Deuterium und Energie förderst du ganz normal hier in NEXUS — du kannst sie halten, ansammeln und am Markt handeln wie jede andere Währung auch. Über die Regler unten stellst du ein, wie viel Prozent der <b>neu geförderten</b> Menge automatisch einweg Richtung Nexus Singularity exportiert wird, sobald es so weit ist. Standard ist 0&nbsp;% — es geht nichts raus, bis du es aktiv einstellst.</div>
+        <div class="top-row" id="forgeBalanceRow"></div>
+      </div>
+
+      <div class="sub-tabs" id="aussenpostenSubTabs">
+        <button type="button" class="sub-tab active" data-forgesub="METAL">⛏️ Metall</button>
+        <button type="button" class="sub-tab" data-forgesub="KRISTALL">💎 Kristall</button>
+        <button type="button" class="sub-tab" data-forgesub="DEUT">🧪 Deuterium</button>
+        <button type="button" class="sub-tab" data-forgesub="ENERGIE">⚡ Energie</button>
+      </div>
+
+      <div class="sub-tab-page active" id="aussenpostenSub-METAL" data-forgeresource="METAL">
+        <div class="panel">
+          <h3>Metall <span class="tag">— Kaufwährung: Metall selbst</span></h3>
+          <div class="top-row">
+            <div class="stat-card">
+              <div class="label">Bestand</div>
+              <div class="value coin-value"><span class="js-forge-balance-METAL">–</span></div>
+              <div class="sub js-forge-rate-METAL">–</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Förder-Gebäude</h3>
+          <div class="forge-building-list" data-forgeresource="METAL"></div>
+        </div>
+        <div class="panel">
+          <h3>Export-Regler</h3>
+          <div class="sm-trade-box">
+            <input type="range" class="forge-export-slider" data-forgeresource="METAL" min="0" max="100" value="0" step="1" style="flex:1;">
+            <span class="forge-export-label" data-forgeresource="METAL" style="min-width:50px; text-align:right;">0 %</span>
+          </div>
+          <div class="sm-hint forge-export-preview" data-forgeresource="METAL" style="margin-top:6px;">–</div>
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary forge-export-save" data-forgeresource="METAL">Regler speichern</button>
+            <button type="button" class="btn forge-export-now" data-forgeresource="METAL">Jetzt alles senden</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-tab-page" id="aussenpostenSub-KRISTALL" data-forgeresource="KRISTALL">
+        <div class="panel">
+          <h3>Kristall <span class="tag">— Kaufwährung: Kristall selbst</span></h3>
+          <div class="top-row">
+            <div class="stat-card">
+              <div class="label">Bestand</div>
+              <div class="value coin-value"><span class="js-forge-balance-KRISTALL">–</span></div>
+              <div class="sub js-forge-rate-KRISTALL">–</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Förder-Gebäude</h3>
+          <div class="forge-building-list" data-forgeresource="KRISTALL"></div>
+        </div>
+        <div class="panel">
+          <h3>Export-Regler</h3>
+          <div class="sm-trade-box">
+            <input type="range" class="forge-export-slider" data-forgeresource="KRISTALL" min="0" max="100" value="0" step="1" style="flex:1;">
+            <span class="forge-export-label" data-forgeresource="KRISTALL" style="min-width:50px; text-align:right;">0 %</span>
+          </div>
+          <div class="sm-hint forge-export-preview" data-forgeresource="KRISTALL" style="margin-top:6px;">–</div>
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary forge-export-save" data-forgeresource="KRISTALL">Regler speichern</button>
+            <button type="button" class="btn forge-export-now" data-forgeresource="KRISTALL">Jetzt alles senden</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-tab-page" id="aussenpostenSub-DEUT" data-forgeresource="DEUT">
+        <div class="panel">
+          <h3>Deuterium <span class="tag">— Kaufwährung: Deuterium selbst</span></h3>
+          <div class="top-row">
+            <div class="stat-card">
+              <div class="label">Bestand</div>
+              <div class="value coin-value"><span class="js-forge-balance-DEUT">–</span></div>
+              <div class="sub js-forge-rate-DEUT">–</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Förder-Gebäude</h3>
+          <div class="forge-building-list" data-forgeresource="DEUT"></div>
+        </div>
+        <div class="panel">
+          <h3>Export-Regler</h3>
+          <div class="sm-trade-box">
+            <input type="range" class="forge-export-slider" data-forgeresource="DEUT" min="0" max="100" value="0" step="1" style="flex:1;">
+            <span class="forge-export-label" data-forgeresource="DEUT" style="min-width:50px; text-align:right;">0 %</span>
+          </div>
+          <div class="sm-hint forge-export-preview" data-forgeresource="DEUT" style="margin-top:6px;">–</div>
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary forge-export-save" data-forgeresource="DEUT">Regler speichern</button>
+            <button type="button" class="btn forge-export-now" data-forgeresource="DEUT">Jetzt alles senden</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-tab-page" id="aussenpostenSub-ENERGIE" data-forgeresource="ENERGIE">
+        <div class="panel">
+          <h3>Energie <span class="tag">— Kaufwährung: Energie selbst</span></h3>
+          <div class="top-row">
+            <div class="stat-card">
+              <div class="label">Bestand</div>
+              <div class="value coin-value"><span class="js-forge-balance-ENERGIE">–</span></div>
+              <div class="sub js-forge-rate-ENERGIE">–</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Förder-Gebäude</h3>
+          <div class="forge-building-list" data-forgeresource="ENERGIE"></div>
+        </div>
+        <div class="panel">
+          <h3>Export-Regler</h3>
+          <div class="sm-trade-box">
+            <input type="range" class="forge-export-slider" data-forgeresource="ENERGIE" min="0" max="100" value="0" step="1" style="flex:1;">
+            <span class="forge-export-label" data-forgeresource="ENERGIE" style="min-width:50px; text-align:right;">0 %</span>
+          </div>
+          <div class="sm-hint forge-export-preview" data-forgeresource="ENERGIE" style="margin-top:6px;">–</div>
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary forge-export-save" data-forgeresource="ENERGIE">Regler speichern</button>
+            <button type="button" class="btn forge-export-now" data-forgeresource="ENERGIE">Jetzt alles senden</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Export-Historie <span class="tag">— letzte 10, einweg Richtung Nexus Singularity</span></h3>
+        <div id="forgeExportHistory">–</div>
+      </div>
     </div>
 
     <div class="tab-page" id="tabPage-markt">
@@ -1951,6 +2088,13 @@ function isGuest(){ return currentUser?.email === 'gast@mc-orca-games.local'; }
 let rigTypes = [];
 let playerRigs = {};      // rig_type_id -> quantity
 let shopItems = [];
+/* ---------- Außenposten / Forge (Metall/Kristall/Deuterium/Energie) ---------- */
+const FORGE_RESOURCES = ['METAL', 'KRISTALL', 'DEUT', 'ENERGIE'];
+let forgeBuildingTypes = [];       // alle 40 Gebäude, ungefiltert
+let forgePlayerBuildings = {};     // building_type_id -> quantity
+let forgeBalances = { METAL: 0, KRISTALL: 0, DEUT: 0, ENERGIE: 0 };
+let forgeExportSettings = { export_pct_metal: 0, export_pct_kristall: 0, export_pct_deut: 0, export_pct_energie: 0 };
+let forgeSliderTouched = {};       // resource -> true, solange der Nutzer gerade zieht (nicht vom Server überschreiben)
 let inventoryItemIds = new Set();
 let currentBalance = 0;   // Nova-Rift (volatil, gehalten)
 let storeBalance = 0;     // MOGC / Store-Credits (stabil, zahlt den Premium-Shop)
@@ -3016,7 +3160,191 @@ async function applyFullGameState(gs){
   applyPulseState(gs);
   applyRelayState(gs);
   applySprungmaerkteState(gs);
+  applyForgeState(gs);
 }
+
+/* ---------- Außenposten / Forge: Zustand übernehmen + rendern ---------- */
+function applyForgeState(gs){
+  forgeBuildingTypes = gs.forge_building_types || [];
+  forgePlayerBuildings = {};
+  (gs.forge_player_buildings || []).forEach(r => { forgePlayerBuildings[r.building_type_id] = r.quantity; });
+
+  const bySymbol = {};
+  (gs.wallet_balances || []).forEach(row => { bySymbol[row.symbol] = Number(row.balance) || 0; });
+  FORGE_RESOURCES.forEach(sym => {
+    forgeBalances[sym] = bySymbol[sym] ?? 0;
+    document.querySelectorAll('.js-forge-balance-' + sym).forEach(el => {
+      el.textContent = fmtCoin(forgeBalances[sym]) + ' ' + sym;
+    });
+    const rate = forgeBuildingTypes
+      .filter(bt => bt.resource_symbol === sym)
+      .reduce((sum, bt) => sum + Number(bt.base_rate) * (forgePlayerBuildings[bt.id] || 0), 0);
+    const rateEl = document.querySelector('.js-forge-rate-' + sym);
+    if (rateEl) rateEl.textContent = `+${rate.toFixed(2)} ${sym}/min`;
+  });
+
+  forgeExportSettings = gs.forge_export_settings || { export_pct_metal: 0, export_pct_kristall: 0, export_pct_deut: 0, export_pct_energie: 0 };
+  const pctMap = {
+    METAL: forgeExportSettings.export_pct_metal,
+    KRISTALL: forgeExportSettings.export_pct_kristall,
+    DEUT: forgeExportSettings.export_pct_deut,
+    ENERGIE: forgeExportSettings.export_pct_energie
+  };
+  FORGE_RESOURCES.forEach(sym => {
+    if (forgeSliderTouched[sym]) return; // Nutzer zieht gerade selbst -> nicht überschreiben
+    const slider = document.querySelector('.forge-export-slider[data-forgeresource="' + sym + '"]');
+    const label = document.querySelector('.forge-export-label[data-forgeresource="' + sym + '"]');
+    const pct = Number(pctMap[sym] ?? 0);
+    if (slider) slider.value = pct;
+    if (label) label.textContent = pct + ' %';
+    updateForgeExportPreview(sym);
+  });
+
+  renderForgeBuildings();
+  renderForgeExportHistory(gs.forge_export_ledger_recent || []);
+}
+
+function forgeBuildingCost(bt, owned, qty){
+  const g = Number(bt.cost_growth);
+  return Number(bt.base_cost) * Math.pow(g, owned) * (Math.pow(g, qty) - 1) / (g - 1);
+}
+
+function renderForgeBuildings(){
+  FORGE_RESOURCES.forEach(sym => {
+    const el = document.querySelector('.forge-building-list[data-forgeresource="' + sym + '"]');
+    if (!el) return;
+    el.innerHTML = '';
+    forgeBuildingTypes
+      .filter(bt => bt.resource_symbol === sym)
+      .forEach(bt => {
+        const owned = forgePlayerBuildings[bt.id] || 0;
+        const cost1 = forgeBuildingCost(bt, owned, 1);
+        const cost10 = forgeBuildingCost(bt, owned, 10);
+        const row = document.createElement('div');
+        row.className = 'rig-row';
+        row.innerHTML = `
+          <div class="rig-row-main">
+            <div class="rig-icon-tile">🏗️</div>
+            <div>
+              <div class="rig-name">${bt.name} <span class="qty-badge">×${owned}</span></div>
+              <div class="rig-meta">${Number(bt.base_rate)} ${sym}/min pro Einheit</div>
+            </div>
+          </div>
+          <div class="buy-btn-group">
+            <button data-qty="1">+1 (${fmtCoin(cost1)} ${sym})</button>
+            <button data-qty="10">+10 (${fmtCoin(cost10)} ${sym})</button>
+          </div>`;
+        row.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => buyForgeBuilding(bt.id, parseInt(btn.dataset.qty, 10), btn, sym));
+        });
+        el.appendChild(row);
+      });
+  });
+}
+
+window.buyForgeBuilding = async function(buildingTypeId, qty, btnEl, sym){
+  const { data, error } = await sb.schema('forge').rpc('buy_building', { p_building_type_id: buildingTypeId, p_quantity: qty });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${qty}× Gebäude für ${fmtCoin(row?.total_cost ?? 0)} ${sym}.`, true);
+  spawnFly('-' + fmtCoin(row?.total_cost ?? 0) + ' ' + sym, btnEl, false);
+  await loadEverything({ light: true });
+};
+
+function updateForgeExportPreview(sym){
+  const slider = document.querySelector('.forge-export-slider[data-forgeresource="' + sym + '"]');
+  const preview = document.querySelector('.forge-export-preview[data-forgeresource="' + sym + '"]');
+  if (!slider || !preview) return;
+  const pct = Number(slider.value);
+  const rate = forgeBuildingTypes
+    .filter(bt => bt.resource_symbol === sym)
+    .reduce((sum, bt) => sum + Number(bt.base_rate) * (forgePlayerBuildings[bt.id] || 0), 0);
+  const exported = rate * (pct / 100);
+  preview.textContent = pct === 0
+    ? 'Regler auf 0 % — nichts wird exportiert, alles bleibt in NEXUS.'
+    : `${pct} % von +${rate.toFixed(2)} ${sym}/min → ~${exported.toFixed(2)} ${sym}/min wird künftig einweg Richtung Nexus Singularity exportiert.`;
+}
+
+document.querySelectorAll('.forge-export-slider').forEach(slider => {
+  const sym = slider.dataset.forgeresource;
+  slider.addEventListener('input', () => {
+    forgeSliderTouched[sym] = true;
+    const label = document.querySelector('.forge-export-label[data-forgeresource="' + sym + '"]');
+    if (label) label.textContent = slider.value + ' %';
+    updateForgeExportPreview(sym);
+  });
+});
+
+document.querySelectorAll('.forge-export-save').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const sym = btn.dataset.forgeresource;
+    const getVal = (s) => Number(document.querySelector('.forge-export-slider[data-forgeresource="' + s + '"]')?.value ?? 0);
+    const { error } = await sb.schema('forge').rpc('set_export_settings', {
+      p_pct_metal: getVal('METAL'),
+      p_pct_kristall: getVal('KRISTALL'),
+      p_pct_deut: getVal('DEUT'),
+      p_pct_energie: getVal('ENERGIE')
+    });
+    if (error) { showMsg('statusMsg', error.message, false); return; }
+    forgeSliderTouched = {};
+    showMsg('statusMsg', `Export-Regler für ${sym} gespeichert.`, true);
+    await loadEverything({ light: true });
+  });
+});
+
+document.querySelectorAll('.forge-export-now').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const sym = btn.dataset.forgeresource;
+    if (!confirm(`Wirklich den kompletten aktuellen ${sym}-Bestand jetzt einweg exportieren?`)) return;
+    btn.disabled = true;
+    const { data, error } = await sb.schema('forge').rpc('export_now', { p_resource_symbol: sym });
+    btn.disabled = false;
+    if (error) { showMsg('statusMsg', error.message, false); return; }
+    const amount = Number(data) || 0;
+    showMsg('statusMsg', amount > 0 ? `${fmtCoin(amount)} ${sym} exportiert.` : `Kein ${sym}-Bestand zum Exportieren.`, true);
+    if (amount > 0) spawnFly('-' + fmtCoin(amount) + ' ' + sym, btn, false);
+    await loadEverything({ light: true });
+  });
+});
+
+function renderForgeExportHistory(rows){
+  const el = document.getElementById('forgeExportHistory');
+  if (!el) return;
+  if (!rows.length) { el.textContent = 'Noch keine Exporte.'; return; }
+  el.innerHTML = rows.map(r => {
+    const d = new Date(r.exported_at);
+    return `<div class="sm-hint">${d.toLocaleString('de-DE')} · ${fmtCoin(Number(r.amount))} ${r.resource_symbol}</div>`;
+  }).join('');
+}
+
+/* ---------- Außenposten-Unter-Tabs (Metall/Kristall/Deuterium/Energie) ---------- */
+(function initAussenpostenSubTabs(){
+  const nav = document.getElementById('aussenpostenSubTabs');
+  if (!nav) return;
+  const btns = Array.from(nav.querySelectorAll('.sub-tab'));
+
+  function activateForgeSubTab(subId, opts){
+    btns.forEach(b => b.classList.toggle('active', b.dataset.forgesub === subId));
+    document.querySelectorAll('#tabPage-aussenposten .sub-tab-page').forEach(p => {
+      p.classList.toggle('active', p.id === 'aussenpostenSub-' + subId);
+    });
+    if (!(opts && opts.skipSave)) {
+      try { localStorage.setItem('nexusAussenpostenSubTab', subId); } catch (e) {}
+    }
+  }
+
+  nav.addEventListener('click', (e) => {
+    const btn = e.target.closest('.sub-tab');
+    if (!btn) return;
+    activateForgeSubTab(btn.dataset.forgesub);
+  });
+
+  let savedSub = null;
+  try { savedSub = localStorage.getItem('nexusAussenpostenSubTab'); } catch (e) {}
+  if (savedSub && btns.some(b => b.dataset.forgesub === savedSub)) {
+    activateForgeSubTab(savedSub, { skipSave: true });
+  }
+})();
 
 /* ---------- Pulse-Tab: PULSE (Farm) + IONX/ANCH/GRID (eigene Sprungmärkte darauf) ----------
    NEU: liest jetzt aus dem gebuendelten gs-Objekt statt eigener Requests. loadPulse()
