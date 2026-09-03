@@ -2,6 +2,19 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.17: Vollstaendigkeits-Check "was ich besitze" (Jens' Frage: gehoert alles,
+    was man haelt, in den Wallet-Tab?) -- dabei zwei echte, RELAY-unabhaengige
+    Luecken gefunden: (1) SIGIL hatte nie einen Verlaufs-Chart im Wallet-Tab
+    ("Alle Sprungmaerkte & Ressourcen"), obwohl die Balance-History serverseitig
+    laengst mitgeschnitten wird (snapshot_currency_balances() hatte SIGIL schon
+    vorher in der Liste) -- neuer walletSigilChart neben CYCLE ergaenzt.
+    (2) RELAY fehlte in der dritten Bestandsuebersicht "Deine Sprungmaerkte"
+    im Markt-Tab (Detail-Karten mit Beschreibungstext), obwohl PULSE dort schon
+    stand -- neue sm-relay-Karte neben PULSE ergaenzt, Hinweistext oben im Panel
+    um Relay-Rigs/🌐 Relay-Reiter erweitert. Das kompakte 6er-"Verlauf"-Panel im
+    Uebersicht-Tab (NRC/MOGC/Kurs/VOLT/QNTM/DRIFT) bleibt bewusst unveraendert --
+    war schon immer nur der Schnellzugriff auf die Kernwerte, keine
+    Vollstaendigkeits-Anspruch, das leistet der Wallet-Tab.
   - v3.16: RELAY-Nachtrag -- zwei Stellen gefunden, die beim v3.15-Rollout
     vergessen wurden: (1) platform.snapshot_currency_balances() hatte eine
     hartcodierte Waehrungsliste ohne RELAY, dadurch waeren nie Bestandsverlauf-
@@ -1098,6 +1111,10 @@
           <div class="chart-box"><canvas id="walletCycleChart"></canvas></div>
         </div>
         <div class="mc-item">
+          <h4><i class="dot-nova" style="background:var(--gold);"></i> SIGIL <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <div class="chart-box"><canvas id="walletSigilChart"></canvas></div>
+        </div>
+        <div class="mc-item">
           <h4><i class="dot-nova" style="background:var(--cyan);"></i> PULSE <span class="kc-tab-hint">⛏️ Farm</span></h4>
           <div class="chart-box"><canvas id="walletPulseChart"></canvas></div>
         </div>
@@ -1260,7 +1277,7 @@
     </div>
     <div class="panel">
       <h3>Deine Sprungmärkte <span class="tag">— zusätzlich zu Nova-Rift & MOGC, unabhängig davon</span></h3>
-      <div class="sm-hint" style="margin-bottom:14px;">STBL (Stabil-Credits) und ANCH (Pulse-Sparkonto) verwaltest du drüben im 🏦 Bank-Tab — Guthaben, Einzahlen/Auszahlen und Festgeld gehören da jetzt zusammen. Die Pulse-Rigs selbst (zweite Förder-Ressource) findest du im ⛏️ Farm-Tab unter dem Reiter ⚡ Pulse — IONX und GRID (die Sprungmärkte, die darauf aufbauen) handelst du hier unten.</div>
+      <div class="sm-hint" style="margin-bottom:14px;">STBL (Stabil-Credits) und ANCH (Pulse-Sparkonto) verwaltest du drüben im 🏦 Bank-Tab — Guthaben, Einzahlen/Auszahlen und Festgeld gehören da jetzt zusammen. Die Pulse- und Relay-Rigs selbst (zweite und dritte Förder-Ressource) findest du im ⛏️ Farm-Tab unter den Reitern ⚡ Pulse und 🌐 Relay — IONX und GRID (die Sprungmärkte, die darauf aufbauen) handelst du hier unten.</div>
       <div class="sm-grid">
         <div class="sm-card sm-volt">
           <div class="kc-label">VOLT — Spekulation</div>
@@ -1291,6 +1308,11 @@
           <div class="kc-label">PULSE — Pulse-Feld</div>
           <div class="kc-value js-balance-pulse">–</div>
           <div class="kc-sub">zweite Förder-Ressource, siehe ⛏️ Farm-Tab</div>
+        </div>
+        <div class="sm-card sm-relay">
+          <div class="kc-label">RELAY — Relais-Netzwerk</div>
+          <div class="kc-value js-balance-relay">–</div>
+          <div class="kc-sub">kooperative dritte Mine, siehe ⛏️ Farm-Tab</div>
         </div>
         <div class="sm-card sm-ionx">
           <div class="kc-label">IONX — Ionen-Spekulation</div>
@@ -1875,6 +1897,7 @@ let walletGovChart = null;
 let walletQntmChart = null;
 let walletDriftChart = null;
 let walletCycleChart = null;
+let walletSigilChart = null;
 let walletPulseChart = null;
 let walletRelayChart = null;
 let walletIonxChart = null;
@@ -2115,7 +2138,7 @@ function enterGame(){
       if (novaChart) novaChart.resize();
       if (scChart) scChart.resize();
       [walletStblChart, walletVoltChart, walletGovChart, walletQntmChart, walletDriftChart,
-       walletCycleChart, walletPulseChart, walletRelayChart, walletIonxChart, walletAnchChart, walletNvltChart, walletGridChart]
+       walletCycleChart, walletSigilChart, walletPulseChart, walletRelayChart, walletIonxChart, walletAnchChart, walletNvltChart, walletGridChart]
         .forEach(c => { if (c) c.resize(); });
       // NEU (Egress-Fix): loadWalletHistory()/loadAllWalletCurrencyCharts() laufen
       // nicht mehr automatisch bei jedem 5s-Tick, sondern nur noch on-demand beim
@@ -2398,6 +2421,7 @@ function initCharts(){
   walletQntmChart = makeCompact('walletQntmChart', '#D4AF37', 'rgba(212,175,55,0.14)', commonOpts);
   walletDriftChart = makeCompact('walletDriftChart', '#4C8DFF', 'rgba(76,141,255,0.14)', commonOpts);
   walletCycleChart = makeCompact('walletCycleChart', '#3ddc84', 'rgba(61,220,132,0.14)', commonOpts);
+  walletSigilChart = makeCompact('walletSigilChart', '#D4AF37', 'rgba(212,175,55,0.14)', commonOpts);
   walletPulseChart = makeCompact('walletPulseChart', '#22D3EE', 'rgba(34,211,238,0.14)', commonOpts);
   walletRelayChart = makeCompact('walletRelayChart', '#8A63F5', 'rgba(138,99,245,0.14)', commonOpts);
   walletIonxChart = makeCompact('walletIonxChart', '#FF4FA3', 'rgba(255,79,163,0.14)', commonOpts);
@@ -3980,6 +4004,7 @@ async function loadAllWalletCurrencyCharts(){
     loadCurrencyBalanceChart('QNTM', [walletQntmChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('DRIFT', [walletDriftChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('CYCLE', [walletCycleChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('SIGIL', [walletSigilChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('PULSE', [walletPulseChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('RELAY', [walletRelayChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('IONX', [walletIonxChart], currentWalletHours, currentWalletBucket),
