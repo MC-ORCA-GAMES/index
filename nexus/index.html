@@ -254,6 +254,7 @@
                 <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
                 <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
                 <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+                <button class="acct-btn" id="cloudGuestBtn" type="button" style="margin-top:6px; color:var(--fg-dim);">👀 Als Gast reinschauen</button>
               </div>
               <div id="cloudStepCode" style="display:none;">
                 <div class="lbl">Code aus der E-Mail eingeben:</div>
@@ -608,6 +609,18 @@
       uiState = 'code';
       render();
       setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    // Gast-Login: 1 geteilter Account fuer alle, die nur reinschauen wollen --
+    // siehe Migration create_nexus_shared_guest_account. Kein Tippen noetig.
+    document.getElementById('cloudGuestBtn').addEventListener('click', async function(){
+      setStatus('Melde als Gast an …', false);
+      var res = await supabaseClient.auth.signInWithPassword({
+        email: 'gast@mc-orca-games.local',
+        password: 'nexus-gast-2026'
+      });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Als Gast eingeloggt!', false);
     });
 
     document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){

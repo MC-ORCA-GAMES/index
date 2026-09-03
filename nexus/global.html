@@ -2,6 +2,25 @@
   MC ORCA GAMES — NEXUS — Globale Wallet
 
   Changelog:
+  - v4: Verschlankt + 3. Mine (RELAY) ergaenzt, die bisher komplett fehlte
+    (weder als Waehrungs-Karte noch als eigene Reserve, obwohl RELAY laengst
+    ein vollwertiger Sprungmarkt ist -- platform.get_relay_bank_status() und
+    das relay_reserve_balance-Feld in get_central_bank_reserve_history() gab
+    es serverseitig schon, nur das Frontend hier hat nie mitgezogen).
+    - Neue kompakte "3 Minen"-Zeile direkt unter dem Hero (NRC/PULSE/RELAY,
+      insgesamt gefoerdert) -- Pulse/Relay hatten bisher gar keine
+      Lifetime-Zahl, nur der aktuelle Bestand unten im Waehrungsgrid. Neue
+      RPCs crypto_farm.get_pulse_mining_stats()/get_relay_mining_stats(),
+      1:1 nach dem Muster von get_global_mining_stats() (NRC).
+    - Die 5 Reserven-Panels (Zentralbank NRC/PULSE/RELAY + CYCLE/SIGIL-
+      Dividenden) liefen bisher voll ausgeschrieben untereinander -- jetzt
+      .bank-grid, 2 pro Zeile, kompaktere Charts/Payout-Liste (bank-chart-box
+      78px -> 52px). RELAY-Panel neu in Indigo (#8A63F5), 1:1 zur
+      RELAY-Markenfarbe aus game.html.
+    - RELAY-Karte im "Weitere Waehrungen"-Grid ergaenzt (13. Waehrung).
+      Bugfix nebenbei: platform.get_global_currency_totals() hatte RELAY in
+      seiner Symbol-Whitelist vergessen (Snapshot-Cron kannte es laengst),
+      dadurch war der Live-Gesamtbestand bisher immer leer/0.
   - v3.2: EGRESS-FIX -- Bank-Status, Kontostand-Verlauf und alle 10 Waehrungs-
     Charts/-Bestaende pollten bisher jede Minute (1440x/Tag), obwohl sich die
     zugrunde liegenden 15-Minuten-Buckets viel seltener aendern. Umgestellt auf
@@ -145,6 +164,15 @@
   .lifetime-sub{ margin:8px 0 0; font-size:12px; color:var(--fg-faint); }
   .lifetime-sub span{ color:var(--fg-dim); }
 
+  /* ---------- 3 Minen im Vergleich (kompakte Zeile unter dem Hero) ---------- */
+  .mines-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 0; }
+  .mine-chip{ border:1px solid var(--line); border-radius:12px; padding:11px 12px; background:var(--panel); text-align:center; }
+  .mine-chip .mc-label{ display:flex; align-items:center; justify-content:center; gap:6px; font-size:10.5px; letter-spacing:0.05em; text-transform:uppercase; color:var(--fg-faint); margin-bottom:5px; }
+  .mine-chip .mc-label i{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .mine-chip .mc-value{ font-family:'Space Grotesk'; font-weight:700; font-size:clamp(14px,2vw,18px); }
+  .mine-chip .mc-sub{ font-size:10px; color:var(--fg-faint); margin-top:2px; }
+  @media (max-width:560px){ .mines-row{ grid-template-columns:1fr; } }
+
   /* ---------- stat cards ---------- */
   .stats{ padding:26px 0 8px; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
   .stat-card{ border:1px solid var(--line); border-radius:12px; padding:13px 12px; background:var(--panel); text-align:center; }
@@ -185,26 +213,35 @@
   .currency-card .chart-empty-hint{ font-size:11px; }
 
   /* ---------- Zentralbank ---------- */
-  .bank-panel{ margin:18px 0 10px; border:1px solid var(--line); border-radius:14px; padding:15px 16px 14px; background:var(--panel); }
-  .bank-panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; flex-wrap:wrap; gap:8px; }
-  .bank-panel-head .t{ font-family:'Space Grotesk'; font-weight:600; font-size:13px; }
-  .bank-panel-head .hint{ font-size:11.5px; color:var(--fg-faint); }
-  .bank-track{ position:relative; height:7px; border-radius:999px; background:rgba(212,175,55,0.1); overflow:hidden; margin:5px 0 6px; }
+  /* Verschlankt (v4): alle Reserven jetzt kompakt zu zweit pro Zeile statt als
+     5 grosse Panels untereinander -- Chart kleiner, weniger Payouts sichtbar
+     (die Liste ist eh scrollbar/wenig relevant fuer die Uebersicht). */
+  .bank-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:18px 0 10px; }
+  @media (max-width:680px){ .bank-grid{ grid-template-columns:1fr; } }
+  .bank-panel{ border:1px solid var(--line); border-radius:14px; padding:13px 14px 12px; background:var(--panel); }
+  .bank-panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; flex-wrap:wrap; gap:6px; }
+  .bank-panel-head .t{ font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; }
+  .bank-panel-head .hint{ font-size:10.5px; color:var(--fg-faint); }
+  .bank-track{ position:relative; height:6px; border-radius:999px; background:rgba(212,175,55,0.1); overflow:hidden; margin:5px 0 6px; }
   .bank-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg,#8a6c1c,var(--gold)); box-shadow:0 0 12px rgba(212,175,55,0.55); transition:width .8s cubic-bezier(.2,.8,.2,1); }
-  .bank-sub{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--fg-faint); }
-  .bank-payouts{ margin-top:12px; }
-  .bank-payouts-title{ font-size:11.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--fg-faint); margin-bottom:10px; }
-  .bank-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .bank-sub{ font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--fg-faint); }
+  .bank-payouts{ margin-top:10px; }
+  .bank-payouts-title{ font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--fg-faint); margin-bottom:7px; }
+  .bank-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:5px 0; border-bottom:1px solid var(--line); font-size:12px; }
   .bank-payout-row:last-child{ border-bottom:none; }
-  .bank-payout-rank{ color:var(--gold); font-family:'Space Grotesk'; font-weight:600; width:26px; }
-  .bank-payout-name{ flex:1; color:var(--fg-dim); }
-  .bank-payout-amount{ color:var(--fg); font-family:'JetBrains Mono',monospace; }
-  .bank-empty{ font-size:12.5px; color:var(--fg-faint); text-align:center; padding:8px 0; }
-  .bank-chart-box{ position:relative; height:78px; margin:10px 0 4px; }
+  .bank-payout-rank{ color:var(--gold); font-family:'Space Grotesk'; font-weight:600; width:24px; }
+  .bank-payout-name{ flex:1; color:var(--fg-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bank-payout-amount{ color:var(--fg); font-family:'JetBrains Mono',monospace; flex-shrink:0; }
+  .bank-empty{ font-size:11.5px; color:var(--fg-faint); text-align:center; padding:6px 0; }
+  .bank-chart-box{ position:relative; height:52px; margin:8px 0 2px; }
   /* PULSE-Zentralbank -- gleiche Struktur wie die NRC-Bank oben, nur cyan statt gold */
   .bank-panel.pulse-bank .bank-track{ background:rgba(34,211,238,0.1); }
   .bank-panel.pulse-bank .bank-fill{ background:linear-gradient(90deg,#146a78,#22D3EE); box-shadow:0 0 12px rgba(34,211,238,0.55); }
   .bank-panel.pulse-bank .bank-payout-rank{ color:#22D3EE; }
+  /* RELAY-Reserve -- Indigo, 1:1 zur RELAY-Markenfarbe in game.html (--indigo) */
+  .bank-panel.relay-bank .bank-track{ background:rgba(138,99,245,0.1); }
+  .bank-panel.relay-bank .bank-fill{ background:linear-gradient(90deg,#4a3480,#8A63F5); box-shadow:0 0 12px rgba(138,99,245,0.55); }
+  .bank-panel.relay-bank .bank-payout-rank{ color:#8A63F5; }
   /* CYCLE/SIGIL-Dividenden-Reserve -- eigene Farbtoene (violett/rosa) statt gold/cyan,
      damit die zwei neuen Handelsplatz-Reserven optisch von NRC/PULSE unterscheidbar sind */
   .bank-panel.cycle-bank .bank-track{ background:rgba(167,139,250,0.1); }
@@ -314,6 +351,24 @@
     <p class="lifetime-sub">Seit Spielstart, über alle Accounts hinweg · <span id="minersLine">wird geladen …</span></p>
   </section>
 
+  <section class="mines-row reveal in">
+    <div class="mine-chip">
+      <div class="mc-label"><i style="background:#3ddc84;"></i>NRC — Nova-Rift</div>
+      <div class="mc-value" id="mineNrcValue">–</div>
+      <div class="mc-sub">insgesamt gefördert</div>
+    </div>
+    <div class="mine-chip">
+      <div class="mc-label"><i style="background:#22D3EE;"></i>PULSE-Feld</div>
+      <div class="mc-value" id="minePulseValue">–</div>
+      <div class="mc-sub">insgesamt gefördert</div>
+    </div>
+    <div class="mine-chip">
+      <div class="mc-label"><i style="background:#8A63F5;"></i>RELAY (kooperativ)</div>
+      <div class="mc-value" id="mineRelayValue">–</div>
+      <div class="mc-sub">insgesamt gefördert</div>
+    </div>
+  </section>
+
   <section class="stats reveal in">
     <div class="stat-card">
       <div class="sc-label">Letzte Stunde</div>
@@ -341,61 +396,77 @@
        das Mining serverseitig kontinuierlich weiterlaeuft. -->
   <div class="chart-note" id="protocolBanner" style="text-align:center; margin:-4px 0 4px; opacity:.85;">Protokoll wird geladen …</div>
 
-  <section class="bank-panel reveal in">
-    <div class="bank-panel-head">
-      <span class="t">🏦 Zentralbank</span>
-      <span class="hint">1% jedes Mining-Ertrags, gestuft ausgeschüttet an die Top 10 der Rangliste · Protokoll, 1×/Tag</span>
-    </div>
-    <div class="bank-track"><div class="bank-fill" id="bankFill"></div></div>
-    <div class="bank-sub" id="bankSub">wird geladen …</div>
-    <div class="chart-box bank-chart-box"><canvas id="bankReserveChart"></canvas></div>
-    <div class="bank-payouts">
-      <div class="bank-payouts-title">Letzte Ausschüttungen</div>
-      <div id="bankPayouts"><div class="bank-empty">wird geladen …</div></div>
-    </div>
-  </section>
+  <div class="bank-grid">
+    <section class="bank-panel reveal in">
+      <div class="bank-panel-head">
+        <span class="t">🏦 Zentralbank</span>
+        <span class="hint">1% jedes Mining-Ertrags, gestuft an Top 10</span>
+      </div>
+      <div class="bank-track"><div class="bank-fill" id="bankFill"></div></div>
+      <div class="bank-sub" id="bankSub">wird geladen …</div>
+      <div class="chart-box bank-chart-box"><canvas id="bankReserveChart"></canvas></div>
+      <div class="bank-payouts">
+        <div class="bank-payouts-title">Letzte Ausschüttungen</div>
+        <div id="bankPayouts"><div class="bank-empty">wird geladen …</div></div>
+      </div>
+    </section>
 
-  <section class="bank-panel pulse-bank reveal in">
-    <div class="bank-panel-head">
-      <span class="t">🏦 Zentralbank — PULSE-Reserve</span>
-      <span class="hint">1% jeder PULSE-Förderung + 1% jeder ANCH-Auszahlung, gestuft ausgeschüttet an die Top 10 der Rangliste</span>
-    </div>
-    <div class="bank-track"><div class="bank-fill" id="pulseBankFill"></div></div>
-    <div class="bank-sub" id="pulseBankSub">wird geladen …</div>
-    <div class="chart-box bank-chart-box"><canvas id="pulseBankReserveChart"></canvas></div>
-    <div class="bank-payouts">
-      <div class="bank-payouts-title">Letzte Ausschüttungen</div>
-      <div id="pulseBankPayouts"><div class="bank-empty">wird geladen …</div></div>
-    </div>
-  </section>
+    <section class="bank-panel pulse-bank reveal in">
+      <div class="bank-panel-head">
+        <span class="t">🏦 PULSE-Reserve</span>
+        <span class="hint">1% Förderung + 1% ANCH-Auszahlung</span>
+      </div>
+      <div class="bank-track"><div class="bank-fill" id="pulseBankFill"></div></div>
+      <div class="bank-sub" id="pulseBankSub">wird geladen …</div>
+      <div class="chart-box bank-chart-box"><canvas id="pulseBankReserveChart"></canvas></div>
+      <div class="bank-payouts">
+        <div class="bank-payouts-title">Letzte Ausschüttungen</div>
+        <div id="pulseBankPayouts"><div class="bank-empty">wird geladen …</div></div>
+      </div>
+    </section>
 
-  <section class="bank-panel cycle-bank reveal in">
-    <div class="bank-panel-head">
-      <span class="t">💎 CYCLE-Dividenden-Reserve</span>
-      <span class="hint">2% jeder CYCLE-Handelsgebühr, gestuft in MOGC an die Top 10 Halter ausgeschüttet</span>
-    </div>
-    <div class="bank-track"><div class="bank-fill" id="cycleBankFill"></div></div>
-    <div class="bank-sub" id="cycleBankSub">wird geladen …</div>
-    <div class="chart-box bank-chart-box"><canvas id="cycleBankReserveChart"></canvas></div>
-    <div class="bank-payouts">
-      <div class="bank-payouts-title">Letzte Ausschüttungen</div>
-      <div id="cycleBankPayouts"><div class="bank-empty">wird geladen …</div></div>
-    </div>
-  </section>
+    <section class="bank-panel relay-bank reveal in">
+      <div class="bank-panel-head">
+        <span class="t">🌐 RELAY-Reserve</span>
+        <span class="hint">Netzwerk-Skim aus der kooperativen 3. Mine</span>
+      </div>
+      <div class="bank-track"><div class="bank-fill" id="relayBankFill"></div></div>
+      <div class="bank-sub" id="relayBankSub">wird geladen …</div>
+      <div class="chart-box bank-chart-box"><canvas id="relayBankReserveChart"></canvas></div>
+      <div class="bank-payouts">
+        <div class="bank-payouts-title">Letzte Ausschüttungen</div>
+        <div id="relayBankPayouts"><div class="bank-empty">wird geladen …</div></div>
+      </div>
+    </section>
 
-  <section class="bank-panel sigil-bank reveal in">
-    <div class="bank-panel-head">
-      <span class="t">💎 SIGIL-Dividenden-Reserve</span>
-      <span class="hint">2% jeder SIGIL-Handelsgebühr, gestuft in MOGC an die Top 10 Halter ausgeschüttet</span>
-    </div>
-    <div class="bank-track"><div class="bank-fill" id="sigilBankFill"></div></div>
-    <div class="bank-sub" id="sigilBankSub">wird geladen …</div>
-    <div class="chart-box bank-chart-box"><canvas id="sigilBankReserveChart"></canvas></div>
-    <div class="bank-payouts">
-      <div class="bank-payouts-title">Letzte Ausschüttungen</div>
-      <div id="sigilBankPayouts"><div class="bank-empty">wird geladen …</div></div>
-    </div>
-  </section>
+    <section class="bank-panel cycle-bank reveal in">
+      <div class="bank-panel-head">
+        <span class="t">💎 CYCLE-Dividenden</span>
+        <span class="hint">2% Handelsgebühr, in MOGC an Top 10</span>
+      </div>
+      <div class="bank-track"><div class="bank-fill" id="cycleBankFill"></div></div>
+      <div class="bank-sub" id="cycleBankSub">wird geladen …</div>
+      <div class="chart-box bank-chart-box"><canvas id="cycleBankReserveChart"></canvas></div>
+      <div class="bank-payouts">
+        <div class="bank-payouts-title">Letzte Ausschüttungen</div>
+        <div id="cycleBankPayouts"><div class="bank-empty">wird geladen …</div></div>
+      </div>
+    </section>
+
+    <section class="bank-panel sigil-bank reveal in">
+      <div class="bank-panel-head">
+        <span class="t">💎 SIGIL-Dividenden</span>
+        <span class="hint">2% Handelsgebühr, in MOGC an Top 10</span>
+      </div>
+      <div class="bank-track"><div class="bank-fill" id="sigilBankFill"></div></div>
+      <div class="bank-sub" id="sigilBankSub">wird geladen …</div>
+      <div class="chart-box bank-chart-box"><canvas id="sigilBankReserveChart"></canvas></div>
+      <div class="bank-payouts">
+        <div class="bank-payouts-title">Letzte Ausschüttungen</div>
+        <div id="sigilBankPayouts"><div class="bank-empty">wird geladen …</div></div>
+      </div>
+    </section>
+  </div>
 
   <section class="chart-panel reveal in">
     <div class="chart-panel-head">
@@ -518,6 +589,14 @@
         </div>
         <div class="currency-card-value" id="cur-SIGIL-value">–</div>
         <div class="chart-box"><canvas id="cur-SIGIL-chart"></canvas></div>
+      </div>
+      <div class="currency-card" data-symbol="RELAY">
+        <div class="currency-card-head">
+          <span class="currency-card-name"><i class="cdot" style="background:#8A63F5;"></i>RELAY</span>
+          <span class="currency-card-full">Relais-Netzwerk</span>
+        </div>
+        <div class="currency-card-value" id="cur-RELAY-value">–</div>
+        <div class="chart-box"><canvas id="cur-RELAY-chart"></canvas></div>
       </div>
       <div class="currency-card" data-symbol="NVLT">
         <div class="currency-card-head">
@@ -715,6 +794,40 @@
   // in MOGC statt in der jeweiligen Waehrung selbst, Schwelle bewusst kleiner
   // (5.000 statt 500.000) weil gespeist aus 2% Handelsgebuehr statt 1% aus dem
   // deutlich groesseren Mining-Ertragsstrom.
+  async function loadRelayBank(){
+    const RELAY_BANK_THRESHOLD = 20000;
+    try{
+      const { data, error } = await sb.schema('platform').rpc('get_relay_bank_status', { p_limit: 8 });
+      if(error || !data || !data.length){
+        document.getElementById('relayBankSub').textContent = 'Bank-Status nicht verfügbar';
+        document.getElementById('relayBankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+        return;
+      }
+      const reserve = Number(data[0].reserve_balance) || 0;
+      const pct = Math.min(100, (reserve / RELAY_BANK_THRESHOLD) * 100);
+      document.getElementById('relayBankFill').style.width = pct + '%';
+      document.getElementById('relayBankSub').textContent =
+        fmtCredits(reserve, 0) + ' / ' + fmtCredits(RELAY_BANK_THRESHOLD, 0) + ' RELAY in der Reserve';
+
+      const payouts = data.filter(function(row){ return row.id != null; });
+      const list = document.getElementById('relayBankPayouts');
+      if(!payouts.length){
+        list.innerHTML = '<div class="bank-empty">Noch keine Ausschüttung — die Reserve füllt sich mit RELAY-Förderung.</div>';
+        return;
+      }
+      list.innerHTML = payouts.map(function(row){
+        return '<div class="bank-payout-row">'
+          + '<span class="bank-payout-rank">#' + row.rank_no + '</span>'
+          + '<span class="bank-payout-name">' + (row.username || 'Unbenannt') + '</span>'
+          + '<span class="bank-payout-amount">+' + fmtCredits(row.amount, 0) + ' RELAY</span>'
+          + '</div>';
+      }).join('');
+    }catch(e){
+      document.getElementById('relayBankSub').textContent = 'Bank-Status nicht verfügbar';
+      document.getElementById('relayBankPayouts').innerHTML = '<div class="bank-empty">Bank-Status nicht verfügbar</div>';
+    }
+  }
+
   async function loadCycleBank(){
     const THRESHOLD = 5000;
     try{
@@ -797,11 +910,30 @@
       document.getElementById('statWeek').innerHTML = fmtCredits(row.last_7d) + ' ' + scCoin;
       document.getElementById('statMonth').innerHTML = fmtCredits(row.last_30d) + ' ' + scCoin;
       document.getElementById('minersLine').textContent = row.miners_count + ' Miner insgesamt registriert';
+      document.getElementById('mineNrcValue').textContent = fmtCompact(row.lifetime_total) + ' NRC';
 
       renderChart(row);
     }catch(e){
       console.warn('Globale NEXUS-Stats konnten nicht geladen werden', e);
       document.getElementById('minersLine').textContent = 'Daten konnten nicht geladen werden.';
+    }
+  }
+
+  // Kompakte "3 Minen im Vergleich"-Zeile (NRC oben schon via loadStats() live,
+  // Pulse/Relay hier zusaetzlich -- gleiche Live-Kadenz wie NRC, da die
+  // zugrunde liegende Foerderung serverseitig kontinuierlich weiterlaeuft).
+  async function loadMinesRow(){
+    try{
+      const [pulseRes, relayRes] = await Promise.all([
+        sb.schema('crypto_farm').rpc('get_pulse_mining_stats'),
+        sb.schema('crypto_farm').rpc('get_relay_mining_stats')
+      ]);
+      const pulseRow = (pulseRes.data && pulseRes.data[0]) || null;
+      const relayRow = (relayRes.data && relayRes.data[0]) || null;
+      if(pulseRow) document.getElementById('minePulseValue').textContent = fmtCompact(pulseRow.lifetime_total) + ' PULSE';
+      if(relayRow) document.getElementById('mineRelayValue').textContent = fmtCompact(relayRow.lifetime_total) + ' RELAY';
+    }catch(e){
+      console.warn('Pulse/Relay-Foerderstats konnten nicht geladen werden', e);
     }
   }
 
@@ -855,6 +987,7 @@
   const scChartRef = {};
   const bankReserveChartRef = {};
   const pulseBankReserveChartRef = {};
+  const relayBankReserveChartRef = {};
   const cycleBankReserveChartRef = {};
   const sigilBankReserveChartRef = {};
 
@@ -864,6 +997,7 @@
       if(error || !data) return;
       renderSingleHistoryChart(bankReserveChartRef, 'bankReserveChart', data, 'reserve_balance', '#D4AF37', '212,175,55');
       renderSingleHistoryChart(pulseBankReserveChartRef, 'pulseBankReserveChart', data, 'pulse_reserve_balance', '#22D3EE', '34,211,238');
+      renderSingleHistoryChart(relayBankReserveChartRef, 'relayBankReserveChart', data, 'relay_reserve_balance', '#8A63F5', '138,99,245');
       renderSingleHistoryChart(cycleBankReserveChartRef, 'cycleBankReserveChart', data, 'cycle_reserve_balance', '#A78BFA', '167,139,250');
       renderSingleHistoryChart(sigilBankReserveChartRef, 'sigilBankReserveChart', data, 'sigil_reserve_balance', '#F472B6', '244,114,182');
     }catch(e){ /* Chart bleibt einfach leer, kein kritischer Fehler */ }
@@ -919,7 +1053,8 @@
     GRID:  { color:'#B4E61D', rgb:'180,230,29' },
     PULSE: { color:'#22D3EE', rgb:'34,211,238' },
     SIGIL: { color:'#D4AF37', rgb:'212,175,55' },
-    NVLT:  { color:'#E8E6E3', rgb:'232,230,227' }
+    NVLT:  { color:'#E8E6E3', rgb:'232,230,227' },
+    RELAY: { color:'#8A63F5', rgb:'138,99,245' }
   };
   const curChartRefs = {};
 
@@ -1003,13 +1138,15 @@
     const todayBerlin = getBerlinDateStr(new Date());
     if (!force && lastProtocolBerlinDate === todayBerlin) return; // heutiger Stand schon geladen
     lastProtocolBerlinDate = todayBerlin;
-    await Promise.all([loadHistory(), loadBank(), loadPulseBank(), loadCycleBank(), loadSigilBank(), loadReserveHistory(), loadCurrencyTotals(), loadAllCurrencyHistories()]);
+    await Promise.all([loadHistory(), loadBank(), loadPulseBank(), loadRelayBank(), loadCycleBank(), loadSigilBank(), loadReserveHistory(), loadCurrencyTotals(), loadAllCurrencyHistories()]);
     updateProtocolBanner(todayBerlin);
   }
 
   loadStats();
+  loadMinesRow();
   loadDailyProtocol(true); // initialer Load beim Seitenaufruf, unabhaengig von der Uhrzeit
   setInterval(loadStats, 60000);
+  setInterval(loadMinesRow, 60000);
   setInterval(() => loadDailyProtocol(false), 5 * 60000); // reiner Datums-Check, holt nur bei Tageswechsel wirklich Daten
 })();
 </script>

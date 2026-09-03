@@ -472,6 +472,11 @@
   button:disabled{ opacity:0.4; cursor:default; }
   .btn-block{ width:100%; margin-top:8px; background:var(--blue); border-color:var(--blue); color:#061224; }
   .btn-block:hover{ filter:brightness(1.08); background:var(--blue); }
+  .lb-divider{ display:flex; align-items:center; gap:10px; margin:16px 0 10px; font-size:11px; color:var(--fg-faint); }
+  .lb-divider::before, .lb-divider::after{ content:''; flex:1; height:1px; background:var(--line); }
+  .btn-block-ghost{ width:100%; background:transparent; border-color:var(--line); color:var(--fg-dim); }
+  .btn-block-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); color:var(--fg); }
+  .lb-guest-hint{ font-size:11px; color:var(--fg-faint); line-height:1.5; margin:8px 0 0; text-align:center; }
   .msg{ font-family:'Inter'; font-size:12.5px; padding:10px 12px; border-radius:9px; margin-top:10px; text-align:left; line-height:1.5; }
   .msg.ok{ background:rgba(61,220,132,0.1); color:var(--up); }
   .msg.err{ background:rgba(255,93,93,0.1); color:var(--down); }
@@ -1003,6 +1008,9 @@
         <input type="text" id="otpInput" placeholder="6-stelliger Code" class="hidden">
         <button class="btn-block hidden" id="verifyOtpBtn">Einloggen</button>
         <div id="loginMsg"></div>
+        <div class="lb-divider"><span>oder</span></div>
+        <button class="btn-block-ghost" id="guestLoginBtn" type="button">👀 Erstmal als Gast reinschauen</button>
+        <p class="lb-guest-hint">Ein Account für alle Besucher, kein eigener Fortschritt — perfekt zum Ausprobieren, bevor du dich mit eigener E-Mail anmeldest.</p>
       </div>
     </section>
   </div>
@@ -2460,6 +2468,33 @@ document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
     startPolling();
   } catch (err) {
     console.error('verifyOtp fehlgeschlagen:', err);
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+/* ---------- Gast-Login ----------
+   Ein einziger, fest verdrahteter Account (siehe Migration
+   create_nexus_shared_guest_account), den sich alle Besucher teilen, die nur
+   reinschauen wollen -- kein Tippen, keine Mail, kein Passwort-Eingeben.
+   Der Username ("Gast") ist serverseitig per Trigger vor Aenderung geschuetzt,
+   damit niemand versehentlich oder mutwillig den geteilten Account umbenennt. */
+document.getElementById('guestLoginBtn').addEventListener('click', async () => {
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Melde als Gast an …', true);
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: 'gast@mc-orca-games.local',
+      password: 'nexus-gast-2026'
+    });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    enterGame();
+    await sb.schema('platform').rpc('ensure_player_ready');
+    initCharts();
+    await loadEverything();
+    startPolling();
+  } catch (err) {
+    console.error('Gast-Login fehlgeschlagen:', err);
     showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
   }
 });
