@@ -84,13 +84,15 @@
   /* ---- Fabrik-Panel ---- */
   #factoryPanel{
     right:24px;top:146px;
-    width:min(320px, 88vw);max-height:min(420px, 60vh);overflow-y:auto;
-    background:rgba(10,11,16,0.92);border:1px solid rgba(255,255,255,0.1);
+    width:min(320px, 88vw);max-height:min(440px, 62vh);
+    display:flex;flex-direction:column;
+    background:rgba(8,9,13,0.97);border:1px solid rgba(255,255,255,0.1);
     border-radius:12px;padding:14px 16px;backdrop-filter:blur(8px);
     font-size:12px;color:var(--dim);
   }
-  #factoryPanel h4{margin:0 0 4px;font-size:11px;letter-spacing:1px;color:var(--fg);text-transform:uppercase;}
-  #factoryBalance{font-size:11px;color:var(--accent2);margin-bottom:10px;}
+  #factoryPanel h4{margin:0 0 4px;font-size:11px;letter-spacing:1px;color:var(--fg);text-transform:uppercase;flex-shrink:0;}
+  #factoryBalance{font-size:11px;color:var(--accent2);margin-bottom:6px;flex-shrink:0;}
+  #factoryScroll{overflow-y:auto;flex:1;min-height:0;}
   .factory-row{padding:10px 0;border-top:1px solid rgba(255,255,255,0.08);}
   .factory-row:first-child{border-top:none;}
   .factory-row .frow-top{display:flex;justify-content:space-between;align-items:baseline;}
@@ -99,11 +101,11 @@
   .factory-row .fmeta{font-size:10.5px;color:var(--dim);margin-top:2px;}
   .factory-row button{width:100%;margin-top:6px;padding:6px 0;font-size:11px;}
   .factory-row button.affordable{border-color:var(--accent2);color:var(--accent2);}
-  #stockGrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);font-size:10.5px;}
+  #stockGrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);font-size:10.5px;flex-shrink:0;}
   #stockGrid .sitem{display:flex;justify-content:space-between;}
   #stockGrid .sitem .sname{color:var(--dim);}
   #stockGrid .sitem .samt{color:var(--fg);}
-  #factoryUnclaimed{font-size:10.5px;color:var(--warn);margin-top:8px;min-height:12px;}
+  #factoryUnclaimed{font-size:10.5px;color:var(--warn);margin-top:6px;min-height:12px;flex-shrink:0;}
 
   #controls{
     bottom:22px;left:50%;transform:translateX(-50%);
@@ -422,7 +424,7 @@
   <div class="hud hidden" id="factoryPanel">
     <h4>Produktionskette</h4>
     <div id="factoryBalance">0 Nova-Rift</div>
-    <div id="factoryList"></div>
+    <div id="factoryScroll"><div id="factoryList"></div></div>
     <div id="stockGrid"></div>
     <div id="factoryUnclaimed"></div>
   </div>
