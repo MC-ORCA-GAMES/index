@@ -84,7 +84,7 @@
   /* ---- Fabrik-Panel ---- */
   #factoryPanel{
     right:24px;top:146px;
-    width:min(320px, 88vw);max-height:min(440px, 62vh);
+    width:min(320px, 88vw);max-height:min(560px, 76vh);
     display:flex;flex-direction:column;
     background:rgba(8,9,13,0.97);border:1px solid rgba(255,255,255,0.1);
     border-radius:12px;padding:14px 16px;backdrop-filter:blur(8px);
@@ -92,7 +92,14 @@
   }
   #factoryPanel h4{margin:0 0 4px;font-size:11px;letter-spacing:1px;color:var(--fg);text-transform:uppercase;flex-shrink:0;}
   #factoryBalance{font-size:11px;color:var(--accent2);margin-bottom:6px;flex-shrink:0;}
-  #factoryScroll{overflow-y:auto;flex:1;min-height:0;}
+  #factoryScroll{
+    overflow-y:auto;flex:1;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;
+  }
+  #factoryScroll::-webkit-scrollbar{width:5px;}
+  #factoryScroll::-webkit-scrollbar-track{background:transparent;}
+  #factoryScroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px;}
+  #factoryScroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.28);}
   .factory-row{padding:10px 0;border-top:1px solid rgba(255,255,255,0.08);}
   .factory-row:first-child{border-top:none;}
   .factory-row .frow-top{display:flex;justify-content:space-between;align-items:baseline;}
@@ -655,11 +662,17 @@ let buildingFactory = null; // waehrend eine Ausbau-Anfrage laeuft, doppelte Kli
 
 const RAW_LABELS = { METAL:'Metall', KRISTALL:'Kristall', DEUT:'Deuterium', ENERGIE:'Energie' };
 const RAW_ICONS = { METAL:'🔩', KRISTALL:'💎', DEUT:'🧊', ENERGIE:'⚡' };
+const ITEM_ICONS = { kuehlkoerper:'❄️', stromodul:'🔋', ram_modul:'💾', gpu_kern:'🖥️', speicherlaufwerk:'💽', rechenknoten:'🧠' };
 
 function renderResourceBar(){
   const chips = Object.entries(RAW_LABELS).map(([sym, label]) =>
     `<div class="res-chip" title="${label}"><span class="icon">${RAW_ICONS[sym]}</span><span class="amt">${fmtAmt(currentStock[sym] || 0)}</span></div>`
   );
+  Object.entries(ITEM_ICONS).forEach(([key, icon]) => {
+    if ((currentStock[key] || 0) <= 0) return;
+    const label = (recipeDefs[key] && recipeDefs[key].name) || key;
+    chips.push(`<div class="res-chip" title="${label}"><span class="icon">${icon}</span><span class="amt">${fmtAmt(currentStock[key] || 0)}</span></div>`);
+  });
   chips.push(`<div class="res-chip nrc" title="Nova-Rift Coins (NRC)"><span class="icon">🪙</span><span class="amt">${fmtAmt(novaRiftBalance)} NRC</span></div>`);
   resourceBar.innerHTML = chips.join('');
 }
