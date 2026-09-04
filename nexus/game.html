@@ -1992,9 +1992,14 @@
         </div>
         <button type="button" class="btn btn-primary" id="prestigeBtn" disabled>♻ Prestigen</button>
       </div>
-      <p class="prestige-hint">Beim Prestigen werden alle Rigs und dein Nova-Rift-Bestand zurückgesetzt — deine MOGC
-        (dein bereits verkauftes, spielübergreifendes Guthaben) bleiben erhalten. Dafür bekommst du dauerhafte
-        Prestige-Punkte für den Skillbaum unten, die für immer bleiben, egal wie oft du danach nochmal zurücksetzt.</p>
+      <p class="prestige-hint">Beim Prestigen wird die komplette Farm neu gestartet: alle Rigs (Haupt-, Pulse- und
+        Relay-Mine), dein Nova-Rift-Bestand sowie die Außenposten-Gebäude und deren Förderfortschritt werden
+        zurückgesetzt. Guthaben in NVLT, ANCH, PULSE, RELAY und IONX wird dabei genullt, da diese Werte direkt am
+        Reset hängen. VOLT, QNTM, DRIFT, GRID, CYCLE, SIGIL und STBL gehen dir dagegen nicht verloren — die werden
+        automatisch zum aktuellen Kurs in MOGC umgewandelt (offene CYCLE/SIGIL-Orders werden dafür vorher storniert).
+        MOGC selbst, dein Skillbaum (Haupt- und Relais-Netzwerk) und dein GOV-Bestand bleiben in jedem Fall
+        unangetastet. Dafür bekommst du dauerhafte Prestige-Punkte für den Skillbaum unten, die für immer bleiben,
+        egal wie oft du danach nochmal zurücksetzt.</p>
       <div class="prestige-points-row">
         <span class="label">Verfügbare Prestige-Punkte</span>
         <span class="value" id="prestigePointsDisplay">0</span>
@@ -4873,7 +4878,7 @@ window.buyShopItem = async function(itemId, price, btnEl){
 /* ---------- Prestige ---------- */
 window.doPrestige = async function(){
   const btn = document.getElementById('prestigeBtn');
-  if (!confirm('Wirklich prestigen? Alle Rigs und dein Nova-Rift-Bestand werden zurückgesetzt (MOGC bleiben erhalten). Du bekommst dauerhafte Prestige-Punkte für den Skillbaum.')) return;
+  if (!confirm('Wirklich prestigen? Alle Rigs, dein Nova-Rift-Bestand und die Außenposten werden zurückgesetzt (NVLT/ANCH/PULSE/RELAY/IONX werden genullt). VOLT/QNTM/DRIFT/GRID/CYCLE/SIGIL/STBL werden automatisch in MOGC umgewandelt statt gelöscht. MOGC, Skillbäume und GOV bleiben unangetastet. Du bekommst dauerhafte Prestige-Punkte für den Skillbaum.')) return;
   btn.disabled = true; btn.textContent = 'Wird zurückgesetzt …';
   const { data, error } = await sb.schema('crypto_farm').rpc('do_prestige');
   if (error) {
@@ -4882,7 +4887,9 @@ window.doPrestige = async function(){
     return;
   }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Prestige erfolgreich! +${fmtCoin(row?.points_earned ?? 0)} Prestige-Punkte, jetzt Stufe ${row?.prestige_level ?? '?'}.`, true, 'levelup');
+  const mogcGained = Number(row?.mogc_gained ?? 0);
+  const mogcNote = mogcGained > 0 ? ` +${fmtCoin(mogcGained)} MOGC aus liquidiertem Guthaben.` : '';
+  showMsg('statusMsg', `Prestige erfolgreich! +${fmtCoin(row?.points_earned ?? 0)} Prestige-Punkte, jetzt Stufe ${row?.prestige_level ?? '?'}.${mogcNote}`, true, 'levelup');
   await loadEverything({ light: true });
 };
 
