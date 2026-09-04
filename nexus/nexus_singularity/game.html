@@ -131,28 +131,25 @@
   button.active{background:var(--accent);border-color:var(--accent);color:#fff;}
 
   #infoBtn{
-    position:absolute;bottom:132px;left:50%;transform:translateX(-50%);
-    width:22px;height:22px;border-radius:50%;
+    width:20px;height:20px;border-radius:50%;flex-shrink:0;
     background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);
-    color:var(--dim);font-size:12px;font-weight:700;font-family:inherit;
+    color:var(--dim);font-size:11px;font-weight:700;font-family:inherit;
     display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
   }
   #infoBtn:hover{border-color:var(--accent2);color:var(--accent2);}
   #infoTip{
-    position:absolute;bottom:162px;left:50%;transform:translateX(-50%) translateY(6px);
+    position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%) translateY(6px);
     width:min(320px, 86vw);
-    background:rgba(10,11,16,0.94);border:1px solid rgba(255,255,255,0.14);
+    background:rgba(10,11,16,0.96);border:1px solid rgba(255,255,255,0.14);
     border-radius:10px;padding:10px 14px;backdrop-filter:blur(8px);
     font-size:11px;line-height:1.5;color:var(--dim);text-align:center;
     opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;
   }
   #infoTip.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
 
-  /* ---- Ressourcenleiste (immer sichtbar) ---- */
+  /* ---- Ressourcenleiste (feste erste Zeile in #controls, immer sichtbar) ---- */
   #resourceBar{
-    bottom:76px;left:50%;transform:translateX(-50%);
-    display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
-    width:min(560px, 92vw);
+    display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;
   }
   .res-chip{
     display:flex;align-items:center;gap:5px;
@@ -429,12 +426,12 @@
     <div id="factoryUnclaimed"></div>
   </div>
 
-  <div class="hud" id="resourceBar"></div>
-
-  <button id="infoBtn" title="Info">ⓘ</button>
-  <div class="hud" id="infoTip">Rohstoffe werden automatisch zu Rechenknoten verarbeitet, solange der Tab offen ist. Der Kern wächst erst, wenn "Integration aktiv" eingeschaltet ist.</div>
-
   <div class="hud" id="controls">
+    <div class="row" style="justify-content:center;position:relative;">
+      <div id="resourceBar"></div>
+      <button id="infoBtn" title="Info">ⓘ</button>
+      <div id="infoTip">Rohstoffe werden automatisch zu Rechenknoten verarbeitet, solange der Tab offen ist. Der Kern wächst erst, wenn "Integration aktiv" eingeschaltet ist.</div>
+    </div>
     <div class="row">
       <div id="growthBar"><div id="growthFill"></div></div>
     </div>
