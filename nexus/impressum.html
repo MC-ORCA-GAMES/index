@@ -1,0 +1,281 @@
+<!-- NEXUS — Impressum & Datenschutz. Datei-Version: v1.0. -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Impressum &amp; Datenschutz — NEXUS</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e; --accent:#2F8CFF;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; line-height:1.7; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; transition:border-color .15s; }
+  a:hover{ border-bottom-color:var(--accent); }
+  ::selection{ background:var(--accent); color:#0a0b12; }
+
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.5; pointer-events:none; }
+
+  .nav{ position:sticky; top:0; z-index:30; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; font-size:13px; }
+  .nav-back{ color:var(--fg-dim); border-bottom:none; transition:color .15s; }
+  .nav-back:hover{ color:var(--fg); border-bottom:none; }
+
+  /* ---------- burger menu (Seiten-Navigation) ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+    max-height:min(75vh, 520px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; border-bottom:none !important; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
+  .nav-brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; color:var(--accent); border-bottom:none; }
+  .nav-brand .mark{ width:22px; height:22px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px rgba(47,140,255,0.35); flex-shrink:0; }
+
+  .wrap{ position:relative; z-index:2; max-width:720px; margin:0 auto; padding:48px 24px 80px; }
+  .eyebrow{ font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  h1{ font-size:clamp(26px,4vw,34px); margin:0 0 36px; }
+
+  .sec{ padding:28px 0; border-top:1px solid var(--line); }
+  .sec:first-of-type{ border-top:none; padding-top:0; }
+  .sec h2{ font-size:16px; font-weight:600; margin:0 0 4px; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .sec h2 .tag{ font-size:10.5px; font-weight:500; color:var(--fg-faint); text-transform:none; }
+  .sec p{ font-size:14px; color:var(--fg-dim); margin:10px 0; }
+  .sec ul{ margin:10px 0; padding-left:20px; }
+  .sec li{ font-size:14px; color:var(--fg-dim); margin-bottom:6px; }
+  .sec li b{ color:var(--fg); }
+
+  .kv{ display:flex; gap:8px; font-size:14px; padding:4px 0; flex-wrap:wrap; }
+  .kv .k{ min-width:110px; color:var(--fg-faint); }
+  .kv .v{ color:var(--fg); }
+
+  footer{ margin-top:20px; font-size:12px; color:var(--fg-faint); text-align:center; }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-back" href="index.html">← Zurück zu NEXUS</a>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="nav-brand"><span class="mark"></span> NEXUS</span>
+    <div class="burger-wrap">
+      <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="burger-panel" id="burgerPanel">
+        <div class="burger-group">
+          <div class="burger-label">Seiten</div>
+          <a href="../index.html">Hub</a>
+          <a href="../profil.html">Profil</a>
+          <a href="../raenge.html">Ränge</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Spiele</div>
+          <a href="../aetheris/game.html">Aetheris</a>
+          <a href="../astrion/game.html">Astrion</a>
+          <a href="../deepanchor/game.html">Deep Anchor</a>
+          <a href="../pathofthestars/game.html">Path of the Stars</a>
+          <a href="../nexus/game.html">NEXUS</a>
+          <a href="../nexus/nexus_singularity/game.html">Nexus Singularity</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Info</div>
+          <a href="../aetheris/index.html">Aetheris</a>
+          <a href="../astrion/index.html">Astrion</a>
+          <a href="../deepanchor/index.html">Deep Anchor</a>
+          <a href="../pathofthestars/index.html">Path of the Stars</a>
+          <a href="../nexus/index.html">NEXUS</a>
+          <a href="../nexus/nexus_singularity/index.html">Nexus Singularity</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Impressum &amp; Datenschutz</div>
+          <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+          <a href="../aetheris/impressum.html">Aetheris</a>
+          <a href="../astrion/impressum.html">Astrion</a>
+          <a href="../deepanchor/impressum.html">Deep Anchor</a>
+          <a href="../pathofthestars/impressum.html">Path of the Stars</a>
+          <a href="../nexus/impressum.html">NEXUS</a>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
+
+<div class="wrap">
+  <div class="eyebrow">Rechtliches</div>
+  <h1>Impressum &amp; Datenschutzerklärung</h1>
+
+  <div class="sec">
+    <h2>Impressum <span class="tag">§ 5 DDG</span></h2>
+    <div class="kv"><span class="k">Name</span><span class="v">Jens Ziem</span></div>
+    <div class="kv"><span class="k">Anschrift</span><span class="v">Astonstr. 33, 39116 Magdeburg</span></div>
+    <div class="kv"><span class="k">Land</span><span class="v">Deutschland</span></div>
+  </div>
+
+  <div class="sec">
+    <h2>Kontakt</h2>
+    <div class="kv"><span class="k">E-Mail</span><span class="v"><a href="mailto:hub@mc-orca-games.de">hub@mc-orca-games.de</a></span></div>
+  </div>
+
+  <div class="sec">
+    <h2>Verantwortlich für den Inhalt <span class="tag">§ 18 Abs. 2 MStV</span></h2>
+    <div class="kv"><span class="k">Name</span><span class="v">Jens Ziem</span></div>
+    <div class="kv"><span class="k">Anschrift</span><span class="v">Astonstr. 33, 39116 Magdeburg</span></div>
+  </div>
+
+  <div class="sec">
+    <h2>Haftung für Inhalte</h2>
+    <p>NEXUS ist ein kostenloses, nicht-kommerzielles Hobby-/Freizeitprojekt. Als Diensteanbieter bin ich gemäß § 7 Abs. 1 DDG für eigene Inhalte auf dieser Seite nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG bin ich als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Bei Bekanntwerden entsprechender Rechtsverletzungen werde ich diese Inhalte umgehend entfernen.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Haftung für Links</h2>
+    <p>Diese Seite kann Links zu externen Webseiten Dritter enthalten, auf deren Inhalte ich keinen Einfluss habe. Deshalb kann ich für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werde ich derartige Links umgehend entfernen.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Urheberrecht</h2>
+    <p>Die durch den Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten, nicht kommerziellen Gebrauch gestattet.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Hinweis zu KI-generierten Inhalten</h2>
+    <p>Bei der Erstellung dieses Projekts kommen KI-Werkzeuge zum Einsatz:</p>
+    <ul>
+      <li><b>Bilder</b> (u. a. Logo, Coin-Icons) werden mit ChatGPT (OpenAI) erstellt.</li>
+      <li><b>Programmierung</b> erfolgt mit Unterstützung von KI-Assistenten (u. a. Claude von Anthropic).</li>
+    </ul>
+    <p>Dieser Hinweis erfolgt in Übereinstimmung mit den Transparenzvorgaben aus Art. 50 der EU-Verordnung über Künstliche Intelligenz (Verordnung (EU) 2024/1689) für künstlich erzeugte bzw. bearbeitete Bild- und Audioinhalte. NEXUS ist ein erkennbar fiktionales, kreatives Unterhaltungsprojekt.</p>
+  </div>
+
+  <div class="sec">
+    <h2>01 · Verantwortlicher</h2>
+    <div class="kv"><span class="k">Name</span><span class="v">Jens Ziem</span></div>
+    <div class="kv"><span class="k">Anschrift</span><span class="v">Astonstr. 33, 39116 Magdeburg</span></div>
+    <div class="kv"><span class="k">E-Mail</span><span class="v"><a href="mailto:hub@mc-orca-games.de">hub@mc-orca-games.de</a></span></div>
+  </div>
+
+  <div class="sec">
+    <h2>02 · Konto-Pflicht &amp; Spielstand in der Cloud</h2>
+    <p>Anders als die übrigen MC ORCA Games ist NEXUS <b>nicht ohne Konto spielbar</b>: Um NEXUS zu spielen, ist zwingend eine Registrierung bzw. ein Login per E-Mail-Code erforderlich (siehe Abschnitt 03) — einen rein lokalen Spielmodus ohne Anmeldung gibt es hier nicht. Hintergrund: NEXUS ist als spielübergreifender Wirtschafts-Hub für alle MC ORCA Games konzipiert. Dein Fortschritt (u. a. Mining-Rigs, geschürfte Nova-Rift, Prestige- und Skillbaum-Fortschritt, Käufe im Premium-Shop) wird deshalb direkt serverseitig in der gemeinsamen Datenbank geführt, statt zunächst lokal in deinem Browser gespeichert zu werden. Ich habe als Betreiber technischen Zugriff auf diese Datenbank, nutze diesen Zugriff aber ausschließlich zum Betrieb, zur Fehlerbehebung und zur Weiterentwicklung des Spiels. Lediglich rein technische Anzeige-Einstellungen (z. B. der zuletzt geöffnete Reiter) werden zusätzlich lokal in deinem Browser gespeichert (localStorage) und verlassen dein Gerät nicht.</p>
+  </div>
+
+  <div class="sec">
+    <h2>03 · Registrierung, Login &amp; verarbeitete Spieldaten</h2>
+    <p>Der Login läuft — wie bei allen MC ORCA Games — passwortlos über einen 6-stelligen Code, den du per E-Mail erhältst; die gleiche Anmeldung gilt automatisch für alle Spiele auf dieser Domain (gemeinsames Konto). Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Erfüllung eines Vertrags bzw. vorvertragliche Maßnahmen, da du diese Funktion aktiv über die Registrierung anforderst). Da NEXUS ohne Konto nicht spielbar ist, ist die Registrierung hier faktisch Voraussetzung für die Nutzung des Spiels selbst.</p>
+    <p>Dabei werden u. a. folgende Daten verarbeitet:</p>
+    <ul>
+      <li>Deine E-Mail-Adresse (zur Konto-Erstellung, zum Login-Code-Versand und für sonstige sicherheitsrelevante E-Mails)</li>
+      <li>Der einmalige, zeitlich begrenzte Login-Code bzw. das daraus erzeugte Authentifizierungs-Token (kein klassisches Passwort)</li>
+      <li>Dein Spielfortschritt zu deinem Konto, u. a.: Kontostand an Nova-Rift und Premium-Guthaben (MC ORCA GAMES Coins), Prestige-Punkte &amp; -Stufe, besessene Mining-Rigs, dein Mining-Verlauf (geschürfte Mengen samt Zeitpunkt), freigeschaltete Skillbaum-Punkte sowie gekaufte bzw. erhaltene Gegenstände aus dem Premium-Shop</li>
+      <li>Über NEXUS an andere MC ORCA Games weitergereichte bzw. von dort empfangene Spielressourcen („Ressourcen-Mailbox“) — diese Verknüpfung findet ausschließlich innerhalb deines eigenen, einheitlichen Kontos statt und wird nicht mit anderen Nutzern geteilt</li>
+    </ul>
+    <p>All diese Spieldaten werden ausschließlich über deine anonyme, technische Nutzerkennung (UUID) verknüpft — nicht über deinen Namen oder sonstige Angaben zu deiner Person.</p>
+    <p>Für Datenbank und Authentifizierung nutze ich <strong>Supabase</strong> (Supabase, Inc.) als Auftragsverarbeiter. Dort werden dein Nutzerkonto (E-Mail-Adresse, Authentifizierungs-Token) sowie dein gesamter Spielstand gespeichert. Näheres: <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase-Datenschutzerklärung</a>.</p>
+    <p>Für den Versand der Login-Codes und sonstiger Konto-E-Mails nutze ich <strong>Brevo</strong> (Brevo SA, 7 rue de Madrid, 75008 Paris, Frankreich) als E-Mail-/SMTP-Dienstleister. Dabei werden deine E-Mail-Adresse und der E-Mail-Inhalt an Brevo übermittelt. Näheres: <a href="https://www.brevo.com/de/legal/privacypolicy/" target="_blank" rel="noopener">Brevo-Datenschutzerklärung</a>.</p>
+    <p>Beide Dienste werden im Rahmen einer Auftragsverarbeitung gemäß Art. 28 DSGVO eingesetzt.</p>
+    <p><b>Hinweis zu virtuellen Währungen:</b> Nova-Rift sowie die daraus umgetauschten MC ORCA GAMES Coins (Premium-Guthaben) sind rein virtuelle, spielinterne Werteinheiten ohne jeglichen Echtgeld-Bezug — NEXUS ist entsprechend mit „Kein Echtgeld“ gekennzeichnet. Es findet keine Zahlungsabwicklung mit echtem Geld statt, es gibt keine Ein- oder Auszahlung in echte Währung, und es werden zu keinem Zeitpunkt Zahlungsdaten (z. B. Konto- oder Kartendaten) verarbeitet. Der im Spiel dargestellte „Markt“ (Kursverlauf, Marktereignisse, Zentralbank-Reserve) ist eine reine, serverseitig simulierte Spielmechanik ohne Bezug zu echten Finanzmärkten.</p>
+  </div>
+
+  <div class="sec">
+    <h2>04 · Hosting &amp; Server-Logfiles</h2>
+    <p>Diese Website wird über GitHub Pages gehostet, ein Angebot der GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA. Beim Aufruf der Seite verarbeitet GitHub als Hosting-Anbieter automatisch technische Zugriffsdaten (u. a. IP-Adresse, Datum und Uhrzeit des Zugriffs, aufgerufene Datei, verwendeter Browser), wie es bei praktisch jedem Webserver aus technischen Gründen üblich ist. Diese Verarbeitung dient der Auslieferung der Seite sowie der Erkennung von Angriffen/Missbrauch (Art. 6 Abs. 1 lit. f DSGVO, berechtigtes Interesse an einem sicheren und funktionsfähigen Betrieb). Die Domain mc-orca-games.de ist bei der STRATO AG registriert, was am Hosting selbst nichts ändert. Näheres: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a>.</p>
+  </div>
+
+  <div class="sec">
+    <h2>05 · Cookies, Tracking &amp; Analyse</h2>
+    <p>Diese Website setzt keine Cookies, keine Analyse- oder Tracking-Tools und keine Drittanbieter-Werbung ein. Es findet keine Profilbildung und kein Tracking über mehrere Websites hinweg statt.</p>
+    <p>Zur Darstellung von Schriftarten wird <strong>Google Fonts</strong> genutzt, ein Angebot der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Beim Aufruf der Seite werden die benötigten Schriftdateien direkt von Servern von Google geladen; dabei wird die IP-Adresse des aufrufenden Geräts an Google übertragen. Für die Verlaufs-Diagramme (z. B. Kontostand- und Marktverlauf) wird zusätzlich die JavaScript-Bibliothek Chart.js über das Content Delivery Network <strong>cdnjs</strong> (Cloudflare, Inc.) sowie die Supabase-Client-Bibliothek über <strong>jsDelivr</strong> (Prospect One s.r.o.) nachgeladen, wobei jeweils die IP-Adresse an den entsprechenden Server übertragen wird. Diese Verbindungen dienen ausschließlich der technischen Darstellung bzw. Funktion der Seite (Art. 6 Abs. 1 lit. f DSGVO, berechtigtes Interesse an einer funktionsfähigen, performanten Darstellung). Näheres: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google-Datenschutzerklärung</a>.</p>
+  </div>
+
+  <div class="sec">
+    <h2>06 · Kontaktaufnahme per E-Mail</h2>
+    <p>Wenn du mich per E-Mail kontaktierst, verarbeite ich deine Angaben (E-Mail-Adresse, ggf. Name, Inhalt der Nachricht) ausschließlich zur Bearbeitung deiner Anfrage (Art. 6 Abs. 1 lit. f DSGVO, berechtigtes Interesse an der Beantwortung). Die Daten werden gelöscht, sobald sie für die Bearbeitung nicht mehr erforderlich sind, sofern keine gesetzlichen Aufbewahrungspflichten entgegenstehen.</p>
+  </div>
+
+  <div class="sec">
+    <h2>07 · Deine Rechte</h2>
+    <p>Du hast jederzeit das Recht auf Auskunft über die zu deiner Person gespeicherten Daten, sowie ggf. ein Recht auf Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch gegen die Verarbeitung. Wende dich dazu einfach an die oben genannte Kontakt-E-Mail. Außerdem steht dir ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde zu.</p>
+  </div>
+
+  <footer>Stand: August 2026 · wird bei Bedarf aktualisiert, wenn sich am Funktionsumfang der Seite etwas ändert.</footer>
+</div>
+
+<script>
+/* ---------- Sternenfeld (wie index.html) ---------- */
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], w, h;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    const count = Math.min(160, Math.floor((w*h)/13000));
+    stars = Array.from({length:count}, () => ({ x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.1+0.2, p:Math.random()*Math.PI*2, s:Math.random()*0.015+0.005 }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#E9E7E2';
+    stars.forEach(st=>{
+      const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.08 + tw*0.22;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if(!reduced) requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize(); requestAnimationFrame(draw);
+  if(reduced) draw(0);
+})();
+</script>
+
+</body>
+</html>

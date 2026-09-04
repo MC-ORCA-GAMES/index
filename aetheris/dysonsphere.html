@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<!--
+============================================================
+ AETHERIS — 🔆 Dyson-Sphäre — Phase 12: Externe/eingebettete 3D-Ansicht (reine Anzeige) + Rückversand-Anzeige
+ + neues postMessage-Grundgerüst zur Sonnenwerft (siehe Abschnitt weiter unten, noch ohne UI)
+ v0.53.51: Bugfix Panel-Verteilung (sichtbare Spirallinie behoben, siehe Kommentar weiter unten)
+============================================================
+ Eigenständige Datei, liegt bewusst NEBEN der Hauptspiel-Datei (gleicher Ordner, gleiche Origin). Liest
+ den Spielstand des zuletzt aktiven Profils direkt aus localStorage. Bis Phase 9 schrieb diese Seite
+ auch etwas zurück (die hier live gesammelte Sternenenergie) — seit Phase 10 NICHT MEHR: die Sammlung
+ läuft jetzt zentral im Hauptspiel-Tick (tick() in der Hauptdatei), inklusive automatischer
+ Offline-Hochrechnung beim nächsten Laden, genau wie bei den übrigen Ressourcen. Diese Seite ist dadurch
+ komplett lesend geworden und zeigt nur noch an, was im Spielstand steht (Panel-Anzahl, Sternenenergie,
+ laufender Rückversand) — kein localStorage-Schreibzugriff mehr von hier aus.
+
+ Zwei Einsatzarten, beide funktionieren mit demselben Code: (a) als eigener Browser-Tab, geöffnet per
+ window.open() aus dem Hauptspiel heraus (Knopf "🌌 In eigenem Tab öffnen"), oder (b) seit Phase 10
+ eingebettet als <iframe> direkt auf der Dyson-Seite des Hauptspiels ("Bild im Bild") — seit v0.53.04
+ hängt dieser iframe im Hauptspiel dauerhaft und unverschoben an <body> und wird nur per CSS
+ (position:fixed-Koordinaten aus getBoundingClientRect) über den Platzhalter der Dyson-Seite gelegt,
+ statt im DOM herumgeschoben zu werden (das löste in der Praxis noch Reloads aus). In beiden Fällen
+ bleibt der Hauptspiel-Tab von dieser Seite hier völlig unberührt.
+
+ Ein laufender Rückversand wird nur lesend als Badge im Header angezeigt (`returnArrival`/
+ `shipmentAmount`, siehe applyReturnState weiter unten) — der Start-Knopf dafür lebt im Hauptspiel
+ (Mond-Werft/Dyson-Seite).
+
+ BUGFIX v0.53.51 (Feedback: "die Module werden in einer Spirale/Spirallinie angeordnet"): Panel-
+ Verteilung lief bisher über theta = index * GOLDEN_ANGLE direkt auf dem Ankunftsindex — dadurch
+ hatten aufeinanderfolgende Panele auch aufeinanderfolgende Theta-Werte, was beim Zusehen sichtbar
+ als Spirallinie erschien statt als über die Kugel verteilte Punkte. Jetzt: feste Gesamtzahl
+ (DYSON_SPHERE_TOTAL_PANELS = 1.000) mit klassischer Fibonacci-Kugel-Formel für die Positionen
+ selbst (Index k = 0..999, für immer unveränderlich) + Bit-Umkehr-Permutation für die
+ Auftauchreihenfolge (siehe fixedPanelPosition()/REVEAL_ORDER weiter unten) — dadurch sieht jede
+ Zwischenanzahl gleichmäßig verteilt aus, ältere Panele springen dabei weiterhin nie um. Erst in
+ der separaten dyson-vorschau.html getestet und für gut befunden, jetzt hier übernommen.
+
+ Sternenenergie-Ertrag skaliert mit panelsBuilt / DYSON_SPHERE_TOTAL_PANELS — die Gesamt-Panelzahl der
+ fertigen Sphäre wurde in Phase 8 (Balancing) final auf 1.000 festgelegt (siehe Konstante weiter unten).
+ Die Formel/Konstante steht hier weiterhin (identisch zur Hauptdatei), weil diese Seite den Ertrag für
+ die "+.../h"-Anzeige und die dekorativen Energie-Partikel selbst kennen muss — die eigentliche Zahl
+ (`resourcesReady`) kommt aber ausschließlich aus dem Spielstand.
+-->
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AETHERIS — Dyson-Sphäre — 3D-Ansicht</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    background:
+      radial-gradient(1.3px 1.3px at 12px 18px, rgba(255,255,255,0.9), transparent 60%),
+      radial-gradient(1.3px 1.3px at 76px 54px, rgba(255,255,255,0.85), transparent 60%),
+      radial-gradient(1.1px 1.1px at 134px 22px, rgba(255,255,255,0.8), transparent 60%),
+      radial-gradient(1.3px 1.3px at 168px 96px, rgba(255,255,255,0.9), transparent 60%),
+      radial-gradient(1px 1px at 44px 122px, rgba(255,255,255,0.75), transparent 60%),
+      radial-gradient(1.2px 1.2px at 102px 158px, rgba(255,255,255,0.85), transparent 60%),
+      radial-gradient(1px 1px at 24px 176px, rgba(255,255,255,0.7), transparent 60%),
+      radial-gradient(1.2px 1.2px at 188px 150px, rgba(255,255,255,0.8), transparent 60%),
+      radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.06), transparent 55%),
+      #0A0A0A;
+    background-repeat: repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, no-repeat, no-repeat;
+    background-size: 200px 200px, 200px 200px, 200px 200px, 200px 200px, 200px 200px, 200px 200px, 200px 200px, 200px 200px, auto, auto;
+    color: #EDE4D3;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  .display { font-family: 'Cinzel', serif; }
+
+  #scene-canvas { position: fixed; inset: 0; display: block; }
+
+  .header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(212,175,55,0.25);
+    padding: 14px 16px 12px;
+    pointer-events: none;
+  }
+  /* 🔆 Phase 10 — v0.53.06: wird vom Hauptspiel per classList auf <html> gesetzt, solange diese Seite
+     klein als Bild-im-Bild eingebettet ist (nicht im Vollbild-Modus) — spart in der kleinen Box Platz,
+     da der Header dort kaum lesbar ist. Beim "Groß"-Umschalten entfernt das Hauptspiel die Klasse
+     wieder, der Header erscheint dann wie gewohnt. Betrifft NUR die Einbettung; der eigenständige
+     Browser-Tab (window.open) setzt diese Klasse nie und zeigt den Header immer normal an. */
+  html.pip-compact .header { display: none; }
+  .header-row { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  h1 { margin:0; font-size: 20px; letter-spacing: 1px; color:#EDE4D3; }
+  h1 span { color:#D4AF37; }
+  .sub { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:#8A7A6A; margin-top:2px; }
+
+  .stat-pill {
+    display:inline-flex; align-items:center; gap:6px;
+    background:#161010; border:1px solid rgba(212,175,55,0.3); border-radius:20px;
+    padding:6px 14px; font-size:13px; color:#EDE4D3;
+    transition: box-shadow 0.4s ease, border-color 0.4s ease;
+  }
+  .stat-pill b { color:#D4AF37; font-family:'Cinzel', serif; }
+  .stat-pill.pulse {
+    border-color: #D4AF37;
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.18), 0 0 18px rgba(212,175,55,0.35);
+  }
+
+  .live-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:9px; letter-spacing:1px; text-transform:uppercase; color:#8A7A6A;
+  }
+  .live-dot {
+    width:6px; height:6px; border-radius:50%; background:#5FBF6B;
+    box-shadow: 0 0 6px #5FBF6B;
+    animation: livePulse 2s ease-in-out infinite;
+  }
+  @keyframes livePulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+
+  /* .footer-note entfernt in v0.53.07 (untere Info-Zeile wurde ersatzlos gestrichen) */
+
+  #empty-state {
+    position: fixed; inset:0; z-index:5; display:none;
+    align-items:center; justify-content:center; text-align:center; flex-direction:column; gap:10px;
+    padding: 0 30px; pointer-events:none;
+  }
+  #empty-state .display { font-size:18px; color:#D4AF37; }
+  #empty-state .desc { font-size:12px; color:#8A7A6A; max-width:340px; line-height:1.6; }
+
+  #load-error {
+    position: fixed; inset:0; z-index:20; display:none;
+    align-items:center; justify-content:center; text-align:center; flex-direction:column; gap:10px;
+    padding: 0 30px; background:#0A0A0A;
+  }
+  #load-error .display { font-size:18px; color:#C4402E; }
+  #load-error .desc { font-size:12px; color:#8A7A6A; max-width:340px; line-height:1.6; }
+
+  /* 🔆 Dyson-Sphäre — Phase 13: Sonnenwerft-Bauliste. Fest unten links, damit sie die 3D-Ansicht/den
+     OrbitControls-Bereich möglichst wenig stört; im Bild-im-Bild-Modus (html.pip-compact) genauso wie
+     der Header komplett ausgeblendet, da dort ohnehin kaum Platz ist — Bedienung dann nur im
+     "Groß"/eigenen-Tab-Modus. */
+  html.pip-compact #werft-panel { display: none; }
+  #werft-panel {
+    position: fixed; left: 16px; bottom: 16px; z-index: 10;
+    width: 300px; max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+    background: rgba(10,10,10,0.88);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(212,175,55,0.3);
+    border-radius: 10px;
+    font-size: 13px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .werft-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 10px 12px; cursor: pointer;
+    border-bottom: 1px solid rgba(212,175,55,0.2);
+    font-family:'Cinzel', serif; color:#D4AF37; letter-spacing:0.5px;
+  }
+  .werft-collapse-btn {
+    background:none; border:1px solid rgba(212,175,55,0.4); color:#D4AF37;
+    border-radius:5px; width:22px; height:22px; line-height:1; cursor:pointer; font-size:14px;
+  }
+  .werft-body { padding: 4px 12px 12px; overflow-y: auto; }
+  #werft-panel.collapsed .werft-body { display: none; }
+  .werft-section-label { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:#8A7A6A; margin:10px 0 6px; }
+  .werft-part-row { display:flex; align-items:center; justify-content:space-between; padding:3px 0; }
+  .werft-part-row .amt { color:#D4AF37; font-family:'Cinzel', serif; }
+  .werft-hint { font-size:11px; color:#8A7A6A; margin-top:6px; line-height:1.5; }
+  .werft-hint.ready { color:#5FBF6B; }
+  .werft-btn {
+    display:block; width:100%; margin-top:8px; padding:8px 10px;
+    background: linear-gradient(180deg, rgba(212,175,55,0.22), rgba(212,175,55,0.08));
+    border: 1px solid rgba(212,175,55,0.5); color:#EDE4D3; border-radius:7px;
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; cursor:pointer; text-align:center;
+  }
+  .werft-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .werft-btn.secondary { background:transparent; border-color:#5A2A2A; color:#C97A7A; }
+  .werft-count-row { display:flex; align-items:center; gap:6px; margin-top:8px; }
+  .werft-count-row input {
+    flex:1; background:#161010; border:1px solid rgba(212,175,55,0.3); border-radius:6px;
+    color:#EDE4D3; padding:6px 8px; font-family:'IBM Plex Mono', monospace; font-size:13px; width:0;
+  }
+  .werft-count-row button {
+    background:none; border:1px solid rgba(212,175,55,0.4); color:#D4AF37;
+    border-radius:6px; padding:6px 10px; cursor:pointer; font-size:12px;
+  }
+  .werft-bar { height:6px; border-radius:3px; background:#2A1A1A; overflow:hidden; margin-top:8px; }
+  .werft-bar-fill { height:100%; background:#D4AF37; transition: width 0.3s ease; }
+  .werft-msg { font-size:11px; margin-top:8px; min-height:14px; }
+  .werft-msg.error { color:#C97A7A; }
+  .werft-msg.ok { color:#5FBF6B; }
+</style>
+</head>
+<body>
+
+  <canvas id="scene-canvas"></canvas>
+
+  <div class="header">
+    <div class="header-row">
+      <div>
+        <h1>🔆 <span>Dyson-Sphäre</span></h1>
+        <div class="sub" id="profile-sub">AETHERIS — Externe 3D-Ansicht</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; pointer-events:auto; flex-wrap:wrap">
+        <span class="live-badge"><span class="live-dot"></span>Live</span>
+        <span class="stat-pill" id="panel-count-pill">🔆 <b id="panel-count-val">0</b> Panele verbaut</span>
+        <span class="stat-pill" id="energy-pill">🌟 <b id="energy-val">0</b> Sternenenergie <span id="energy-rate" style="color:#8A7A6A;font-size:11px;margin-left:4px"></span></span>
+        <span class="stat-pill" id="return-pill" style="display:none">↩ <span id="return-val" style="color:#8A7A6A"></span></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="empty-state">
+    <div class="display">Noch keine Panele bei der Sonne verbaut</div>
+    <div class="desc">
+      Baue im Hauptspiel Dyson-Bauteile, montiere sie auf einem künstlichen Mond zu Panelen und
+      verschicke sie zur Sonne — sobald die erste Flotte ankommt, erscheint hier automatisch das
+      erste Panel.
+    </div>
+  </div>
+
+  <div id="load-error">
+    <div class="display">Kein Spielstand gefunden</div>
+    <div class="desc">
+      Diese Ansicht liest den Spielstand direkt aus dem Browser-Speicher des Hauptspiels. Öffne
+      zuerst AETHERIS in diesem Browser und starte diese 3D-Ansicht dann erneut über den
+      "🌌 3D-Ansicht öffnen"-Knopf in der Mond-Werft.
+    </div>
+  </div>
+
+  <!-- v0.53.07: untere Info-Zeile auf Wunsch entfernt (unnötige Infos, kostete nur Platz). -->
+
+  <!-- 🔆 Dyson-Sphäre — Phase 13/14: Sonnenwerft-Bauliste (Bauteil-Inventar + Panel-Montage + Kollektor-
+       Array + Wandler-Kern). Inhalt aller werft-*-Container wird komplett per JS befüllt (siehe
+       Abschnitt 4c weiter unten), das Panel bleibt hier nur als leeres Grundgerüst. Standardmäßig
+       ausgeblendet (style="display:none"), bis feststeht, dass überhaupt Sonnenwerft-Daten im
+       Spielstand vorhanden sind (renderWerftPanel() schaltet es sichtbar) — so bleibt ein sehr alter
+       Spielstand ohne `dysonInstallations` (vor Phase 11) unauffällig, statt eine leere/kaputte Box zu
+       zeigen. -->
+  <div id="werft-panel" style="display:none">
+    <div class="werft-header" id="werft-toggle-btn">
+      <span>🔆 Sonnenwerft</span>
+      <button class="werft-collapse-btn" type="button" id="werft-collapse-icon">–</button>
+    </div>
+    <div class="werft-body">
+      <div class="werft-section-label">Bauteil-Inventar</div>
+      <div id="werft-parts-list"></div>
+      <div id="werft-sets-status" class="werft-hint"></div>
+      <div id="werft-queue-block"></div>
+      <div id="werft-msg" class="werft-msg"></div>
+
+      <div class="werft-section-label" style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(212,175,55,0.15)">☀️ Kollektor-Array</div>
+      <div id="werft-collector-block"></div>
+      <div id="werft-collector-msg" class="werft-msg"></div>
+
+      <div class="werft-section-label" style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(212,175,55,0.15)">🔄 Wandler-Kern</div>
+      <div id="werft-converter-block"></div>
+      <div id="werft-converter-msg" class="werft-msg"></div>
+
+      <div class="werft-section-label" style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(212,175,55,0.15)">🔨 Sonnenschmiede</div>
+      <div id="werft-forge-block"></div>
+      <div id="werft-forge-msg" class="werft-msg"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  (function() {
+    "use strict";
+
+    /* ============================================================
+       1) Spielstand lesen — exakt dieselbe Profil-/Speicherschlüssel-
+          Logik wie im Hauptspiel (siehe saveKeyForProfile in AETHERIS).
+       ============================================================ */
+    const SAVE_KEY = "aetheris_save_v1";
+    const ACTIVE_PROFILE_KEY = "aetheris_active_profile_v1";
+    const PROFILES_KEY = "aetheris_profiles_v1";
+    const DEFAULT_PROFILE_ID = "profil1";
+
+    function saveKeyForProfile(id) {
+      return id === DEFAULT_PROFILE_ID ? SAVE_KEY : `${SAVE_KEY}__${id}`;
+    }
+    function activeProfileId() {
+      try { return localStorage.getItem(ACTIVE_PROFILE_KEY) || DEFAULT_PROFILE_ID; } catch(e) { return DEFAULT_PROFILE_ID; }
+    }
+    function activeProfileName(id) {
+      try {
+        const raw = localStorage.getItem(PROFILES_KEY);
+        if (raw) {
+          const list = JSON.parse(raw);
+          const p = Array.isArray(list) && list.find(x => x.id === id);
+          if (p && p.name) return p.name;
+        }
+      } catch(e) {}
+      return "AETHERIS";
+    }
+
+    let currentSaveKey = saveKeyForProfile(activeProfileId());
+    // [Phase 16 Balancing] Analog zu devTimeDiv() in der Haupt-Datei — nur für die Zeit-VORSCHAU hier,
+    // damit sie im Dev-Uni-Profil nicht mehr die falschen (unbeschleunigten) Werte anzeigt. Die echte
+    // Berechnung/Buchung passiert weiterhin ausschließlich serverseitig in der Haupt-Datei.
+    function isDevProfileActive() {
+      try {
+        const raw = localStorage.getItem(PROFILES_KEY);
+        if (!raw) return false;
+        const list = JSON.parse(raw);
+        const p = Array.isArray(list) && list.find(x => x.id === activeProfileId());
+        return !!(p && p.dev);
+      } catch(e) { return false; }
+    }
+    function devTimeDiv() { return isDevProfileActive() ? 30 : 1; }
+
+    /* ---------- Heimatsonnen-Typ/-Farbe: exakt dieselbe Logik wie im Hauptspiel (sunTypeForSystem),
+       damit die Sonne hier farblich zum tatsächlichen Heimatsystem passt statt fest orange zu sein. ---------- */
+    const HOMEWORLD_REGISTRY_KEY = "aetheris_homeworld_registry_v1";
+    function homeSystemForProfile(id) {
+      if (id === DEFAULT_PROFILE_ID) return 0; // Standardprofil: immer System 0 (siehe resolveHomeCoordsForProfile)
+      try {
+        const raw = localStorage.getItem(HOMEWORLD_REGISTRY_KEY);
+        const reg = raw ? JSON.parse(raw) : {};
+        if (reg && reg[id] && Number.isInteger(reg[id].sys)) return reg[id].sys;
+      } catch(e) {}
+      return 0; // Fallback, falls Registry (noch) keinen Eintrag hat
+    }
+    const GALAXY_SUN_TYPES = ["blau", "gelb", "rot", "weiss", "neutron"];
+    function sunTypeForSystem(sys) {
+      const h = ((sys || 0) + 1) * 40503;
+      return GALAXY_SUN_TYPES[Math.abs(h) % GALAXY_SUN_TYPES.length];
+    }
+    // Kern-/Glüh-/Licht-Farben je Sonnentyp — Glüh-Töne identisch zu GALAXY_SUN_GLOW im Hauptspiel.
+    const STAR_COLORS = {
+      blau:    { core: 0x6a9bff, light: 0x8fb4ff, glow: ["rgba(150,190,255,0.95)", "rgba(90,150,255,0.55)",  "rgba(90,150,255,0)"] },
+      gelb:    { core: 0xffb347, light: 0xffcf8a, glow: ["rgba(255,235,190,0.95)", "rgba(255,214,120,0.55)", "rgba(255,180,60,0)"] },
+      rot:     { core: 0xff6a4a, light: 0xff8f6a, glow: ["rgba(255,180,160,0.95)", "rgba(255,120,90,0.55)",  "rgba(255,90,60,0)"]  },
+      weiss:   { core: 0xe8ebf5, light: 0xf2f4fb, glow: ["rgba(255,255,255,0.95)", "rgba(230,235,245,0.55)", "rgba(230,235,245,0)"] },
+      neutron: { core: 0xa0cdff, light: 0xbfe0ff, glow: ["rgba(210,235,255,0.95)", "rgba(160,205,255,0.55)", "rgba(160,205,255,0)"] },
+    };
+    const homeSunType = sunTypeForSystem(homeSystemForProfile(activeProfileId()));
+    const homeSunColors = STAR_COLORS[homeSunType] || STAR_COLORS.gelb;
+
+    function readDysonState() {
+      try {
+        const raw = localStorage.getItem(currentSaveKey);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (!data) return null;
+        const ds = data.dysonState || {};
+        return {
+          panelsBuilt: Math.max(0, Math.floor(ds.panelsBuilt || 0)),
+          panelsInTransit: Math.max(0, Math.floor(ds.panelsInTransit || 0)),
+          resourcesReady: ds.resourcesReady || 0,
+          returnArrival: ds.returnArrival || null,
+          shipmentAmount: ds.shipmentAmount || 0,
+        };
+      } catch(e) {
+        return null;
+      }
+    }
+
+    // 🔆 Dyson-Sphäre — Phase 13/14: reine Lese-Funktion für den Sonnenwerft-Zustand (Bauteil-Inventar,
+    // laufende Montage, Kollektor-Array-/Wandler-Kern-Stufe + deren laufende Ausbauten, Sternenenergie-
+    // Kontostand, Kurzliste aller eigenen Planeten für den Wandler-Kern-Zielauswahl), exakt analog zu
+    // readDysonState() oben. Aktionen (Panel montieren, Ausbau starten, umtauschen, abbrechen) laufen
+    // NICHT hierüber, sondern ausschließlich über sendDysonWerftRequest()/postMessage — diese Funktion
+    // dient nur der Anzeige und wird auf demselben 1s-Poll wie die übrigen Werte aktualisiert, damit die
+    // Bauliste auch dann aktuell bleibt, wenn eine Änderung von anderswo kam (z.B. Vollautomatik im
+    // Hauptspiel-Tab).
+    function readDysonInstallations() {
+      try {
+        const raw = localStorage.getItem(currentSaveKey);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (!data || !data.dysonInstallations) return null;
+        const di = data.dysonInstallations;
+        const planetsList = data.planets && typeof data.planets === "object"
+          ? Object.values(data.planets).map(p => ({ id: p.id, name: p.name })).filter(p => p.id && p.name)
+          : [];
+        return {
+          parts: { ...DYSON_PARTS_DEFAULT, ...(di.parts || {}) },
+          panelQueue: di.panelQueue || null,
+          collectorLevel: Math.max(0, Math.floor(di.collectorLevel || 0)),
+          converterLevel: Math.max(0, Math.floor(di.converterLevel || 0)),
+          collectorQueue: di.collectorQueue || null,
+          converterQueue: di.converterQueue || null,
+          // [Phase 15] Sonnenschmiede — Bau-/Freischalt-Status, analog Kollektor/Wandler-Kern.
+          forgeUnlocked: !!di.forgeUnlocked,
+          forgeQueue: di.forgeQueue || null,
+          forgeShipUnlocked: !!di.forgeShipUnlocked,
+          forgeShipQueue: di.forgeShipQueue || null,
+          forgeDefenseUnlocked: !!di.forgeDefenseUnlocked,
+          forgeDefenseQueue: di.forgeDefenseQueue || null,
+          starEnergy: Math.max(0, Math.floor(data.starEnergy || 0)),
+          // [Phase 15] Sphären-Fertigstellung (0-1) für die Sonnenschmiede-Mindestvoraussetzung — direkt
+          // aus dysonState.panelsBuilt berechnet, identisch zu dysonSphereCompletionPct() in der Haupt-
+          // Datei. Bewusst die feste Zahl 1000 statt der Konstante DYSON_SPHERE_TOTAL_PANELS verwendet:
+          // die wird erst weiter unten im Modul deklariert (nach dem allerersten Aufruf dieser Funktion
+          // ganz oben für knownCollectorLevel) — ein Zugriff hier würde einen TDZ-ReferenceError auslösen.
+          sphereCompletionPct: data.dysonState && typeof data.dysonState === "object"
+            ? Math.min(1, (data.dysonState.panelsBuilt || 0) / 1000)
+            : 0,
+          planetsList,
+        };
+      } catch(e) {
+        return null;
+      }
+    }
+    const DYSON_PARTS_DEFAULT = { framework:0, collectorCell:0, controlCore:0, coolingSystem:0, armorPlating:0 };
+    // Anzeige-Metadaten der 5 Bauteile — Reihenfolge/Keys/Namen/Icons exakt wie DYSON_PARTS in der
+    // Haupt-Datei (nur name/icon/key werden hier gebraucht, nicht Kosten/Bauzeit).
+    const DYSON_PARTS_META = [
+      { key:"framework", name:"Trägerstruktur", icon:"🩻" },
+      { key:"collectorCell", name:"Kollektorzelle", icon:"🔆" },
+      { key:"controlCore", name:"Steuerkern", icon:"🧠" },
+      { key:"coolingSystem", name:"Kühlsystem", icon:"❄️" },
+      { key:"armorPlating", name:"Panzerung", icon:"🛡️" },
+    ];
+
+    // 🔆 Dyson-Sphäre — Phase 14/15: Kollektor-Array/Wandler-Kern/Sonnenschmiede — nur für die ANZEIGE
+    // (Kosten-/Zeit-Vorschau vor dem Klick) hier dupliziert, exakt identisch zu den Formeln in der
+    // Haupt-Datei (dysonCollectorUpgradeCost/-Seconds, dysonConverterUpgradeCost/-Seconds,
+    // dysonConverterRatePerUnit, DYSON_COLLECTOR_BONUS_PER_LEVEL, DYSON_FORGE_*). Die eigentliche
+    // Prüfung/Ausführung passiert ausschließlich serverseitig in handleDysonWerftMessage() — weicht
+    // diese Anzeige-Kopie mal ab (z.B. nach einem künftigen Balancing-Update, das hier vergessen wurde),
+    // zeigt sie höchstens kurz einen falschen Vorschauwert, bis die Antwort vom Host den echten Stand
+    // zurückliefert; sie kann NICHT zu einer falschen Buchung führen.
+    // [Phase 15] Balancing final: Kostenwachstum ×1.5→×1.55, Zeitwachstum ×1.2→×1.22, Basiskosten
+    // 5.000/6.000→7.000/8.000, Basis-Bauzeit 6h→7h (siehe Haupt-Datei für Begründung).
+    const DYSON_COLLECTOR_MAX_LEVEL = 10, DYSON_CONVERTER_MAX_LEVEL = 10;
+    const DYSON_COLLECTOR_BONUS_PER_LEVEL = 0.12;
+    const dysonCollectorUpgradeCost = (toLevel) => Math.round(7000 * Math.pow(1.55, toLevel-1));
+    const dysonCollectorUpgradeSeconds = (toLevel) => Math.round(25200 * Math.pow(1.22, toLevel-1) / devTimeDiv());
+    const dysonConverterUpgradeCost = (toLevel) => Math.round(8000 * Math.pow(1.55, toLevel-1));
+    const dysonConverterUpgradeSeconds = (toLevel) => Math.round(25200 * Math.pow(1.22, toLevel-1) / devTimeDiv());
+    const dysonConverterRatePerUnit = (level) => (5 + Math.max(1, level)) / 3;
+    // [Phase 15] Sonnenschmiede — feste (nicht stufenweise) Kosten/Zeiten, siehe Haupt-Datei.
+    const DYSON_FORGE_MIN_COMPLETION = 0.5;
+    const DYSON_FORGE_BUILD_COST = 250000, DYSON_FORGE_BUILD_SECONDS = 259200;
+    const DYSON_FORGE_SHIP_UNLOCK_COST = 400000, DYSON_FORGE_SHIP_UNLOCK_SECONDS = 172800;
+    const DYSON_FORGE_DEFENSE_UNLOCK_COST = 300000, DYSON_FORGE_DEFENSE_UNLOCK_SECONDS = 129600;
+
+    // 🔆 Phase 10: kein Schreibzugriff mehr von hier — diese Seite ist reine Anzeige (siehe
+    // applyEnergyState weiter unten). Gesammelt und gespeichert wird zentral im Hauptspiel-Tick.
+
+    /* ============================================================
+       🔆 Dyson-Sphäre — Phase 12 (Sonnenwerft — postMessage-Grundgerüst): Gegenstück zum Handler
+       `handleDysonWerftMessage()` in der Haupt-Datei. Diese Seite bleibt weiterhin komplett lesend
+       gegenüber localStorage (s.o.) — für die künftige Sonnenwerft-Bedienoberfläche (Bauliste,
+       Knöpfe, Anlagen, ab Phase 13) schickt sie stattdessen Anfragen per postMessage an die
+       Haupt-Datei, die dort geprüft, ausgeführt und gespeichert werden. Same-origin, funktioniert
+       identisch für beide Einsatzarten dieser Datei: als eingebetteter iframe (Ziel: window.parent)
+       und als eigener, per window.open() geöffneter Tab (Ziel: window.opener). Diese Version baut
+       nur das Grundgerüst inkl. echtem "ping"/"pong"-Verbindungstest — noch ohne Bedienoberfläche.
+       ============================================================ */
+    const DYSON_WERFT_CHANNEL = "aetheris-dyson-werft-v1";
+    const dysonWerftPending = new Map(); // requestId -> {resolve, reject, timeoutHandle}
+    let dysonWerftReqCounter = 0;
+
+    function dysonWerftHostTarget() {
+      // Eingebettet als iframe: die Haupt-Datei ist window.parent (und != window selbst).
+      // Eigener Tab per window.open(): die Haupt-Datei ist window.opener.
+      // Direkt ohne Host geöffnet (z.B. Datei manuell im Browser aufgerufen): kein Ziel -> null.
+      if (window.parent && window.parent !== window) return window.parent;
+      if (window.opener) return window.opener;
+      return null;
+    }
+
+    function sendDysonWerftRequest(type, payload, timeoutMs) {
+      return new Promise((resolve, reject) => {
+        const target = dysonWerftHostTarget();
+        if (!target) { reject(new Error("kein Host verbunden")); return; }
+        const requestId = `dw-${Date.now()}-${++dysonWerftReqCounter}`;
+        const timeoutHandle = setTimeout(() => {
+          dysonWerftPending.delete(requestId);
+          reject(new Error("Zeitüberschreitung"));
+        }, timeoutMs || 4000);
+        dysonWerftPending.set(requestId, { resolve, reject, timeoutHandle });
+        target.postMessage({ channel: DYSON_WERFT_CHANNEL, dir: "toHost", requestId, type, payload: payload || {} }, window.location.origin);
+      });
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== window.location.origin) return;
+      const msg = event.data;
+      if (!msg || typeof msg !== "object" || msg.channel !== DYSON_WERFT_CHANNEL || msg.dir !== "toClient") return;
+      const pending = dysonWerftPending.get(msg.requestId);
+      if (!pending) return; // unbekannte/abgelaufene Anfrage -> ignorieren
+      dysonWerftPending.delete(msg.requestId);
+      clearTimeout(pending.timeoutHandle);
+      if (msg.type === "error") pending.reject(new Error(msg.error || "unbekannter Fehler")); else pending.resolve(msg);
+    });
+
+    // Verbindungstest beim Laden: einmal "ping" schicken und das Ergebnis in die Konsole loggen.
+    // Schlägt lautlos fehl, wenn kein Host verbunden ist (z.B. Datei direkt im Browser geöffnet) — das
+    // ist kein Fehlerfall, nur kein Kanal vorhanden (siehe dysonWerftHostConnected weiter unten, steuert
+    // dann auch, ob die Sonnenwerft-Bauliste bedienbar ist). Ab Phase 13 nutzt die Sonnenwerft-Bauliste
+    // (siehe Abschnitt 4c) dieselbe sendDysonWerftRequest()-Funktion für die echten Aktionen.
+    let dysonWerftHostConnected = false;
+    sendDysonWerftRequest("ping", {}).then((res) => {
+      console.log("[Sonnenwerft] Verbindung zur Haupt-Datei steht:", res);
+      dysonWerftHostConnected = true;
+      updateSonnenwerftHostState();
+    }).catch((err) => {
+      console.log("[Sonnenwerft] keine Verbindung zur Haupt-Datei (nicht als iframe/Tab aus AETHERIS geöffnet):", err.message);
+      dysonWerftHostConnected = false;
+      updateSonnenwerftHostState();
+    });
+
+
+    const fmt = (n) => Math.floor(n).toLocaleString("de-DE");
+    // Gleiche Darstellung wie fmtTime() im Hauptspiel (H:MM:SS bzw. M:SS), damit die Countdown-Anzeige
+    // hier und dort identisch aussieht.
+    const fmtTime = (s) => {
+      s = Math.max(0, Math.ceil(s));
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+      if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+      return `${m}:${sec.toString().padStart(2,'0')}`;
+    };
+
+    const initialState = readDysonState();
+    // [Phase 14] Bekannte Kollektor-Array-Stufe für den Ertrags-Bonus in starEnergyRatePerHour (siehe
+    // dort) — wird bei jedem Poll über renderWerftPanel()/readDysonInstallations() aktuell gehalten
+    // (Abschnitt 4c weiter unten), hier schon vorab mit dem tatsächlichen Anfangswert befüllt, damit die
+    // allererste Ertrags-Anzeige (noch vor dem ersten Poll) nicht kurz einen zu niedrigen Wert zeigt.
+    let knownCollectorLevel = (readDysonInstallations() || {}).collectorLevel || 0;
+    const SUN_TYPE_LABEL = { blau: "Blauer Riese", gelb: "Gelber Zwerg", rot: "Roter Zwerg", weiss: "Weißer Zwerg", neutron: "Neutronenstern" };
+    document.getElementById("profile-sub").textContent =
+      `${activeProfileName(activeProfileId())} — ${SUN_TYPE_LABEL[homeSunType] || homeSunType} — Externe 3D-Ansicht`;
+
+    if (initialState === null) {
+      document.getElementById("load-error").style.display = "flex";
+      return; // kein Spielstand lesbar -> Szene erst gar nicht aufbauen
+    }
+
+    /* ============================================================
+       2) Three.js-Grundgerüst
+       ============================================================ */
+    const canvas = document.getElementById("scene-canvas");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
+    camera.position.set(24, 14, 24);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 10;
+    controls.maxDistance = 70;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.35;
+    controls.target.set(0, 0, 0);
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Sanftes Stoppen des Auto-Rotate, sobald der Mensch selbst dreht/zoomt
+    controls.addEventListener("start", () => { controls.autoRotate = false; });
+
+    /* ---------- Hintergrund-Sternenfeld ---------- */
+    (function buildStarfield() {
+      const starCount = 2200;
+      const positions = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        // Gleichverteilt auf einer großen Kugel um die Szene
+        const u = Math.random(), v = Math.random();
+        const theta = 2 * Math.PI * u;
+        const phi = Math.acos(2 * v - 1);
+        const r = 150 + Math.random() * 120;
+        positions[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+        positions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i*3+2] = r * Math.cos(phi);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, sizeAttenuation: true, transparent: true, opacity: 0.85 });
+      scene.add(new THREE.Points(geo, mat));
+    })();
+
+    /* ---------- Sonne (Zentrum) ---------- */
+    const SUN_RADIUS = 6;
+    const sunGroup = new THREE.Group();
+    scene.add(sunGroup);
+
+    const sunCore = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(SUN_RADIUS, 3),
+      new THREE.MeshBasicMaterial({ color: homeSunColors.core })
+    );
+    sunGroup.add(sunCore);
+
+    // Weicher Glow als additiver Sprite hinter/um die Sonne (Canvas-Radial-Gradient-Textur)
+    function makeGlowTexture() {
+      const size = 256;
+      const c = document.createElement("canvas");
+      c.width = c.height = size;
+      const ctx = c.getContext("2d");
+      const g = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+      g.addColorStop(0, homeSunColors.glow[0]);
+      g.addColorStop(0.35, homeSunColors.glow[1]);
+      g.addColorStop(1, homeSunColors.glow[2]);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, size, size);
+      return new THREE.CanvasTexture(c);
+    }
+    const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: makeGlowTexture(), color: 0xffffff, transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    glowSprite.scale.set(SUN_RADIUS * 5.2, SUN_RADIUS * 5.2, 1);
+    sunGroup.add(glowSprite);
+
+    const sunLight = new THREE.PointLight(homeSunColors.light, 3.2, 0, 1.6);
+    sunLight.position.set(0, 0, 0);
+    scene.add(sunLight);
+    scene.add(new THREE.AmbientLight(0x302418, 1.1));
+
+    sunCore.userData.spin = 0.0006;
+
+    /* ============================================================
+       3) Panel-Verteilung — BUGFIX v0.53.51 (Feedback: "die Module werden in einer
+          Spirale/Spirallinie angeordnet"): Der bisherige Ansatz (goldener Winkel für die
+          Länge direkt aus dem Ankunftsindex, also theta = index * GOLDEN_ANGLE) hatte einen
+          Denkfehler — mathematisch ist die STATISCHE Verteilung aller Punkte zwar sauber, aber
+          weil aufeinanderfolgende Panele damit auch aufeinanderfolgende Theta-Werte bekommen,
+          "wandert" jedes neue Panel beim Zusehen sichtbar um genau einen goldenen Winkel weiter
+          als sein Vorgänger — optisch entsteht dadurch eine klar erkennbare Spirallinie, statt
+          dass die neuen Panele wirkten wie über die Kugel verteilt.
+          Fix: feste Gesamtzahl (DYSON_SPHERE_TOTAL_PANELS = 1.000, ist eh schon final fixiert)
+          + klassische Fibonacci-Kugel-Formel für die Positionen selbst (unveränderlich, Index
+          k = 0..999) — die AUFTAUCHREIHENFOLGE kommt aber nicht mehr direkt aus k, sondern aus
+          einer Bit-Umkehr-Permutation (bitReverse, klassische Technik aus FFT/Bildaufbau fürs
+          "gleichmäßig werdende" Füllen). Dadurch springt bei JEDER Zwischenanzahl eine über die
+          ganze Kugel verteilte Teilmenge ins Bild statt einer sichtbaren Spirale. Identisch zum
+          Ansatz, der in der separaten dyson-vorschau.html schon getestet und für gut befunden
+          wurde. Ältere Panele springen dabei nie um: Position k bleibt für immer fix, nur WANN
+          welches k auftaucht ändert sich (rein kosmetisch, keine Auswirkung auf Spielstand).
+       ============================================================ */
+    const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ≈ 2.39996323 rad
+    const PANEL_ORBIT_RADIUS = SUN_RADIUS + 8;
+
+    // 🔆 Phase 8 (final): Sternenenergie-Ertrag. Die Gesamt-Panelzahl der fertigen Sphäre wurde im
+    // Balancing-Durchgang final auf 1.000 festgelegt — der Ertrag skaliert weiterhin linear mit
+    // panelsBuilt / DYSON_SPHERE_TOTAL_PANELS.
+    const DYSON_SPHERE_TOTAL_PANELS = 1000;
+    const STAR_ENERGY_BASE_PER_HOUR = 24000; // Ertrag bei vollständiger Sphäre (final, Phase 8)
+    // [Phase 14] +12%/Stufe Kollektor-Array-Bonus, siehe DYSON_COLLECTOR_BONUS_PER_LEVEL/knownCollectorLevel
+    // — exakt dieselbe Formel wie starEnergyRatePerHour() in der Haupt-Datei.
+    function starEnergyRatePerHour(panelsBuilt) {
+      return STAR_ENERGY_BASE_PER_HOUR * Math.min(1, panelsBuilt / DYSON_SPHERE_TOTAL_PANELS) * (1 + DYSON_COLLECTOR_BONUS_PER_LEVEL * knownCollectorLevel);
+    }
+
+    // Feste, für immer unveränderliche Position pro Positions-Index k (0..999) — klassische
+    // Fibonacci-Kugel-Formel (goldener Winkel für die Länge, lineare Aufteilung für die Breite).
+    function fixedPanelPosition(k) {
+      const y = 1 - 2 * (k + 0.5) / DYSON_SPHERE_TOTAL_PANELS;
+      const r = Math.sqrt(Math.max(0, 1 - y*y));
+      const theta = k * GOLDEN_ANGLE;
+      return new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r);
+    }
+
+    // Bit-Umkehr-Permutation: bestimmt, in welcher Reihenfolge die 1.000 festen Positionen
+    // "auftauchen", damit jede Zwischenanzahl gleichmäßig über die Kugel verteilt aussieht statt
+    // spiralförmig von Pol zu Pol vollzulaufen.
+    function bitReverse(x, bits) {
+      let out = 0;
+      for (let b = 0; b < bits; b++) { out = (out << 1) | (x & 1); x >>= 1; }
+      return out;
+    }
+    const REVEAL_ORDER = (function buildRevealOrder(n) {
+      const bits = Math.ceil(Math.log2(n));
+      const padded = 1 << bits;
+      const order = [];
+      for (let i = 0; i < padded && order.length < n; i++) {
+        const r = bitReverse(i, bits);
+        if (r < n) order.push(r);
+      }
+      return order;
+    })(DYSON_SPHERE_TOTAL_PANELS);
+
+    function panelDirection(index /* 1-based, Ankunftsreihenfolge */) {
+      const k = REVEAL_ORDER[(index - 1) % DYSON_SPHERE_TOTAL_PANELS];
+      return fixedPanelPosition(k);
+    }
+
+    const panelGeometry = new THREE.BoxGeometry(1.15, 0.72, 0.08);
+    const panelMaterial = new THREE.MeshStandardMaterial({
+      color: 0xD4AF37, metalness: 0.75, roughness: 0.32,
+      emissive: 0x3a2708, emissiveIntensity: 0.5,
+    });
+    const panelEdgeMaterial = new THREE.MeshStandardMaterial({
+      color: 0xB08D57, metalness: 0.6, roughness: 0.4,
+    });
+
+    const panelsGroup = new THREE.Group();
+    scene.add(panelsGroup);
+    const panelMeshes = []; // index i (0-based array) == Ankunftsreihenfolge (1-based via i+1)
+
+    function spawnPanel(index, delaySeconds) {
+      const dir = panelDirection(index).normalize();
+      const pos = dir.clone().multiplyScalar(PANEL_ORBIT_RADIUS);
+
+      const mesh = new THREE.Mesh(panelGeometry, [
+        panelMaterial, panelMaterial, panelMaterial, panelMaterial, panelMaterial, panelEdgeMaterial,
+      ]);
+      mesh.position.copy(pos);
+      mesh.lookAt(0, 0, 0); // Vorderseite (+Z) zeigt dadurch nach außen, weg von der Sonne
+      mesh.scale.setScalar(0.0001);
+      panelsGroup.add(mesh);
+
+      const startAt = performance.now() + delaySeconds * 1000;
+      const growDuration = 650; // ms
+      mesh.userData.animate = (now) => {
+        if (now < startAt) return true;
+        const t = Math.min(1, (now - startAt) / growDuration);
+        // sanftes Einfliegen mit leichtem Überschwingen ("Panel klappt sich auf")
+        const eased = t < 1 ? 1 - Math.pow(1 - t, 3) : 1;
+        const overshoot = t < 1 ? 1 + 0.12 * Math.sin(t * Math.PI) : 1;
+        mesh.scale.setScalar(Math.max(0.0001, eased * overshoot));
+        return t < 1;
+      };
+      panelMeshes.push(mesh);
+    }
+
+    function rebuildAllPanels(count) {
+      panelMeshes.forEach(m => panelsGroup.remove(m));
+      panelMeshes.length = 0;
+      for (let i = 1; i <= count; i++) {
+        // sanftes, gestaffeltes "Zusammenbauen" beim ersten Laden statt allem auf einmal
+        spawnPanel(i, Math.min(i * 0.012, 2.5));
+      }
+    }
+    function addPanelsUpTo(count) {
+      const from = panelMeshes.length + 1;
+      for (let i = from; i <= count; i++) {
+        spawnPanel(i, (i - from) * 0.05);
+      }
+    }
+
+    /* ---------- 🔆 Phase 6: Energiefluss-Partikel (rein dekorativ, zeigt die Sammel-Mechanik) ---------- */
+    function makeMoteTexture() {
+      const size = 64;
+      const c = document.createElement("canvas");
+      c.width = c.height = size;
+      const ctx = c.getContext("2d");
+      const g = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+      g.addColorStop(0, "rgba(255,240,200,1)");
+      g.addColorStop(0.5, "rgba(255,215,120,0.7)");
+      g.addColorStop(1, "rgba(255,180,60,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, size, size);
+      return new THREE.CanvasTexture(c);
+    }
+    const moteTexture = makeMoteTexture();
+    const motesGroup = new THREE.Group();
+    scene.add(motesGroup);
+    const energyMotes = [];
+
+    function spawnEnergyMote() {
+      const dir = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1).normalize();
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: moteTexture, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      sprite.scale.setScalar(0.55 + Math.random() * 0.35);
+      motesGroup.add(sprite);
+      const startR = SUN_RADIUS * 1.05;
+      const endR = PANEL_ORBIT_RADIUS * (0.75 + Math.random() * 0.3);
+      const duration = 1600 + Math.random() * 900;
+      const startAt = performance.now();
+      energyMotes.push({ sprite, dir, startR, endR, duration, startAt });
+    }
+
+    function tickEnergyMotes(now) {
+      for (let i = energyMotes.length - 1; i >= 0; i--) {
+        const m = energyMotes[i];
+        const t = (now - m.startAt) / m.duration;
+        if (t >= 1) {
+          motesGroup.remove(m.sprite);
+          m.sprite.material.map = null; m.sprite.material.dispose();
+          energyMotes.splice(i, 1);
+          continue;
+        }
+        const r = m.startR + (m.endR - m.startR) * t;
+        m.sprite.position.copy(m.dir).multiplyScalar(r);
+        const fadeIn = Math.min(1, t / 0.15);
+        const fadeOut = Math.min(1, (1 - t) / 0.3);
+        m.sprite.material.opacity = Math.min(fadeIn, fadeOut) * 0.85;
+      }
+    }
+
+
+    let lastKnownCount = 0;
+    function applyPanelCount(count, animated) {
+      if (count === lastKnownCount) return;
+      if (!animated || count < lastKnownCount) {
+        rebuildAllPanels(count);
+      } else {
+        addPanelsUpTo(count);
+      }
+      lastKnownCount = count;
+      updatePanelCountUI(count);
+    }
+
+    /* ============================================================
+       4) UI-Anzeige + Empty-State
+       ============================================================ */
+    const countValEl = document.getElementById("panel-count-val");
+    const countPillEl = document.getElementById("panel-count-pill");
+    const emptyStateEl = document.getElementById("empty-state");
+    const energyValEl = document.getElementById("energy-val");
+    const energyRateEl = document.getElementById("energy-rate");
+    const energyPillEl = document.getElementById("energy-pill");
+
+    function updatePanelCountUI(count) {
+      countValEl.textContent = count.toLocaleString("de-DE");
+      emptyStateEl.style.display = count === 0 ? "flex" : "none";
+      countPillEl.classList.add("pulse");
+      setTimeout(() => countPillEl.classList.remove("pulse"), 900);
+    }
+
+    function updateEnergyUI(amount, ratePerHour) {
+      energyValEl.textContent = fmt(amount);
+      energyRateEl.textContent = ratePerHour > 0 ? `(+${fmt(ratePerHour)}/h)` : "";
+    }
+
+    applyPanelCount(initialState.panelsBuilt, false);
+
+    /* ============================================================
+       4b) 🔆 Phase 10: reine Anzeige der Sternenenergie. Gesammelt wird seit Phase 10 NICHT MEHR hier,
+           sondern zentral im Hauptspiel-Tick (tick() in der Hauptdatei) — genau wie bei allen anderen
+           Ressourcen, inklusive automatischer Offline-Hochrechnung beim nächsten Laden. Diese Seite
+           schreibt dadurch nichts mehr in den Spielstand zurück, sondern zeigt nur noch live an, was
+           dort bereits steht (siehe applyEnergyState/Polling weiter unten) — dekorative Energie-Partikel
+           laufen unabhängig weiter, solange der zuletzt bekannte Ertrag > 0 ist.
+       ============================================================ */
+    let displayedEnergy = initialState.resourcesReady;
+    updateEnergyUI(displayedEnergy, starEnergyRatePerHour(lastKnownCount));
+
+    function applyEnergyState(fresh) {
+      if (!fresh || typeof fresh.resourcesReady !== "number") return;
+      displayedEnergy = fresh.resourcesReady;
+      updateEnergyUI(displayedEnergy, starEnergyRatePerHour(lastKnownCount));
+      energyPillEl.classList.add("pulse");
+      setTimeout(() => energyPillEl.classList.remove("pulse"), 900);
+    }
+
+    // Rein dekorative Energie-Partikel, solange die Sphäre gerade produziert — die Zahl selbst kommt
+    // ausschließlich aus dem Spielstand (siehe applyEnergyState), hier wird nichts mitgezählt.
+    setInterval(() => {
+      if (starEnergyRatePerHour(lastKnownCount) > 0 && Math.random() < 0.6) spawnEnergyMote();
+    }, 1000);
+
+    /* ---------- 🔆 Phase 7: Anzeige des laufenden Rückversands (nur lesend, rein informativ - der
+       eigentliche Versand-Button lebt im Hauptspiel, siehe Roadmap-Kommentar am Dateianfang). ---------- */
+    const returnPillEl = document.getElementById("return-pill");
+    const returnValEl = document.getElementById("return-val");
+    let knownReturnArrival = initialState.returnArrival || null;
+    let knownShipmentAmount = initialState.shipmentAmount || 0;
+
+    function updateReturnUI() {
+      if (!knownReturnArrival) {
+        returnPillEl.style.display = "none";
+        return;
+      }
+      const remaining = (knownReturnArrival - Date.now()) / 1000;
+      returnPillEl.style.display = "inline-flex";
+      returnValEl.textContent = remaining > 0
+        ? `${fmt(knownShipmentAmount)} unterwegs zur Heimatwelt · ${fmtTime(remaining)}`
+        : `${fmt(knownShipmentAmount)} ist angekommen`;
+    }
+    function applyReturnState(fresh) {
+      if (!fresh) return;
+      knownReturnArrival = fresh.returnArrival || null;
+      if (fresh.returnArrival) knownShipmentAmount = fresh.shipmentAmount || 0;
+      updateReturnUI();
+    }
+    applyReturnState(initialState);
+    setInterval(updateReturnUI, 1000);
+
+    /* ============================================================
+       4c) 🔆 Dyson-Sphäre — Phase 13: Sonnenwerft-Bauliste (Bauteil-Inventar + Panel-Montage). Bedienung
+           läuft ausschließlich über sendDysonWerftRequest() (postMessage an die Haupt-Datei, die prüft,
+           ausführt und speichert) — diese Seite selbst schreibt weiterhin nichts. Die Anzeige (Inventar,
+           laufende Montage) wird per Poll direkt aus localStorage aktualisiert (readDysonInstallations),
+           genau wie die übrigen Werte oben — Reaktionsgeschwindigkeit ist dadurch identisch (1s-Poll +
+           'storage'-Event), ohne dass jede Anzeige-Aktualisierung extra über den Host laufen müsste.
+       ============================================================ */
+    const werftPanelEl = document.getElementById("werft-panel");
+    const werftToggleBtn = document.getElementById("werft-toggle-btn");
+    const werftCollapseIcon = document.getElementById("werft-collapse-icon");
+    const werftPartsListEl = document.getElementById("werft-parts-list");
+    const werftSetsStatusEl = document.getElementById("werft-sets-status");
+    const werftQueueBlockEl = document.getElementById("werft-queue-block");
+    const werftMsgEl = document.getElementById("werft-msg");
+    const werftCollectorBlockEl = document.getElementById("werft-collector-block");
+    const werftCollectorMsgEl = document.getElementById("werft-collector-msg");
+    const werftConverterBlockEl = document.getElementById("werft-converter-block");
+    const werftConverterMsgEl = document.getElementById("werft-converter-msg");
+    const werftForgeBlockEl = document.getElementById("werft-forge-block");
+    const werftForgeMsgEl = document.getElementById("werft-forge-msg");
+
+    werftToggleBtn.addEventListener("click", () => {
+      werftPanelEl.classList.toggle("collapsed");
+      werftCollapseIcon.textContent = werftPanelEl.classList.contains("collapsed") ? "+" : "–";
+    });
+
+    function updateSonnenwerftHostState() {
+      // Ohne Host (z.B. Datei direkt im Browser geöffnet) bleiben die Bedienelemente sichtbar, aber
+      // jeder Klick liefert sofort eine verständliche Fehlermeldung statt endlos zu "hängen" —
+      // sendDysonWerftRequest() lehnt ohne Ziel (dysonWerftHostTarget() === null) direkt ab.
+      renderWerftPanel(readDysonInstallations());
+    }
+
+    let werftMsgTimeout = null;
+    function showWerftMsg(text, kind) {
+      werftMsgEl.textContent = text;
+      werftMsgEl.className = "werft-msg" + (kind ? " " + kind : "");
+      clearTimeout(werftMsgTimeout);
+      if (text) werftMsgTimeout = setTimeout(() => { werftMsgEl.textContent = ""; werftMsgEl.className = "werft-msg"; }, 5000);
+    }
+    // [Phase 14] eigene Meldungs-Zeilen für Kollektor-Array/Wandler-Kern, damit eine Panel-Montage-
+    // Meldung nicht von einer gleichzeitigen Ausbau-Meldung überschrieben wird (und umgekehrt).
+    let werftCollectorMsgTimeout = null;
+    function showWerftCollectorMsg(text, kind) {
+      werftCollectorMsgEl.textContent = text;
+      werftCollectorMsgEl.className = "werft-msg" + (kind ? " " + kind : "");
+      clearTimeout(werftCollectorMsgTimeout);
+      if (text) werftCollectorMsgTimeout = setTimeout(() => { werftCollectorMsgEl.textContent = ""; werftCollectorMsgEl.className = "werft-msg"; }, 5000);
+    }
+    let werftConverterMsgTimeout = null;
+    function showWerftConverterMsg(text, kind) {
+      werftConverterMsgEl.textContent = text;
+      werftConverterMsgEl.className = "werft-msg" + (kind ? " " + kind : "");
+      clearTimeout(werftConverterMsgTimeout);
+      if (text) werftConverterMsgTimeout = setTimeout(() => { werftConverterMsgEl.textContent = ""; werftConverterMsgEl.className = "werft-msg"; }, 5000);
+    }
+    // [Phase 15] eigene Meldungs-Zeile für die Sonnenschmiede, unabhängig von Kollektor/Wandler-Kern.
+    let werftForgeMsgTimeout = null;
+    function showWerftForgeMsg(text, kind) {
+      werftForgeMsgEl.textContent = text;
+      werftForgeMsgEl.className = "werft-msg" + (kind ? " " + kind : "");
+      clearTimeout(werftForgeMsgTimeout);
+      if (text) werftForgeMsgTimeout = setTimeout(() => { werftForgeMsgEl.textContent = ""; werftForgeMsgEl.className = "werft-msg"; }, 5000);
+    }
+
+    const WERFT_ERROR_LABEL = {
+      "assembly-already-running": "Es läuft bereits eine Montage.",
+      "sphere-tech-required": "Sphärentechnik noch nicht erforscht.",
+      "incomplete-set": "Kein vollständiges Bauteil-Set vorhanden.",
+      "assembly-failed": "Montage konnte nicht gestartet werden.",
+      "no-assembly-running": "Es läuft gerade keine Montage.",
+      "host-exception": "Unerwarteter Fehler in der Haupt-Datei.",
+      "unknown-request-type": "Unbekannte Anfrage.",
+      "upgrade-already-running": "Es läuft bereits ein Ausbau.",
+      "max-level-reached": "Maximalstufe bereits erreicht.",
+      "no-upgrade-running": "Es läuft gerade kein Ausbau.",
+      "not-enough-star-energy": "Nicht genug Sternenenergie.",
+      "converter-required": "Wandler-Kern noch nicht gebaut.",
+      "invalid-planet": "Ungültiger Zielplanet.",
+      "invalid-amount": "Ungültige Menge.",
+      "conversion-failed": "Umtausch fehlgeschlagen.",
+      "sphere-completion-required": `Sphäre noch nicht ${(DYSON_FORGE_MIN_COMPLETION*100).toFixed(0)}% fertiggestellt.`,
+      "forge-required": "Sonnenschmiede noch nicht gebaut.",
+    };
+    function werftErrorLabel(message) {
+      return WERFT_ERROR_LABEL[message] || "Verbindung zur Haupt-Datei fehlgeschlagen — ist AETHERIS noch geöffnet?";
+    }
+
+    let werftBusy = false; // client-seitige Sperre gegen Doppelklicks, während eine Anfrage unterwegs ist
+    function requestAssemble(count) {
+      if (werftBusy) return;
+      werftBusy = true;
+      showWerftMsg("Montage wird gestartet …");
+      sendDysonWerftRequest("assemblePanel", { count })
+        .then(() => { showWerftMsg("Montage gestartet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftBusy = false; });
+    }
+    function requestCancel() {
+      if (werftBusy) return;
+      werftBusy = true;
+      showWerftMsg("Montage wird abgebrochen …");
+      sendDysonWerftRequest("cancelAssembly", {})
+        .then(() => { showWerftMsg("Montage abgebrochen, Bauteile zurückerstattet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftBusy = false; });
+    }
+    // [Phase 14] eigene Busy-Sperre für Kollektor-Array/Wandler-Kern-Aktionen, unabhängig von der
+    // Panel-Montage-Sperre oben — ein laufender Panel-Klick soll einen Ausbau-Klick nicht blockieren.
+    let werftUpgradeBusy = false;
+    function requestUpgradeCollector() {
+      if (werftUpgradeBusy) return;
+      werftUpgradeBusy = true;
+      showWerftCollectorMsg("Ausbau wird gestartet …");
+      sendDysonWerftRequest("upgradeCollector", {})
+        .then(() => { showWerftCollectorMsg("Ausbau gestartet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftCollectorMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftUpgradeBusy = false; });
+    }
+    function requestCancelCollectorUpgrade() {
+      if (werftUpgradeBusy) return;
+      werftUpgradeBusy = true;
+      showWerftCollectorMsg("Ausbau wird abgebrochen …");
+      sendDysonWerftRequest("cancelCollectorUpgrade", {})
+        .then(() => { showWerftCollectorMsg("Ausbau abgebrochen, Sternenenergie zurückerstattet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftCollectorMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftUpgradeBusy = false; });
+    }
+    function requestUpgradeConverter() {
+      if (werftUpgradeBusy) return;
+      werftUpgradeBusy = true;
+      showWerftConverterMsg("Ausbau wird gestartet …");
+      sendDysonWerftRequest("upgradeConverter", {})
+        .then(() => { showWerftConverterMsg("Ausbau gestartet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftConverterMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftUpgradeBusy = false; });
+    }
+    function requestCancelConverterUpgrade() {
+      if (werftUpgradeBusy) return;
+      werftUpgradeBusy = true;
+      showWerftConverterMsg("Ausbau wird abgebrochen …");
+      sendDysonWerftRequest("cancelConverterUpgrade", {})
+        .then(() => { showWerftConverterMsg("Ausbau abgebrochen, Sternenenergie zurückerstattet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftConverterMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftUpgradeBusy = false; });
+    }
+    function requestConvert(amount, planetId) {
+      if (werftUpgradeBusy) return;
+      werftUpgradeBusy = true;
+      showWerftConverterMsg("Umtausch läuft …");
+      sendDysonWerftRequest("convertStarEnergy", { amount, planetId })
+        .then((res) => { showWerftConverterMsg(`Umgetauscht: je ${fmt(res.gainedEach||0)} Metall/Kristall/Deuterium erhalten.`, "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftConverterMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftUpgradeBusy = false; });
+    }
+    // [Phase 15] eigene Busy-Sperre für die Sonnenschmiede, unabhängig von Kollektor-Array/Wandler-Kern —
+    // Bau der Schmiede selbst und die beiden Freischaltungen (Schiff/Verteidigung) teilen sich diese
+    // Sperre untereinander, da sie ohnehin nacheinander sinnvoll sind (Schmiede muss zuerst fertig sein).
+    let werftForgeBusy = false;
+    function requestBuildForge() {
+      if (werftForgeBusy) return;
+      werftForgeBusy = true;
+      showWerftForgeMsg("Sonnenschmiede wird gebaut …");
+      sendDysonWerftRequest("buildForge", {})
+        .then(() => { showWerftForgeMsg("Bau gestartet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftForgeMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftForgeBusy = false; });
+    }
+    function requestCancelForgeBuild() {
+      if (werftForgeBusy) return;
+      werftForgeBusy = true;
+      showWerftForgeMsg("Bau wird abgebrochen …");
+      sendDysonWerftRequest("cancelForgeBuild", {})
+        .then(() => { showWerftForgeMsg("Bau abgebrochen, Sternenenergie zurückerstattet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftForgeMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftForgeBusy = false; });
+    }
+    function requestUnlockForgeShip() {
+      if (werftForgeBusy) return;
+      werftForgeBusy = true;
+      showWerftForgeMsg("Sonnendreadnought wird freigeschaltet …");
+      sendDysonWerftRequest("unlockForgeShip", {})
+        .then(() => { showWerftForgeMsg("Freischaltung gestartet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftForgeMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftForgeBusy = false; });
+    }
+    function requestCancelForgeShipUnlock() {
+      if (werftForgeBusy) return;
+      werftForgeBusy = true;
+      showWerftForgeMsg("Freischaltung wird abgebrochen …");
+      sendDysonWerftRequest("cancelForgeShipUnlock", {})
+        .then(() => { showWerftForgeMsg("Freischaltung abgebrochen, Sternenenergie zurückerstattet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftForgeMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftForgeBusy = false; });
+    }
+    function requestUnlockForgeDefense() {
+      if (werftForgeBusy) return;
+      werftForgeBusy = true;
+      showWerftForgeMsg("Sonnenbastion wird freigeschaltet …");
+      sendDysonWerftRequest("unlockForgeDefense", {})
+        .then(() => { showWerftForgeMsg("Freischaltung gestartet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftForgeMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftForgeBusy = false; });
+    }
+    function requestCancelForgeDefenseUnlock() {
+      if (werftForgeBusy) return;
+      werftForgeBusy = true;
+      showWerftForgeMsg("Freischaltung wird abgebrochen …");
+      sendDysonWerftRequest("cancelForgeDefenseUnlock", {})
+        .then(() => { showWerftForgeMsg("Freischaltung abgebrochen, Sternenenergie zurückerstattet.", "ok"); renderWerftPanel(readDysonInstallations()); })
+        .catch((err) => { showWerftForgeMsg(werftErrorLabel(err.message), "error"); })
+        .finally(() => { werftForgeBusy = false; });
+    }
+
+    function renderWerftPanel(state) {
+      // Kein `dysonInstallations` im Spielstand (z.B. sehr alter Stand von vor Phase 11) -> Panel
+      // unauffällig ausgeblendet lassen, statt eine leere/kaputte Box zu zeigen.
+      if (!state) { werftPanelEl.style.display = "none"; return; }
+      werftPanelEl.style.display = "flex";
+      knownCollectorLevel = state.collectorLevel || 0; // [Phase 14] siehe starEnergyRatePerHour oben
+
+      // BUGFIX v0.53.25: Der 1s-Poll (siehe setInterval weiter unten) ruft renderWerftPanel() jede
+      // Sekunde neu auf und hat die Eingabefelder bisher komplett neu aufgebaut (fester value="1" im
+      // Template) — dadurch wurde ein per "Max"-Knopf gesetzter Wert (oder eine Handeingabe) binnen
+      // höchstens 1 Sekunde wieder verworfen. Aktuellen Wert VOR dem Neuaufbau merken und danach
+      // (geklemmt auf den gültigen Bereich) wiederherstellen.
+      const __prevCountInput = document.getElementById("werft-count-input");
+      const __prevCountVal = __prevCountInput ? __prevCountInput.value : null;
+      const __prevConvertInput = document.getElementById("werft-convert-amount-input");
+      const __prevConvertVal = __prevConvertInput ? __prevConvertInput.value : null;
+
+      werftPartsListEl.innerHTML = DYSON_PARTS_META.map(part => `
+        <div class="werft-part-row">
+          <span>${part.icon} ${part.name}</span>
+          <span class="amt">${fmt(state.parts[part.key] || 0)}</span>
+        </div>`).join("");
+
+      const maxSets = Math.max(0, Math.min(...DYSON_PARTS_META.map(part => Math.floor(state.parts[part.key] || 0))));
+
+      if (state.panelQueue) {
+        const q = state.panelQueue;
+        const total = q.endTime - q.startTime;
+        const done = Date.now() - q.startTime;
+        const pct = total > 0 ? Math.min(100, Math.max(0, (done/total)*100)) : 100;
+        werftSetsStatusEl.textContent = "";
+        werftSetsStatusEl.className = "werft-hint";
+        werftQueueBlockEl.innerHTML = `
+          <div class="werft-section-label">Panel wird montiert</div>
+          <div class="werft-part-row"><span>× ${q.count}</span><span class="amt">⏱ ${fmtTime((q.endTime-Date.now())/1000)}</span></div>
+          <div class="werft-bar"><div class="werft-bar-fill" style="width:${pct}%"></div></div>
+          <button class="werft-btn secondary" id="werft-cancel-btn" type="button">✕ Abbrechen</button>`;
+        const cancelBtn = document.getElementById("werft-cancel-btn");
+        if (cancelBtn) cancelBtn.addEventListener("click", requestCancel);
+      } else {
+        werftSetsStatusEl.textContent = maxSets > 0
+          ? `✓ ${maxSets} vollständige${maxSets===1?"s":""} Set${maxSets===1?"":"s"} bereit zur Montage`
+          : "Noch kein vollständiges Set (alle 5 Bauteile) vorhanden — Bauteile kommen von der Werft-Seite passender Planeten (\"🔆 Bauteile zur Sonnenwerft schicken\").";
+        werftSetsStatusEl.className = "werft-hint" + (maxSets > 0 ? " ready" : "");
+
+        if (maxSets > 0) {
+          werftQueueBlockEl.innerHTML = `
+            <div class="werft-count-row">
+              <input type="number" min="1" max="${maxSets}" value="1" id="werft-count-input">
+              <button type="button" id="werft-max-btn">Max</button>
+            </div>
+            <button class="werft-btn" id="werft-assemble-btn" type="button">Panel montieren</button>`;
+          const input = document.getElementById("werft-count-input");
+          if (__prevCountVal !== null) {
+            input.value = Math.min(maxSets, Math.max(1, Math.floor(Number(__prevCountVal)) || 1));
+          }
+          document.getElementById("werft-max-btn").addEventListener("click", () => { input.value = maxSets; });
+          document.getElementById("werft-assemble-btn").addEventListener("click", () => {
+            const count = Math.min(maxSets, Math.max(1, Math.floor(Number(input.value)) || 1));
+            requestAssemble(count);
+          });
+        } else {
+          werftQueueBlockEl.innerHTML = "";
+        }
+      }
+
+      renderCollectorBlock(state);
+      renderConverterBlock(state);
+      renderForgeBlock(state);
+
+      // BUGFIX v0.53.25 (Fortsetzung): erst nachdem renderConverterBlock() sein Input neu aufgebaut
+      // hat, den vorherigen Wert (geklemmt auf verfügbare Sternenenergie) zurückschreiben.
+      const __newConvertInput = document.getElementById("werft-convert-amount-input");
+      if (__newConvertInput && __prevConvertVal !== null) {
+        __newConvertInput.value = Math.min(Math.max(1, state.starEnergy), Math.max(1, Math.floor(Number(__prevConvertVal)) || 1));
+      }
+    }
+
+    // [Phase 14] Kollektor-Array: aktuelle Stufe + Ertrags-Bonus, laufender Ausbau mit Fortschrittsbalken
+    // + Abbrechen, sonst Ausbau-Knopf mit Kosten-/Zeit-Vorschau für die nächste Stufe. Bezahlt aus
+    // Sternenenergie (state.starEnergy), nicht aus Planeten-Rohstoffen — siehe Begründung in der
+    // Haupt-Datei bei dysonCollectorUpgradeCost.
+    function renderCollectorBlock(state) {
+      const level = state.collectorLevel || 0;
+      const bonusPct = (DYSON_COLLECTOR_BONUS_PER_LEVEL * 100 * level).toFixed(0);
+      let html = `<div class="werft-part-row"><span>Stufe ${level}</span><span class="amt">+${bonusPct}% Ertrag</span></div>`;
+
+      if (state.collectorQueue) {
+        const q = state.collectorQueue;
+        const total = q.endTime - q.startTime;
+        const done = Date.now() - q.startTime;
+        const pct = total > 0 ? Math.min(100, Math.max(0, (done/total)*100)) : 100;
+        html += `
+          <div class="werft-hint">Ausbau auf Stufe ${q.toLevel} läuft · ⏱ ${fmtTime((q.endTime-Date.now())/1000)}</div>
+          <div class="werft-bar"><div class="werft-bar-fill" style="width:${pct}%"></div></div>
+          <button class="werft-btn secondary" id="werft-collector-cancel-btn" type="button">✕ Abbrechen</button>`;
+        werftCollectorBlockEl.innerHTML = html;
+        document.getElementById("werft-collector-cancel-btn").addEventListener("click", requestCancelCollectorUpgrade);
+      } else if (level >= DYSON_COLLECTOR_MAX_LEVEL) {
+        html += `<div class="werft-hint ready">✓ Maximalstufe erreicht</div>`;
+        werftCollectorBlockEl.innerHTML = html;
+      } else {
+        const cost = dysonCollectorUpgradeCost(level+1);
+        const affordable = state.starEnergy >= cost;
+        html += `<div class="werft-hint">Ausbau auf Stufe ${level+1}: 🌟 ${fmt(cost)} Sternenenergie · ⏱ ${fmtTime(dysonCollectorUpgradeSeconds(level+1))}</div>
+          <button class="werft-btn" id="werft-collector-upgrade-btn" type="button" ${affordable ? "" : "disabled"}>${affordable ? "Ausbauen" : "Nicht genug Sternenenergie"}</button>`;
+        werftCollectorBlockEl.innerHTML = html;
+        const btn = document.getElementById("werft-collector-upgrade-btn");
+        if (btn) btn.addEventListener("click", requestUpgradeCollector);
+      }
+    }
+
+    // [Phase 14] Wandler-Kern: aktuelle Stufe + Kurs, laufender Ausbau analog zum Kollektor-Array, sonst
+    // Ausbau-Knopf + (sobald Stufe ≥1) eine kleine Umtausch-Sektion (Menge + Zielplanet aus der Kurzliste
+    // aller eigenen Planeten, siehe readDysonInstallations/state.planetsList).
+    function renderConverterBlock(state) {
+      const level = state.converterLevel || 0;
+      let html = `<div class="werft-part-row"><span>Stufe ${level}</span><span class="amt">${level > 0 ? `Kurs 1 : ${dysonConverterRatePerUnit(level).toFixed(2)}` : "—"}</span></div>`;
+
+      if (state.converterQueue) {
+        const q = state.converterQueue;
+        const total = q.endTime - q.startTime;
+        const done = Date.now() - q.startTime;
+        const pct = total > 0 ? Math.min(100, Math.max(0, (done/total)*100)) : 100;
+        html += `
+          <div class="werft-hint">Ausbau auf Stufe ${q.toLevel} läuft · ⏱ ${fmtTime((q.endTime-Date.now())/1000)}</div>
+          <div class="werft-bar"><div class="werft-bar-fill" style="width:${pct}%"></div></div>
+          <button class="werft-btn secondary" id="werft-converter-cancel-btn" type="button">✕ Abbrechen</button>`;
+        werftConverterBlockEl.innerHTML = html;
+        document.getElementById("werft-converter-cancel-btn").addEventListener("click", requestCancelConverterUpgrade);
+        return;
+      }
+
+      if (level < DYSON_CONVERTER_MAX_LEVEL) {
+        const cost = dysonConverterUpgradeCost(level+1);
+        const affordable = state.starEnergy >= cost;
+        html += `<div class="werft-hint">Ausbau auf Stufe ${level+1}: 🌟 ${fmt(cost)} Sternenenergie · ⏱ ${fmtTime(dysonConverterUpgradeSeconds(level+1))}</div>
+          <button class="werft-btn" id="werft-converter-upgrade-btn" type="button" ${affordable ? "" : "disabled"}>${affordable ? "Ausbauen" : "Nicht genug Sternenenergie"}</button>`;
+      } else {
+        html += `<div class="werft-hint ready">✓ Maximalstufe erreicht</div>`;
+      }
+
+      // Umtausch-Sektion erst sichtbar, sobald der Wandler-Kern mindestens Stufe 1 hat.
+      if (level >= 1) {
+        const planetOptions = (state.planetsList||[]).map(p => `<option value="${p.id}">${p.name}</option>`).join("");
+        html += `
+          <div class="werft-hint" style="margin-top:10px">🌟 ${fmt(state.starEnergy)} Sternenenergie verfügbar</div>
+          <div class="werft-count-row">
+            <input type="number" min="1" max="${Math.max(1, state.starEnergy)}" value="${Math.min(100, Math.max(1, state.starEnergy))}" id="werft-convert-amount-input">
+            <button type="button" id="werft-convert-max-btn">Max</button>
+          </div>
+          <select id="werft-convert-planet-select" style="width:100%;margin-top:6px;background:#161010;border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#EDE4D3;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:12.5px">${planetOptions}</select>
+          <button class="werft-btn" id="werft-convert-btn" type="button" ${state.starEnergy > 0 && (state.planetsList||[]).length > 0 ? "" : "disabled"}>Umtauschen</button>`;
+      }
+
+      werftConverterBlockEl.innerHTML = html;
+      const upgradeBtn = document.getElementById("werft-converter-upgrade-btn");
+      if (upgradeBtn) upgradeBtn.addEventListener("click", requestUpgradeConverter);
+      const convertBtn = document.getElementById("werft-convert-btn");
+      if (convertBtn) {
+        const amountInput = document.getElementById("werft-convert-amount-input");
+        const planetSelect = document.getElementById("werft-convert-planet-select");
+        document.getElementById("werft-convert-max-btn").addEventListener("click", () => { amountInput.value = state.starEnergy; });
+        convertBtn.addEventListener("click", () => {
+          const amount = Math.min(state.starEnergy, Math.max(1, Math.floor(Number(amountInput.value)) || 1));
+          const planetId = planetSelect.value;
+          if (!planetId) { showWerftConverterMsg("Bitte einen Zielplaneten wählen.", "error"); return; }
+          requestConvert(amount, planetId);
+        });
+      }
+    }
+
+    // [Phase 15] Sonnenschmiede: erst der einmalige Bau der Schmiede selbst (Fortschrittsbalken +
+    // Abbrechen wie bei Kollektor/Wandler-Kern, sonst Kosten-/Zeit-Vorschau + Bau-Knopf — zusätzlich
+    // gesperrt, solange die Sphäre die Mindest-Fertigstellung noch nicht erreicht hat). Sobald fertig
+    // gebaut, zwei unabhängig voneinander freischaltbare Unterabschnitte für Schiff ("🚀 Sonnendreadnought")
+    // und Verteidigung ("🌞 Sonnenbastion") — je eigene Warteschlange, exakt gleiches Muster.
+    function renderForgeBlock(state) {
+      if (state.forgeQueue) {
+        const q = state.forgeQueue;
+        const total = q.endTime - q.startTime;
+        const done = Date.now() - q.startTime;
+        const pct = total > 0 ? Math.min(100, Math.max(0, (done/total)*100)) : 100;
+        werftForgeBlockEl.innerHTML = `
+          <div class="werft-hint">Sonnenschmiede wird gebaut · ⏱ ${fmtTime((q.endTime-Date.now())/1000)}</div>
+          <div class="werft-bar"><div class="werft-bar-fill" style="width:${pct}%"></div></div>
+          <button class="werft-btn secondary" id="werft-forge-cancel-btn" type="button">✕ Abbrechen</button>`;
+        document.getElementById("werft-forge-cancel-btn").addEventListener("click", requestCancelForgeBuild);
+        return;
+      }
+
+      if (!state.forgeUnlocked) {
+        const pctDone = (state.sphereCompletionPct||0) * 100;
+        const pctNeeded = DYSON_FORGE_MIN_COMPLETION * 100;
+        const completionOk = (state.sphereCompletionPct||0) >= DYSON_FORGE_MIN_COMPLETION;
+        const affordable = state.starEnergy >= DYSON_FORGE_BUILD_COST;
+        let html = `<div class="werft-hint">Voraussetzung: ${pctNeeded.toFixed(0)}% Sphären-Fertigstellung (aktuell ${pctDone.toFixed(1)}%)</div>
+          <div class="werft-hint" style="margin-top:6px">Bau: 🌟 ${fmt(DYSON_FORGE_BUILD_COST)} Sternenenergie · ⏱ ${fmtTime(DYSON_FORGE_BUILD_SECONDS / devTimeDiv())}</div>`;
+        if (!completionOk) {
+          html += `<div class="werft-hint" style="margin-top:6px">🔒 Sphäre noch nicht weit genug fertiggestellt</div>`;
+        } else {
+          html += `<button class="werft-btn" id="werft-forge-build-btn" type="button" ${affordable ? "" : "disabled"}>${affordable ? "Sonnenschmiede bauen" : "Nicht genug Sternenenergie"}</button>`;
+        }
+        werftForgeBlockEl.innerHTML = html;
+        const btn = document.getElementById("werft-forge-build-btn");
+        if (btn) btn.addEventListener("click", requestBuildForge);
+        return;
+      }
+
+      let html = `<div class="werft-hint ready">✓ Sonnenschmiede fertig gebaut</div>`;
+
+      // -- 🚀 Sonnendreadnought (Schiff) --
+      html += `<div class="werft-section-label" style="margin-top:10px;font-size:12px">🚀 Sonnendreadnought</div>`;
+      if (state.forgeShipQueue) {
+        const q = state.forgeShipQueue;
+        const total = q.endTime - q.startTime;
+        const done = Date.now() - q.startTime;
+        const pct = total > 0 ? Math.min(100, Math.max(0, (done/total)*100)) : 100;
+        html += `
+          <div class="werft-hint">Wird freigeschaltet · ⏱ ${fmtTime((q.endTime-Date.now())/1000)}</div>
+          <div class="werft-bar"><div class="werft-bar-fill" style="width:${pct}%"></div></div>
+          <button class="werft-btn secondary" id="werft-forge-ship-cancel-btn" type="button">✕ Abbrechen</button>`;
+      } else if (state.forgeShipUnlocked) {
+        html += `<div class="werft-hint ready">✓ Freigeschaltet — baubar in jeder normalen Werft-Bauliste</div>`;
+      } else {
+        const affordable = state.starEnergy >= DYSON_FORGE_SHIP_UNLOCK_COST;
+        html += `<div class="werft-hint">🌟 ${fmt(DYSON_FORGE_SHIP_UNLOCK_COST)} Sternenenergie · ⏱ ${fmtTime(DYSON_FORGE_SHIP_UNLOCK_SECONDS / devTimeDiv())}</div>
+          <button class="werft-btn" id="werft-forge-ship-unlock-btn" type="button" ${affordable ? "" : "disabled"}>${affordable ? "Freischalten" : "Nicht genug Sternenenergie"}</button>`;
+      }
+
+      // -- 🌞 Sonnenbastion (Verteidigung) --
+      html += `<div class="werft-section-label" style="margin-top:10px;font-size:12px">🌞 Sonnenbastion</div>`;
+      if (state.forgeDefenseQueue) {
+        const q = state.forgeDefenseQueue;
+        const total = q.endTime - q.startTime;
+        const done = Date.now() - q.startTime;
+        const pct = total > 0 ? Math.min(100, Math.max(0, (done/total)*100)) : 100;
+        html += `
+          <div class="werft-hint">Wird freigeschaltet · ⏱ ${fmtTime((q.endTime-Date.now())/1000)}</div>
+          <div class="werft-bar"><div class="werft-bar-fill" style="width:${pct}%"></div></div>
+          <button class="werft-btn secondary" id="werft-forge-defense-cancel-btn" type="button">✕ Abbrechen</button>`;
+      } else if (state.forgeDefenseUnlocked) {
+        html += `<div class="werft-hint ready">✓ Freigeschaltet — baubar in jeder normalen Werft-Bauliste</div>`;
+      } else {
+        const affordable = state.starEnergy >= DYSON_FORGE_DEFENSE_UNLOCK_COST;
+        html += `<div class="werft-hint">🌟 ${fmt(DYSON_FORGE_DEFENSE_UNLOCK_COST)} Sternenenergie · ⏱ ${fmtTime(DYSON_FORGE_DEFENSE_UNLOCK_SECONDS / devTimeDiv())}</div>
+          <button class="werft-btn" id="werft-forge-defense-unlock-btn" type="button" ${affordable ? "" : "disabled"}>${affordable ? "Freischalten" : "Nicht genug Sternenenergie"}</button>`;
+      }
+
+      werftForgeBlockEl.innerHTML = html;
+      const shipCancelBtn = document.getElementById("werft-forge-ship-cancel-btn");
+      if (shipCancelBtn) shipCancelBtn.addEventListener("click", requestCancelForgeShipUnlock);
+      const shipUnlockBtn = document.getElementById("werft-forge-ship-unlock-btn");
+      if (shipUnlockBtn) shipUnlockBtn.addEventListener("click", requestUnlockForgeShip);
+      const defenseCancelBtn = document.getElementById("werft-forge-defense-cancel-btn");
+      if (defenseCancelBtn) defenseCancelBtn.addEventListener("click", requestCancelForgeDefenseUnlock);
+      const defenseUnlockBtn = document.getElementById("werft-forge-defense-unlock-btn");
+      if (defenseUnlockBtn) defenseUnlockBtn.addEventListener("click", requestUnlockForgeDefense);
+    }
+
+    renderWerftPanel(readDysonInstallations());
+
+    /* ============================================================
+       5) Live-Aktualisierung: 'storage'-Event (sofort, wenn das Hauptspiel-
+          Tab neu speichert) + Poll als Absicherung (falls das Event mal
+          nicht feuert, z.B. Browser-Eigenheiten).
+       ============================================================ */
+    window.addEventListener("storage", (e) => {
+      if (e.key && e.key !== currentSaveKey) return;
+      const fresh = readDysonState();
+      if (!fresh) return;
+      applyPanelCount(fresh.panelsBuilt, true);
+      applyEnergyState(fresh);
+      applyReturnState(fresh);
+      renderWerftPanel(readDysonInstallations());
+    });
+
+    // Poll als Absicherung, falls das 'storage'-Event mal nicht feuert (z.B. Browser-Eigenheiten) —
+    // 1s statt vormals 5s, da diese Seite jetzt (Phase 10, Bild-im-Bild) meist eingebettet neben dem
+    // Hauptspiel läuft und Werte dort spürbar zügiger nachziehen sollen.
+    setInterval(() => {
+      const fresh = readDysonState();
+      if (!fresh) return;
+      applyPanelCount(fresh.panelsBuilt, true);
+      applyEnergyState(fresh);
+      applyReturnState(fresh);
+      renderWerftPanel(readDysonInstallations());
+    }, 1000);
+
+    /* ============================================================
+       6) Render-Loop
+       ============================================================ */
+    function tick() {
+      const now = performance.now();
+      sunCore.rotation.y += sunCore.userData.spin;
+      glowSprite.material.rotation += 0.0003;
+      for (let i = panelMeshes.length - 1; i >= 0; i--) {
+        const anim = panelMeshes[i].userData.animate;
+        if (anim && !anim(now)) panelMeshes[i].userData.animate = null;
+      }
+      tickEnergyMotes(now);
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  })();
+  </script>
+</body>
+</html>

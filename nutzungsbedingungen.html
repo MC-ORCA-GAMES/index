@@ -1,0 +1,264 @@
+<!-- MC ORCA GAMES — Nutzungsbedingungen (gilt für alle 4 Spiele / gemeinsames Konto). Datei-Version: v1.0. -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nutzungsbedingungen — MC ORCA Games</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e; --accent:#D4AF37;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; line-height:1.7; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; transition:border-color .15s; }
+  a:hover{ border-bottom-color:var(--accent); }
+  ::selection{ background:var(--accent); color:#0a0b12; }
+
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.5; pointer-events:none; }
+
+  .nav{ position:sticky; top:0; z-index:30; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; font-size:13px; }
+  .nav-back{ color:var(--fg-dim); border-bottom:none; transition:color .15s; }
+  .nav-back:hover{ color:var(--fg); border-bottom:none; }
+  .nav-brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; color:var(--accent); border-bottom:none; }
+  .nav-brand .mark{ width:22px; height:22px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px rgba(212,175,55,0.35); flex-shrink:0; }
+  .nav-right{ display:flex; align-items:center; gap:14px; }
+
+  /* ---------- burger menu (Seiten-Navigation) ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+    max-height:min(75vh, 520px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; border-bottom:none !important; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
+  .wrap{ position:relative; z-index:2; max-width:720px; margin:0 auto; padding:48px 24px 80px; }
+  .eyebrow{ font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  h1{ font-size:clamp(26px,4vw,34px); margin:0 0 10px; }
+  .lede{ font-size:14px; color:var(--fg-dim); margin:0 0 36px; }
+
+  .sec{ padding:28px 0; border-top:1px solid var(--line); }
+  .sec:first-of-type{ border-top:none; padding-top:0; }
+  .sec h2{ font-size:16px; font-weight:600; margin:0 0 4px; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .sec h2 .tag{ font-size:10.5px; font-weight:500; color:var(--fg-faint); text-transform:none; }
+  .sec p{ font-size:14px; color:var(--fg-dim); margin:10px 0; }
+  .sec ul{ margin:10px 0; padding-left:20px; }
+  .sec li{ font-size:14px; color:var(--fg-dim); margin-bottom:6px; }
+  .sec li b{ color:var(--fg); }
+
+  .kv{ display:flex; gap:8px; font-size:14px; padding:4px 0; flex-wrap:wrap; }
+  .kv .k{ min-width:110px; color:var(--fg-faint); }
+  .kv .v{ color:var(--fg); }
+
+  footer{ margin-top:20px; font-size:12px; color:var(--fg-faint); text-align:center; }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-back" href="index.html">← Zurück zu MC ORCA Games</a>
+    <div class="nav-right">
+      <span class="nav-brand"><span class="mark"></span> MC ORCA Games</span>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+          <div class="burger-group">
+            <div class="burger-label">Seiten</div>
+            <a href="index.html">Hub</a>
+            <a href="profil.html">Profil</a>
+            <a href="raenge.html">Ränge</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Spiele</div>
+            <a href="aetheris/game.html">Aetheris</a>
+            <a href="astrion/game.html">Astrion</a>
+            <a href="deepanchor/game.html">Deep Anchor</a>
+            <a href="pathofthestars/game.html">Path of the Stars</a>
+            <a href="nexus/game.html">NEXUS</a>
+            <a href="nexus/nexus_singularity/game.html">Nexus Singularity</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Info</div>
+            <a href="aetheris/index.html">Aetheris</a>
+            <a href="astrion/index.html">Astrion</a>
+            <a href="deepanchor/index.html">Deep Anchor</a>
+            <a href="pathofthestars/index.html">Path of the Stars</a>
+            <a href="nexus/index.html">NEXUS</a>
+            <a href="nexus/nexus_singularity/index.html">Nexus Singularity</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Impressum &amp; Datenschutz</div>
+            <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+            <a href="aetheris/impressum.html">Aetheris</a>
+            <a href="astrion/impressum.html">Astrion</a>
+            <a href="deepanchor/impressum.html">Deep Anchor</a>
+            <a href="pathofthestars/impressum.html">Path of the Stars</a>
+            <a href="nexus/impressum.html">NEXUS</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
+<div class="wrap">
+  <div class="eyebrow">Rechtliches</div>
+  <h1>Nutzungsbedingungen</h1>
+  <p class="lede">Gilt für alle MC ORCA Games auf dieser Domain — Aetheris, Deep Anchor, Path of the Stars, Astrion und NEXUS — da sie ein gemeinsames Konto teilen.</p>
+
+  <div class="sec">
+    <h2>01 · Geltungsbereich &amp; Anbieter</h2>
+    <p>Diese Nutzungsbedingungen gelten für die Nutzung aller unter mc-orca-games.de angebotenen Spiele sowie des gemeinsamen Kontosystems. Mit dem Aufruf bzw. Spielen eines der Spiele oder der Registrierung eines Kontos erklärst du dich mit diesen Bedingungen einverstanden.</p>
+    <div class="kv"><span class="k">Anbieter</span><span class="v">Jens Ziem, Astonstr. 33, 39116 Magdeburg</span></div>
+    <div class="kv"><span class="k">E-Mail</span><span class="v"><a href="mailto:hub@mc-orca-games.de">hub@mc-orca-games.de</a></span></div>
+    <p>Näheres zum Anbieter und zur Datenverarbeitung findest du im <a href="aetheris/impressum.html">Impressum &amp; in der Datenschutzerklärung</a>, die inhaltlich für alle Spiele gleichermaßen gilt.</p>
+  </div>
+
+  <div class="sec">
+    <h2>02 · Charakter des Angebots</h2>
+    <p>Alle MC ORCA Games sind kostenlose, nicht-kommerzielle Hobby-/Freizeitprojekte eines Einzelentwicklers. Es besteht kein Anspruch auf ständige Verfügbarkeit, Fehlerfreiheit, bestimmte Funktionsumfänge oder Weiterentwicklung. Spiele, einzelne Funktionen oder das gesamte Angebot können jederzeit ohne Vorankündigung geändert, eingeschränkt, pausiert oder dauerhaft eingestellt werden — etwa aus Zeit-, Kosten- oder technischen Gründen.</p>
+  </div>
+
+  <div class="sec">
+    <h2>03 · Altersempfehlung</h2>
+    <p>Für die MC ORCA Games liegt aktuell keine offizielle Alterskennzeichnung (z. B. USK) vor, da sie ausschließlich über diese Website bzw. als direkter APK-Download angeboten werden, nicht über App-Stores. Inhaltlich richten sich die Spiele an ein allgemeines Publikum: reine Aufbaustrategie ohne grafische Gewaltdarstellung, ohne Chat-Funktion mit anderen Spielern, ohne Glücksspiel-/Echtgeld-Mechaniken. Auf dieser Basis schätze ich sie selbst auf <b>USK 0 bzw. USK 6 (Empfehlung ab 6 Jahren)</b> ein — vergleichbar mit klassischen Aufbaustrategiespielen. Dies ist eine unverbindliche Selbsteinschätzung, kein offizielles Prüfergebnis einer Jugendschutz-Institution. Eltern minderjähriger Nutzer sollten diese Einschätzung eigenständig prüfen, insbesondere bei der Kontoregistrierung mit einer E-Mail-Adresse.</p>
+    <p>Hinweis: Die Erzählungen der Story-Archive einzelner Spiele enthalten stellenweise düstere Science-Fiction-Themen (z. B. eine sterbende Sonne, bedrohliche Anomalien), rein textbasiert ohne grafische Darstellung.</p>
+  </div>
+
+  <div class="sec">
+    <h2>04 · Konto &amp; Login</h2>
+    <p>Die Registrierung ist freiwillig und optional — ohne Konto funktionieren die Spiele weiterhin mit rein lokaler Speicherung im Browser. Der Login erfolgt passwortlos über einen per E-Mail zugestellten Code. Ein Konto gilt automatisch für alle MC ORCA Games auf dieser Domain.</p>
+    <ul>
+      <li>Du bist selbst dafür verantwortlich, dass deine hinterlegte E-Mail-Adresse aktuell und unter deiner Kontrolle ist — darüber läuft der gesamte Kontozugang.</li>
+      <li>Ein Konto ist für die persönliche, nicht-kommerzielle Nutzung durch eine Person bestimmt. Konten dürfen nicht verkauft, vermietet oder gegen Entgelt an Dritte weitergegeben werden.</li>
+      <li>Ich behalte mir vor, Konten bei Missbrauch (z. B. Umgehung technischer Schutzmaßnahmen, Angriffe auf die Infrastruktur, Belästigung anderer Nutzer, sofern entsprechende Funktionen bestehen) zu sperren oder zu löschen.</li>
+    </ul>
+  </div>
+
+  <div class="sec">
+    <h2>05 · Spielstände &amp; Datenverlust</h2>
+    <p>Spielstände werden primär lokal in deinem Browser gespeichert; bei bestehendem Konto zusätzlich in der Cloud synchronisiert (siehe Datenschutzerklärung). Trotz Cloud-Sicherung übernehme ich keine Garantie für den dauerhaften Erhalt von Spielständen — Datenverlust kann z. B. durch technische Störungen, Browser-/Geräte-Wechsel ohne Sync, Einstellung des Dienstes oder Fehler in der Software auftreten. Nutze, sofern vorhanden, Export-/Backup-Funktionen der Spiele, wenn dir dein Fortschritt wichtig ist.</p>
+  </div>
+
+  <div class="sec">
+    <h2>06 · Erlaubte Nutzung</h2>
+    <p>Die Spiele sind für den persönlichen, nicht-kommerziellen Gebrauch bestimmt. Nicht gestattet sind insbesondere:</p>
+    <ul>
+      <li>Der Einsatz von Bots, Automatisierungs-Skripten oder das gezielte Ausnutzen von Programmfehlern (Bugs/Exploits), um sich einen unfairen Vorteil zu verschaffen.</li>
+      <li>Eingriffe in die technische Infrastruktur (z. B. Versuche, Server oder Datenbanken anzugreifen, zu überlasten oder unautorisiert darauf zuzugreifen).</li>
+      <li>Die Nutzung der Spiele oder einzelner Inhalte für eigene kommerzielle Zwecke ohne vorherige schriftliche Zustimmung.</li>
+    </ul>
+    <p>Bei Verstößen kann ich den Zugang einschränken oder das betroffene Konto sperren (siehe Abschnitt 04).</p>
+  </div>
+
+  <div class="sec">
+    <h2>07 · Geschenkcodes &amp; virtuelle Inhalte</h2>
+    <p>Innerhalb der Spiele evtl. verfügbare Geschenkcodes, virtuelle Währungen, Gegenstände oder ähnliche digitale Inhalte haben <b>keinen realen Geldwert</b>, können nicht in echtes Geld umgetauscht, verkauft oder an Dritte übertragen werden und bestehen ausschließlich innerhalb des jeweiligen Spiels. Ein Anspruch auf Fortbestand dieser Inhalte über die Laufzeit des jeweiligen Spiels hinaus besteht nicht.</p>
+  </div>
+
+  <div class="sec">
+    <h2>08 · Geistiges Eigentum &amp; KI-generierte Inhalte</h2>
+    <p>Alle Inhalte der Spiele (Texte, Grafiken, Musik, Code, Spielmechaniken) unterliegen dem Urheberrecht des Anbieters, soweit nicht anders gekennzeichnet. Bei der Erstellung kommen KI-Werkzeuge zum Einsatz (u. a. für Bilder, Musik und Programmierunterstützung) — Details dazu findest du im Impressum. Eine Vervielfältigung, Bearbeitung oder Verbreitung außerhalb des privaten Gebrauchs ist ohne schriftliche Zustimmung nicht gestattet.</p>
+  </div>
+
+  <div class="sec">
+    <h2>09 · Haftungsausschluss</h2>
+    <p>Die Nutzung der Spiele erfolgt auf eigenes Risiko. Da es sich um kostenlose Hobbyprojekte handelt, übernehme ich — soweit gesetzlich zulässig — keine Haftung für Schäden, die aus der Nutzung oder Nichtverfügbarkeit der Spiele entstehen, insbesondere nicht für den Verlust von Spielständen oder virtuellen Inhalten. Unberührt bleibt die Haftung für Vorsatz, grobe Fahrlässigkeit sowie für Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit.</p>
+  </div>
+
+  <div class="sec">
+    <h2>10 · Änderungen dieser Nutzungsbedingungen</h2>
+    <p>Diese Nutzungsbedingungen können bei Bedarf angepasst werden, etwa wenn sich der Funktionsumfang der Spiele ändert. Die jeweils aktuelle Fassung ist auf dieser Seite abrufbar; das Datum unten zeigt den Stand der letzten Aktualisierung.</p>
+  </div>
+
+  <div class="sec">
+    <h2>11 · Anwendbares Recht</h2>
+    <p>Es gilt deutsches Recht unter Ausschluss des UN-Kaufrechts, soweit dem keine zwingenden verbraucherschutzrechtlichen Bestimmungen deines gewöhnlichen Aufenthaltsorts entgegenstehen.</p>
+  </div>
+
+  <div class="sec">
+    <h2>12 · Kontakt</h2>
+    <p>Fragen zu diesen Nutzungsbedingungen richtest du am besten an <a href="mailto:hub@mc-orca-games.de">hub@mc-orca-games.de</a>.</p>
+  </div>
+
+  <footer>Stand: August 2026 · wird bei Bedarf aktualisiert, wenn sich am Funktionsumfang der Spiele etwas ändert.</footer>
+</div>
+
+<script>
+/* ---------- Sternenfeld (wie index.html/impressum.html) ---------- */
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], w, h;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    const count = Math.min(160, Math.floor((w*h)/13000));
+    stars = Array.from({length:count}, () => ({ x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.1+0.2, p:Math.random()*Math.PI*2, s:Math.random()*0.015+0.005 }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#E9E7E2';
+    stars.forEach(st=>{
+      const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.08 + tw*0.22;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if(!reduced) requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize(); requestAnimationFrame(draw);
+  if(reduced) draw(0);
+})();
+</script>
+
+</body>
+</html>

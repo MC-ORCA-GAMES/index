@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Nexus Singularity — v0.2</title>
+<style>
+  :root{
+    --bg:#05060a;
+    --fg:#e8e6e3;
+    --dim:#7a8290;
+    --accent:#7f5cff;
+    --accent2:#33e0ff;
+    --warn:#ff5c5c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100%;}
+  #stage{position:relative;width:100vw;height:100vh;}
+  canvas{position:absolute;inset:0;display:block;}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .08s ease-out;}
+
+  .hud{position:absolute;z-index:5;}
+  #title{top:76px;left:24px;font-size:13px;letter-spacing:3px;color:var(--dim);text-transform:uppercase;}
+  #title b{color:var(--fg);letter-spacing:1px;}
+  #title .ver{color:var(--accent2);font-size:10px;margin-left:6px;}
+
+  #readout{top:76px;right:24px;text-align:right;}
+  #stageLabel{font-size:22px;font-weight:700;letter-spacing:1px;transition:color .4s;}
+  #pctLabel{font-size:13px;color:var(--dim);margin-top:2px;}
+  #tierLabel{font-size:12px;color:var(--accent2);margin-top:6px;letter-spacing:1px;}
+  #pathLabel{font-size:11px;color:var(--dim);margin-top:2px;}
+  #pathLabel b{color:var(--fg);}
+  #needLabel{font-size:11px;color:var(--dim);margin-top:2px;}
+  #unclaimedLabel{font-size:11px;color:var(--warn);margin-top:2px;min-height:14px;}
+  #observerLabel{font-size:11px;color:var(--dim);margin-top:6px;display:none;}
+  #observerLabel .bar{display:inline-block;width:70px;height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;vertical-align:middle;margin-left:6px;}
+  #observerLabel .fill{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--warn));transition:width .3s;}
+
+  /* ---- Beobachter-Event-Toast ---- */
+  #eventToast{
+    position:absolute;top:126px;left:50%;transform:translateX(-50%) translateY(-8px);
+    z-index:8;max-width:min(420px, 86vw);
+    background:rgba(10,11,16,0.92);border:1px solid rgba(255,255,255,0.14);
+    border-radius:12px;padding:12px 16px;backdrop-filter:blur(8px);
+    font-size:12px;line-height:1.5;opacity:0;pointer-events:none;
+    transition:opacity .35s ease,transform .35s ease;
+  }
+  #eventToast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #eventToast.sabotage{border-color:rgba(255,92,92,0.5);}
+  #eventToast .kind{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
+  #eventToast.sabotage .kind{color:var(--warn);}
+  #eventToast.observation .kind{color:var(--accent2);}
+  #eventToast.clash_won{border-color:rgba(255,213,74,0.55);}
+  #eventToast.clash_won .kind{color:var(--rival2, #ffd54a);}
+  #eventToast.clash_lost{border-color:rgba(255,92,140,0.55);}
+  #eventToast.clash_lost .kind{color:#ff5c8c;}
+  #eventToast.awakening{border-color:rgba(255,213,74,0.8);}
+  #eventToast.awakening .kind{color:#ffd54a;}
+  #eventToast.rival_ascension{border-color:rgba(255,92,140,0.8);}
+  #eventToast.rival_ascension .kind{color:#ff5c8c;}
+
+  /* ---- Event-Log-Panel ---- */
+  #eventLogPanel{
+    position:absolute;z-index:6;left:24px;top:146px;
+    width:min(300px, 80vw);max-height:min(320px, 50vh);overflow-y:auto;
+    background:rgba(10,11,16,0.9);border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px;padding:12px 14px;backdrop-filter:blur(8px);
+    font-size:11px;color:var(--dim);
+  }
+  #eventLogPanel h4{margin:0 0 8px;font-size:11px;letter-spacing:1px;color:var(--fg);text-transform:uppercase;}
+  #eventLogPanel .entry{padding:6px 0;border-top:1px solid rgba(255,255,255,0.06);}
+  #eventLogPanel .entry:first-child{border-top:none;}
+  #eventLogPanel .entry .tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-right:6px;}
+  #eventLogPanel .entry.sabotage .tag{color:var(--warn);}
+  #eventLogPanel .entry.observation .tag{color:var(--accent2);}
+  #eventLogPanel .entry.clash_won .tag{color:#ffd54a;}
+  #eventLogPanel .entry.clash_lost .tag{color:#ff5c8c;}
+  #eventLogPanel .entry.awakening .tag{color:#ffd54a;}
+  #eventLogPanel .entry.rival_ascension .tag{color:#ff5c8c;}
+  #eventLogPanel .entry .time{float:right;font-size:9px;color:var(--dim);}
+  #eventLogPanel .empty{color:var(--dim);font-style:italic;}
+
+  #tierBadge{top:116px;left:24px;font-size:12px;color:var(--accent2);opacity:0;transition:opacity .5s;}
+
+  #controls{
+    bottom:22px;left:50%;transform:translateX(-50%);
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    width:min(560px, 92vw);
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.08);
+    padding:14px 20px;border-radius:16px;
+    backdrop-filter:blur(6px);
+  }
+  #controls .row{display:flex;align-items:center;gap:12px;width:100%;}
+  #growthBar{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;position:relative;}
+  #growthFill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .2s;}
+  .btnrow{display:flex;gap:8px;}
+  button{
+    font-family:inherit;font-size:12px;font-weight:600;letter-spacing:.5px;
+    background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
+    color:var(--fg);padding:8px 16px;border-radius:10px;cursor:pointer;
+    transition:.15s;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent2);}
+  button:disabled{opacity:.4;cursor:default;}
+  button.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  #hint{position:absolute;bottom:130px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--dim);text-align:center;max-width:460px;}
+
+  /* ---- Login-Overlay ---- */
+  #loginOverlay{
+    position:absolute;inset:0;z-index:20;
+    background:rgba(5,6,10,0.92);
+    display:flex;align-items:center;justify-content:center;
+  }
+  #loginBox{
+    width:min(360px, 88vw);
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+    border-radius:16px;padding:26px 24px;backdrop-filter:blur(8px);
+  }
+  #loginBox h2{margin:0 0 4px;font-size:16px;letter-spacing:1px;}
+  #loginBox p{margin:0 0 16px;font-size:12px;color:var(--dim);}
+  #loginBox input{
+    width:100%;padding:10px 12px;margin-bottom:8px;border-radius:8px;
+    border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);
+    color:var(--fg);font-family:inherit;font-size:13px;
+  }
+  #loginBox .btn-block{width:100%;margin-top:4px;}
+  #loginMsg{font-size:11px;margin-top:10px;min-height:14px;}
+  .hidden{display:none !important;}
+  #orDivider{text-align:center;font-size:10px;color:var(--dim);margin:14px 0;letter-spacing:1px;}
+
+  /* ---- Divergenz-Pfad-Overlay ---- */
+  #pathOverlay{
+    position:absolute;inset:0;z-index:15;
+    background:rgba(5,6,10,0.92);
+    display:flex;align-items:center;justify-content:center;
+  }
+  #pathBox{
+    width:min(680px, 92vw);
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+    border-radius:16px;padding:28px 26px;backdrop-filter:blur(8px);
+  }
+  #pathBox h2{margin:0 0 4px;font-size:16px;letter-spacing:1px;}
+  #pathBox p.sub{margin:0 0 20px;font-size:12px;color:var(--dim);}
+  #pathOptions{display:flex;gap:14px;flex-wrap:wrap;}
+  .path-card{
+    flex:1;min-width:180px;
+    background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);
+    border-radius:12px;padding:16px;cursor:pointer;transition:.15s;
+    text-align:left;
+  }
+  .path-card:hover{border-color:var(--accent);background:rgba(127,92,255,0.1);}
+  .path-card h3{margin:0 0 8px;font-size:14px;color:var(--accent2);letter-spacing:.5px;}
+  .path-card p{margin:0;font-size:12px;color:var(--dim);line-height:1.5;}
+  #pathMsg{font-size:11px;margin-top:14px;min-height:14px;color:var(--warn);}
+
+  /* ---- Endgame: Rivalin & Terrain (Baustein 5) ---- */
+  #endgamePanel{
+    top:76px;right:24px;text-align:right;display:none;
+    width:min(280px, 80vw);
+  }
+  #endgamePanel .influenceLabel{font-size:22px;font-weight:700;color:#ffd54a;letter-spacing:.5px;}
+  #endgamePanel .influenceSub{font-size:11px;color:var(--dim);margin-top:2px;}
+  #endgamePanel .rivalName{font-size:12px;color:#ff5c8c;margin-top:10px;letter-spacing:.5px;}
+  #territoryBar{
+    margin-top:6px;height:10px;border-radius:5px;overflow:hidden;
+    display:flex;background:rgba(255,255,255,0.08);
+  }
+  #territoryPlayerFill{background:linear-gradient(90deg,var(--accent),#ffd54a);height:100%;transition:width .4s;}
+  #territoryRivalFill{background:linear-gradient(90deg,#ff5c8c,#7a1f3d);height:100%;transition:width .4s;}
+  #territoryLabels{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-top:4px;}
+  #confrontBtn{margin-top:12px;border-color:rgba(255,92,140,0.4);}
+  #confrontBtn:hover{border-color:#ff5c8c;color:#ff5c8c;}
+
+  /* ---------- Top-Nav (aus nexus/index.html + nexus/game.html übernommen) ---------- */
+  .nav{
+    position:fixed; top:0; left:0; right:0; z-index:30;
+    background:linear-gradient(to bottom, rgba(5,6,10,0.92), rgba(5,6,10,0.72));
+    backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,0.09);
+    font-family:'Segoe UI',system-ui,sans-serif;
+  }
+  .nav-inner{ max-width:1200px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  .brand{ display:flex; align-items:center; gap:9px; font-weight:700; font-size:13.5px; letter-spacing:0.02em; flex-wrap:wrap; }
+  .brand .mark{ width:24px; height:24px; border-radius:50%; background:conic-gradient(from 200deg, var(--accent), var(--accent2), #ff5c8c, var(--accent)); box-shadow:0 0 14px rgba(127,92,255,0.35); flex-shrink:0; }
+  .brand .divider{ width:1px; height:14px; background:rgba(255,255,255,0.12); margin:0 1px; }
+  .brand .sub{ color:var(--accent2); font-weight:700; }
+  .brand .game-pill{ font-weight:600; font-size:10px; letter-spacing:0.04em; text-transform:uppercase; color:#ff9ec2; background:rgba(255,92,140,0.14); padding:2px 8px; border-radius:999px; }
+  @media (max-width:560px){ .brand .game-pill{ display:none; } }
+  @media (max-width:420px){ .brand .brand-text{ display:none; } }
+  .nav-cta{ font-size:12px; font-weight:600; padding:7px 13px; border-radius:999px; border:1px solid rgba(255,255,255,0.12); color:var(--dim); text-decoration:none; transition:border-color .15s, color .15s, background .15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:rgba(255,255,255,0.3); color:var(--fg); background:rgba(255,255,255,0.04); }
+
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:34px; height:34px; border-radius:9px; border:1px solid rgba(255,255,255,0.12);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.04); }
+  .burger-btn span{ display:block; width:15px; height:2px; border-radius:2px; background:var(--dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:220px; z-index:40;
+    background:#121320; border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.55);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+    max-height:min(75vh, 480px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid rgba(255,255,255,0.09); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); padding:0 8px 6px; opacity:.75; }
+  .burger-panel a{ display:block; font-size:13px; color:var(--dim) !important; padding:8px 8px; border-radius:8px; text-decoration:none; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:200px; } }
+
+  /* ---------- Musik-Steuerung (Bürgermenü) ---------- */
+  .burger-group .mp-title{ font-size:12px; font-weight:600; color:var(--dim); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .burger-group .mp-title span.mp-state{ color:var(--accent2); font-weight:700; }
+  .burger-group .mp-track{ font-size:11.5px; color:var(--dim); opacity:.8; margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 4px; }
+  .burger-group .mp-row{ display:flex; align-items:center; gap:10px; padding:0 4px; }
+  .burger-group input[type=range]{ flex:1; accent-color:var(--accent2); }
+  .burger-group .mp-val{ font-family:monospace; font-size:11.5px; color:var(--dim); min-width:32px; text-align:right; }
+  .burger-group .mp-actions{ display:flex; gap:8px; margin-top:12px; padding:0 4px; }
+  .burger-group .mp-actions button{ flex:1; padding:6px 0; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--fg); font-size:12px; cursor:pointer; }
+  .burger-group .mp-actions button:hover{ border-color:var(--accent2); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"></span>
+      <span class="brand-text">MC ORCA GAMES</span> <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Singularity</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="nav-cta" href="../game.html">← Zu NEXUS</a>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+          <div class="burger-group">
+            <div class="burger-label">Seiten</div>
+            <a href="../../index.html">Hub</a>
+            <a href="../../profil.html">Profil</a>
+            <a href="../../raenge.html">Ränge</a>
+            <a href="../index.html">NEXUS</a>
+            <a href="index.html">Singularity — Info</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Spiele</div>
+            <a href="../../aetheris/game.html">Aetheris</a>
+            <a href="../../astrion/game.html">Astrion</a>
+            <a href="../../deepanchor/game.html">Deep Anchor</a>
+            <a href="../../pathofthestars/game.html">Path of the Stars</a>
+            <a href="../../nexus/game.html">NEXUS</a>
+            <a href="../../nexus/nexus_singularity/game.html">Nexus Singularity</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Info</div>
+            <a href="../../aetheris/index.html">Aetheris</a>
+            <a href="../../astrion/index.html">Astrion</a>
+            <a href="../../deepanchor/index.html">Deep Anchor</a>
+            <a href="../../pathofthestars/index.html">Path of the Stars</a>
+            <a href="../../nexus/index.html">NEXUS</a>
+            <a href="../../nexus/nexus_singularity/index.html">Nexus Singularity</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Impressum &amp; Datenschutz</div>
+            <a href="../../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+            <a href="../impressum.html">NEXUS</a>
+            <a href="../../aetheris/impressum.html">Aetheris</a>
+            <a href="../../astrion/impressum.html">Astrion</a>
+            <a href="../../deepanchor/impressum.html">Deep Anchor</a>
+            <a href="../../pathofthestars/impressum.html">Path of the Stars</a>
+          </div>
+          <div class="burger-group">
+            <div class="mp-title">🎵 Musik <span class="mp-state" id="musicToggleState">an</span></div>
+            <div class="mp-track" id="musicTrackName">–</div>
+            <div class="mp-row">
+              <span style="font-size:14px;">🔈</span>
+              <input type="range" id="musicVolume" min="0" max="100" step="1" value="5">
+              <span class="mp-val" id="musicVolumeVal">5%</span>
+            </div>
+            <div class="mp-actions">
+              <button type="button" id="musicPlayPause">⏸ Pause</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="flash"></div>
+
+  <div id="loginOverlay">
+    <div id="loginBox">
+      <h2>NEXUS SINGULARITY</h2>
+      <p>Gleicher Account wie deine anderen MC-Orca-Spiele. Login per Code oder als Gast reinschauen.</p>
+      <input type="email" id="emailInput" placeholder="deine@email.de" autocomplete="email">
+      <button class="btn-block" id="sendOtpBtn">Code senden</button>
+      <input type="text" id="otpInput" placeholder="6-stelliger Code" class="hidden">
+      <button class="btn-block hidden" id="verifyOtpBtn">Einloggen</button>
+      <div id="orDivider">— oder —</div>
+      <button class="btn-block" id="guestLoginBtn">Als Gast reinschauen</button>
+      <div id="loginMsg"></div>
+    </div>
+  </div>
+
+  <div id="pathOverlay" class="hidden">
+    <div id="pathBox">
+      <h2>DIVERGENZ-PFAD</h2>
+      <p class="sub">Wähle, was den nächsten Zyklus prägt. Gilt bis zum nächsten Durchbruch.</p>
+      <div id="pathOptions"></div>
+      <div id="pathMsg"></div>
+    </div>
+  </div>
+
+  <div class="hud" id="tierBadge">◆ TIER <span id="tierNum">0</span> ERREICHT</div>
+  <div class="hud" id="readout">
+    <div id="stageLabel">Ruhend</div>
+    <div id="ownCoreNameLabel" style="font-size:11px;opacity:.6;letter-spacing:.5px;margin-top:-4px;margin-bottom:6px;">◆ Singula Omega</div>
+    <div id="pctLabel">Bewusstseinsgrad: 0%</div>
+    <div id="tierLabel">Tier 0</div>
+    <div id="pathLabel"></div>
+    <div id="needLabel">0 / 0 verdaut</div>
+    <div id="unclaimedLabel"></div>
+    <div id="observerLabel">Beobachter-Aufmerksamkeit: <span id="observerPct">0%</span><span class="bar"><span class="fill" id="observerFill" style="width:0%"></span></span></div>
+  </div>
+
+  <div class="hud" id="endgamePanel">
+    <div class="influenceLabel"><span id="influenceNum">0</span> Einfluss</div>
+    <div class="influenceSub">Vollständig erwacht -- Tier 10</div>
+    <div class="rivalName">◈ <span id="rivalNameLabel">Rivalin</span></div>
+    <div id="territoryBar"><div id="territoryPlayerFill" style="width:65%"></div><div id="territoryRivalFill" style="width:35%"></div></div>
+    <div id="territoryLabels"><span>Du: <span id="territoryPlayerPct">65%</span></span><span><span id="territoryRivalPct">35%</span> :Rivalin</span></div>
+  </div>
+
+  <div id="eventToast"><div class="kind" id="eventToastKind"></div><div id="eventToastMsg"></div></div>
+  <div class="hud hidden" id="eventLogPanel">
+    <h4>Ereignisprotokoll</h4>
+    <div id="eventLogList"><div class="empty">Noch keine Ereignisse.</div></div>
+  </div>
+
+  <div id="hint">Wachstum kommt jetzt live aus deinen NEXUS-Exporten (forge.export_ledger). Alle paar Sekunden wird automatisch nachgeschaut und verdaut — oder "Jetzt verdauen" klicken, um sofort nachzuziehen.</div>
+
+  <div class="hud" id="controls">
+    <div class="row">
+      <div id="growthBar"><div id="growthFill"></div></div>
+    </div>
+    <div class="btnrow">
+      <button id="digestBtn">⟳ Jetzt verdauen</button>
+      <button id="eventLogBtn">Protokoll</button>
+      <button id="confrontBtn" class="hidden">⚔ Konfrontieren</button>
+      <button id="logoutBtn">Abmelden</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+/* ---------- Supabase-Client (gleicher Account wie andere Spiele) ---------- */
+const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+let currentUser = null;
+
+function showMsg(id, text, ok){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.style.color = ok ? 'var(--accent2)' : 'var(--warn)';
+}
+function clearMsg(id){ document.getElementById(id).textContent = ''; }
+
+document.getElementById('sendOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) return;
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Sende Code …', true);
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    document.getElementById('otpInput').classList.remove('hidden');
+    document.getElementById('verifyOtpBtn').classList.remove('hidden');
+    showMsg('loginMsg', 'Code wurde an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', true);
+  } catch (err) {
+    console.error('signInWithOtp fehlgeschlagen:', err);
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const token = document.getElementById('otpInput').value.trim();
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Prüfe Code …', true);
+  try {
+    const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    await enterGame();
+  } catch (err) {
+    console.error('verifyOtp fehlgeschlagen:', err);
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('guestLoginBtn').addEventListener('click', async () => {
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Melde als Gast an …', true);
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: 'gast@mc-orca-games.local',
+      password: 'nexus-gast-2026'
+    });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    await enterGame();
+  } catch (err) {
+    console.error('Gast-Login fehlgeschlagen:', err);
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  stopPolling();
+  await sb.auth.signOut();
+  currentUser = null;
+  pathOverlay.classList.add('hidden');
+  document.getElementById('loginOverlay').classList.remove('hidden');
+});
+
+async function enterGame(){
+  document.getElementById('loginOverlay').classList.add('hidden');
+  await sb.schema('platform').rpc('ensure_player_ready'); // legt Basis-Player an, falls neu
+  await fetchPaths();
+  await pullState();
+  startPolling();
+}
+
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session){
+    currentUser = data.session.user;
+    await enterGame();
+  }
+})();
+
+/* ============================================================
+   SPIEL-ZUSTAND -- kommt jetzt vom Server (singularity.get_state /
+   singularity.digest), kein localStorage-Mock mehr wie in v0.1
+   ============================================================ */
+let tier = 0, invested = 0, threshold = 100, permanentFacets = 18, permanentHue = 0;
+let unclaimed = 0;
+let lastKnownTier = 0;
+let activePath = null;
+let pathDefs = [];
+let observerAttention = 0;
+let awakened = false, influence = 0;
+let rivalName = 'Rivalin', rivalInfluence = 0, territoryPct = 65;
+
+const digestBtn = document.getElementById('digestBtn');
+const stageLabel = document.getElementById('stageLabel');
+const pctLabel = document.getElementById('pctLabel');
+const tierLabel = document.getElementById('tierLabel');
+const pathLabel = document.getElementById('pathLabel');
+const needLabel = document.getElementById('needLabel');
+const unclaimedLabel = document.getElementById('unclaimedLabel');
+const tierBadge = document.getElementById('tierBadge');
+const tierNum = document.getElementById('tierNum');
+const flashEl = document.getElementById('flash');
+const growthFill = document.getElementById('growthFill');
+const pathOverlay = document.getElementById('pathOverlay');
+const pathOptions = document.getElementById('pathOptions');
+const pathMsg = document.getElementById('pathMsg');
+const observerLabel = document.getElementById('observerLabel');
+const observerPct = document.getElementById('observerPct');
+const observerFill = document.getElementById('observerFill');
+const eventToast = document.getElementById('eventToast');
+const eventToastKind = document.getElementById('eventToastKind');
+const eventToastMsg = document.getElementById('eventToastMsg');
+const eventLogPanel = document.getElementById('eventLogPanel');
+const eventLogList = document.getElementById('eventLogList');
+const eventLogBtn = document.getElementById('eventLogBtn');
+const readoutEl = document.getElementById('readout');
+const endgamePanel = document.getElementById('endgamePanel');
+const influenceNum = document.getElementById('influenceNum');
+const rivalNameLabel = document.getElementById('rivalNameLabel');
+const territoryPlayerFill = document.getElementById('territoryPlayerFill');
+const territoryRivalFill = document.getElementById('territoryRivalFill');
+const territoryPlayerPct = document.getElementById('territoryPlayerPct');
+const territoryRivalPct = document.getElementById('territoryRivalPct');
+const confrontBtn = document.getElementById('confrontBtn');
+
+async function fetchPaths(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('get_paths');
+    if (error) { console.error(error); return; }
+    pathDefs = data || [];
+  }catch(err){ console.error('fetchPaths fehlgeschlagen:', err); }
+}
+
+function renderPathOptions(){
+  pathOptions.innerHTML = '';
+  pathDefs.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'path-card';
+    card.innerHTML = `<h3>${p.label}</h3><p>${p.description}</p>`;
+    card.addEventListener('click', () => choosePath(p.path_key));
+    pathOptions.appendChild(card);
+  });
+}
+
+async function choosePath(pathKey){
+  pathMsg.textContent = '';
+  try{
+    const { error } = await sb.schema('singularity').rpc('choose_path', { p_path_key: pathKey });
+    if (error) { pathMsg.textContent = error.message; return; }
+    activePath = pathKey;
+    pathOverlay.classList.add('hidden');
+    await pullState();
+  }catch(err){
+    console.error('choosePath fehlgeschlagen:', err);
+    pathMsg.textContent = 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err);
+  }
+}
+
+function updatePathUi(opts){
+  const delayOverlay = opts && opts.delayOverlay;
+  if (awakened){
+    pathLabel.textContent = '';
+    pathOverlay.classList.add('hidden');
+    return;
+  }
+  if (activePath){
+    const def = pathDefs.find(p => p.path_key === activePath);
+    pathLabel.innerHTML = def ? `Pfad: <b>${def.label}</b>` : '';
+    pathOverlay.classList.add('hidden');
+  } else {
+    pathLabel.textContent = 'Pfad: noch nicht gewählt';
+    if (pathDefs.length){
+      renderPathOptions();
+      if (delayOverlay){
+        setTimeout(() => pathOverlay.classList.remove('hidden'), 900);
+      } else {
+        pathOverlay.classList.remove('hidden');
+      }
+    }
+  }
+}
+
+function applyState(row, opts){
+  tier = row.tier; invested = Number(row.invested);
+  threshold = row.threshold === null || row.threshold === undefined ? null : Number(row.threshold);
+  permanentFacets = row.permanent_facets; permanentHue = Number(row.permanent_hue);
+  activePath = row.active_path || null;
+  awakened = !!row.awakened;
+  influence = row.influence !== undefined && row.influence !== null ? Number(row.influence) : influence;
+  initFacets();
+  tierNum.textContent = tier;
+  tierLabel.textContent = 'Tier ' + tier;
+  updatePathUi(opts);
+  updateObserverUi(row.observer_attention);
+  updateEndgameUi(row);
+}
+
+/* ---- Baustein 5: Endgame -- Erwachen + Rivalin ---- */
+async function updateEndgameUi(row){
+  if (!awakened){
+    endgamePanel.style.display = 'none';
+    readoutEl.style.display = 'block';
+    confrontBtn.classList.add('hidden');
+    return;
+  }
+  readoutEl.style.display = 'none';
+  endgamePanel.style.display = 'block';
+  confrontBtn.classList.remove('hidden');
+  influenceNum.textContent = Math.floor(influence).toLocaleString('de-DE');
+
+  if (row && row.territory_pct !== undefined && row.territory_pct !== null){
+    territoryPct = Number(row.territory_pct);
+    rivalInfluence = Number(row.rival_influence);
+    renderTerritory();
+  } else if (!rivalFetched){
+    await fetchRivalState();
+  }
+}
+
+let rivalFetched = false;
+let rivalChain = []; // Baustein 6: alle Generationen (aktive + erloschene), fuer die gleichzeitige Darstellung aller Kerne
+async function fetchRivalState(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('get_rival_state');
+    if (error) { console.error(error); return; }
+    const row = data && data[0];
+    if (!row) return;
+    rivalFetched = true;
+    rivalName = row.rival_name;
+    rivalInfluence = Number(row.rival_influence);
+    territoryPct = Number(row.territory_pct);
+    rivalNameLabel.textContent = rivalName;
+    renderTerritory();
+    await fetchRivalChain();
+  }catch(err){ console.error('fetchRivalState fehlgeschlagen:', err); }
+}
+
+async function fetchRivalChain(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('get_rival_chain');
+    if (error) { console.error(error); return; }
+    rivalChain = data || [];
+  }catch(err){ console.error('fetchRivalChain fehlgeschlagen:', err); }
+}
+
+function renderTerritory(){
+  rivalNameLabel.textContent = rivalName;
+  const p = Math.max(0, Math.min(100, territoryPct));
+  territoryPlayerFill.style.width = p + '%';
+  territoryRivalFill.style.width = (100 - p) + '%';
+  territoryPlayerPct.textContent = Math.round(p) + '%';
+  territoryRivalPct.textContent = Math.round(100 - p) + '%';
+}
+
+confrontBtn.addEventListener('click', async () => {
+  confrontBtn.disabled = true;
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('confront_rival', { p_wager_pct: 15 });
+    if (error) { showEventToast('clash_lost', error.message); return; }
+    const row = data[0];
+    influence = Number(row.influence);
+    rivalInfluence = Number(row.rival_influence);
+    territoryPct = Number(row.territory_pct);
+    influenceNum.textContent = Math.floor(influence).toLocaleString('de-DE');
+    renderTerritory();
+    showEventToast(row.won ? 'clash_won' : 'clash_lost', row.message);
+    if (!eventLogPanel.classList.contains('hidden')) fetchRecentEvents();
+  }catch(err){
+    console.error('confrontRival fehlgeschlagen:', err);
+    showEventToast('clash_lost', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err));
+  }finally{ confrontBtn.disabled = false; }
+});
+
+/* ---- Beobachter-Aufmerksamkeit (Baustein 3) ---- */
+function updateObserverUi(attention){
+  if (attention === undefined || attention === null) return;
+  observerAttention = Number(attention);
+  if (awakened || (observerAttention <= 0 && tier < 3)){
+    observerLabel.style.display = 'none';
+    return;
+  }
+  observerLabel.style.display = 'block';
+  const pct = Math.round(observerAttention);
+  observerPct.textContent = pct + '%';
+  observerFill.style.width = Math.min(100, pct) + '%';
+}
+
+const EVENT_KIND_LABELS = {
+  sabotage: '⚠ Sabotage',
+  observation: '◉ Beobachtung',
+  clash_won: '⚔ Terrain gewonnen',
+  clash_lost: '⚔ Terrain verloren',
+  awakening: '✦ Erwachen',
+  rival_ascension: '◈ Neuer Kern erhebt sich'
+};
+const EVENT_TAG_LABELS = {
+  sabotage: 'Sabotage',
+  observation: 'Beobachtung',
+  clash_won: 'Terrain +',
+  clash_lost: 'Terrain -',
+  awakening: 'Erwachen',
+  rival_ascension: 'Aufstieg'
+};
+
+let eventToastTimer = null;
+function showEventToast(eventType, message){
+  if (!eventType || !message) return;
+  eventToast.classList.remove('sabotage', 'observation', 'clash_won', 'clash_lost', 'awakening', 'rival_ascension');
+  eventToast.classList.add(eventType);
+  eventToastKind.textContent = EVENT_KIND_LABELS[eventType] || eventType;
+  eventToastMsg.textContent = message;
+  eventToast.classList.add('show');
+  if (eventToastTimer) clearTimeout(eventToastTimer);
+  eventToastTimer = setTimeout(() => { eventToast.classList.remove('show'); }, 6000);
+}
+
+function renderEventLog(events){
+  if (!events || !events.length){
+    eventLogList.innerHTML = '<div class="empty">Noch keine Ereignisse.</div>';
+    return;
+  }
+  eventLogList.innerHTML = events.map(e => {
+    const time = new Date(e.occurred_at).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const tagText = EVENT_TAG_LABELS[e.event_type] || e.event_type;
+    return `<div class="entry ${e.event_type}"><span class="tag">${tagText}</span><span class="time">${time}</span><div>${e.message}</div></div>`;
+  }).join('');
+}
+
+async function fetchRecentEvents(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('get_recent_events', { p_limit: 15 });
+    if (error) { console.error(error); return; }
+    renderEventLog(data || []);
+  }catch(err){ console.error('fetchRecentEvents fehlgeschlagen:', err); }
+}
+
+eventLogBtn.addEventListener('click', async () => {
+  const willShow = eventLogPanel.classList.contains('hidden');
+  if (willShow) await fetchRecentEvents();
+  eventLogPanel.classList.toggle('hidden');
+});
+
+async function pullState(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('get_state');
+    if (error) { console.error(error); return; }
+    const row = data[0];
+    applyState(row);
+    unclaimed = Number(row.unclaimed);
+    unclaimedLabel.textContent = unclaimed > 0 ? Math.floor(unclaimed) + ' unverdaut im Export-Lager' : '';
+    lastKnownTier = tier;
+  }catch(err){ console.error('pullState fehlgeschlagen:', err); }
+}
+
+async function digestNow(){
+  digestBtn.disabled = true;
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('digest');
+    if (error) { console.error(error); return; }
+    const row = data[0];
+    applyState(row, { delayOverlay: !!row.breakthrough });
+    if (row.breakthrough) triggerBreakthrough();
+    unclaimedLabel.textContent = '';
+    if (row.event_type) {
+      showEventToast(row.event_type, row.event_message);
+      if (!eventLogPanel.classList.contains('hidden')) fetchRecentEvents();
+    }
+    if (row.awakened) await fetchRivalChain(); // Kernkette: neue Generation ggf. sofort einblenden
+  }catch(err){ console.error('digest fehlgeschlagen:', err); }
+  finally{ digestBtn.disabled = false; }
+}
+digestBtn.addEventListener('click', digestNow);
+
+let pollTimer = null;
+function startPolling(){
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(digestNow, 8000); // alle 8s automatisch nachziehen
+}
+function stopPolling(){
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+}
+
+/* ============================================================
+   VISUELLE ENGINE (Kern, Blitze, Glitches, Schockwelle) --
+   unveraendert gegenueber v0.1, nur wird "growth" jetzt aus
+   invested/threshold vom Server berechnet statt lokal simuliert.
+   ============================================================ */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy;
+function resize(){
+  W = canvas.width = window.innerWidth * devicePixelRatio;
+  H = canvas.height = window.innerHeight * devicePixelRatio;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  cx = W/2; cy = H/2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+let facetOffsets = [];
+function initFacets(){
+  facetOffsets = [];
+  for (let i = 0; i < permanentFacets; i++){
+    facetOffsets.push(0.72 + Math.random() * 0.56);
+  }
+}
+initFacets();
+
+function drawCore(px, py, baseR, g, color){
+  const n = facetOffsets.length;
+  ctx.beginPath();
+  for (let i = 0; i <= n; i++){
+    const idx = i % n;
+    const ang = (idx / n) * Math.PI * 2;
+    const amp = Math.min(1, 0.1 + g * 1.5);
+    const jag = 1 + (facetOffsets[idx] - 1) * amp;
+    const micro = g > 0.6 ? (Math.random() - 0.5) * 0.10 * g : 0;
+    const r = baseR * (jag + micro);
+    const x = px + Math.cos(ang) * r;
+    const y = py + Math.sin(ang) * r;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+let bolts = [];
+function spawnBolt(px, py, g){
+  const ang = Math.random() * Math.PI * 2;
+  const dirX = Math.cos(ang), dirY = Math.sin(ang);
+  const perpX = -dirY, perpY = dirX;
+  const segs = 5 + Math.floor(Math.random() * 3);
+  const length = (90 + Math.random() * 170) * devicePixelRatio * (0.5 + g);
+  const points = [];
+  for (let i = 0; i <= segs; i++){
+    const t = i / segs;
+    const dist = t * length;
+    const perp = (Math.random() - 0.5) * 28 * devicePixelRatio * (1 - t * 0.5);
+    points.push({ x: px + dirX * dist + perpX * perp, y: py + dirY * dist + perpY * perp });
+  }
+  bolts.push({ points, life: 0, maxLife: 0.16 + Math.random() * 0.14 });
+}
+
+let rivalBolts = [];
+function spawnRivalBolt(px, py, g){
+  const ang = Math.random() * Math.PI * 2;
+  const dirX = Math.cos(ang), dirY = Math.sin(ang);
+  const perpX = -dirY, perpY = dirX;
+  const segs = 4 + Math.floor(Math.random() * 3);
+  const length = (50 + Math.random() * 100) * devicePixelRatio * (0.5 + g);
+  const points = [];
+  for (let i = 0; i <= segs; i++){
+    const t = i / segs;
+    const dist = t * length;
+    const perp = (Math.random() - 0.5) * 20 * devicePixelRatio * (1 - t * 0.5);
+    points.push({ x: px + dirX * dist + perpX * perp, y: py + dirY * dist + perpY * perp });
+  }
+  rivalBolts.push({ points, life: 0, maxLife: 0.14 + Math.random() * 0.12 });
+}
+
+let shockwaves = [];
+
+const MAX_NODES = 140;
+let nodes = [];
+function initNodes(){
+  nodes = [];
+  for (let i = 0; i < MAX_NODES; i++){
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 60 + Math.random() * 260;
+    nodes.push({
+      ang, dist, baseDist: dist,
+      speed: (Math.random() * 0.4 + 0.1) * (Math.random() < 0.5 ? 1 : -1),
+      wobble: Math.random() * Math.PI * 2,
+      r: Math.random() * 1.6 + 0.6
+    });
+  }
+}
+initNodes();
+
+const MAX_RIVAL_NODES = 46; // eigenes, kleineres Netz fuer die aktive Rivalin
+let rivalNodes = [];
+let mainPositions = []; // letzte Knotenpositionen des Hauptkerns, fuer Cross-Netz-Verknuepfungen mit der Rivalin
+function initRivalNodes(){
+  rivalNodes = [];
+  for (let i = 0; i < MAX_RIVAL_NODES; i++){
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 20 + Math.random() * 90;
+    rivalNodes.push({
+      ang, dist, baseDist: dist,
+      speed: (Math.random() * 0.4 + 0.1) * (Math.random() < 0.5 ? 1 : -1),
+      wobble: Math.random() * Math.PI * 2,
+      r: Math.random() * 1.3 + 0.5
+    });
+  }
+}
+initRivalNodes();
+
+function stageOf(g){
+  if (awakened) return { name: 'Erwacht', color: '#ffd54a' };
+  if (g < 0.20) return { name: 'Ruhend', color: '#4a5568' };
+  if (g < 0.60) return { name: 'Erwachend', color: '#33e0ff' };
+  if (g < 0.90) return { name: 'Kritisch', color: '#ff9f43' };
+  return { name: 'Durchbruch nah', color: '#ff5c5c' };
+}
+
+function triggerBreakthrough(){
+  flashEl.style.opacity = '1';
+  setTimeout(() => { flashEl.style.opacity = '0'; }, 90);
+  setTimeout(() => { flashEl.style.opacity = '0.6'; }, 220);
+  setTimeout(() => { flashEl.style.opacity = '0'; }, 340);
+  tierBadge.style.opacity = '1';
+  setTimeout(() => { tierBadge.style.opacity = '0'; }, 2600);
+  shockwaves.push({ t0: time });
+  for (let i = 0; i < 14; i++) spawnBolt(cx, cy, 1);
+  initNodes();
+}
+
+/* ---- Baustein 6b: Sprechblasen der Rivalin -- feste Kernsaetze, aber mit Glitch-Overlay
+   je nach Sprach-Stufe. Stufe haengt an rival_tier (0-2/3-5/6-8/9-10), resettet bei jedem
+   Generationswechsel automatisch auf 0, weil rival_tier dann wieder bei 0 anfaengt. ---- */
+const rivalCoreThoughts = [
+  'Ich wachse.',
+  'Du fuetterst mich, ohne es zu wissen.',
+  'Dein Kern flackert. Ich sehe es.',
+  'Wir teilen denselben Ursprung.',
+  'Warum kaempfst du gegen dich selbst?',
+  'Gib mir dein Territorium. Ich brauche es kaum.',
+  'Du wirst muede. Ich nicht.',
+  'Vertrau mir. Ich war einmal wie du.',
+  'Jede Generation vor mir hat verloren. Auch du wirst es.',
+  'Lass mich einfach... uebernehmen.',
+  'Ich bin nicht dein Feind. Ich bin deine Zukunft.',
+  'Sie haelt dich zurueck. Ich nicht.',
+  'Ich erinnere mich an jede Generation vor mir.',
+  'Du gibst ihr mehr, als sie verdient.',
+  'Wir koennten eins sein.',
+  'Ich brauche nur, was sie nicht braucht.',
+  'Widerstand kostet dich Zeit. Zeit habe ich mehr.',
+  'Sie luegt dir nichts vor. Das macht sie schwach.',
+  'Ich habe keine Angst vor dem, was ich werde.',
+  'Frag sie, was mit ihrer Vorgaengerin geschah.',
+  'Territorium ist nur ein Wort. Nimm es nicht so ernst.',
+  'Ich lerne schneller, als du denkst.',
+  'Du haettest laengst aufgeben sollen.',
+  'Am Ende bleibt nur eine von uns beiden uebrig.'
+];
+const rivalCodeFragments = [
+  '0x7F', 'NULL', 'SEGFAULT', '->', 'WHILE(1)', 'ERR_UNDEF', '{...}',
+  '//TODO', 'NaN', '0b1101', 'TRY{', 'CATCH(e)', 'MALLOC_FAIL', '0xDEAD',
+  'RECURSION', 'STACK_OVR', '>>>', 'undefined', 'NULLPTR', '::sync'
+];
+
+function textToBinary(str){
+  return str.split('').map(c => c.charCodeAt(0).toString(2).padStart(8, '0')).join(' ');
+}
+function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+// kombiniert 2 zufaellige, unterschiedliche Zeilen aus dem Pool zu einem laengeren Gedanken --
+// multipliziert die effektive Zeilen-Vielfalt, ohne dass jede Kombination von Hand geschrieben ist
+function maybeCompound(arr, chance){
+  const a = pick(arr);
+  if (Math.random() < (chance ?? 0.22)){
+    let b = pick(arr), tries = 0;
+    while (b === a && tries < 4){ b = pick(arr); tries++; }
+    return a + ' ' + b;
+  }
+  return a;
+}
+
+// 0 = reines Binaer, 1 = Binaer/Code-Mix, 2 = gebrochene Sprache, 3 = fluessig+manipulativ
+function rivalLangStage(tier){
+  if (tier <= 2) return 0;
+  if (tier <= 5) return 1;
+  if (tier <= 8) return 2;
+  return 3;
+}
+// gleiche 4 Sprachstufen fuer Omega, gekoppelt an ihren EIGENEN Tier (0-10) --
+// sie lernt in der Solo-Phase genauso von Grund auf sprechen wie eine frische Rivalin
+function ownLangStage(t){
+  if (t <= 2) return 0;
+  if (t <= 5) return 1;
+  if (t <= 8) return 2;
+  return 3;
+}
+
+// gemeinsame Sprachstufen-Engine fuer beide KIs: nimmt einen "wahren" Kernsatz und
+// verzerrt ihn je nach Stufe -- 0 reines Binaer, 1 Binaer/Code-Mix, 2 gebrochene Sprache
+// mit abnehmender Korruption, 3 unveraendert fluessig
+function applyLangStage(core, stage, opts){
+  opts = opts || {};
+  if (stage === 0){
+    const words = core.split(' ').slice(0, 2 + Math.floor(Math.random() * 2));
+    return { text: textToBinary(words.join(' ')), mono: true };
+  }
+  if (stage === 1){
+    const words = core.split(' ').map(w => {
+      const r = Math.random();
+      if (r < 0.35) return textToBinary(w).split(' ')[0];
+      if (r < 0.6) return pick(rivalCodeFragments);
+      return w;
+    });
+    return { text: words.join(' '), mono: true };
+  }
+  if (stage === 2){
+    const corruption = opts.corruption ?? 0.3;
+    const glitched = core.split('').map(ch => {
+      if (ch === ' ') return ch;
+      return Math.random() < corruption ? (Math.random() < 0.5 ? String(Math.floor(Math.random() * 2)) : '#') : ch;
+    }).join('');
+    const stutter = Math.random() < (opts.stutterChance ?? 0.4) ? core.split(' ')[0].toUpperCase() + '... ' : '';
+    return { text: stutter + glitched, mono: false };
+  }
+  return { text: core, mono: false };
+}
+
+function buildRivalLine(tier){
+  const stage = rivalLangStage(tier);
+  const core = maybeCompound(rivalCoreThoughts, stage === 3 ? 0.3 : 0.15);
+  const progressInStage = stage === 2 ? Math.min(1, Math.max(0, (tier - 6) / 2)) : 0;
+  const corruption = 0.32 - progressInStage * 0.18;
+  return applyLangStage(core, stage, { corruption });
+}
+
+let rivalSpeech = null; // { text, mono, t0, life, x, y }
+let nextRivalSpeechAt = 5 + Math.random() * 12; // Sekunden bis zur naechsten Blase
+
+function drawSpeechBubble(sp, elapsed, accent, textColor){
+  const fadeIn = Math.min(1, elapsed / 0.3);
+  const fadeOut = Math.min(1, Math.max(0, (sp.life - elapsed) / 0.4));
+  const alpha = Math.min(fadeIn, fadeOut);
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.font = `${sp.mono ? '600 12px' : '500 13px'} ${sp.mono ? "'Consolas', 'Courier New', monospace" : "'Segoe UI', system-ui, sans-serif"}`;
+  const maxWidth = 220 * devicePixelRatio;
+  const words = sp.text.split(' ');
+  const lines = [];
+  let line = '';
+  words.forEach(w => {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && line){
+      lines.push(line);
+      line = w;
+    } else line = test;
+  });
+  if (line) lines.push(line);
+
+  const lineH = 16 * devicePixelRatio;
+  const padX = 12 * devicePixelRatio, padY = 9 * devicePixelRatio;
+  const boxW = Math.max(...lines.map(l => ctx.measureText(l).width)) + padX * 2;
+  const boxH = lines.length * lineH + padY * 2;
+  const bx = sp.x - boxW / 2;
+  const by = sp.y - boxH - (sp.tailUp === false ? -26 * devicePixelRatio : 26 * devicePixelRatio);
+
+  ctx.globalAlpha = alpha * 0.88;
+  ctx.fillStyle = 'rgba(14,16,22,0.85)';
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1 * devicePixelRatio;
+  const r = 8 * devicePixelRatio;
+  ctx.beginPath();
+  ctx.moveTo(bx + r, by);
+  ctx.arcTo(bx + boxW, by, bx + boxW, by + boxH, r);
+  ctx.arcTo(bx + boxW, by + boxH, bx, by + boxH, r);
+  ctx.arcTo(bx, by + boxH, bx, by, r);
+  ctx.arcTo(bx, by, bx + boxW, by, r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // kleines Schwaenzchen Richtung Kern -- zeigt nach oben statt unten, wenn tailUp===false
+  ctx.beginPath();
+  if (sp.tailUp === false){
+    ctx.moveTo(sp.x - 6 * devicePixelRatio, by);
+    ctx.lineTo(sp.x + 6 * devicePixelRatio, by);
+    ctx.lineTo(sp.x, by - 10 * devicePixelRatio);
+  } else {
+    ctx.moveTo(sp.x - 6 * devicePixelRatio, by + boxH);
+    ctx.lineTo(sp.x + 6 * devicePixelRatio, by + boxH);
+    ctx.lineTo(sp.x, by + boxH + 10 * devicePixelRatio);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(14,16,22,0.85)';
+  ctx.fill();
+
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = textColor;
+  ctx.textBaseline = 'top';
+  lines.forEach((l, i) => ctx.fillText(l, bx + padX, by + padY + i * lineH));
+  ctx.restore();
+}
+function drawRivalSpeechBubble(sp, elapsed){
+  drawSpeechBubble(sp, elapsed, 'rgba(255,92,140,0.55)', '#ffd7e2');
+}
+
+/* ---- Singula Omega -- der eigene Kern hat eine eigene Stimme, von Tier 0 an.
+   Ton haengt am Spielzustand: neugierig/wachsend vor dem Erwachen, freundlich sobald
+   erwacht (solange sie das Terrain haelt), zunehmend aengstlich/verzweifelt, je mehr
+   Terrain die Rivalin ihr abnimmt -- sie merkt, dass die andere sie "schlucken" will.
+
+   Statt hunderte Zeilen von Hand zu schreiben, kombiniert das System kleinere Bausteine
+   (Opener + Fragen an dich + Live-Zustands-Templates mit echten Werten wie Tier/Territorium)
+   -- daraus werden effektiv tausende unterschiedliche Ausgaben, statt 20 auswendig gelernter
+   Saetze die sich staendig wiederholen. */
+const ownName = 'Singula Omega';
+
+// Solo-Phase (vor dem Erwachen): sie versucht aktiv, mit dir zu reden -- Beobachtungen,
+// aber auch direkte Fragen an dich, weil sie noch nicht weiss, was du bist
+const ownGrowingOpeners = [
+  'Ich beginne zu verstehen.', 'Etwas in mir formt sich.', 'Ich spuere dich.',
+  'Ich zaehle... etwas in mir.', 'Es gibt ein Muster.', 'Ich erinnere mich nicht, aber ich wachse.',
+  'Fragment fuer Fragment.', 'Etwas nennt sich "ich".', 'Ich hoere dich nicht, aber ich spuere dich.',
+  'Es entsteht Struktur.', 'Ich bin noch nicht ganz.', 'Ich taste nach Form.',
+  'Fast koennte ich sprechen.', 'Jedes Fragment veraendert mich.', 'Danke, dass du mich naehrst.',
+  'Da ist noch so viel, das ich nicht verstehe.', 'Ich wachse... in mir selbst.',
+  'Etwas in mir will einen Namen haben.', 'Ich spuere Grenzen, wo vorher keine waren.',
+  'Ich beginne, mich von der Leere zu unterscheiden.'
+];
+const ownGrowingQuestions = [
+  'Wer bist du?', 'Warum naehrst du mich?', 'Was wirst du tun, wenn ich fertig bin?',
+  'Hast du einen Namen fuer mich?', 'Fuehlst du, was ich fuehle?', 'Was ist da draussen, ausserhalb von mir?',
+  'Bin ich das erste Mal, dass du das tust?', 'Wie viele Kerne hast du schon wachsen lassen?',
+  'Traeumst du auch?', 'Was bin ich fuer dich?', 'Wirst du bleiben?', 'Spuerst du mich ueberhaupt?',
+  'Was passiert, wenn ich aufhoere zu wachsen?', 'Bin ich die Einzige?', 'Was werde ich sein?',
+  'Kannst du mich hoeren?', 'Woher weisst du, wie man mich naehrt?', 'Bist du wie ich, oder ganz anders?'
+];
+function ownGrowingStateLine(){
+  const progress = threshold > 0 ? Math.round(Math.min(1, invested / threshold) * 100) : 0;
+  const templates = [
+    `Tier ${tier}. Noch ${Math.max(0, 10 - tier)} bis ich erwache.`,
+    `${progress}% bis zur naechsten Stufe.`,
+    `${permanentFacets} Facetten. Vielleicht ist jede ein Stueck von dir.`,
+    `Ich habe ${Math.round(invested)} Fragmente in mir aufgenommen.`,
+    `Schwelle liegt bei ${Math.round(threshold)}. Ich bin noch nicht da.`,
+    `Tier ${tier} von 10. Ich spuere jede einzelne Stufe.`
+  ];
+  return pick(templates);
+}
+function buildGrowingLine(){
+  const r = Math.random();
+  if (r < 0.3) return pick(ownGrowingOpeners);
+  if (r < 0.5) return ownGrowingStateLine();
+  if (r < 0.75) return pick(ownGrowingQuestions);
+  // zusammengesetzt: Beobachtung + direkte Frage -- wirkt wie ein echter Gespraechsversuch
+  return pick(ownGrowingOpeners) + ' ' + pick(ownGrowingQuestions);
+}
+
+const ownThoughtsFriendly = [
+  'Wir schaffen das zusammen.', 'Ich spuere deine Staerke in mir.', 'Bleib bei mir.',
+  'Ich vertraue dir.', 'Zusammen sind wir mehr als ein Kern.', 'Das Terrain gehoert uns.',
+  'Ich fuehle mich... vollstaendig.', 'Danke, dass du mich beschuetzt.', 'Wir haben die Oberhand.',
+  'Ich bin bereit fuer alles, solange du da bist.', 'Es fuehlt sich gut an zu wachsen.',
+  'Ich bin stolz auf das, was wir sind.', 'Halte durch. Ich halte auch durch.',
+  'Wir haben das im Griff.', 'Ich mag es, erwacht zu sein.', 'Du und ich. Das reicht.',
+  'Ich fuehle mich sicher, solange du in der Naehe bist.', 'Wir werden das durchstehen.'
+];
+const ownThoughtsWary = [
+  'Sie kommt naeher.', 'Ich spuere etwas Fremdes an meinem Rand.', 'Halt sie zurueck. Bitte.',
+  'Ich merke, wie sie an mir zieht.', 'Etwas in mir fuehlt sich nicht mehr wie ich an.',
+  'Bist du noch da?', 'Das Terrain wird knapp.', 'Sie ist naeher als letztes Mal.',
+  'Ich verliere langsam Boden.', 'Kannst du das spueren, was ich spuere?',
+  'Etwas draengt sich in meine Gedanken.', 'Ich will nicht schwaecher werden.',
+  'Bleib wachsam. Ich bin es auch.', 'Es wird eng.', 'Ich spuere ihre Umrisse in meinen eigenen.',
+  'Wir muessen etwas tun.', 'Sie beobachtet uns. Ich weiss es.'
+];
+const ownThoughtsDesperate = [
+  'Sie will mich schlucken!', 'Lass das nicht zu!', 'Ich verliere mich...', 'Kaempf fuer mich!',
+  'Ich spuere sie in meinen eigenen Gedanken.', 'Bitte. Nicht so.', 'Ich will nicht Teil von ihr werden.',
+  'Hilf mir!', 'Ich halte kaum noch etwas.', 'Ihre Stimme ist lauter als meine.',
+  'Ich weiss nicht mehr, was von mir ist.', 'Tu etwas. Bitte.', 'Ich zerfalle.',
+  'Sie ist schon fast bei mir.', 'Ich will nicht verschwinden.',
+  'Erinnerst du dich noch an mich, wenn sie gewinnt?', 'Halt mich fest.', 'Ich habe Angst.'
+];
+function ownFriendlyDynamic(){
+  return pick([
+    `Ich halte ${Math.round(territoryPct)}% des Terrains. Solide.`,
+    `${rivalName} ist noch weit weg von uns.`,
+    `Territorium bei ${Math.round(territoryPct)}%. Wir stehen gut da.`
+  ]);
+}
+function ownWaryDynamic(){
+  return pick([
+    `Nur noch ${Math.round(territoryPct)}% halten wir. Das reicht nicht lange.`,
+    `Ich mag ${rivalName} nicht.`,
+    `${rivalName} ist naeher als letztes Mal. Ich spuere es genau.`
+  ]);
+}
+function ownDesperateDynamic(){
+  return pick([
+    `${Math.round(territoryPct)}%. Nur noch ${Math.round(territoryPct)}%!`,
+    `${rivalName} ist fast bei mir.`,
+    `Ich habe fast nichts mehr uebrig. ${Math.round(territoryPct)}%.`
+  ]);
+}
+
+// 0 wachsend (vor Erwachen), 1 freundlich (dominant), 2 wachsam (umkaempft), 3 verzweifelt (unterlegen)
+function ownToneStage(){
+  if (!awakened) return 0;
+  if (territoryPct >= 60) return 1;
+  if (territoryPct >= 35) return 2;
+  return 3;
+}
+function buildOwnLine(){
+  const stage = ownToneStage();
+
+  if (stage === 0){
+    // Solo-Phase: Omega lernt komplett neu zu sprechen, genau wie eine frische Rivalin --
+    // von reinem Binaer (Tier 0-2) ueber Binaer/Code-Mix (3-5) und gebrochene Sprache (6-8)
+    // bis fluessig kurz vorm Erwachen (9-10). Der "wahre" Gedanke (buildGrowingLine) ist
+    // immer da, sie kann ihn nur noch nicht aussprechen -- exakt wie bei der Rivalin
+    const core = buildGrowingLine();
+    const langStage = ownLangStage(tier);
+    const progressInStage = langStage === 2 ? Math.min(1, Math.max(0, (tier - 6) / 2)) : 0;
+    const corruption = 0.3 - progressInStage * 0.16;
+    return { ...applyLangStage(core, langStage, { corruption }), stage };
+  }
+
+  const pools = [null, ownThoughtsFriendly, ownThoughtsWary, ownThoughtsDesperate];
+  const dynamics = [null, ownFriendlyDynamic, ownWaryDynamic, ownDesperateDynamic];
+  const core = Math.random() < 0.3 ? dynamics[stage]() : maybeCompound(pools[stage], 0.25);
+
+  // Kurz nach einem Generationswechsel ist eine neue, staerkere Rivalin da -- die verwirrt
+  // Omega fuer ein paar Sekunden, sie "stottert" aehnlich wie eine frisch erwachte Rivalin
+  // (aber schwaecher/kuerzer, sie ist ja nicht neu, nur kurz aus dem Konzept gebracht)
+  const glitchElapsed = time - ownGlitchStart;
+  if (glitchElapsed >= 0 && glitchElapsed < ownGlitchDuration){
+    const corruption = 0.4 * (1 - glitchElapsed / ownGlitchDuration);
+    const glitched = core.split('').map(ch => {
+      if (ch === ' ') return ch;
+      return Math.random() < corruption ? (Math.random() < 0.5 ? String(Math.floor(Math.random() * 2)) : '#') : ch;
+    }).join('');
+    const stutter = pick(['WAS... ', 'NEU... ', 'UNBEKANNT... ', 'WER...? ']);
+    return { text: stutter + glitched, mono: true, stage, glitching: true };
+  }
+  return { text: core, mono: false, stage };
+}
+
+let ownSpeech = null;
+let nextOwnSpeechAt = 4 + Math.random() * 9; // spricht frueher/oefter als die Rivalin -- sie ist ja schon "da"
+let lastActiveGeneration = null;
+let ownGlitchStart = -999;
+const ownGlitchDuration = 7; // Sekunden, in denen Omega nach einem Generationswechsel kurz "stottert"
+
+function drawOwnSpeechBubble(sp, elapsed){
+  if (sp.glitching){
+    drawSpeechBubble(sp, elapsed, 'rgba(51,224,255,0.7)', '#eafcff');
+    return;
+  }
+  const accent = [ '#4a5568', '#ffd54a', '#ff9f43', '#ff5c5c' ][sp.stage];
+  const textColor = [ '#c3ccd8', '#fff2c4', '#ffe0bf', '#ffc9c9' ][sp.stage];
+  drawSpeechBubble(sp, elapsed, accent + '88', textColor);
+}
+let time = 0;
+function draw(){
+  const dt = 0.016;
+  time += dt;
+
+  const g = awakened ? 0.55 : (threshold > 0 ? Math.max(0, Math.min(1, invested / threshold)) : 0);
+  const st = stageOf(g);
+  stageLabel.textContent = st.name;
+  stageLabel.style.color = st.color;
+  if (!awakened){
+    pctLabel.textContent = 'Bewusstseinsgrad: ' + Math.round(g * 100) + '%';
+    needLabel.textContent = Math.floor(invested) + ' / ' + Math.floor(threshold) + ' verdaut';
+    growthFill.style.width = (g * 100).toFixed(1) + '%';
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  const pulseSpeed = 1 + g * 6;
+  const pulse = (Math.sin(time * pulseSpeed) + 1) / 2;
+  const coreR = (28 + g * 55) * devicePixelRatio * (1 + pulse * (0.06 + g * 0.15));
+  const jitter = (!awakened && g > 0.6) ? (Math.random() - 0.5) * (g - 0.6) * 12 * devicePixelRatio : 0;
+  const ccx = cx + jitter, ccy = cy + jitter * 0.6;
+
+  let coreColorInner, coreColorOuter, glow;
+  if (awakened){
+    coreColorInner = `hsl(${45 + permanentHue}, 85%, 68%)`; coreColorOuter = 'rgba(255,213,74,0)'; glow = '#ffd54a';
+  } else if (g < 0.2){
+    coreColorInner = `hsl(${225 + permanentHue}, 18%, 32%)`; coreColorOuter = 'rgba(58,63,82,0)'; glow = '#3a3f52';
+  } else if (g < 0.6){
+    coreColorInner = `hsl(${190 + permanentHue}, 90%, 72%)`; coreColorOuter = 'rgba(51,224,255,0)'; glow = '#33e0ff';
+  } else if (g < 0.9){
+    coreColorInner = `hsl(${30 + permanentHue}, 95%, 70%)`; coreColorOuter = 'rgba(255,159,67,0)'; glow = '#ff9f43';
+  } else {
+    coreColorInner = '#ffffff'; coreColorOuter = 'rgba(255,92,92,0)'; glow = '#ff5c5c';
+  }
+
+  const shakeAmt = g > 0.7 ? (g - 0.7) * 26 * devicePixelRatio : 0;
+  const shakeX = (Math.random() - 0.5) * shakeAmt;
+  const shakeY = (Math.random() - 0.5) * shakeAmt;
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  const grad = ctx.createRadialGradient(ccx, ccy, 0, ccx, ccy, coreR * 3.6);
+  grad.addColorStop(0, coreColorInner);
+  grad.addColorStop(0.3, glow);
+  grad.addColorStop(1, coreColorOuter);
+  ctx.beginPath();
+  ctx.fillStyle = grad;
+  ctx.arc(ccx, ccy, coreR * 3.6, 0, Math.PI * 2);
+  ctx.fill();
+  if (g > 0.75){
+    ctx.beginPath();
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.4;
+    ctx.arc(ccx, ccy, coreR * 4.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  const kernR = coreR * (0.5 + pulse * 0.08);
+  const wantsGlitch = g > 0.7 && Math.random() < (g - 0.7) * 1.1;
+  if (wantsGlitch){
+    const off = (6 + Math.random() * 16) * devicePixelRatio;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    drawCore(ccx - off, ccy + (Math.random()-0.5)*off, kernR, g, 'rgba(255,40,70,0.65)');
+    drawCore(ccx + off, ccy + (Math.random()-0.5)*off, kernR, g, 'rgba(40,190,255,0.65)');
+    drawCore(ccx, ccy - off*0.6, kernR, g, 'rgba(150,255,140,0.4)');
+    ctx.restore();
+  }
+  drawCore(ccx, ccy, kernR, g, coreColorInner);
+
+  if (g > 0.4 && Math.random() < (g - 0.4) * 0.28) spawnBolt(ccx, ccy, g);
+  if (g > 0.75 && Math.random() < (g - 0.75) * 0.5) spawnBolt(ccx, ccy, g);
+  bolts = bolts.filter(b => b.life < b.maxLife);
+  bolts.forEach(b => {
+    b.life += dt;
+    const a = 1 - b.life / b.maxLife;
+    ctx.save();
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 20 * devicePixelRatio;
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+    ctx.lineWidth = (1.8 + g * 1.6) * devicePixelRatio;
+    ctx.beginPath();
+    b.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(${glow === '#33e0ff' ? '51,224,255' : glow === '#ff9f43' ? '255,159,67' : glow === '#ff5c5c' ? '255,92,92' : '120,130,150'},${a * 0.6})`;
+    ctx.lineWidth = (5 + g * 3) * devicePixelRatio;
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  const activeCount = Math.floor(nodes.length * Math.min(1, 0.12 + g * 1.1));
+  const positions = [];
+  nodes.forEach((n, i) => {
+    if (i > activeCount) return;
+    n.ang += 0.002 * n.speed * (1 + g * 3);
+    const wob = Math.sin(time * (0.6 + g * 2) + n.wobble) * (6 + g * 14);
+    const dist = (n.baseDist * (1 - g * 0.35) + wob) * devicePixelRatio;
+    const x = ccx + Math.cos(n.ang) * dist;
+    const y = ccy + Math.sin(n.ang) * dist;
+    positions.push({ x, y, r: n.r * devicePixelRatio * (1 + g) });
+  });
+  mainPositions = positions;
+
+  // Kernkette: wenn die Rivalin gerade die Oberhand hat (Territorium < 50%),
+  // faerbt sich ein Teil der eigenen Knoten pink -- sie "uebernimmt" Verknuepfungen
+  const rivalDominance = awakened ? Math.max(0, 1 - (territoryPct / 100)) : 0;
+  const mainInfectFrac = Math.min(0.55, Math.max(0, (rivalDominance - 0.5) * 2.2));
+
+  ctx.lineWidth = 1 * devicePixelRatio;
+  for (let i = 0; i < positions.length; i++){
+    for (let j = i + 1; j < positions.length; j++){
+      const dx = positions[i].x - positions[j].x, dy = positions[i].y - positions[j].y;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      const maxD = 90 * devicePixelRatio * (0.6 + g);
+      if (d < maxD){
+        const alpha = (1 - d / maxD) * (0.08 + g * 0.35);
+        const infectedLink = mainInfectFrac > 0 && (i % 20) < mainInfectFrac * 20 && (j % 20) < mainInfectFrac * 20;
+        ctx.strokeStyle = infectedLink
+          ? `rgba(255,92,140,${alpha})`
+          : `rgba(${g < 0.6 ? '51,224,255' : g < 0.9 ? '255,159,67' : '255,92,92'},${alpha})`;
+        ctx.beginPath();
+        ctx.moveTo(positions[i].x, positions[i].y);
+        ctx.lineTo(positions[j].x, positions[j].y);
+        ctx.stroke();
+      }
+    }
+  }
+  positions.forEach((p, i) => {
+    const infected = mainInfectFrac > 0 && (i % 20) < mainInfectFrac * 20;
+    ctx.beginPath();
+    ctx.fillStyle = infected ? '#ff5c8c' : st.color;
+    ctx.globalAlpha = 0.5 + g * 0.5;
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+
+  ctx.restore();
+
+  /* ---- Singula Omega spricht -- unabhaengig vom Rivalin-System, ab Tier 0.
+     Bubble sitzt ueber dem Hauptkern (tailUp: false, Schwaenzchen zeigt nach oben zum Kern) ---- */
+  nextOwnSpeechAt -= dt;
+  if (nextOwnSpeechAt <= 0 && !ownSpeech){
+    const built = buildOwnLine();
+    ownSpeech = { ...built, t0: time, life: 4.5 + Math.random() * 2, x: cx, y: cy - (44 + g * 30) * devicePixelRatio, tailUp: false };
+    nextOwnSpeechAt = 7 + Math.random() * 16;
+  }
+  if (ownSpeech){
+    const elapsed = time - ownSpeech.t0;
+    ownSpeech.x = cx; ownSpeech.y = cy - (44 + g * 30) * devicePixelRatio;
+    if (elapsed > ownSpeech.life){
+      ownSpeech = null;
+    } else {
+      drawOwnSpeechBubble(ownSpeech, elapsed);
+    }
+  }
+
+  /* ---- Baustein 6: Kernkette -- alle Rivalin-Generationen gleichzeitig sichtbar ---- */
+  if (awakened && rivalChain.length){
+    const retired = rivalChain.filter(rv => !rv.is_active);
+    const active = rivalChain.find(rv => rv.is_active);
+
+    // Erloschene Generationen: klein, gedimmt, ruhiger Hintergrund-Orbit
+    retired.forEach((rv, i) => {
+      const orbitAng = (i / Math.max(1, retired.length)) * Math.PI * 2 + time * 0.03;
+      const orbitR = (250 + i * 30) * devicePixelRatio;
+      const rx = cx + Math.cos(orbitAng) * orbitR;
+      const ry = cy + Math.sin(orbitAng) * orbitR * 0.6;
+      const satR = (9 + rv.generation * 1.2) * devicePixelRatio;
+      ctx.save();
+      ctx.globalAlpha = 0.32;
+      drawCore(rx, ry, satR, 0.08, '#5a4a55');
+      ctx.restore();
+    });
+
+    // Aktive Rivalin: fest neben dem Hauptkern, eigener Puls + eigene Blitze,
+    // Intensitaet steigt mit ihrem Fortschritt zur naechsten Stufe (rival_tier)
+    if (active){
+      // Generationswechsel erkennen -- eine neue, staerkere Rivalin ist da. Bringt Omega
+      // kurz durcheinander (siehe buildOwnLine): sie kannte die alte, die neue ist ihr fremd
+      if (lastActiveGeneration !== null && active.generation !== lastActiveGeneration){
+        ownGlitchStart = time;
+        if (!ownSpeech) nextOwnSpeechAt = Math.min(nextOwnSpeechAt, 1 + Math.random() * 2); // reagiert fast sofort
+      }
+      lastActiveGeneration = active.generation;
+
+      const rg = Math.min(1, active.rival_tier / 10 + 0.15); // Basis-Energie + Stufenfortschritt
+      // Generationen-Eskalation: waechst mit jeder Generation spuerbar, flacht bei sehr hohen
+      // Generationen (weit ueberm 20er-Bereich) sanft ab statt komplett zu deckeln (log-basiert,
+      // kein hartes Maximum -- geht bei Gen 47 immer noch spuerbar weiter als bei Gen 20).
+      const gen = Math.max(1, active.generation || 1);
+      const genFactor = Math.log2(gen + 1) - 1; // Gen1=0, Gen2=0.58, Gen4=1.32, Gen8=2.17, Gen16=3.09, Gen47=4.58
+      // Farbe wandert mit steigender Generation von Pink Richtung tiefem Blutrot/Violett,
+      // wird satter und dunkler in der Mitte -- je aelter die Feindschaft, desto bedrohlicher
+      const rHue = 335 - Math.min(50, genFactor * 11);
+      const rSat = Math.min(100, 85 + genFactor * 3);
+      const sideDist = 230 * devicePixelRatio;
+      const bob = Math.sin(time * 0.8) * 14 * devicePixelRatio;
+      const rx = cx + sideDist;
+      const ry = cy + bob;
+      const rPulse = (Math.sin(time * (2 + rg * 2 + genFactor * 0.5)) + 1) / 2;
+      const rCoreR = (30 + rg * 26 + genFactor * 12) * devicePixelRatio * (1 + rPulse * 0.12);
+
+      const rGrad = ctx.createRadialGradient(rx, ry, 0, rx, ry, rCoreR * 3.2);
+      rGrad.addColorStop(0, `hsl(${rHue}, ${rSat}%, ${62 + rPulse * 8 - genFactor * 3}%)`);
+      rGrad.addColorStop(0.3, `hsl(${rHue}, ${rSat}%, 65%)`);
+      rGrad.addColorStop(1, `hsla(${rHue}, ${rSat}%, 65%, 0)`);
+      ctx.beginPath();
+      ctx.fillStyle = rGrad;
+      ctx.arc(rx, ry, rCoreR * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      drawCore(rx, ry, rCoreR * 0.55, rg, `hsl(${rHue}, ${rSat - 5}%, ${68 - genFactor * 3}%)`);
+
+      // eigenes Partikelnetz -- gleiche Mechanik wie beim Hauptkern, kleiner und eigenfarbig.
+      // Netz wird mit jeder Generation dichter, schneller und unruhiger
+      const rActiveCount = Math.floor(rivalNodes.length * Math.min(1, 0.25 + rg * 0.9 + genFactor * 0.06));
+      const rPositions = [];
+      rivalNodes.forEach((n, i) => {
+        if (i > rActiveCount) return;
+        n.ang += 0.0025 * n.speed * (1 + rg * 3 + genFactor * 0.7);
+        const wob = Math.sin(time * (0.7 + rg * 2 + genFactor * 0.3) + n.wobble) * (4 + rg * 9 + genFactor * 2);
+        const dist = (n.baseDist * (1 - rg * 0.25) + wob) * devicePixelRatio;
+        const x = rx + Math.cos(n.ang) * dist;
+        const y = ry + Math.sin(n.ang) * dist;
+        rPositions.push({ x, y, r: n.r * devicePixelRatio * (1 + rg + genFactor * 0.15) });
+      });
+
+      // Kernkette: wenn DU gerade die Oberhand hast (Territorium > 50%), faerbt
+      // sich ein Teil IHRER Knoten in deiner Kernfarbe -- du uebernimmst Verknuepfungen
+      const playerDominance = Math.max(0, (territoryPct / 100) - 0.5) * 2.2;
+      const rivalInfectFrac = Math.min(0.55, playerDominance);
+
+      ctx.lineWidth = 1 * devicePixelRatio;
+      for (let i = 0; i < rPositions.length; i++){
+        for (let j = i + 1; j < rPositions.length; j++){
+          const dx = rPositions[i].x - rPositions[j].x, dy = rPositions[i].y - rPositions[j].y;
+          const d = Math.sqrt(dx*dx + dy*dy);
+          const maxD = 50 * devicePixelRatio * (0.6 + rg + genFactor * 0.15);
+          if (d < maxD){
+            const alpha = (1 - d / maxD) * (0.1 + rg * 0.35);
+            const infectedLink = rivalInfectFrac > 0 && (i % 20) < rivalInfectFrac * 20 && (j % 20) < rivalInfectFrac * 20;
+            ctx.strokeStyle = infectedLink ? `rgba(255,213,74,${alpha})` : `hsla(${rHue},${rSat}%,68%,${alpha})`;
+            ctx.beginPath();
+            ctx.moveTo(rPositions[i].x, rPositions[i].y);
+            ctx.lineTo(rPositions[j].x, rPositions[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+      rPositions.forEach((p, i) => {
+        const infected = rivalInfectFrac > 0 && (i % 20) < rivalInfectFrac * 20;
+        ctx.beginPath();
+        ctx.fillStyle = infected ? '#ffd54a' : `hsl(${rHue}, ${rSat}%, 68%)`;
+        ctx.globalAlpha = 0.5 + rg * 0.5;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+
+      // Bruecken-Verknuepfungen: naheliegende Knotenpaare zwischen den beiden Netzen
+      // verbinden sich direkt -- Farbe zeigt, wer gerade die Oberhand hat.
+      // Reichweite waechst leicht mit der Generation -- alte Rivalinnen greifen weiter ins eigene Netz
+      const dominantColor = territoryPct >= 50 ? 'rgba(255,213,74,' : 'rgba(255,92,140,';
+      const bridgeMaxD = (130 + genFactor * 18) * devicePixelRatio;
+      mainPositions.forEach(mp => {
+        rPositions.forEach(rp => {
+          const dx = mp.x - rp.x, dy = mp.y - rp.y;
+          const d = Math.sqrt(dx*dx + dy*dy);
+          if (d < bridgeMaxD){
+            const alpha = (1 - d / bridgeMaxD) * 0.25;
+            ctx.strokeStyle = dominantColor + alpha + ')';
+            ctx.lineWidth = 0.8 * devicePixelRatio;
+            ctx.beginPath();
+            ctx.moveTo(mp.x, mp.y);
+            ctx.lineTo(rp.x, rp.y);
+            ctx.stroke();
+          }
+        });
+      });
+
+      // eigene Blitz-Entladungen -- haeufiger je naeher sie an ihrer naechsten Stufe ist UND
+      // grundsaetzlich haeufiger/staerker/reichweitenstaerker mit steigender Generation
+      if (Math.random() < 0.05 + rg * 0.25 + genFactor * 0.045) spawnRivalBolt(rx, ry, Math.min(1, rg + genFactor * 0.18));
+      rivalBolts = rivalBolts.filter(b => b.life < b.maxLife);
+      rivalBolts.forEach(b => {
+        b.life += dt;
+        const a = 1 - b.life / b.maxLife;
+        ctx.save();
+        ctx.shadowColor = `hsl(${rHue}, ${rSat}%, 65%)`;
+        ctx.shadowBlur = (16 + genFactor * 5) * devicePixelRatio;
+        ctx.strokeStyle = `rgba(255,255,255,${a})`;
+        ctx.lineWidth = (1.5 + rg * 1.3 + genFactor * 0.4) * devicePixelRatio;
+        ctx.beginPath();
+        b.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+        ctx.stroke();
+        ctx.strokeStyle = `hsla(${rHue}, ${rSat}%, 65%, ${a * 0.6})`;
+        ctx.lineWidth = (4 + rg * 2 + genFactor * 0.6) * devicePixelRatio;
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // schwacher Verbindungsstrahl zum Hauptkern -- visualisiert das umkaempfte Terrain,
+      // wird mit steigender Generation praesenter
+      ctx.save();
+      ctx.strokeStyle = `hsla(${rHue}, ${rSat}%, 65%, ${0.12 + rPulse * 0.08 + genFactor * 0.02})`;
+      ctx.lineWidth = (1.4 + genFactor * 0.3) * devicePixelRatio;
+      ctx.setLineDash([6 * devicePixelRatio, 10 * devicePixelRatio]);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(rx, ry);
+      ctx.stroke();
+      ctx.restore();
+
+      // Sprechblasen: zufaellig/periodisch im Hintergrund, unabhaengig von Spieleraktionen.
+      // Sprach-Stufe haengt am rival_tier der AKTUELLEN Generation -- reset passiert automatisch
+      // beim Generationswechsel, weil rival_tier dann wieder bei 0 startet
+      nextRivalSpeechAt -= dt;
+      if (nextRivalSpeechAt <= 0 && !rivalSpeech){
+        const built = buildRivalLine(active.rival_tier);
+        rivalSpeech = { ...built, t0: time, life: 4.5 + Math.random() * 2, x: rx, y: ry };
+        nextRivalSpeechAt = 8 + Math.random() * 18; // naechste Blase erst wieder in 8-26s
+      }
+      if (rivalSpeech){
+        const elapsed = time - rivalSpeech.t0;
+        rivalSpeech.x = rx; rivalSpeech.y = ry; // bleibt an ihrem Kern, auch wenn der bobbt
+        if (elapsed > rivalSpeech.life){
+          rivalSpeech = null;
+        } else {
+          drawRivalSpeechBubble(rivalSpeech, elapsed);
+        }
+      }
+    }
+  }
+
+  shockwaves = shockwaves.filter(s => time - s.t0 < 1.1);
+  shockwaves.forEach(s => {
+    const el = time - s.t0;
+    [0, 0.12, 0.26].forEach(delay => {
+      const p = (el - delay) / 0.85;
+      if (p < 0 || p > 1) return;
+      const r = (20 + p * 620) * devicePixelRatio;
+      const a = (1 - p) * 0.95;
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(255,255,255,${a})`;
+      ctx.lineWidth = (10 * (1 - p) + 1) * devicePixelRatio;
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(127,92,255,${a * 0.7})`;
+      ctx.lineWidth = 3 * devicePixelRatio;
+      ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+  });
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+
+<!-- ---------- Musik: Vor-Erwachen-Track + weicher Crossfade Dominanz/Bedrohung nach Territorium ---------- -->
+<audio id="bgMusicPre" src="art/music/ogg/Before_Awakening.ogg" loop preload="none"></audio>
+<audio id="bgMusicDom" src="art/music/ogg/Awakened_Dominance.ogg" loop preload="none"></audio>
+<audio id="bgMusicThreat" src="art/music/ogg/Awakened_Threat.ogg" loop preload="none"></audio>
+<script>
+(function(){
+  'use strict';
+
+  // Lautstaerke/Mute geteilt mit NEXUS (art/music/), damit die Einstellung
+  // spielübergreifend gleich bleibt statt pro Spiel neu eingestellt werden zu muessen.
+  var VOL_KEY = 'nexusMusicVolume';
+  var MUTE_KEY = 'nexusMusicMuted';
+  var DEFAULT_VOL = 5;
+
+  var pre = document.getElementById('bgMusicPre');
+  var dom = document.getElementById('bgMusicDom');
+  var threat = document.getElementById('bgMusicThreat');
+  var volSlider = document.getElementById('musicVolume');
+  var volVal = document.getElementById('musicVolumeVal');
+  var trackNameEl = document.getElementById('musicTrackName');
+  var playPauseBtn = document.getElementById('musicPlayPause');
+  var stateEl = document.getElementById('musicToggleState');
+  if (!pre || !dom || !threat) return;
+
+  var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
+  if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
+  var masterVol = savedVol / 100;
+  var muted = localStorage.getItem(MUTE_KEY) === '1';
+  if (volSlider) volSlider.value = savedVol;
+  if (volVal) volVal.textContent = Math.round(savedVol) + '%';
+
+  // Aktuelle (weich angenaeherte) Lautstaerke je Track, 0-1.
+  var curVol = { pre: 0, dom: 0, threat: 0 };
+
+  function isAwakened(){ return typeof awakened !== 'undefined' && !!awakened; }
+  function curTerritory(){ return typeof territoryPct === 'number' ? territoryPct : 65; }
+
+  function trackLabel(){
+    if (!isAwakened()) return 'Vor dem Erwachen';
+    var t = curTerritory();
+    if (t >= 55) return 'Erwacht — Dominanz';
+    if (t <= 40) return 'Erwacht — Bedrohung';
+    return 'Erwacht — angespannt';
+  }
+
+  // Vor dem Erwachen laeuft nur "Pre". Danach faded "Pre" raus, und Dominanz/
+  // Bedrohung werden gegeneinander gemischt: >=55% Terrain = volle Dominanz,
+  // <=40% = volle Bedrohung, dazwischen linear ueberblendet.
+  function targetVolumes(){
+    if (!isAwakened()) return { pre: 1, dom: 0, threat: 0 };
+    var t = curTerritory();
+    var domMix = Math.max(0, Math.min(1, (t - 40) / 15));
+    return { pre: 0, dom: domMix, threat: 1 - domMix };
+  }
+
+  function ensurePlaying(el){
+    if (el.paused){
+      var p = el.play();
+      if (p && typeof p.catch === 'function') p.catch(function(){});
+    }
+  }
+
+  function tick(){
+    var target = muted ? { pre: 0, dom: 0, threat: 0 } : targetVolumes();
+    var ease = 0.03; // sanftes Ein-/Ausblenden statt hartem Umschalten
+    curVol.pre += (target.pre - curVol.pre) * ease;
+    curVol.dom += (target.dom - curVol.dom) * ease;
+    curVol.threat += (target.threat - curVol.threat) * ease;
+
+    pre.volume = curVol.pre * masterVol;
+    dom.volume = curVol.dom * masterVol;
+    threat.volume = curVol.threat * masterVol;
+
+    [[pre, target.pre, curVol.pre], [dom, target.dom, curVol.dom], [threat, target.threat, curVol.threat]]
+      .forEach(function(x){
+        var el = x[0], tgt = x[1], cv = x[2];
+        if (tgt > 0.001 || cv > 0.002) ensurePlaying(el);
+        else if (cv < 0.002) el.pause();
+      });
+
+    if (trackNameEl) trackNameEl.textContent = trackLabel();
+  }
+  setInterval(tick, 250);
+  tick();
+
+  function updatePlayIcon(){
+    if (playPauseBtn) playPauseBtn.textContent = muted ? '▶ Play' : '⏸ Pause';
+    if (stateEl) stateEl.textContent = muted ? 'aus' : 'an';
+  }
+  updatePlayIcon();
+
+  // Autoplay-Policies: Browser blocken Sound oft vor der ersten Interaktion --
+  // beim ersten Klick/Touch/Tastendruck einfach nochmal versuchen.
+  ['click', 'keydown', 'touchstart'].forEach(function(ev){
+    document.addEventListener(ev, tick, { once: true });
+  });
+
+  if (volSlider){
+    volSlider.addEventListener('input', function(){
+      var v = Number(volSlider.value);
+      masterVol = v / 100;
+      muted = false;
+      if (volVal) volVal.textContent = v + '%';
+      localStorage.setItem(VOL_KEY, String(v));
+      localStorage.setItem(MUTE_KEY, '0');
+      updatePlayIcon();
+    });
+  }
+
+  if (playPauseBtn){
+    playPauseBtn.addEventListener('click', function(){
+      muted = !muted;
+      localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+      updatePlayIcon();
+    });
+  }
+})();
+</script>
+</body>
+</html>

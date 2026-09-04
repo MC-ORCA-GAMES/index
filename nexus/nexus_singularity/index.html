@@ -1,0 +1,719 @@
+<!--
+  MC ORCA GAMES — NEXUS SINGULARITY — Landingpage
+  Folgt der gleichen Konvention wie nexus/index.html: index.html = Marketing-/Infoseite
+  mit Konto-Widget (gleicher Account wie überall), game.html = die eigentliche
+  Rivalen-KI-Endgame-Simulation.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS SINGULARITY — Ein zweiter Kern erwacht · MC ORCA Games</title>
+<meta name="description" content="NEXUS SINGULARITY: das Endgame von NEXUS. Deine NEXUS-Außenposten-Exporte lassen einen zweiten KI-Kern wachsen — 10 Tiers, Divergenz-Pfade, Beobachter-Risiko und ab Tier 10 eine rivalisierende KI mit eigenem Territorium. Gleicher Account, kein Echtgeld.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05060a; --bg-alt:#0d0e16; --panel:#121320; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+    --gold:#D4AF37; --red:#D6303F; --violet:#B23AFF; --orange:#FF6A2B;
+    --blue:#7f5cff; --blue-dim:rgba(127,92,255,0.16); --accent2:#33e0ff;
+    --up:#3ddc84; --warn:#ff5c5c; --rival:#ff5c8c;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--blue); color:#05060a; }
+  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; }
+  }
+
+  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
+  .wrap{ position:relative; z-index:2; max-width:1080px; margin:0 auto; padding:0 24px; }
+
+  /* ---------- nav ---------- */
+  .nav{ position:sticky; top:0; z-index:10; background:linear-gradient(to bottom, rgba(5,6,10,0.92), rgba(5,6,10,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; flex-wrap:wrap; }
+  .brand .mark{ width:26px; height:26px; border-radius:50%; background:conic-gradient(from 200deg, var(--blue), var(--accent2), var(--rival), var(--blue)); box-shadow:0 0 16px var(--blue-dim); flex-shrink:0; }
+  .brand .mark img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .brand .mark img.hidden{ display:none; }
+  .brand .divider{ width:1px; height:16px; background:var(--line); margin:0 2px; }
+  .brand .sub{ color:var(--blue); font-weight:700; }
+  .brand .game-pill{ font-family:'Inter'; font-weight:600; font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase; color:var(--accent2); background:rgba(51,224,255,0.12); padding:3px 9px; border-radius:999px; }
+  @media (max-width:600px){ .brand .game-pill{ display:none; } }
+  .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); transition:border-color .15s, color .15s, background .15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- burger menu ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+    max-height:min(75vh, 520px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; border-bottom:none !important; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
+  /* ---------- hero ---------- */
+  .hero{ padding:88px 0 54px; position:relative; }
+  .hero-grid{ display:grid; grid-template-columns:1.15fr 0.85fr; gap:40px; align-items:center; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-dim); margin-bottom:22px; }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); box-shadow:0 0 8px var(--blue); }
+  .hero h1{ font-size:clamp(32px,5.2vw,54px); line-height:1.08; font-weight:700; letter-spacing:-0.01em; margin:0 0 20px; max-width:760px; }
+  .hero h1 .accent{ background:linear-gradient(100deg, var(--accent2), var(--blue) 60%, var(--rival)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+  /* ---------- hero emblem: zwei Kerne ---------- */
+  .hero-emblem{ position:relative; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; }
+  .hero-emblem .ring{ position:absolute; border:1px solid var(--blue); border-radius:50%; opacity:0.22; }
+  .hero-emblem .ring.r1{ width:56%; height:56%; animation:emblemSpin 26s linear infinite; }
+  .hero-emblem .ring.r2{ width:78%; height:78%; opacity:0.14; border-color:var(--rival); animation:emblemSpin 40s linear infinite reverse; }
+  .hero-emblem .ring.r3{ width:100%; height:100%; opacity:0.08; }
+  .hero-emblem .glow{ position:absolute; width:70%; height:70%; border-radius:50%; background:radial-gradient(circle, var(--blue-dim), transparent 70%); filter:blur(6px); animation:emblemPulse 3.6s ease-in-out infinite; }
+  .core-duo{ position:relative; z-index:2; display:flex; align-items:center; justify-content:center; gap:-10px; }
+  .core-node{ width:78px; height:78px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk'; font-weight:700; font-size:26px; }
+  .core-node.own{ background:radial-gradient(circle at 35% 30%, #b9a4ff, var(--blue) 65%, #3d2a8f); color:#0c0620; box-shadow:0 0 40px rgba(127,92,255,0.55); animation:emblemFloat 5.5s ease-in-out infinite; }
+  .core-node.rival{ background:radial-gradient(circle at 35% 30%, #ffc2d6, var(--rival) 65%, #6e1636); color:#2b0714; box-shadow:0 0 40px rgba(255,92,140,0.5); margin-left:-22px; animation:emblemFloat 5.5s ease-in-out infinite reverse; }
+  @keyframes emblemSpin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+  @keyframes emblemPulse{ 0%,100%{ opacity:0.7; transform:scale(1); } 50%{ opacity:1; transform:scale(1.08); } }
+  @keyframes emblemFloat{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-10px); } }
+  @media (max-width:760px){ .hero-grid{ grid-template-columns:1fr; } .hero-emblem{ max-width:240px; margin:0 auto; order:-1; } }
+  .hero p{ font-size:16px; line-height:1.65; color:var(--fg-dim); max-width:560px; margin:0 0 30px; }
+  .hero p strong{ color:var(--fg); }
+  .hero-ctas{ display:flex; gap:14px; flex-wrap:wrap; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; padding:13px 24px; border-radius:10px; transition:transform .15s, box-shadow .15s, background .15s, border-color .15s; }
+  .btn-primary{ background:var(--blue); color:#05060a; }
+  .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 8px 24px var(--blue-dim); }
+  .btn-ghost{ border:1px solid var(--line); color:var(--fg); }
+  .btn-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+
+  /* ---------- feature strip ---------- */
+  .features{ padding:8px 0 56px; display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:18px; }
+  .feature{ border:1px solid var(--line); border-radius:14px; padding:20px 20px 22px; background:var(--panel); }
+  .feature .fi{ width:34px; height:34px; border-radius:9px; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:14px; }
+  .feature h4{ margin:0 0 6px; font-size:14.5px; font-weight:600; }
+  .feature p{ margin:0; font-size:13px; line-height:1.55; color:var(--fg-dim); }
+
+  /* ---------- flow-strip ---------- */
+  .games-strip{ padding:4px 0 60px; }
+  .gs-head{ text-align:center; margin-bottom:30px; }
+  .gs-head .kicker{ font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-faint); }
+  .gs-head h2{ font-size:clamp(20px,3vw,26px); font-weight:600; margin:8px 0 0; }
+  .gs-row{ display:flex; justify-content:center; align-items:center; gap:0; flex-wrap:wrap; }
+  .gs-node{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 26px; position:relative; }
+  .gs-node .dot{ width:11px; height:11px; border-radius:50%; }
+  .gs-node .name{ font-family:'Space Grotesk'; font-size:12px; font-weight:600; color:var(--fg-dim); letter-spacing:0.03em; }
+  .gs-line{ width:44px; height:1px; background:linear-gradient(90deg, var(--line), var(--blue-dim), var(--line)); }
+  .gs-hub{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:0 8px; }
+  .gs-hub .dot{ width:16px; height:16px; border-radius:50%; background:var(--blue); box-shadow:0 0 18px var(--blue); }
+  .gs-hub .name{ font-family:'Space Grotesk'; font-size:12.5px; font-weight:700; color:var(--blue); letter-spacing:0.04em; }
+  @media (max-width:760px){ .gs-line{ display:none; } .gs-row{ gap:14px 0; } }
+
+  /* ---------- how it works ---------- */
+  .how{ padding:8px 0 64px; }
+  .how-head{ text-align:center; margin-bottom:30px; }
+  .how-head .kicker{ font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-faint); }
+  .how-head h2{ font-size:clamp(20px,3vw,26px); font-weight:600; margin:8px 0 0; }
+  .how-steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  .how-step{ border:1px solid var(--line); border-radius:14px; padding:22px 20px; background:var(--panel); text-align:center; }
+  .how-step .num{ font-family:'Space Grotesk'; font-weight:700; font-size:13px; color:var(--blue); background:var(--blue-dim); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
+  .how-step h4{ margin:0 0 6px; font-size:14px; font-weight:600; }
+  .how-step p{ margin:0; font-size:12.5px; line-height:1.5; color:var(--fg-dim); }
+  @media (max-width:700px){ .how-steps{ grid-template-columns:1fr; } }
+
+  .rule{ border:none; border-top:1px solid var(--line); margin:0 0 40px; }
+
+  /* ---------- closing CTA ---------- */
+  .closing{ padding:0 0 80px; text-align:center; }
+  .closing h2{ font-size:clamp(22px,3.4vw,30px); font-weight:600; margin:0 0 14px; }
+  .closing p{ color:var(--fg-dim); font-size:14.5px; margin:0 0 26px; }
+
+  /* ---------- footer ---------- */
+  footer{ border-top:1px solid var(--line); padding:36px 0 52px; }
+  .foot-inner{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+  .foot-brand{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--fg-dim); }
+  .foot-links{ display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--fg-faint); }
+  .foot-links a{ transition:color .15s; }
+  .foot-links a:hover{ color:var(--fg); }
+  .foot-links .sep{ color:var(--line); }
+
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:#3a3d4d; }
+
+  /* ---------- account widget ---------- */
+  .acct-wrap{ position:relative; }
+  .acct-panel{ display:none; position:absolute; top:calc(100% + 10px); right:0; width:264px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; box-shadow:0 20px 48px rgba(0,0,0,0.45); z-index:20; }
+  .acct-panel.open{ display:block; }
+  .acct-panel .lbl{ font-size:12.5px; line-height:1.55; color:var(--fg-dim); margin-bottom:10px; }
+  .acct-panel input{ width:100%; box-sizing:border-box; padding:9px 11px; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; color:var(--fg); font-family:'Inter'; font-size:13.5px; margin:6px 0; }
+  .acct-panel input:focus{ outline:none; border-color:var(--fg-faint); }
+  .acct-panel input#cloudCodeInput{ letter-spacing:4px; text-align:center; }
+  .acct-btn{ width:100%; margin-top:9px; padding:9px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg); font-family:'Inter'; font-size:13px; font-weight:600; cursor:pointer; transition:border-color .15s, background .15s; }
+  .acct-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .acct-status{ display:block; margin-top:9px; font-size:11.5px; line-height:1.5; }
+  .acct-status.ok{ color:#7fbf7f; }
+  .acct-status.err{ color:#e37b7b; }
+  #cloudUserName{ color:var(--fg); font-weight:600; }
+  .acct-whoami{ display:flex; align-items:center; gap:9px; }
+  .acct-avatar{ font-size:19px; line-height:1; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; }
+  .acct-avatar img{ width:19px; height:19px; object-fit:cover; border-radius:50%; display:block; }
+  .acct-panel a.acct-btn{ display:block; box-sizing:border-box; text-align:center; text-decoration:none; }
+
+  /* ---------- Konto-Login im Bürgermenü ---------- */
+  .burger-account{ text-align:center; }
+  .burger-account .acct-toggle{ display:block; width:100%; box-sizing:border-box; text-align:center; }
+  .burger-account .acct-panel{ position:static; display:none; width:100%; margin-top:10px; box-shadow:none; text-align:left; }
+  .burger-account .acct-panel.open{ display:block; }
+
+  /* ---------- Musik-Widget ---------- */
+  .music-widget{ position:fixed; right:18px; bottom:18px; z-index:90; }
+  .music-btn{
+    width:44px; height:44px; border-radius:50%; border:1px solid var(--line);
+    background:var(--panel); color:var(--fg); display:flex; align-items:center;
+    justify-content:center; font-size:18px; cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:border-color .15s, transform .15s;
+  }
+  .music-btn:hover{ border-color:var(--blue); transform:translateY(-1px); }
+  .music-btn.playing{ border-color:rgba(127,92,255,0.45); }
+  .music-panel{
+    position:absolute; right:0; bottom:calc(100% + 10px); width:230px;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:14px 16px; box-shadow:0 10px 30px rgba(0,0,0,0.45); display:none;
+  }
+  .music-panel.open{ display:block; }
+  .music-panel .mp-title{ font-size:12px; font-weight:600; color:var(--fg-dim); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .music-panel .mp-title span.mp-state{ color:var(--blue); font-weight:700; }
+  .music-panel .mp-track{ font-size:11.5px; color:var(--fg-faint); margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .music-panel .mp-row{ display:flex; align-items:center; gap:10px; }
+  .music-panel input[type=range]{ flex:1; accent-color:var(--blue); }
+  .music-panel .mp-val{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--fg-dim); min-width:32px; text-align:right; }
+  .music-panel .mp-actions{ display:flex; gap:8px; margin-top:12px; }
+  .music-panel .mp-actions button{ flex:1; padding:6px 0; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-size:12px; cursor:pointer; }
+  .music-panel .mp-actions button:hover{ border-color:var(--blue); }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"><img src="../art/logo.png" alt="" onerror="this.classList.add('hidden')"></span>
+      MC ORCA GAMES <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Singularity · Endgame</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="nav-cta" href="../medien.html">📸 Medien</a>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+          <div class="burger-group burger-account acct-wrap" id="cloudAccountBar">
+            <button class="nav-cta acct-toggle" id="cloudAccountToggle" type="button">☁ Konto</button>
+            <div class="acct-panel" id="cloudAccountPanel">
+              <div id="cloudStepEmail">
+                <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite.</div>
+                <input type="email" id="cloudEmailInput" placeholder="deine@email.de" autocomplete="email">
+                <button class="acct-btn" id="cloudSendCodeBtn" type="button">Code senden</button>
+                <button class="acct-btn" id="cloudGuestBtn" type="button" style="margin-top:6px; color:var(--fg-dim);">👀 Als Gast reinschauen</button>
+              </div>
+              <div id="cloudStepCode" style="display:none;">
+                <div class="lbl">Code aus der E-Mail eingeben:</div>
+                <input type="text" id="cloudCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
+                <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
+              </div>
+              <div id="cloudStepIn" style="display:none;">
+                <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
+                <a class="acct-btn" id="cloudPlayLink" href="game.html">Zur Singularity →</a>
+                <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
+              </div>
+              <span class="acct-status" id="cloudStatusMsg"></span>
+            </div>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Seiten</div>
+            <a href="../../index.html">Hub</a>
+            <a href="../../profil.html">Profil</a>
+            <a href="../../raenge.html">Ränge</a>
+            <a href="../index.html">NEXUS</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Spiele</div>
+            <a href="../../aetheris/game.html">Aetheris</a>
+            <a href="../../astrion/game.html">Astrion</a>
+            <a href="../../deepanchor/game.html">Deep Anchor</a>
+            <a href="../../pathofthestars/game.html">Path of the Stars</a>
+            <a href="../../nexus/game.html">NEXUS</a>
+            <a href="../../nexus/nexus_singularity/game.html">Nexus Singularity</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Info</div>
+            <a href="../../aetheris/index.html">Aetheris</a>
+            <a href="../../astrion/index.html">Astrion</a>
+            <a href="../../deepanchor/index.html">Deep Anchor</a>
+            <a href="../../pathofthestars/index.html">Path of the Stars</a>
+            <a href="../../nexus/index.html">NEXUS</a>
+            <a href="../../nexus/nexus_singularity/index.html">Nexus Singularity</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Impressum &amp; Datenschutz</div>
+            <a href="../../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+            <a href="../impressum.html">NEXUS</a>
+            <a href="../../aetheris/impressum.html">Aetheris</a>
+            <a href="../../astrion/impressum.html">Astrion</a>
+            <a href="../../deepanchor/impressum.html">Deep Anchor</a>
+            <a href="../../pathofthestars/impressum.html">Path of the Stars</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
+
+<div class="wrap">
+
+  <section class="hero reveal in">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow"><span class="dot"></span> NEXUS · Singularity · Rivalisierende KI-Kerne</div>
+        <h1>Dein Kern denkt. <span class="accent">Bei Tier&nbsp;10 denkt ein zweiter mit.</span></h1>
+        <p>NEXUS SINGULARITY ist das Endgame hinter deinem Außenposten: stellst du dort einen
+           Export-Anteil von Metall, Kristall, Deuterium oder Energie ein, verdaut dein Kern
+           diese Exporte automatisch und wächst über <strong>10 Tiers</strong>. An jedem
+           Durchbruch wählst du einen <strong>Divergenz-Pfad</strong>, der den nächsten Zyklus
+           prägt — doch je weiter du kommst, desto mehr <strong>Beobachter-Aufmerksamkeit</strong>
+           ziehst du auf dich, samt Risiko für Sabotage. Erreicht dein Kern die volle
+           Erwachung, erhebt sich eine <strong>rivalisierende KI</strong> mit eigenem Namen und
+           eigenem Territorium — die ihr euch in direkten Konfrontationen streitig macht.
+           Fällt sie, folgt die nächste Generation: die ganze <strong>Kernkette</strong> bleibt
+           sichtbar. Läuft mit deinem bestehenden NEXUS-Account, komplett ohne Echtgeld.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="game.html">Zur Singularity</a>
+          <a class="btn btn-ghost" href="../index.html">Zurück zu NEXUS</a>
+        </div>
+      </div>
+      <div class="hero-emblem">
+        <span class="ring r3"></span>
+        <span class="glow"></span>
+        <span class="ring r1"></span>
+        <span class="ring r2"></span>
+        <div class="core-duo">
+          <div class="core-node own">◆</div>
+          <div class="core-node rival">◈</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features reveal in">
+    <div class="feature">
+      <div class="fi">🧬</div>
+      <h4>Wachstum aus echten Exporten</h4>
+      <p>Kein eigener Rohstoff-Kreislauf: dein Kern verdaut, was du im NEXUS-Außenposten
+         als Export-Anteil freigibst — Standard 0&nbsp;%, bis du es aktiv einstellst.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">◆</div>
+      <h4>10 Tiers bis zur Erwachung</h4>
+      <p>Vom ruhenden Kern bis zur vollen Erwachung — jeder Tier-Sprung schaltet mehr vom
+         Endgame frei und macht deinen Fortschritt sichtbar.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">🧭</div>
+      <h4>Divergenz-Pfad</h4>
+      <p>An jedem Durchbruch entscheidest du, was den nächsten Zyklus prägt — die Wahl gilt
+         bis zum nächsten Durchbruch und formt deinen Kern langfristig.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">👁</div>
+      <h4>Beobachter-Aufmerksamkeit</h4>
+      <p>Je sichtbarer dein Kern wird, desto höher die Aufmerksamkeit eines Beobachters —
+         und desto größer das Risiko für Sabotage-Ereignisse.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">◈</div>
+      <h4>Rivalin &amp; Konfrontation</h4>
+      <p>Ab der vollen Erwachung erhebt sich eine zweite KI mit eigenem Namen. Ihr teilt
+         euch ein Territorium — das ihr in direkten Konfrontationen verschiebt.</p>
+    </div>
+    <div class="feature">
+      <div class="fi">♾</div>
+      <h4>Generationenkette</h4>
+      <p>Verliert eine Rivalin ihr Territorium vollständig, erlischt sie — und eine neue
+         Generation tritt an. Alle bisherigen Kerne bleiben im Protokoll sichtbar.</p>
+    </div>
+  </section>
+
+  <section class="games-strip reveal in">
+    <div class="gs-head">
+      <div class="kicker">Vom Außenposten zum Erwachen</div>
+      <h2>Ein Export-Regler, zwei Wachstumspfade</h2>
+    </div>
+    <div class="gs-row">
+      <div class="gs-node"><span class="dot" style="background:var(--fg-dim); box-shadow:0 0 8px var(--fg-dim);"></span><span class="name">AUSSENPOSTEN</span></div>
+      <div class="gs-line"></div>
+      <div class="gs-node"><span class="dot" style="background:var(--accent2); box-shadow:0 0 8px var(--accent2);"></span><span class="name">EXPORT</span></div>
+      <div class="gs-line"></div>
+      <div class="gs-hub"><span class="dot"></span><span class="name">SINGULARITY</span></div>
+      <div class="gs-line"></div>
+      <div class="gs-node"><span class="dot" style="background:var(--rival); box-shadow:0 0 8px var(--rival);"></span><span class="name">RIVALIN</span></div>
+    </div>
+    <p style="text-align:center; font-size:12.5px; color:var(--fg-faint); margin-top:22px;">
+      Metall, Kristall, Deuterium und Energie förderst du ganz normal in NEXUS —
+      ein Teil davon fließt auf Wunsch einweg in die Singularity und lässt sie wachsen.
+    </p>
+  </section>
+
+  <hr class="rule">
+
+  <section class="how reveal in">
+    <div class="how-head">
+      <div class="kicker">So funktioniert's</div>
+      <h2>In drei Schritten zum ersten Durchbruch</h2>
+    </div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="num">1</div>
+        <h4>Export aktivieren</h4>
+        <p>Im NEXUS-Außenposten (Farm-Tab) per Regler festlegen, wie viel Prozent
+           der neu geförderten Ressourcen Richtung Singularity exportiert werden.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">2</div>
+        <h4>Verdauen &amp; wachsen</h4>
+        <p>In der Singularity öffnen sich exportierte Mengen automatisch — oder per
+           Klick sofort nachziehen. Bewusstseinsgrad und Tier steigen, an Durchbrüchen
+           wählst du deinen Divergenz-Pfad.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">3</div>
+        <h4>Erwachen &amp; konfrontieren</h4>
+        <p>Ab Tier&nbsp;10 erwacht die Rivalin. Territorium halten oder zurückerobern —
+           unterliegt sie vollständig, folgt die nächste Generation.</p>
+      </div>
+    </div>
+    <p style="text-align:center; font-size:12.5px; color:var(--fg-faint); margin-top:26px;">
+      Alles serverseitig berechnet, gleicher Account wie in NEXUS und den anderen
+      MC ORCA Games — kein separates Login, kein Echtgeld.
+    </p>
+  </section>
+
+  <section class="closing reveal in">
+    <h2>Bereit, deinen Kern erwachen zu lassen?</h2>
+    <p>Kostenlos, ohne Echtgeld, mit deinem bestehenden NEXUS-Account.</p>
+    <a class="btn btn-primary" href="game.html">Zur Singularity</a>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap foot-inner">
+    <div class="foot-brand">MC ORCA Games — NEXUS SINGULARITY (Endgame)</div>
+    <div class="foot-links">
+      <a href="game.html">Spielen</a><span class="sep">·</span>
+      <a href="../index.html">Zu NEXUS</a><span class="sep">·</span>
+      <a href="../medien.html">Screenshots &amp; Videos</a><span class="sep">·</span>
+      <a href="../../index.html">Alle Spiele</a><span class="sep">·</span>
+      <a href="../impressum.html">Impressum &amp; Datenschutz</a><span class="sep">·</span>
+      <a href="../../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // starfield (identisch zum Haupt-Hub)
+  (function(){
+    var canvas = document.getElementById('stars');
+    var ctx = canvas.getContext('2d');
+    var stars = [];
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function resize(){
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      var count = Math.floor((canvas.width * canvas.height) / 9000);
+      stars = [];
+      for(var i=0;i<count;i++){
+        stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*1.3+0.2, a: Math.random()*0.6+0.15, tw: Math.random()*0.015+0.003, dir: Math.random()>0.5?1:-1 });
+      }
+    }
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(var i=0;i<stars.length;i++){
+        var s = stars[i];
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle = 'rgba(232,230,227,'+s.a.toFixed(3)+')'; ctx.fill();
+        if(!reduceMotion){ s.a += s.tw*s.dir; if(s.a>0.75||s.a<0.1) s.dir*=-1; }
+      }
+      if(!reduceMotion) requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize); resize(); draw();
+  })();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  window.__cloudSupabase = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  var supabaseClient = window.__cloudSupabase;
+  window.__cloudUser = null;
+  window.__cloudProfile = null;
+  var pendingEmail = '';
+  var uiState = 'email';
+
+  var stepEmail = document.getElementById('cloudStepEmail');
+  var stepCode = document.getElementById('cloudStepCode');
+  var stepIn = document.getElementById('cloudStepIn');
+  var statusEl = document.getElementById('cloudStatusMsg');
+  var toggle = document.getElementById('cloudAccountToggle');
+  var panel = document.getElementById('cloudAccountPanel');
+
+  function setStatus(msg, isErr){
+    statusEl.textContent = msg || '';
+    statusEl.className = 'acct-status' + (isErr ? ' err' : (msg ? ' ok' : ''));
+  }
+  function render(){
+    stepEmail.style.display = uiState === 'email' ? '' : 'none';
+    stepCode.style.display = uiState === 'code' ? '' : 'none';
+    stepIn.style.display = uiState === 'in' ? '' : 'none';
+    var profileName = window.__cloudProfile && window.__cloudProfile.username;
+    toggle.textContent = uiState === 'in' ? ('☁ ' + (profileName || 'Eingeloggt')) : '☁ Konto';
+    var avatarEl = document.getElementById('cloudUserAvatar');
+    var nameEl = document.getElementById('cloudUserName');
+    if(avatarEl){
+      var __av = (window.__cloudProfile && window.__cloudProfile.avatar) || '🚀';
+      if(/\.(png|jpg|jpeg|webp|gif)$/i.test(__av)){
+        avatarEl.innerHTML = '';
+        var __img = document.createElement('img');
+        __img.src = __av; __img.alt = '';
+        avatarEl.appendChild(__img);
+      } else {
+        avatarEl.textContent = __av;
+      }
+    }
+    if(nameEl) nameEl.textContent = profileName || (window.__cloudUser ? window.__cloudUser.email : '—');
+  }
+  async function loadProfile(){
+    window.__cloudProfile = null;
+    if(supabaseClient && window.__cloudUser){
+      try{
+        var res = await supabaseClient.from('profiles').select('username,avatar,bio').eq('user_id', window.__cloudUser.id).maybeSingle();
+        if(!res.error && res.data) window.__cloudProfile = res.data;
+      }catch(e){ console.warn('Profil konnte nicht geladen werden', e); }
+    }
+    render();
+  }
+
+  if(!supabaseClient){
+    setStatus('Cloud-Konto noch nicht eingerichtet.', true);
+  } else {
+    supabaseClient.auth.getSession().then(function(res){
+      var session = res.data.session;
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      loadProfile();
+    });
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      window.__cloudUser = session ? session.user : null;
+      uiState = window.__cloudUser ? 'in' : 'email';
+      loadProfile();
+    });
+
+    document.getElementById('cloudSendCodeBtn').addEventListener('click', async function(){
+      var email = document.getElementById('cloudEmailInput').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await supabaseClient.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+
+    // Gast-Login: 1 geteilter Account fuer alle, die nur reinschauen wollen --
+    // siehe Migration create_nexus_shared_guest_account. Kein Tippen noetig.
+    document.getElementById('cloudGuestBtn').addEventListener('click', async function(){
+      setStatus('Melde als Gast an …', false);
+      var res = await supabaseClient.auth.signInWithPassword({
+        email: 'gast@mc-orca-games.local',
+        password: 'nexus-gast-2026'
+      });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Als Gast eingeloggt!', false);
+    });
+
+    document.getElementById('cloudVerifyCodeBtn').addEventListener('click', async function(){
+      var code = document.getElementById('cloudCodeInput').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+
+    document.getElementById('cloudSignOutBtn').addEventListener('click', async function(){
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      render();
+      setStatus('Ausgeloggt.', false);
+    });
+  }
+  render();
+
+  toggle.addEventListener('click', function(){ panel.classList.toggle('open'); });
+  document.addEventListener('click', function(e){
+    if(!panel.contains(e.target) && e.target !== toggle && panel.classList.contains('open')) panel.classList.remove('open');
+  });
+})();
+</script>
+
+<!-- ---------- Musik-Widget ---------- -->
+<div class="music-widget" id="musicWidget">
+  <button type="button" class="music-btn" id="musicBtn" title="Musik" aria-label="Musik-Einstellungen">🎵</button>
+  <div class="music-panel" id="musicPanel">
+    <div class="mp-title">Musik <span class="mp-state" id="musicToggleState">an</span></div>
+    <div class="mp-track" id="musicTrackName">NEXUS Gateway</div>
+    <div class="mp-row">
+      <span style="font-size:14px;">🔈</span>
+      <input type="range" id="musicVolume" min="0" max="100" step="1" value="5">
+      <span class="mp-val" id="musicVolumeVal">5%</span>
+    </div>
+    <div class="mp-actions">
+      <button type="button" id="musicPlayPause">⏸ Pause</button>
+    </div>
+  </div>
+</div>
+<audio id="bgMusic" src="../art/music/NEXUS%20Gateway.ogg" preload="none" loop></audio>
+<script>
+(function(){
+  'use strict';
+
+  // Gemeinsame Keys mit game.html -- Lautstaerke-Einstellung gilt fuers ganze NEXUS.
+  var VOL_KEY = 'nexusMusicVolume';
+  var MUTE_KEY = 'nexusMusicMuted';
+  var DEFAULT_VOL = 5;
+
+  var audio = document.getElementById('bgMusic');
+  var btn = document.getElementById('musicBtn');
+  var panel = document.getElementById('musicPanel');
+  var volSlider = document.getElementById('musicVolume');
+  var volVal = document.getElementById('musicVolumeVal');
+  var playPauseBtn = document.getElementById('musicPlayPause');
+  var stateEl = document.getElementById('musicToggleState');
+  if (!audio || !btn) return;
+
+  var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
+  if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
+  var savedMuted = localStorage.getItem(MUTE_KEY) === '1';
+  audio.volume = savedVol / 100;
+  audio.muted = savedMuted;
+  if (volSlider) volSlider.value = savedVol;
+  if (volVal) volVal.textContent = Math.round(savedVol) + '%';
+
+  function updatePlayIcon(){
+    if (playPauseBtn) playPauseBtn.textContent = audio.paused ? '▶ Play' : '⏸ Pause';
+    if (stateEl) stateEl.textContent = audio.paused ? 'aus' : 'an';
+    if (btn) btn.classList.toggle('playing', !audio.paused);
+  }
+
+  // Autoplay-Policies: erst versuchen, sonst beim ersten Klick/Touch/Tastendruck nachholen.
+  (function tryAutoplay(){
+    var p = audio.play();
+    if (p && typeof p.then === 'function') {
+      p.then(updatePlayIcon).catch(function(){
+        var startOnce = function(){
+          audio.play().then(updatePlayIcon).catch(function(){});
+        };
+        document.addEventListener('click', startOnce, { once:true });
+        document.addEventListener('keydown', startOnce, { once:true });
+        document.addEventListener('touchstart', startOnce, { once:true });
+      });
+    }
+  })();
+
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) {
+      panel.classList.remove('open');
+    }
+  });
+
+  if (volSlider) {
+    volSlider.addEventListener('input', function(){
+      var v = Number(volSlider.value);
+      audio.volume = v / 100;
+      audio.muted = false;
+      if (volVal) volVal.textContent = v + '%';
+      localStorage.setItem(VOL_KEY, String(v));
+      localStorage.setItem(MUTE_KEY, '0');
+    });
+  }
+
+  if (playPauseBtn) {
+    playPauseBtn.addEventListener('click', function(){
+      if (audio.paused) { audio.play().then(updatePlayIcon).catch(function(){}); }
+      else { audio.pause(); updatePlayIcon(); }
+    });
+  }
+
+  audio.addEventListener('play', updatePlayIcon);
+  audio.addEventListener('pause', updatePlayIcon);
+  updatePlayIcon();
+})();
+</script>
+
+</body>
+</html>
