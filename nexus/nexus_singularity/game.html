@@ -217,6 +217,17 @@
   .burger-panel a{ display:block; font-size:13px; color:var(--dim) !important; padding:8px 8px; border-radius:8px; text-decoration:none; transition:background .15s, color .15s; }
   .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
   @media (max-width:480px){ .burger-panel{ right:-8px; min-width:200px; } }
+
+  /* ---------- Musik-Steuerung (Bürgermenü) ---------- */
+  .burger-group .mp-title{ font-size:12px; font-weight:600; color:var(--dim); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .burger-group .mp-title span.mp-state{ color:var(--accent2); font-weight:700; }
+  .burger-group .mp-track{ font-size:11.5px; color:var(--dim); opacity:.8; margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 4px; }
+  .burger-group .mp-row{ display:flex; align-items:center; gap:10px; padding:0 4px; }
+  .burger-group input[type=range]{ flex:1; accent-color:var(--accent2); }
+  .burger-group .mp-val{ font-family:monospace; font-size:11.5px; color:var(--dim); min-width:32px; text-align:right; }
+  .burger-group .mp-actions{ display:flex; gap:8px; margin-top:12px; padding:0 4px; }
+  .burger-group .mp-actions button{ flex:1; padding:6px 0; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--fg); font-size:12px; cursor:pointer; }
+  .burger-group .mp-actions button:hover{ border-color:var(--accent2); }
 </style>
 </head>
 <body>
@@ -268,6 +279,18 @@
             <a href="../../astrion/impressum.html">Astrion</a>
             <a href="../../deep%20anchor/impressum.html">Deep Anchor</a>
             <a href="../../path%20of%20the%20stars/impressum.html">Path of the Stars</a>
+          </div>
+          <div class="burger-group">
+            <div class="mp-title">🎵 Musik <span class="mp-state" id="musicToggleState">an</span></div>
+            <div class="mp-track" id="musicTrackName">–</div>
+            <div class="mp-row">
+              <span style="font-size:14px;">🔈</span>
+              <input type="range" id="musicVolume" min="0" max="100" step="1" value="5">
+              <span class="mp-val" id="musicVolumeVal">5%</span>
+            </div>
+            <div class="mp-actions">
+              <button type="button" id="musicPlayPause">⏸ Pause</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1581,6 +1604,125 @@ function draw(){
   requestAnimationFrame(draw);
 }
 draw();
+</script>
+
+<!-- ---------- Musik: Vor-Erwachen-Track + weicher Crossfade Dominanz/Bedrohung nach Territorium ---------- -->
+<audio id="bgMusicPre" src="art/music/ogg/Before_Awakening.ogg" loop preload="none"></audio>
+<audio id="bgMusicDom" src="art/music/ogg/Awakened_Dominance.ogg" loop preload="none"></audio>
+<audio id="bgMusicThreat" src="art/music/ogg/Awakened_Threat.ogg" loop preload="none"></audio>
+<script>
+(function(){
+  'use strict';
+
+  // Lautstaerke/Mute geteilt mit NEXUS (art/music/), damit die Einstellung
+  // spielübergreifend gleich bleibt statt pro Spiel neu eingestellt werden zu muessen.
+  var VOL_KEY = 'nexusMusicVolume';
+  var MUTE_KEY = 'nexusMusicMuted';
+  var DEFAULT_VOL = 5;
+
+  var pre = document.getElementById('bgMusicPre');
+  var dom = document.getElementById('bgMusicDom');
+  var threat = document.getElementById('bgMusicThreat');
+  var volSlider = document.getElementById('musicVolume');
+  var volVal = document.getElementById('musicVolumeVal');
+  var trackNameEl = document.getElementById('musicTrackName');
+  var playPauseBtn = document.getElementById('musicPlayPause');
+  var stateEl = document.getElementById('musicToggleState');
+  if (!pre || !dom || !threat) return;
+
+  var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
+  if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
+  var masterVol = savedVol / 100;
+  var muted = localStorage.getItem(MUTE_KEY) === '1';
+  if (volSlider) volSlider.value = savedVol;
+  if (volVal) volVal.textContent = Math.round(savedVol) + '%';
+
+  // Aktuelle (weich angenaeherte) Lautstaerke je Track, 0-1.
+  var curVol = { pre: 0, dom: 0, threat: 0 };
+
+  function isAwakened(){ return typeof awakened !== 'undefined' && !!awakened; }
+  function curTerritory(){ return typeof territoryPct === 'number' ? territoryPct : 65; }
+
+  function trackLabel(){
+    if (!isAwakened()) return 'Vor dem Erwachen';
+    var t = curTerritory();
+    if (t >= 55) return 'Erwacht — Dominanz';
+    if (t <= 40) return 'Erwacht — Bedrohung';
+    return 'Erwacht — angespannt';
+  }
+
+  // Vor dem Erwachen laeuft nur "Pre". Danach faded "Pre" raus, und Dominanz/
+  // Bedrohung werden gegeneinander gemischt: >=55% Terrain = volle Dominanz,
+  // <=40% = volle Bedrohung, dazwischen linear ueberblendet.
+  function targetVolumes(){
+    if (!isAwakened()) return { pre: 1, dom: 0, threat: 0 };
+    var t = curTerritory();
+    var domMix = Math.max(0, Math.min(1, (t - 40) / 15));
+    return { pre: 0, dom: domMix, threat: 1 - domMix };
+  }
+
+  function ensurePlaying(el){
+    if (el.paused){
+      var p = el.play();
+      if (p && typeof p.catch === 'function') p.catch(function(){});
+    }
+  }
+
+  function tick(){
+    var target = muted ? { pre: 0, dom: 0, threat: 0 } : targetVolumes();
+    var ease = 0.03; // sanftes Ein-/Ausblenden statt hartem Umschalten
+    curVol.pre += (target.pre - curVol.pre) * ease;
+    curVol.dom += (target.dom - curVol.dom) * ease;
+    curVol.threat += (target.threat - curVol.threat) * ease;
+
+    pre.volume = curVol.pre * masterVol;
+    dom.volume = curVol.dom * masterVol;
+    threat.volume = curVol.threat * masterVol;
+
+    [[pre, target.pre, curVol.pre], [dom, target.dom, curVol.dom], [threat, target.threat, curVol.threat]]
+      .forEach(function(x){
+        var el = x[0], tgt = x[1], cv = x[2];
+        if (tgt > 0.001 || cv > 0.002) ensurePlaying(el);
+        else if (cv < 0.002) el.pause();
+      });
+
+    if (trackNameEl) trackNameEl.textContent = trackLabel();
+  }
+  setInterval(tick, 250);
+  tick();
+
+  function updatePlayIcon(){
+    if (playPauseBtn) playPauseBtn.textContent = muted ? '▶ Play' : '⏸ Pause';
+    if (stateEl) stateEl.textContent = muted ? 'aus' : 'an';
+  }
+  updatePlayIcon();
+
+  // Autoplay-Policies: Browser blocken Sound oft vor der ersten Interaktion --
+  // beim ersten Klick/Touch/Tastendruck einfach nochmal versuchen.
+  ['click', 'keydown', 'touchstart'].forEach(function(ev){
+    document.addEventListener(ev, tick, { once: true });
+  });
+
+  if (volSlider){
+    volSlider.addEventListener('input', function(){
+      var v = Number(volSlider.value);
+      masterVol = v / 100;
+      muted = false;
+      if (volVal) volVal.textContent = v + '%';
+      localStorage.setItem(VOL_KEY, String(v));
+      localStorage.setItem(MUTE_KEY, '0');
+      updatePlayIcon();
+    });
+  }
+
+  if (playPauseBtn){
+    playPauseBtn.addEventListener('click', function(){
+      muted = !muted;
+      localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+      updatePlayIcon();
+    });
+  }
+})();
 </script>
 </body>
 </html>
