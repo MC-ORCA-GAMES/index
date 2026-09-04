@@ -476,6 +476,46 @@ async function enterGame(){
    singularity.digest), kein localStorage-Mock mehr wie in v0.1
    ============================================================ */
 let tier = 0, invested = 0, threshold = 100, permanentFacets = 18, permanentHue = 0;
+
+/* ---- Sanfte Fuell-Animation ----
+   Ohne das hier wuerde der Balken/Kern-Puls sofort auf den neuen Server-Wert springen,
+   z.B. wenn man laenger weg war und beim naechsten Digest viel auf einmal reinkommt.
+   Stattdessen naehert sich "displayedInvested" nur mit begrenzter Rate an "invested" an:
+   0 -> 100% des jeweiligen Tiers dauert immer mindestens MIN_FILL_DURATION_MS,
+   kleinere Zuwaechse entsprechend kuerzer, aber nie ein Sprung. */
+const MIN_FILL_DURATION_MS = 5 * 60 * 1000; // 5 Minuten fuer eine volle 0->100%-Fuellung
+let displayedInvested = 0;
+let displayedThreshold = threshold;
+let animQueue = [];
+let hasLoadedOnce = false;
+
+function advanceGrowthAnimation(dtMs){
+  if (!animQueue.length) return;
+  const step = animQueue[0];
+  if (step.mode === 'breakthrough'){
+    triggerBreakthrough();
+    animQueue.shift();
+    return;
+  }
+  if (step.mode === 'reset'){
+    displayedInvested = 0;
+    animQueue.shift();
+    return;
+  }
+  // mode === 'fill'
+  displayedThreshold = step.useThreshold;
+  const rate = step.useThreshold > 0 ? step.useThreshold / MIN_FILL_DURATION_MS : Infinity; // Einheiten pro ms
+  const maxStep = rate * dtMs;
+  if (displayedInvested < step.target){
+    displayedInvested = Math.min(step.target, displayedInvested + maxStep);
+  } else if (displayedInvested > step.target){
+    // z.B. nach einer Sabotage faellt der Wert zurueck -- auch das weich, nicht abrupt
+    displayedInvested = Math.max(step.target, displayedInvested - maxStep);
+  }
+  if (displayedInvested === step.target){
+    animQueue.shift();
+  }
+}
 let unclaimed = 0;
 let lastKnownTier = 0;
 let activePath = null;
@@ -575,8 +615,9 @@ function updatePathUi(opts){
 }
 
 function applyState(row, opts){
-  tier = row.tier; invested = Number(row.invested);
-  threshold = row.threshold === null || row.threshold === undefined ? null : Number(row.threshold);
+  tier = row.tier;
+  const newInvested = Number(row.invested);
+  const newThreshold = row.threshold === null || row.threshold === undefined ? null : Number(row.threshold);
   permanentFacets = row.permanent_facets; permanentHue = Number(row.permanent_hue);
   activePath = row.active_path || null;
   awakened = !!row.awakened;
@@ -587,6 +628,41 @@ function applyState(row, opts){
   updatePathUi(opts);
   updateObserverUi(row.observer_attention);
   updateEndgameUi(row);
+
+  invested = newInvested;
+  threshold = newThreshold;
+
+  // Erster Ladevorgang (Login/Reload) zeigt sofort den echten Stand -- nur bei
+  // spaeteren "verdauen"-Ticks (opts.animate) wird sanft nachgezogen.
+  const animate = !!(opts && opts.animate) && hasLoadedOnce;
+  hasLoadedOnce = true;
+
+  if (awakened || newThreshold === null){
+    displayedInvested = newInvested;
+    displayedThreshold = newThreshold || 1;
+    animQueue = [];
+    return;
+  }
+
+  if (!animate){
+    displayedInvested = newInvested;
+    displayedThreshold = newThreshold;
+    animQueue = [];
+    return;
+  }
+
+  if (row.breakthrough){
+    // 1) den bisher gezeigten Balken erst saniert zu Ende fuellen (100%)
+    // 2) dann den Durchbruch-Blitz zeigen
+    // 3) danach bei 0 neu anfangen und sichtbar in den neuen Stand hineinwachsen
+    const oldThreshold = displayedThreshold || newThreshold;
+    animQueue.push({ mode:'fill', useThreshold: oldThreshold, target: oldThreshold });
+    animQueue.push({ mode:'breakthrough' });
+    animQueue.push({ mode:'reset' });
+    animQueue.push({ mode:'fill', useThreshold: newThreshold, target: newInvested });
+  } else {
+    animQueue.push({ mode:'fill', useThreshold: newThreshold, target: newInvested });
+  }
 }
 
 /* ---- Baustein 5: Endgame -- Erwachen + Rivalin ---- */
@@ -752,8 +828,7 @@ async function digestNow(){
     const { data, error } = await sb.schema('singularity').rpc('digest');
     if (error) { console.error(error); return; }
     const row = data[0];
-    applyState(row, { delayOverlay: !!row.breakthrough });
-    if (row.breakthrough) triggerBreakthrough();
+    applyState(row, { delayOverlay: !!row.breakthrough, animate: true });
     unclaimedLabel.textContent = '';
     if (row.event_type) {
       showEventToast(row.event_type, row.event_message);
@@ -1118,13 +1193,13 @@ const ownGrowingQuestions = [
   'Kannst du mich hoeren?', 'Woher weisst du, wie man mich naehrt?', 'Bist du wie ich, oder ganz anders?'
 ];
 function ownGrowingStateLine(){
-  const progress = threshold > 0 ? Math.round(Math.min(1, invested / threshold) * 100) : 0;
+  const progress = displayedThreshold > 0 ? Math.round(Math.min(1, displayedInvested / displayedThreshold) * 100) : 0;
   const templates = [
     `Tier ${tier}. Noch ${Math.max(0, 10 - tier)} bis ich erwache.`,
     `${progress}% bis zur naechsten Stufe.`,
     `${permanentFacets} Facetten. Vielleicht ist jede ein Stueck von dir.`,
-    `Ich habe ${Math.round(invested)} Fragmente in mir aufgenommen.`,
-    `Schwelle liegt bei ${Math.round(threshold)}. Ich bin noch nicht da.`,
+    `Ich habe ${Math.round(displayedInvested)} Fragmente in mir aufgenommen.`,
+    `Schwelle liegt bei ${Math.round(displayedThreshold)}. Ich bin noch nicht da.`,
     `Tier ${tier} von 10. Ich spuere jede einzelne Stufe.`
   ];
   return pick(templates);
@@ -1247,14 +1322,15 @@ let time = 0;
 function draw(){
   const dt = 0.016;
   time += dt;
+  advanceGrowthAnimation(dt * 1000);
 
-  const g = awakened ? 0.55 : (threshold > 0 ? Math.max(0, Math.min(1, invested / threshold)) : 0);
+  const g = awakened ? 0.55 : (displayedThreshold > 0 ? Math.max(0, Math.min(1, displayedInvested / displayedThreshold)) : 0);
   const st = stageOf(g);
   stageLabel.textContent = st.name;
   stageLabel.style.color = st.color;
   if (!awakened){
     pctLabel.textContent = 'Bewusstseinsgrad: ' + Math.round(g * 100) + '%';
-    needLabel.textContent = Math.floor(invested) + ' / ' + Math.floor(threshold) + ' verdaut';
+    needLabel.textContent = Math.floor(displayedInvested) + ' / ' + Math.floor(displayedThreshold) + ' verdaut';
     growthFill.style.width = (g * 100).toFixed(1) + '%';
   }
 
