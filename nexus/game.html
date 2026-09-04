@@ -2,6 +2,21 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.29: QNTM-Markt-Update (Backend-Migration bereits live): Tick-Intervall
+    im UI-Text von 2 Min auf 15 Min korrigiert, Zustandsanzahl von 6 auf 12
+    (6 neue Krisen-Zustaende unterhalb "Kollaps": Instabile Dekohaerenz ·
+    Quantenriss · Vakuum-Zerfall · Ereignishorizont · Informationsverlust ·
+    Totalkollaps). Neuer qntmLatestState-Tracker haelt den zuletzt bekannten
+    state_index; solange der negativ ist (Krisen-Zone), werden Kauf-Button,
+    Kauf-Input und "Alles"-Button per disabled=true gesperrt (analog zum
+    bestehenden button:disabled-Styling) und ein Warnhinweis
+    (#qntmNegativeWarning) eingeblendet -- Verkaufen bleibt in jedem Zustand
+    moeglich. Zusaetzliche Client-Pruefung im qntmBuyBtn-Handler faengt den
+    Fall ab, dass zwischen zwei Polling-Zyklen doch noch geklickt wird
+    (Server-RPC buy_qntm lehnt es ohnehin hart ab, das ist nur fuer sofortiges
+    Feedback ohne Roundtrip). Zustandsanzeige zeigt jetzt (state_index+7)/12
+    statt (state_index+1)/6, damit der Bereich -6..5 korrekt als 1..12
+    dargestellt wird. Panel-Hint zaehlt alle 12 Zustaende auf.
   - v3.28: Terminologie an global.html angeglichen -- dort heisst es ueberall
     "gefoerdert", im game.html-Client stand an den sichtbaren Stellen noch
     "gemined" (Header-Badge "NEXUS global gemined", Uebersicht-Tab + Fortschritt-
@@ -1710,9 +1725,10 @@
       </div>
 
       <div class="panel">
-        <h3><span class="live-dot"></span>QNTM-Kurs <span class="tag">— springt alle 2 Min. zwischen 6 Zuständen</span></h3>
+        <h3><span class="live-dot"></span>QNTM-Kurs <span class="tag">— springt alle 15 Min. zwischen 12 Zuständen</span></h3>
         <div class="market-price-big" id="qntmPriceDisplay">Kurs: –</div>
         <div class="sm-hint" id="qntmStateDisplay">Zustand: –</div>
+        <div class="sm-hint" id="qntmNegativeWarning" style="display:none; color:var(--down); font-weight:600;">⚠ Markt im Kollaps — Käufe gesperrt, bis der Kurs sich wieder erholt. Verkaufen bleibt möglich.</div>
         <div class="chart-box compact market-chart"><canvas id="qntmChart"></canvas></div>
         <div class="sm-trade-box">
           <input type="number" id="qntmBuyInput" min="0" step="any" placeholder="MOGC einsetzen">
@@ -1724,7 +1740,7 @@
           <button type="button" class="btn btn-ghost" id="qntmSellMaxBtn">Alles</button>
           <button type="button" class="btn btn-primary" id="qntmSellBtn">Verkaufen</button>
         </div>
-        <div class="sm-hint">Kollabiert sprunghaft auf einen von 6 Preis-Leveln (Kollaps · Tiefzustand · Grundzustand · Angeregt · Überlagerung · Singularität), kein sanfter Verlauf wie VOLT.</div>
+        <div class="sm-hint">Kollabiert sprunghaft auf einen von 12 Preis-Leveln — 6 normale Zustände (Kollaps · Tiefzustand · Grundzustand · Angeregt · Überlagerung · Singularität) und darunter 6 Krisen-Zustände (Instabile Dekohärenz · Quantenriss · Vakuum-Zerfall · Ereignishorizont · Informationsverlust · Totalkollaps). In der Krisen-Zone sind Käufe gesperrt, verkaufen geht immer — und da der Kurs nur schrittweise driftet, kann es Stunden dauern, bis er wieder positiv ist.</div>
       </div>
 
       <div class="panel">
@@ -2204,6 +2220,7 @@ let driftBalance = 0;
 let cycleBalance = 0;
 let voltLatestPrice = 100;
 let qntmLatestPrice = 100;
+let qntmLatestState = null;
 let driftLatestPrice = 100;
 let govUnclaimedPoints = 0;
 let voltChart = null;
@@ -3911,8 +3928,14 @@ function applySprungmaerkteState(gs){
     lastQntm != null
       ? `Kurs: ${Number(lastQntm).toFixed(2)} <span style="color:${qntmTrendUp ? 'var(--up)' : 'var(--down)'}">${qntmTrendUp ? '▲' : '▼'}</span>`
       : 'Kurs: –';
+  qntmLatestState = qntmStatus ? qntmStatus.state_index : null;
   document.getElementById('qntmStateDisplay').textContent =
-    qntmStatus ? `Zustand: ${qntmStatus.state_label} (${qntmStatus.state_index + 1}/6)` : 'Zustand: –';
+    qntmStatus ? `Zustand: ${qntmStatus.state_label} (${qntmStatus.state_index + 7}/12)` : 'Zustand: –';
+  const qntmNegative = qntmLatestState != null && qntmLatestState < 0;
+  document.getElementById('qntmNegativeWarning').style.display = qntmNegative ? 'block' : 'none';
+  document.getElementById('qntmBuyBtn').disabled = qntmNegative;
+  document.getElementById('qntmBuyMaxBtn').disabled = qntmNegative;
+  document.getElementById('qntmBuyInput').disabled = qntmNegative;
   updateChart(qntmChart, qntmHistOrdered, 'price');
   updateChart(qntmChartMini, qntmHistOrdered, 'price');
 
@@ -4440,6 +4463,7 @@ document.getElementById('qntmBuyBtn').addEventListener('click', async () => {
   const input = document.getElementById('qntmBuyInput');
   const amount = parseFloat(input.value);
   if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte eine gültige MOGC-Menge eingeben.', false); return; }
+  if (qntmLatestState != null && qntmLatestState < 0) { showMsg('statusMsg', 'Markt ist im Kollaps — Käufe sind gerade gesperrt.', false); return; }
   const btn = document.getElementById('qntmBuyBtn');
   btn.disabled = true;
   const { data, error } = await sb.schema('platform').rpc('buy_qntm', { p_premium_amount: amount });
