@@ -81,6 +81,30 @@
 
   #tierBadge{top:116px;left:24px;font-size:12px;color:var(--accent2);opacity:0;transition:opacity .5s;}
 
+  /* ---- Fabrik-Panel ---- */
+  #factoryPanel{
+    right:24px;top:146px;
+    width:min(320px, 88vw);max-height:min(420px, 60vh);overflow-y:auto;
+    background:rgba(10,11,16,0.92);border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px;padding:14px 16px;backdrop-filter:blur(8px);
+    font-size:12px;color:var(--dim);
+  }
+  #factoryPanel h4{margin:0 0 4px;font-size:11px;letter-spacing:1px;color:var(--fg);text-transform:uppercase;}
+  #factoryBalance{font-size:11px;color:var(--accent2);margin-bottom:10px;}
+  .factory-row{padding:10px 0;border-top:1px solid rgba(255,255,255,0.08);}
+  .factory-row:first-child{border-top:none;}
+  .factory-row .frow-top{display:flex;justify-content:space-between;align-items:baseline;}
+  .factory-row .fname{color:var(--fg);font-weight:600;font-size:12.5px;}
+  .factory-row .flevel{color:var(--accent2);font-size:11px;}
+  .factory-row .fmeta{font-size:10.5px;color:var(--dim);margin-top:2px;}
+  .factory-row button{width:100%;margin-top:6px;padding:6px 0;font-size:11px;}
+  .factory-row button.affordable{border-color:var(--accent2);color:var(--accent2);}
+  #stockGrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);font-size:10.5px;}
+  #stockGrid .sitem{display:flex;justify-content:space-between;}
+  #stockGrid .sitem .sname{color:var(--dim);}
+  #stockGrid .sitem .samt{color:var(--fg);}
+  #factoryUnclaimed{font-size:10.5px;color:var(--warn);margin-top:8px;min-height:12px;}
+
   #controls{
     bottom:22px;left:50%;transform:translateX(-50%);
     display:flex;flex-direction:column;align-items:center;gap:10px;
@@ -345,8 +369,8 @@
     <div id="pctLabel">Bewusstseinsgrad: 0%</div>
     <div id="tierLabel">Tier 0</div>
     <div id="pathLabel"></div>
-    <div id="needLabel">0 / 0 verdaut</div>
-    <div id="unclaimedLabel"></div>
+    <div id="needLabel">0 / 0 integriert</div>
+    <div id="unclaimedLabel">0 im Export-Lager</div>
     <div id="observerLabel">Beobachter-Aufmerksamkeit: <span id="observerPct">0%</span><span class="bar"><span class="fill" id="observerFill" style="width:0%"></span></span></div>
   </div>
 
@@ -364,14 +388,23 @@
     <div id="eventLogList"><div class="empty">Noch keine Ereignisse.</div></div>
   </div>
 
-  <div id="hint">Wachstum kommt jetzt live aus deinen NEXUS-Exporten (forge.export_ledger). Alle paar Sekunden wird automatisch nachgeschaut und verdaut — oder "Jetzt verdauen" klicken, um sofort nachzuziehen.</div>
+  <div class="hud hidden" id="factoryPanel">
+    <h4>Produktionskette</h4>
+    <div id="factoryBalance">0 Nova-Rift</div>
+    <div id="factoryList"></div>
+    <div id="stockGrid"></div>
+    <div id="factoryUnclaimed"></div>
+  </div>
+
+  <div id="hint">Exporte aus NEXUS (forge.export_ledger) landen erstmal im Export-Lager und werden von der Lagerhalle aufgenommen, sobald Platz ist. Gebaute Fabriken verarbeiten Rohstoffe automatisch weiter zu Rechenknoten, solange der Tab offen bleibt. Erst wenn du "Integration aktiv" einschaltest, baut sich der Kern aus den fertigen Rechenknoten weiter aus.</div>
 
   <div class="hud" id="controls">
     <div class="row">
       <div id="growthBar"><div id="growthFill"></div></div>
     </div>
     <div class="btnrow">
-      <button id="digestBtn">⟳ Jetzt verdauen</button>
+      <button id="digestBtn">▶ Integration aktiv</button>
+      <button id="factoryBtn">Fabriken</button>
       <button id="eventLogBtn">Protokoll</button>
       <button id="confrontBtn" class="hidden">⚔ Konfrontieren</button>
       <button id="logoutBtn">Abmelden</button>
@@ -459,6 +492,7 @@ async function enterGame(){
   document.getElementById('loginOverlay').classList.add('hidden');
   await sb.schema('platform').rpc('ensure_player_ready'); // legt Basis-Player an, falls neu
   await fetchPaths();
+  await fetchFactoryDefs();
   await pullState();
   startPolling();
 }
@@ -472,8 +506,8 @@ async function enterGame(){
 })();
 
 /* ============================================================
-   SPIEL-ZUSTAND -- kommt jetzt vom Server (singularity.get_state /
-   singularity.digest), kein localStorage-Mock mehr wie in v0.1
+   SPIEL-ZUSTAND -- kommt jetzt vom Server (singularity.production_tick /
+   singularity.integrate), kein localStorage-Mock mehr wie in v0.1
    ============================================================ */
 let tier = 0, invested = 0, threshold = 100, permanentFacets = 18, permanentHue = 0;
 
@@ -556,6 +590,12 @@ const territoryRivalFill = document.getElementById('territoryRivalFill');
 const territoryPlayerPct = document.getElementById('territoryPlayerPct');
 const territoryRivalPct = document.getElementById('territoryRivalPct');
 const confrontBtn = document.getElementById('confrontBtn');
+const factoryBtn = document.getElementById('factoryBtn');
+const factoryPanel = document.getElementById('factoryPanel');
+const factoryList = document.getElementById('factoryList');
+const factoryBalance = document.getElementById('factoryBalance');
+const stockGrid = document.getElementById('stockGrid');
+const factoryUnclaimed = document.getElementById('factoryUnclaimed');
 
 async function fetchPaths(){
   try{
@@ -564,6 +604,93 @@ async function fetchPaths(){
     pathDefs = data || [];
   }catch(err){ console.error('fetchPaths fehlgeschlagen:', err); }
 }
+
+/* ---- Fabriken / Produktionskette ---- */
+let factoryDefs = {};   // factory_key -> {name, stage, sort_order, base_capacity, ...}
+let recipeDefs = {};    // item_key -> {name, factory_key, base_rate, inputs}
+let currentFactories = {}; // vom Server: factory_key -> {level, capacity, stage, next_cost}
+let currentStock = {};     // vom Server: item_key -> amount
+let novaRiftBalance = 0;
+let buildingFactory = null; // waehrend eine Ausbau-Anfrage laeuft, doppelte Klicks verhindern
+
+const RAW_LABELS = { METAL:'Metall', KRISTALL:'Kristall', DEUT:'Deuterium', ENERGIE:'Energie' };
+
+async function fetchFactoryDefs(){
+  try{
+    const [{ data: fData, error: fErr }, { data: rData, error: rErr }] = await Promise.all([
+      sb.schema('singularity').rpc('get_factory_defs'),
+      sb.schema('singularity').rpc('get_recipe_defs')
+    ]);
+    if (fErr) { console.error(fErr); } else {
+      factoryDefs = {};
+      (fData || []).forEach(f => { factoryDefs[f.factory_key] = f; });
+    }
+    if (rErr) { console.error(rErr); } else {
+      recipeDefs = {};
+      (rData || []).forEach(r => { recipeDefs[r.item_key] = r; });
+    }
+  }catch(err){ console.error('fetchFactoryDefs fehlgeschlagen:', err); }
+}
+
+function fmtAmt(n){
+  n = Number(n) || 0;
+  return n >= 100 ? Math.floor(n).toLocaleString('de-DE') : n.toFixed(1).replace('.', ',');
+}
+
+function renderFactoryPanel(){
+  const defsBySort = Object.values(factoryDefs).sort((a, b) => a.sort_order - b.sort_order);
+  factoryBalance.textContent = fmtAmt(novaRiftBalance) + ' Nova-Rift';
+
+  factoryList.innerHTML = defsBySort.map(fd => {
+    const state = currentFactories[fd.factory_key] || { level: 0, capacity: fd.base_capacity, next_cost: fd.base_cost };
+    const cost = Number(state.next_cost);
+    const affordable = novaRiftBalance >= cost;
+    const busy = buildingFactory === fd.factory_key;
+    return `<div class="factory-row">
+      <div class="frow-top"><span class="fname">${fd.name}</span><span class="flevel">Lv. ${state.level}</span></div>
+      <div class="fmeta">Kapazität ${fmtAmt(state.capacity)}</div>
+      <button data-factory="${fd.factory_key}" class="buildFactoryBtn ${affordable ? 'affordable' : ''}" ${busy ? 'disabled' : ''}>
+        ${busy ? 'Baue …' : 'Ausbauen — ' + fmtAmt(cost) + ' Nova-Rift'}
+      </button>
+    </div>`;
+  }).join('');
+
+  factoryList.querySelectorAll('.buildFactoryBtn').forEach(btn => {
+    btn.addEventListener('click', () => buildFactory(btn.dataset.factory));
+  });
+
+  const rawRows = Object.entries(RAW_LABELS)
+    .map(([sym, label]) => `<div class="sitem"><span class="sname">${label}</span><span class="samt">${fmtAmt(currentStock[sym] || 0)}</span></div>`);
+  const itemRows = Object.values(recipeDefs)
+    .filter(r => (currentStock[r.item_key] || 0) > 0)
+    .map(r => `<div class="sitem"><span class="sname">${r.name}</span><span class="samt">${fmtAmt(currentStock[r.item_key] || 0)}</span></div>`);
+  stockGrid.innerHTML = rawRows.concat(itemRows).join('');
+
+  factoryUnclaimed.textContent = unclaimed > 0
+    ? Math.floor(unclaimed) + ' warten vor voller Lagerhalle'
+    : '';
+}
+
+async function buildFactory(factoryKey){
+  if (buildingFactory) return;
+  buildingFactory = factoryKey;
+  renderFactoryPanel();
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('build_factory', { p_factory_key: factoryKey });
+    if (error) { showEventToast('sabotage', error.message); return; }
+    await pullState();
+  }catch(err){
+    console.error('buildFactory fehlgeschlagen:', err);
+    showEventToast('sabotage', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err));
+  }finally{
+    buildingFactory = null;
+    renderFactoryPanel();
+  }
+}
+
+factoryBtn.addEventListener('click', () => {
+  factoryPanel.classList.toggle('hidden');
+});
 
 function renderPathOptions(){
   pathOptions.innerHTML = '';
@@ -812,42 +939,69 @@ eventLogBtn.addEventListener('click', async () => {
 
 async function pullState(){
   try{
-    const { data, error } = await sb.schema('singularity').rpc('get_state');
+    const { data, error } = await sb.schema('singularity').rpc('production_tick');
     if (error) { console.error(error); return; }
     const row = data[0];
     applyState(row);
     unclaimed = Number(row.unclaimed);
-    unclaimedLabel.textContent = unclaimed > 0 ? Math.floor(unclaimed) + ' unverdaut im Export-Lager' : '';
+    unclaimedLabel.textContent = Math.floor(unclaimed) + ' im Export-Lager';
+    currentFactories = row.factories || {};
+    currentStock = row.stock || {};
+    novaRiftBalance = Number(row.nova_rift_balance || 0);
+    renderFactoryPanel();
     lastKnownTier = tier;
   }catch(err){ console.error('pullState fehlgeschlagen:', err); }
 }
 
 async function digestNow(){
-  digestBtn.disabled = true;
   try{
-    const { data, error } = await sb.schema('singularity').rpc('digest');
+    const { data, error } = await sb.schema('singularity').rpc('integrate');
     if (error) { console.error(error); return; }
     const row = data[0];
     applyState(row, { delayOverlay: !!row.breakthrough, animate: true });
-    unclaimedLabel.textContent = '';
+    unclaimed = Math.max(0, unclaimed - Number(row.claimed_amount || 0));
+    unclaimedLabel.textContent = Math.floor(unclaimed) + ' im Export-Lager';
     if (row.event_type) {
       showEventToast(row.event_type, row.event_message);
       if (!eventLogPanel.classList.contains('hidden')) fetchRecentEvents();
     }
     if (row.awakened) await fetchRivalChain(); // Kernkette: neue Generation ggf. sofort einblenden
   }catch(err){ console.error('digest fehlgeschlagen:', err); }
-  finally{ digestBtn.disabled = false; }
 }
-digestBtn.addEventListener('click', digestNow);
+
+// ---- Integration als Ein/Aus-Schalter ----
+// AUS: die Produktionskette laeuft trotzdem weiter (via pullState/production_tick),
+//      Rohstoffe -> Bauteile -> Baugruppen -> Rechenknoten -- nur baut sich der
+//      Kern nicht aus den fertigen Rechenknoten aus, die sammeln sich in der
+//      Serverfarm an.
+// AN:  zusaetzlich laeuft ein schneller Tick, der integrate() alle 1s aufruft.
+//      Die Datenbank selbst begrenzt dabei, wie viele Rechenknoten pro Aufruf
+//      verbaut werden (siehe singularity.integrate()).
+// Gilt nur, solange dieser Tab offen ist -- kein Offline-Fortschritt.
+let digesting = false;
+let digestTimer = null;
+
+function setDigesting(on){
+  digesting = on;
+  digestBtn.classList.toggle('active', digesting);
+  digestBtn.textContent = digesting ? '⏸ Integration pausiert' : '▶ Integration aktiv';
+  if (digestTimer) { clearInterval(digestTimer); digestTimer = null; }
+  if (digesting){
+    digestNow(); // sofort den ersten Tick, nicht erst nach 1s warten
+    digestTimer = setInterval(digestNow, 1000);
+  }
+}
+digestBtn.addEventListener('click', () => setDigesting(!digesting));
 
 let pollTimer = null;
 function startPolling(){
   if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(digestNow, 8000); // alle 8s automatisch nachziehen
+  pollTimer = setInterval(pullState, 8000); // Lagerstand & Serverereignisse im Blick behalten, ohne zu verdauen
 }
 function stopPolling(){
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = null;
+  setDigesting(false);
 }
 
 /* ============================================================
