@@ -19,11 +19,11 @@
   #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .08s ease-out;}
 
   .hud{position:absolute;z-index:5;}
-  #title{top:20px;left:24px;font-size:13px;letter-spacing:3px;color:var(--dim);text-transform:uppercase;}
+  #title{top:76px;left:24px;font-size:13px;letter-spacing:3px;color:var(--dim);text-transform:uppercase;}
   #title b{color:var(--fg);letter-spacing:1px;}
   #title .ver{color:var(--accent2);font-size:10px;margin-left:6px;}
 
-  #readout{top:20px;right:24px;text-align:right;}
+  #readout{top:76px;right:24px;text-align:right;}
   #stageLabel{font-size:22px;font-weight:700;letter-spacing:1px;transition:color .4s;}
   #pctLabel{font-size:13px;color:var(--dim);margin-top:2px;}
   #tierLabel{font-size:12px;color:var(--accent2);margin-top:6px;letter-spacing:1px;}
@@ -37,7 +37,7 @@
 
   /* ---- Beobachter-Event-Toast ---- */
   #eventToast{
-    position:absolute;top:70px;left:50%;transform:translateX(-50%) translateY(-8px);
+    position:absolute;top:126px;left:50%;transform:translateX(-50%) translateY(-8px);
     z-index:8;max-width:min(420px, 86vw);
     background:rgba(10,11,16,0.92);border:1px solid rgba(255,255,255,0.14);
     border-radius:12px;padding:12px 16px;backdrop-filter:blur(8px);
@@ -60,7 +60,7 @@
 
   /* ---- Event-Log-Panel ---- */
   #eventLogPanel{
-    position:absolute;z-index:6;left:24px;top:90px;
+    position:absolute;z-index:6;left:24px;top:146px;
     width:min(300px, 80vw);max-height:min(320px, 50vh);overflow-y:auto;
     background:rgba(10,11,16,0.9);border:1px solid rgba(255,255,255,0.1);
     border-radius:12px;padding:12px 14px;backdrop-filter:blur(8px);
@@ -79,7 +79,7 @@
   #eventLogPanel .entry .time{float:right;font-size:9px;color:var(--dim);}
   #eventLogPanel .empty{color:var(--dim);font-style:italic;}
 
-  #tierBadge{top:60px;left:24px;font-size:12px;color:var(--accent2);opacity:0;transition:opacity .5s;}
+  #tierBadge{top:116px;left:24px;font-size:12px;color:var(--accent2);opacity:0;transition:opacity .5s;}
 
   #controls{
     bottom:22px;left:50%;transform:translateX(-50%);
@@ -156,7 +156,7 @@
 
   /* ---- Endgame: Rivalin & Terrain (Baustein 5) ---- */
   #endgamePanel{
-    top:20px;right:24px;text-align:right;display:none;
+    top:76px;right:24px;text-align:right;display:none;
     width:min(280px, 80vw);
   }
   #endgamePanel .influenceLabel{font-size:22px;font-weight:700;color:#ffd54a;letter-spacing:.5px;}
@@ -171,9 +171,123 @@
   #territoryLabels{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-top:4px;}
   #confrontBtn{margin-top:12px;border-color:rgba(255,92,140,0.4);}
   #confrontBtn:hover{border-color:#ff5c8c;color:#ff5c8c;}
+
+  /* ---------- Top-Nav (aus nexus/index.html + nexus/game.html übernommen) ---------- */
+  .nav{
+    position:fixed; top:0; left:0; right:0; z-index:30;
+    background:linear-gradient(to bottom, rgba(5,6,10,0.92), rgba(5,6,10,0.72));
+    backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,0.09);
+    font-family:'Segoe UI',system-ui,sans-serif;
+  }
+  .nav-inner{ max-width:1200px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  .brand{ display:flex; align-items:center; gap:9px; font-weight:700; font-size:13.5px; letter-spacing:0.02em; flex-wrap:wrap; }
+  .brand .mark{ width:24px; height:24px; border-radius:50%; background:conic-gradient(from 200deg, var(--accent), var(--accent2), #ff5c8c, var(--accent)); box-shadow:0 0 14px rgba(127,92,255,0.35); flex-shrink:0; }
+  .brand .divider{ width:1px; height:14px; background:rgba(255,255,255,0.12); margin:0 1px; }
+  .brand .sub{ color:var(--accent2); font-weight:700; }
+  .brand .game-pill{ font-weight:600; font-size:10px; letter-spacing:0.04em; text-transform:uppercase; color:#ff9ec2; background:rgba(255,92,140,0.14); padding:2px 8px; border-radius:999px; }
+  @media (max-width:560px){ .brand .game-pill{ display:none; } }
+  @media (max-width:420px){ .brand .brand-text{ display:none; } }
+  .nav-cta{ font-size:12px; font-weight:600; padding:7px 13px; border-radius:999px; border:1px solid rgba(255,255,255,0.12); color:var(--dim); text-decoration:none; transition:border-color .15s, color .15s, background .15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:rgba(255,255,255,0.3); color:var(--fg); background:rgba(255,255,255,0.04); }
+
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:34px; height:34px; border-radius:9px; border:1px solid rgba(255,255,255,0.12);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.04); }
+  .burger-btn span{ display:block; width:15px; height:2px; border-radius:2px; background:var(--dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:220px; z-index:40;
+    background:#121320; border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.55);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+    max-height:min(75vh, 480px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid rgba(255,255,255,0.09); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); padding:0 8px 6px; opacity:.75; }
+  .burger-panel a{ display:block; font-size:13px; color:var(--dim) !important; padding:8px 8px; border-radius:8px; text-decoration:none; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:200px; } }
 </style>
 </head>
 <body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"></span>
+      <span class="brand-text">MC ORCA GAMES</span> <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Singularity</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="nav-cta" href="../game.html">← Zu NEXUS</a>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+          <div class="burger-group">
+            <div class="burger-label">Seiten</div>
+            <a href="../../index.html">Hub</a>
+            <a href="../../profil.html">Profil</a>
+            <a href="../../raenge.html">Ränge</a>
+            <a href="../index.html">NEXUS</a>
+            <a href="index.html">Singularity — Info</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Spiele</div>
+            <a href="../../aetheris/game.html">Aetheris</a>
+            <a href="../../astrion/game.html">Astrion</a>
+            <a href="../../deep%20anchor/game.html">Deep Anchor</a>
+            <a href="../../path%20of%20the%20stars/game.html">Path of the Stars</a>
+            <a href="../../nexus/game.html">NEXUS</a>
+            <a href="../../nexus/nexus_singularity/game.html">Nexus Singularity</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Info</div>
+            <a href="../../aetheris/index.html">Aetheris</a>
+            <a href="../../astrion/index.html">Astrion</a>
+            <a href="../../deep%20anchor/index.html">Deep Anchor</a>
+            <a href="../../path%20of%20the%20stars/index.html">Path of the Stars</a>
+            <a href="../../nexus/index.html">NEXUS</a>
+            <a href="../../nexus/nexus_singularity/index.html">Nexus Singularity</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Impressum &amp; Datenschutz</div>
+            <a href="../../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+            <a href="../impressum.html">NEXUS</a>
+            <a href="../../aetheris/impressum.html">Aetheris</a>
+            <a href="../../astrion/impressum.html">Astrion</a>
+            <a href="../../deep%20anchor/impressum.html">Deep Anchor</a>
+            <a href="../../path%20of%20the%20stars/impressum.html">Path of the Stars</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
 <div id="stage">
   <canvas id="c"></canvas>
   <div id="flash"></div>
@@ -201,8 +315,6 @@
     </div>
   </div>
 
-  <div class="hud" id="title">NEXUS SINGULARITY <span class="ver">v0.2</span></div>
-  <a class="hud" id="backLink" href="../game.html" style="top:44px;left:24px;font-size:11px;letter-spacing:1px;color:var(--dim);text-decoration:none;opacity:.7;">← NEXUS</a>
   <div class="hud" id="tierBadge">◆ TIER <span id="tierNum">0</span> ERREICHT</div>
   <div class="hud" id="readout">
     <div id="stageLabel">Ruhend</div>
