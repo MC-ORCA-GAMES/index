@@ -1914,6 +1914,26 @@
       <h4 style="margin-top:16px;">Meine offenen Orders</h4>
       <div id="sigilMyOrdersList"><div class="cycle-ob-empty">Keine offenen Orders.</div></div>
     </div>
+
+    <div class="panel cycle-market-panel" id="barterMarketPanel">
+      <h3>🔄 Spieler-Markt <span class="tag">— freier Tauschhandel, jede handelbare Währung gegen jede andere</span></h3>
+      <div class="sm-hint">Du stellst ein Angebot ein ("das gebe ich" gegen "das will ich"), andere Spieler können es ganz oder teilweise annehmen. Die angebotene Menge wird sofort eingefroren (Escrow), bei Rückzug bekommst du sie zurück. 2% Marktgebühr auf die erhaltene Gegenleistung geht in die Gebühren-Reserve.</div>
+
+      <div class="sm-trade-box" style="flex-wrap:wrap; margin-top:10px;">
+        <select id="barterOfferSymbolSelect"></select>
+        <input type="number" id="barterOfferAmountInput" min="0" step="any" placeholder="Menge (ich gebe)">
+        <select id="barterRequestSymbolSelect"></select>
+        <input type="number" id="barterRequestAmountInput" min="0" step="any" placeholder="Menge (ich will)">
+        <button type="button" class="btn btn-primary" id="barterOfferSubmitBtn">Angebot einstellen</button>
+      </div>
+      <div class="cycle-total-hint" id="barterOfferRateHint">–</div>
+
+      <h4 style="margin-top:16px;">Offene Angebote anderer Spieler</h4>
+      <div id="barterOffersList"><div class="cycle-ob-empty">Lade Angebote…</div></div>
+
+      <h4 style="margin-top:16px;">Meine Angebote</h4>
+      <div id="barterMyOffersList"><div class="cycle-ob-empty">Keine eigenen Angebote.</div></div>
+    </div>
     </div>
 
     <div class="tab-page" id="tabPage-bank">
@@ -4058,6 +4078,7 @@ function applySprungmaerkteState(gs){
   // separat laden, "fire and forget" damit der Rest der Anzeige nicht drauf wartet.
   loadCycleMarket();
   loadSigilMarket();
+  loadBarterMarket();
   loadGovernanceVote();
 }
 
@@ -4437,6 +4458,159 @@ document.getElementById('sigilOrderSubmitBtn').addEventListener('click', async (
   document.getElementById('sigilOrderPriceInput').value = '';
   updateSigilOrderTotalHint();
   await loadSigilMarket();
+  await loadEverything({ light: true });
+});
+
+/* ---------- Spieler-Markt: freier Tauschhandel (Barter), jede handelbare
+   Waehrung gegen jede andere, mit Teil-Annahme. Backend: platform.barter_offers
+   + place_barter_offer()/accept_barter_offer()/cancel_barter_offer(), 2%
+   Marktgebuehr landet in platform.market_fee_reserve (generisch pro Symbol,
+   analog zum "neue Coins per INSERT"-Prinzip bei platform.currencies). ---------- */
+const BARTER_CURRENCIES = [
+  { symbol: 'NOVA', label: '⛏️ Nova-Rift Coins (NRC)' },
+  { symbol: 'MOGC', label: '🪙 MC ORCA GAMES Coins (MOGC)' },
+  { symbol: 'STBL', label: '🏦 Stabil-Credits (STBL)' },
+  { symbol: 'VOLT', label: '⚡ Volt-Spekulation (VOLT)' },
+  { symbol: 'GOV', label: '🏛️ Nexus-Governance (GOV)' },
+  { symbol: 'QNTM', label: '🌀 Quantum-Sprungmarkt (QNTM)' },
+  { symbol: 'DRIFT', label: '🌊 Drift-Hedge (DRIFT)' },
+  { symbol: 'IONX', label: '☢️ Ionen-Spekulation (IONX)' },
+  { symbol: 'ANCH', label: '⚓ Anker-Credits (ANCH)' },
+  { symbol: 'GRID', label: '🔌 Grid-Utility (GRID)' },
+  { symbol: 'NVLT', label: '🔐 Nova-Vault-Credits (NVLT)' },
+  { symbol: 'CYCLE', label: '🔄 Zyklus-Credits (CYCLE)' },
+  { symbol: 'SIGIL', label: '🏆 Sigil (SIGIL)' },
+  { symbol: 'METAL', label: '⛏️ Metall (Außenposten)' },
+  { symbol: 'KRISTALL', label: '💎 Kristall (Außenposten)' },
+  { symbol: 'DEUT', label: '🧪 Deuterium (Außenposten)' },
+  { symbol: 'ENERGIE', label: '⚡ Energie (Außenposten)' }
+];
+function barterLabel(sym){ return (BARTER_CURRENCIES.find(c => c.symbol === sym) || {}).label || sym; }
+
+(function initBarterSelects(){
+  const offerSel = document.getElementById('barterOfferSymbolSelect');
+  const reqSel = document.getElementById('barterRequestSymbolSelect');
+  BARTER_CURRENCIES.forEach(c => {
+    offerSel.insertAdjacentHTML('beforeend', `<option value="${c.symbol}">${c.label}</option>`);
+    reqSel.insertAdjacentHTML('beforeend', `<option value="${c.symbol}">${c.label}</option>`);
+  });
+  reqSel.selectedIndex = 1;
+})();
+
+function updateBarterRateHint(){
+  const offerAmount = parseFloat(document.getElementById('barterOfferAmountInput').value);
+  const requestAmount = parseFloat(document.getElementById('barterRequestAmountInput').value);
+  const offerSym = document.getElementById('barterOfferSymbolSelect').value;
+  const requestSym = document.getElementById('barterRequestSymbolSelect').value;
+  const hint = document.getElementById('barterOfferRateHint');
+  if (!offerAmount || !requestAmount || offerAmount <= 0 || requestAmount <= 0) { hint.textContent = '–'; return; }
+  if (offerSym === requestSym) { hint.textContent = 'Angebots- und Wunschwährung müssen unterschiedlich sein.'; return; }
+  hint.textContent = `Escrow bei Einstellen: ${fmtCoin(offerAmount)} ${offerSym}. Bei vollem Fill erhältst du ${fmtCoin(requestAmount)} ${requestSym} abzgl. 2% Marktgebühr.`;
+}
+['barterOfferAmountInput', 'barterRequestAmountInput'].forEach(id =>
+  document.getElementById(id).addEventListener('input', updateBarterRateHint));
+['barterOfferSymbolSelect', 'barterRequestSymbolSelect'].forEach(id =>
+  document.getElementById(id).addEventListener('change', updateBarterRateHint));
+
+let barterMarketLoading = false;
+async function loadBarterMarket(){
+  if (barterMarketLoading) return;
+  barterMarketLoading = true;
+  try {
+    const [{ data: offers, error: offersErr }, { data: mine, error: mineErr }] = await Promise.all([
+      sb.schema('platform').rpc('get_barter_offers', { p_limit: 100 }),
+      sb.schema('platform').rpc('get_my_barter_offers')
+    ]);
+    if (!offersErr) renderBarterOffers(offers || []);
+    if (!mineErr) renderMyBarterOffers(mine || []);
+  } finally {
+    barterMarketLoading = false;
+  }
+}
+
+function renderBarterOffers(rows){
+  const wrap = document.getElementById('barterOffersList');
+  if (!rows.length) { wrap.innerHTML = '<div class="cycle-ob-empty">Aktuell keine offenen Angebote anderer Spieler.</div>'; return; }
+  wrap.innerHTML = rows.map(r => `
+    <div class="cycle-order-row" data-offer-row="${r.id}">
+      <span>${r.seller_username || 'Unbekannt'}</span>
+      <span>${fmtCoin(r.offer_amount_remaining)} ${r.offer_symbol} → ${fmtCoin(r.request_amount_total * r.offer_amount_remaining / r.offer_amount_total)} ${r.request_symbol}</span>
+      <input type="number" min="0" step="any" max="${r.offer_amount_remaining}" placeholder="Menge annehmen" class="barter-accept-amount" style="max-width:120px;">
+      <button type="button" class="btn btn-primary barter-accept-btn" data-offer-id="${r.id}" data-offer-symbol="${r.offer_symbol}" data-request-symbol="${r.request_symbol}">Annehmen</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.barter-accept-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('[data-offer-row]');
+      const amountInput = row.querySelector('.barter-accept-amount');
+      const acceptAmount = amountInput.value ? parseFloat(amountInput.value) : null;
+      if (amountInput.value && (!acceptAmount || acceptAmount <= 0)) {
+        showMsg('statusMsg', 'Bitte eine gültige Menge eingeben oder Feld leer lassen für alles.', false);
+        return;
+      }
+      btn.disabled = true;
+      const { data, error } = await sb.schema('platform').rpc('accept_barter_offer', {
+        p_offer_id: btn.dataset.offerId, p_accept_amount: acceptAmount
+      });
+      btn.disabled = false;
+      if (error) { showMsg('statusMsg', error.message, false); return; }
+      const res = Array.isArray(data) ? data[0] : data;
+      showMsg('statusMsg', `Handel ausgeführt: ${fmtCoin(res?.accepted_amount)} ${btn.dataset.offerSymbol} erhalten, ${fmtCoin(res?.paid_amount)} ${btn.dataset.requestSymbol} bezahlt.`, true, 'coin');
+      await loadBarterMarket();
+      await loadEverything({ light: true });
+    });
+  });
+}
+
+function renderMyBarterOffers(rows){
+  const wrap = document.getElementById('barterMyOffersList');
+  const open = rows.filter(r => r.status === 'open');
+  if (!open.length) { wrap.innerHTML = '<div class="cycle-ob-empty">Keine eigenen offenen Angebote.</div>'; return; }
+  wrap.innerHTML = open.map(r => `
+    <div class="cycle-order-row">
+      <span>${fmtCoin(r.offer_amount_remaining)} / ${fmtCoin(r.offer_amount_total)} ${r.offer_symbol}</span>
+      <span>→ ${fmtCoin(r.request_amount_total)} ${r.request_symbol} (bei vollem Fill)</span>
+      <button type="button" class="btn btn-ghost barter-cancel-btn" data-offer-id="${r.id}">Zurückziehen</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.barter-cancel-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('cancel_barter_offer', { p_offer_id: btn.dataset.offerId });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Angebot zurückgezogen, Guthaben erstattet.', true);
+      await loadBarterMarket();
+      await loadEverything({ light: true });
+    });
+  });
+}
+
+document.getElementById('barterOfferSubmitBtn').addEventListener('click', async () => {
+  const offerSymbol = document.getElementById('barterOfferSymbolSelect').value;
+  const requestSymbol = document.getElementById('barterRequestSymbolSelect').value;
+  const offerAmount = parseFloat(document.getElementById('barterOfferAmountInput').value);
+  const requestAmount = parseFloat(document.getElementById('barterRequestAmountInput').value);
+  if (!offerAmount || offerAmount <= 0 || !requestAmount || requestAmount <= 0) {
+    showMsg('statusMsg', 'Bitte gültige Mengen eingeben.', false);
+    return;
+  }
+  if (offerSymbol === requestSymbol) {
+    showMsg('statusMsg', 'Angebots- und Wunschwährung müssen unterschiedlich sein.', false);
+    return;
+  }
+  const btn = document.getElementById('barterOfferSubmitBtn');
+  btn.disabled = true;
+  const { error } = await sb.schema('platform').rpc('place_barter_offer', {
+    p_offer_symbol: offerSymbol, p_offer_amount: offerAmount,
+    p_request_symbol: requestSymbol, p_request_amount: requestAmount
+  });
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  showMsg('statusMsg', `Angebot eingestellt: ${fmtCoin(offerAmount)} ${offerSymbol} gegen ${fmtCoin(requestAmount)} ${requestSymbol}.`, true);
+  document.getElementById('barterOfferAmountInput').value = '';
+  document.getElementById('barterRequestAmountInput').value = '';
+  updateBarterRateHint();
+  await loadBarterMarket();
   await loadEverything({ light: true });
 });
 
