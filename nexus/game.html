@@ -2,6 +2,55 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.31: Spieler-Markt-Gebuehren-Ausschuettung nachgezogen (letzter offener
+    Punkt aus v3.30). market_fee_reserve war bisher nur befuellt, nie ausge-
+    zahlt. Anders als bei CYCLE/SIGIL (fester 5000er-Schwellwert, immer MOGC
+    als Auszahlungswaehrung) geht das hier nicht 1:1 -- der Spieler-Markt
+    handelt mit JEDER Waehrung gegeneinander, die Bestandsgroessen liegen
+    aktuell zwischen ~3 (STBL) und mehreren tausend (KRISTALL/METAL/PULSE),
+    und neue Waehrungen koennen dazukommen. Deshalb: dynamische Schwelle pro
+    Symbol (10% des aktuell im Umlauf befindlichen Bestands dieser Waehrung,
+    mindestens 50 als Untergrenze fuer den Kaltstart), Auszahlung erfolgt in
+    DERSELBEN Waehrung wie die Gebuehr (nicht immer MOGC) an die Top 10
+    Halter dieser Waehrung, gestuft wie ueberall sonst per bank_payout_tier().
+    Neue Tabelle platform.market_fee_payouts (Log, RLS mit offener Select-
+    Policy), neue Funktionen platform._symbol_circulating_supply()/
+    central_bank_market_fee_check_payout()/get_market_fee_status(). Wird
+    nach jedem accept_barter_offer()-Trade automatisch geprueft (analog zum
+    Cycle/Sigil-Muster, PERFORM direkt nach dem Fee-Insert). Zahlt nur den
+    tatsaechlich an vorhandene Halter verteilten Anteil aus dem Topf ab --
+    gibt es weniger als 10 Halter, bleibt der Rest liegen statt zu verfallen.
+    Neues Panel im Bank-Tab (#marketFeeBankList, vor "Relay verkaufen"): ein
+    kompaktes Kärtchen pro Waehrung mit aktuellem Topf-Stand + letzten
+    Auszahlungen, kein Fortschrittsbalken (die Schwelle ist dynamisch und wird
+    bewusst nicht mit rausgegeben, um die Formel nicht im Client offenzulegen).
+  - v3.30: Zwei neue Features. (1) Spieler-Markt: freier Tauschhandel im
+    Handelsplatz-Tab, jede handelbare Waehrung gegen jede andere (auch die
+    Aussenposten-Ressourcen METAL/KRISTALL/DEUT/ENERGIE, PULSE/RELAY bewusst
+    ausgeschlossen). Neues Panel #barterMarketPanel nach dem SIGIL-Orderbuch:
+    Angebot einstellen (Dropdown + Menge auf beiden Seiten), offene
+    Fremdangebote mit Teil-Annahme-Feld, eigene Angebote zum Zurueckziehen.
+    Backend (Migration add_player_barter_market, bereits live): Tabellen
+    platform.barter_offers/barter_trades/market_fee_reserve, RPCs
+    place_barter_offer()/accept_barter_offer()/cancel_barter_offer()/
+    get_barter_offers()/get_my_barter_offers(), Gast-Account ausgeschlossen
+    wie beim CYCLE/SIGIL-Markt. (2) Tagesaufgaben: neuer eigener Tab
+    (#tabPage-quests, Tab-Button vor "Erfolge"), 5 zufaellig gezogene
+    Aufgaben pro Tag aus einem 12er-Katalog, Belohnung nur in MOGC, Reset um
+    Mitternacht (Europe/Berlin). Fortschrittsbalken pro Karte, "Abholen"-
+    Button erscheint sobald abgeschlossen; fuer Gast-Accounts wird statt
+    Button ein Hinweis angezeigt (Server lehnt claim_daily_quest() fuer den
+    Gast ohnehin hart ab). Laedt nur beim Oeffnen des Tabs (kein 5s-Tick,
+    analog zum Wallet-Egress-Fix), damit die Fortschrittsanzeige nicht
+    unnoetig oft gegen die DB pollt. Backend (Migration add_daily_quests,
+    bereits live): Tabellen platform.quest_templates/player_daily_quests,
+    RPCs ensure_daily_quests()/get_my_daily_quests()/claim_daily_quest(),
+    Cron tick_daily_quests() alle 15 Min berechnet Fortschritt aus
+    bestehenden Log-Tabellen (Mining/Rig-Kaeufe/Handelsplatz/Sprungmaerkte/
+    Governance/Bonds/Relais), ohne bestehende RPCs anzufassen. Offene Punkte:
+    Gebuehren-Reserve vom Spieler-Markt wird nur befuellt, noch keine
+    Ausschuettung; RLS-Luecke bei platform.governance_option_pool noch nicht
+    gefixt.
   - v3.29: QNTM-Markt-Update (Backend-Migration bereits live): Tick-Intervall
     im UI-Text von 2 Min auf 15 Min korrigiert, Zustandsanzahl von 6 auf 12
     (6 neue Krisen-Zustaende unterhalb "Kollaps": Instabile Dekohaerenz ·
@@ -582,6 +631,50 @@
   #sigilBankBar .bb-payout-rank{ font-weight:600; min-width:20px; }
   #sigilBankBar .bb-track{ background:rgba(244,114,182,0.12); }
   #sigilBankBar .bb-fill{ background:linear-gradient(90deg, #9d3d70, #F472B6); box-shadow:0 0 8px rgba(244,114,182,0.55); }
+  /* ---------- Spieler-Markt: Gebuehren-Reserve pro Waehrung (Bank-Tab) ---------- */
+  #marketFeeBankList{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
+  .mf-bar{ font-family:var(--mono); background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .mf-bar .bb-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11.5px; margin-bottom:4px; }
+  .mf-bar .bb-label{ color:var(--fg-faint); }
+  .mf-bar .bb-value{ color:var(--blue); font-weight:600; }
+  .mf-bar .bb-sub{ font-size:10px; color:var(--fg-faint); line-height:1.5; }
+  .mf-bar .bb-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:10.5px; padding:3px 0; border-top:1px solid var(--line); }
+  .mf-bar .bb-payout-row:first-child{ border-top:none; margin-top:4px; }
+  .mf-bar .bb-payout-name{ color:var(--fg-faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mf-bar .bb-payout-amount{ color:var(--fg); }
+
+  /* ---------- Gilden-Tab ---------- */
+  .guild-form-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .guild-form-row input[type="text"], .guild-form-row input[type="number"]{
+    flex:1; min-width:140px; background:var(--panel); border:1px solid var(--line); color:var(--fg);
+    border-radius:8px; padding:10px 12px; font-family:'Space Grotesk'; font-size:13.5px; }
+  .guild-form-row select{ background:var(--panel); border:1px solid var(--line); color:var(--fg);
+    border-radius:8px; padding:10px 12px; font-family:'Space Grotesk'; font-size:13px; }
+  .guild-form-row .btn{ padding:10px 18px; font-size:13.5px; }
+  .guild-actions-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .guild-actions-row .btn{ padding:8px 14px; font-size:12.5px; }
+  .guild-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    border:1px solid var(--line); border-radius:10px; padding:10px 14px; background:rgba(255,255,255,0.02); margin-bottom:8px; }
+  .guild-row:last-child{ margin-bottom:0; }
+  .guild-row .gr-main{ font-weight:600; font-size:13.5px; }
+  .guild-row .gr-sub{ font-size:11.5px; color:var(--fg-faint); margin-top:2px; }
+  .guild-row .gr-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .guild-row .gr-actions .btn{ padding:6px 12px; font-size:12px; }
+  .guild-role-badge{ font-family:var(--mono); font-size:10px; padding:2px 7px; border-radius:999px; margin-left:8px; }
+  .guild-role-badge.leader{ background:rgba(255,193,7,0.15); color:#ffc107; }
+  .guild-role-badge.officer{ background:rgba(47,140,255,0.15); color:var(--blue); }
+  .guild-role-badge.member{ background:rgba(255,255,255,0.06); color:var(--fg-faint); }
+  .guild-invite-row{ display:flex; gap:8px; margin-top:12px; }
+  .guild-invite-row input{ flex:1; background:var(--panel); border:1px solid var(--line); color:var(--fg);
+    border-radius:8px; padding:9px 12px; font-size:13px; }
+  .guild-treasury-box{ display:flex; align-items:center; flex-wrap:wrap; gap:16px; }
+  .guild-treasury-balance{ font-family:var(--mono); font-size:22px; font-weight:700; color:var(--blue); }
+  .guild-upgrade-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
+  .guild-upgrade-card{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--bg-alt); }
+  .guild-upgrade-card.owned{ border-color:rgba(47,140,255,0.4); opacity:0.85; }
+  .guild-upgrade-card .gu-name{ font-weight:600; font-size:13.5px; margin-bottom:4px; }
+  .guild-upgrade-card .gu-desc{ font-size:11.5px; color:var(--fg-faint); line-height:1.4; margin-bottom:10px; }
+  .guild-upgrade-card .gu-meta{ display:flex; justify-content:space-between; align-items:center; font-size:11.5px; }
 
   /* ---------- farm overview (icon grid) ---------- */
   .farm-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr)); gap:10px; margin-bottom:6px; }
@@ -776,6 +869,21 @@
   .ach-tier.geheim{ background:rgba(178,58,255,0.16); color:var(--violet); }
   .ach-reward{ color:var(--gold); font-family:var(--mono); }
   .ach-card .ach-check{ position:absolute; top:10px; right:12px; font-size:16px; }
+  /* ---------- Tagesaufgaben ---------- */
+  .quest-summary{ font-family:var(--mono); font-size:14px; color:var(--fg-dim); }
+  .quest-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:10px; margin-top:14px; }
+  .quest-card{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--bg-alt); }
+  .quest-card.done{ border-color:rgba(47,140,255,0.35); }
+  .quest-card.claimed{ opacity:0.6; }
+  .quest-card .q-title{ font-weight:600; font-size:14px; margin-bottom:4px; }
+  .quest-card .q-desc{ font-size:12px; color:var(--fg-faint); line-height:1.4; margin-bottom:10px; }
+  .quest-card .q-track{ position:relative; height:8px; border-radius:999px; background:rgba(47,140,255,0.12); overflow:hidden; margin-bottom:10px; }
+  .quest-card .q-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; background:linear-gradient(90deg, #1a5fd6, var(--blue)); box-shadow:0 0 8px rgba(47,140,255,0.55); transition:width .8s cubic-bezier(.2,.8,.2,1); }
+  .quest-card .q-meta{ display:flex; justify-content:space-between; align-items:center; font-size:11px; gap:8px; }
+  .quest-reward{ color:var(--gold); font-family:var(--mono); }
+  .quest-progress-txt{ font-family:var(--mono); color:var(--fg-dim); }
+  .quest-claimed-txt{ font-family:var(--mono); color:var(--up); }
+  .quest-claim-btn{ padding:6px 14px; font-size:12px; }
   .sm-qntm .kc-value{ color:var(--gold); }
   .sm-drift .kc-value{ color:var(--blue); }
   .sm-cycle .kc-value{ color:var(--up); }
@@ -1108,6 +1216,8 @@
       <button type="button" class="main-tab-btn" data-tab="aussenposten" title="Außenposten" aria-label="Außenposten"><span class="mt-icon-emoji">🏗️</span></button>
       <button type="button" class="main-tab-btn" data-tab="markt" title="Markt" aria-label="Markt"><img class="mt-icon" src="art/tabs/market.png" alt="Markt"></button>
       <button type="button" class="main-tab-btn" data-tab="handelsplatz" title="Handelsplatz" aria-label="Handelsplatz"><span class="mt-icon-emoji">🤝</span></button>
+      <button type="button" class="main-tab-btn" data-tab="quests" title="Tagesaufgaben" aria-label="Tagesaufgaben"><span class="mt-icon-emoji">📋</span></button>
+      <button type="button" class="main-tab-btn" data-tab="gilde" title="Gilde" aria-label="Gilde"><span class="mt-icon-emoji">🛡️</span></button>
       <button type="button" class="main-tab-btn" data-tab="bank" title="Bank" aria-label="Bank"><span class="mt-icon-emoji">🏦</span></button>
       <button type="button" class="main-tab-btn" data-tab="prestige" title="Prestige" aria-label="Prestige"><img class="mt-icon" src="art/tabs/prestige.png" alt="Prestige"></button>
       <button type="button" class="main-tab-btn" data-tab="shop" title="Shop" aria-label="Shop"><img class="mt-icon" src="art/tabs/shop.png" alt="Shop"></button>
@@ -1951,6 +2061,10 @@
         <div id="relayBankBar"></div>
       </div>
     </div>
+    <div class="panel" style="margin-bottom:18px;">
+      <h3>🔄 Spieler-Markt — Gebühren-Reserve <span class="tag">— 2% Gebühr pro Waehrung, Auszahlung an Top-10-Halter derselben Waehrung</span></h3>
+      <div id="marketFeeBankList"><div class="sm-hint">Lade Reserven…</div></div>
+    </div>
     <div class="panel">
       <h3>🌐 Relay verkaufen <span class="tag">— fixer Kurs 100:1 gegen MOGC</span></h3>
       <div class="sm-hint" style="margin-bottom:12px;">Relay selbst verdienst du weiter drüben im ⛏️ Farm-Tab, Reiter 🌐 Relay — hier tauschst du gehaltenes Relay in MOGC, quasi die Auszahlung aus dem Netzwerk-Topf über die Zentralbank-Reserve oben.</div>
@@ -2098,6 +2212,95 @@
       <h3>Dein Inventar</h3>
       <div id="inventoryList"></div>
     </div>
+    </div>
+
+    <div class="tab-page" id="tabPage-quests">
+      <div class="panel">
+        <h3>📋 Tagesaufgaben <span class="tag">— 5 zufällige Aufgaben pro Tag, Belohnung in MOGC, Reset um Mitternacht (Europe/Berlin)</span></h3>
+        <div class="quest-summary" id="questsSummary">–</div>
+      </div>
+      <div class="quest-grid" id="questsList"><div class="sm-hint">Lade Tagesaufgaben…</div></div>
+    </div>
+
+    <div class="tab-page" id="tabPage-gilde">
+      <div id="guildStatusMsg"></div>
+
+      <!-- Kein Gilden-Mitglied: Gilde gruenden / beitreten -->
+      <div id="guildNoGuildWrap">
+        <div class="panel">
+          <h3>🛡️ Gilde gründen <span class="tag">— Gebühr: 300 MOGC</span></h3>
+          <div class="guild-form-row">
+            <input type="text" id="guildCreateNameInput" maxlength="24" placeholder="Gildenname (min. 3 Zeichen)">
+            <input type="text" id="guildCreateTagInput" maxlength="5" placeholder="Tag (2-5 Zeichen)">
+            <select id="guildCreateJoinModeSelect">
+              <option value="open">Offen — jeder tritt sofort bei</option>
+              <option value="request" selected>Beitrittsanfrage — du bestätigst</option>
+              <option value="invite">Nur per Einladung</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="guildCreateBtn">Gründen</button>
+          </div>
+          <div class="sm-hint">Beitrittsmodus kannst du später nicht mehr ändern — wähl ihn bewusst.</div>
+        </div>
+
+        <div class="panel" id="guildInvitesPanel" style="display:none;">
+          <h3>✉️ Deine Einladungen</h3>
+          <div id="guildInvitesList"></div>
+        </div>
+
+        <div class="panel">
+          <h3>🔍 Gilden durchsuchen</h3>
+          <div class="guild-form-row">
+            <input type="text" id="guildSearchInput" placeholder="Name oder Tag suchen…">
+            <button type="button" class="btn btn-ghost" id="guildSearchBtn">Suchen</button>
+          </div>
+          <div id="guildBrowseList"><div class="sm-hint">Lade Gilden…</div></div>
+        </div>
+      </div>
+
+      <!-- In einer Gilde -->
+      <div id="guildMineWrap" style="display:none;">
+        <div class="panel">
+          <h3><span id="guildMineTitle">🛡️ Meine Gilde</span> <span class="tag" id="guildMineJoinMode"></span></h3>
+          <div id="guildMineMeta" class="sm-hint"></div>
+          <div class="guild-actions-row" id="guildMineActions"></div>
+        </div>
+
+        <div class="panel" id="guildJoinRequestsPanel" style="display:none;">
+          <h3>📥 Beitrittsanfragen</h3>
+          <div id="guildJoinRequestsList"></div>
+        </div>
+
+        <div class="panel">
+          <h3>👥 Mitglieder <span class="tag" id="guildMemberCountTag"></span></h3>
+          <div id="guildMembersList"><div class="sm-hint">Lade Mitglieder…</div></div>
+          <div class="guild-invite-row" id="guildInviteRow" style="display:none;">
+            <input type="text" id="guildInviteUsernameInput" placeholder="Username einladen…">
+            <button type="button" class="btn btn-ghost" id="guildInviteBtn">Einladen</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>💰 Gildenkasse <span class="tag">— finanziert die stündliche Dividende an alle Mitglieder</span></h3>
+          <div class="guild-treasury-box">
+            <div class="guild-treasury-balance" id="guildTreasuryBalance">–</div>
+            <div class="guild-form-row">
+              <input type="number" id="guildDepositInput" min="0" step="any" placeholder="MOGC einzahlen">
+              <button type="button" class="btn btn-primary" id="guildDepositBtn">Einzahlen</button>
+            </div>
+          </div>
+          <div id="guildTreasuryLog" class="sm-hint"></div>
+        </div>
+
+        <div class="panel">
+          <h3>⬆️ Gilden-Upgrades <span class="tag">— aus der Kasse finanziert, schaltet/erhöht die Dividende dauerhaft frei</span></h3>
+          <div class="guild-upgrade-grid" id="guildUpgradesList"><div class="sm-hint">Lade Upgrades…</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>🏆 Gilden-Rangliste <span class="tag">— nach Summe der Nexus-Punkte aller Mitglieder</span></h3>
+        <div id="guildLeaderboardList"><div class="sm-hint">Lade Rangliste…</div></div>
+      </div>
     </div>
 
     <div class="tab-page" id="tabPage-erfolge">
@@ -2606,6 +2809,12 @@ function enterGame(){
     }
     if (tabId === 'erfolge') {
       loadAchievements();
+    }
+    if (tabId === 'quests') {
+      loadDailyQuests();
+    }
+    if (tabId === 'gilde') {
+      loadGuildTab();
     }
     if (tabId === 'wallet') {
       if (novaChart) novaChart.resize();
@@ -4079,7 +4288,48 @@ function applySprungmaerkteState(gs){
   loadCycleMarket();
   loadSigilMarket();
   loadBarterMarket();
+  loadMarketFeeStatus();
   loadGovernanceVote();
+}
+
+// Spieler-Markt-Gebuehren-Reserve (Bank-Tab): anders als bei CYCLE/SIGIL ein
+// generischer Topf PRO WAEHRUNG statt einer festen MOGC-Ausschuettung -- daher
+// eigene, einfachere Render-Funktion statt renderCurrencyBankBar() (die von
+// "immer MOGC als Auszahlungswaehrung" ausgeht). Kein Fortschrittsbalken, da
+// die Schwelle dynamisch (10% des Umlaufs der jeweiligen Waehrung) berechnet
+// wird und nicht mit rausgegeben wird.
+async function loadMarketFeeStatus(){
+  const wrap = document.getElementById('marketFeeBankList');
+  if (!wrap) return;
+  const { data, error } = await sb.schema('platform').rpc('get_market_fee_status', { p_limit: 3 });
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Gebühren-Reserve nicht laden.</div>'; return; }
+  const rows = data || [];
+  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Noch keine Gebühren aus dem Spieler-Markt angefallen.</div>'; return; }
+
+  const bySymbol = {};
+  rows.forEach(r => { (bySymbol[r.symbol] = bySymbol[r.symbol] || []).push(r); });
+
+  wrap.innerHTML = Object.keys(bySymbol).sort().map(sym => {
+    const group = bySymbol[sym];
+    const reserveVal = Number(group[0].reserve_balance ?? 0);
+    const payouts = group.filter(p => p.payout_id != null);
+    const payoutsHtml = payouts.length
+      ? payouts.map(p => `
+        <div class="bb-payout-row">
+          <span class="bb-payout-name">#${p.rank_no} ${p.username || 'Unbekannt'}</span>
+          <span class="bb-payout-amount">+${fmtCoin(p.amount)} ${sym}</span>
+        </div>`).join('')
+      : '';
+    return `
+      <div class="mf-bar">
+        <div class="bb-top">
+          <span class="bb-label">${sym}-Topf</span>
+          <span class="bb-value">${fmtCoin(reserveVal)} ${sym}</span>
+        </div>
+        <div class="bb-sub">2% Gebühr aus Spieler-Markt-Trades in ${sym} → Top 10 Halter derselben Währung</div>
+        ${payoutsHtml}
+      </div>`;
+  }).join('');
 }
 
 /* ---------- CYCLE-Handelsplatz: Spieler-Orderbuch gegen MOGC ---------- */
@@ -4663,6 +4913,363 @@ async function loadAchievements(){
   `).join('');
 
   achievementsLoaded = true;
+}
+
+/* ---------- Tagesaufgaben (Daily Quests) ---------- */
+async function loadDailyQuests(){
+  const wrap = document.getElementById('questsList');
+  const { data, error } = await sb.schema('platform').rpc('get_my_daily_quests');
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Tagesaufgaben nicht laden.</div>'; return; }
+
+  const rows = data || [];
+  const doneCount = rows.filter(q => q.completed).length;
+  document.getElementById('questsSummary').textContent = isGuest()
+    ? 'Für Gast-Accounts nicht verfügbar — mach dir einen eigenen Account, um Belohnungen einzusammeln.'
+    : `${doneCount} / ${rows.length} heute abgeschlossen`;
+
+  wrap.innerHTML = rows.map(q => {
+    const pct = Math.max(0, Math.min(100, Math.round((Number(q.progress) / Number(q.target_value)) * 100)));
+    let actionHtml;
+    if (isGuest()) {
+      actionHtml = '<span class="quest-progress-txt">Gast-Account</span>';
+    } else if (q.claimed) {
+      actionHtml = '<span class="quest-claimed-txt">✅ abgeholt</span>';
+    } else if (q.completed) {
+      actionHtml = `<button type="button" class="btn btn-primary quest-claim-btn" data-quest-id="${q.id}">Abholen</button>`;
+    } else {
+      actionHtml = `<span class="quest-progress-txt">${fmtCoin(q.progress)} / ${fmtCoin(q.target_value)}</span>`;
+    }
+    return `
+      <div class="quest-card ${q.completed ? 'done' : ''} ${q.claimed ? 'claimed' : ''}">
+        <div class="q-title">${q.title}</div>
+        <div class="q-desc">${q.description}</div>
+        <div class="q-track"><div class="q-fill" style="width:${pct}%"></div></div>
+        <div class="q-meta">
+          <span class="quest-reward">+${fmtCoin(q.reward_mogc)} MOGC</span>
+          ${actionHtml}
+        </div>
+      </div>`;
+  }).join('') || '<div class="sm-hint">Keine Tagesaufgaben gefunden.</div>';
+
+  wrap.querySelectorAll('.quest-claim-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('claim_daily_quest', { p_quest_id: btn.dataset.questId });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Belohnung abgeholt.', true, 'coin');
+      await loadDailyQuests();
+      await loadEverything({ light: true });
+    });
+  });
+}
+
+/* ---------- Gilden/Teams ---------- */
+let guildLoading = false;
+
+async function loadGuildTab(){
+  if (guildLoading) return;
+  guildLoading = true;
+  clearMsg('guildStatusMsg');
+  try {
+    const { data: mine, error } = await sb.schema('platform').rpc('get_my_guild');
+    if (error) { showMsg('guildStatusMsg', 'Konnte Gilde nicht laden.', false); return; }
+    const guild = (mine && mine[0]) || null;
+
+    document.getElementById('guildNoGuildWrap').style.display = guild ? 'none' : '';
+    document.getElementById('guildMineWrap').style.display = guild ? '' : 'none';
+
+    if (guild) {
+      await renderGuildMine(guild);
+    } else {
+      await Promise.all([renderGuildBrowse(), renderGuildInvites()]);
+    }
+    await renderGuildLeaderboard();
+  } finally {
+    guildLoading = false;
+  }
+}
+
+const GUILD_JOIN_MODE_LABEL = { open: 'Offen', request: 'Beitrittsanfrage', invite: 'Nur Einladung' };
+
+function guildRoleBadge(role){
+  const label = role === 'leader' ? 'Leiter' : role === 'officer' ? 'Offizier' : 'Mitglied';
+  return `<span class="guild-role-badge ${role}">${label}</span>`;
+}
+
+async function renderGuildInvites(){
+  const panel = document.getElementById('guildInvitesPanel');
+  const wrap = document.getElementById('guildInvitesList');
+  const { data, error } = await sb.schema('platform').rpc('get_my_guild_invites');
+  if (error || !data || !data.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  wrap.innerHTML = data.map(inv => `
+    <div class="guild-row">
+      <div>
+        <div class="gr-main">[${inv.guild_tag}] ${inv.guild_name}</div>
+        <div class="gr-sub">Eingeladen von ${inv.invited_by_username || 'Unbekannt'} · ${new Date(inv.created_at).toLocaleString('de-DE')}</div>
+      </div>
+      <div class="gr-actions">
+        <button type="button" class="btn btn-primary" data-invite-accept="${inv.id}">Annehmen</button>
+        <button type="button" class="btn btn-ghost" data-invite-decline="${inv.id}">Ablehnen</button>
+      </div>
+    </div>`).join('');
+
+  wrap.querySelectorAll('[data-invite-accept]').forEach(btn => btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const { error } = await sb.schema('platform').rpc('resolve_invite', { p_invite_id: btn.dataset.inviteAccept, p_accept: true });
+    if (error) { showMsg('guildStatusMsg', error.message, false); btn.disabled = false; return; }
+    showMsg('guildStatusMsg', 'Willkommen in der Gilde!', true, 'success');
+    await loadGuildTab();
+  }));
+  wrap.querySelectorAll('[data-invite-decline]').forEach(btn => btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    await sb.schema('platform').rpc('resolve_invite', { p_invite_id: btn.dataset.inviteDecline, p_accept: false });
+    await loadGuildTab();
+  }));
+}
+
+async function renderGuildBrowse(p_search){
+  const wrap = document.getElementById('guildBrowseList');
+  const { data, error } = await sb.schema('platform').rpc('list_guilds', { p_search: p_search || null });
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Gilden nicht laden.</div>'; return; }
+  const rows = data || [];
+  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Keine Gilden gefunden.</div>'; return; }
+
+  wrap.innerHTML = rows.map(g => {
+    const full = g.member_count >= g.member_cap;
+    let actionHtml;
+    if (full) actionHtml = '<span class="sm-hint">voll</span>';
+    else if (g.join_mode === 'invite') actionHtml = '<span class="sm-hint">nur Einladung</span>';
+    else actionHtml = `<button type="button" class="btn btn-primary" data-join-guild="${g.id}">${g.join_mode === 'open' ? 'Beitreten' : 'Anfragen'}</button>`;
+    return `
+      <div class="guild-row">
+        <div>
+          <div class="gr-main">[${g.tag}] ${g.name}</div>
+          <div class="gr-sub">${g.member_count}/${g.member_cap} Mitglieder · ${GUILD_JOIN_MODE_LABEL[g.join_mode]} · Kasse ${fmtCoin(g.treasury_balance)} MOGC · Dividende Stufe ${g.dividend_tier}</div>
+        </div>
+        <div class="gr-actions">${actionHtml}</div>
+      </div>`;
+  }).join('');
+
+  wrap.querySelectorAll('[data-join-guild]').forEach(btn => btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const { data, error } = await sb.schema('platform').rpc('join_guild', { p_guild_id: btn.dataset.joinGuild });
+    if (error) { showMsg('guildStatusMsg', error.message, false); btn.disabled = false; return; }
+    showMsg('guildStatusMsg', data === 'joined' ? 'Gilde beigetreten!' : 'Beitrittsanfrage gesendet.', true, 'success');
+    await loadGuildTab();
+  }));
+}
+
+document.getElementById('guildSearchBtn').addEventListener('click', () => {
+  renderGuildBrowse(document.getElementById('guildSearchInput').value.trim());
+});
+
+document.getElementById('guildCreateBtn').addEventListener('click', async () => {
+  const name = document.getElementById('guildCreateNameInput').value.trim();
+  const tag = document.getElementById('guildCreateTagInput').value.trim();
+  const joinMode = document.getElementById('guildCreateJoinModeSelect').value;
+  if (name.length < 3) { showMsg('guildStatusMsg', 'Name muss mindestens 3 Zeichen haben.', false); return; }
+  if (tag.length < 2) { showMsg('guildStatusMsg', 'Tag muss mindestens 2 Zeichen haben.', false); return; }
+  const btn = document.getElementById('guildCreateBtn');
+  btn.disabled = true;
+  const { error } = await sb.schema('platform').rpc('create_guild', { p_name: name, p_tag: tag, p_join_mode: joinMode });
+  btn.disabled = false;
+  if (error) { showMsg('guildStatusMsg', error.message, false); return; }
+  showMsg('guildStatusMsg', 'Gilde gegründet!', true, 'coin');
+  await loadEverything({ light: true });
+  await loadGuildTab();
+});
+
+async function renderGuildMine(guild){
+  document.getElementById('guildMineTitle').textContent = `🛡️ [${guild.tag}] ${guild.name}`;
+  document.getElementById('guildMineJoinMode').textContent = GUILD_JOIN_MODE_LABEL[guild.join_mode] || guild.join_mode;
+  document.getElementById('guildMineMeta').textContent =
+    `${guild.member_count}/${guild.member_cap} Mitglieder · deine Rolle: ${guild.my_role === 'leader' ? 'Leiter' : guild.my_role === 'officer' ? 'Offizier' : 'Mitglied'} · gegründet ${new Date(guild.created_at).toLocaleDateString('de-DE')}`;
+
+  const isLeader = guild.my_role === 'leader';
+  const isOfficer = guild.my_role === 'officer' || isLeader;
+
+  const actions = [];
+  if (isLeader) {
+    actions.push(`<button type="button" class="btn btn-ghost" id="guildDisbandBtn">Gilde auflösen</button>`);
+  } else {
+    actions.push(`<button type="button" class="btn btn-ghost" id="guildLeaveBtn">Gilde verlassen</button>`);
+  }
+  document.getElementById('guildMineActions').innerHTML = actions.join('');
+
+  const disbandBtn = document.getElementById('guildDisbandBtn');
+  if (disbandBtn) disbandBtn.addEventListener('click', async () => {
+    if (!confirm('Wirklich auflösen? Die Gildenkasse geht dabei an die Zentralbank-Reserve.')) return;
+    const { error } = await sb.schema('platform').rpc('disband_guild');
+    if (error) { showMsg('guildStatusMsg', error.message, false); return; }
+    showMsg('guildStatusMsg', 'Gilde aufgelöst.', true);
+    await loadGuildTab();
+  });
+  const leaveBtn = document.getElementById('guildLeaveBtn');
+  if (leaveBtn) leaveBtn.addEventListener('click', async () => {
+    if (!confirm('Gilde wirklich verlassen?')) return;
+    const { error } = await sb.schema('platform').rpc('leave_guild');
+    if (error) { showMsg('guildStatusMsg', error.message, false); return; }
+    showMsg('guildStatusMsg', 'Gilde verlassen.', true);
+    await loadGuildTab();
+  });
+
+  document.getElementById('guildInviteRow').style.display = isOfficer ? '' : 'none';
+  document.getElementById('guildJoinRequestsPanel').style.display = (isOfficer && guild.join_mode === 'request') ? '' : 'none';
+
+  const inviteBtn = document.getElementById('guildInviteBtn');
+  inviteBtn.onclick = async () => {
+    const username = document.getElementById('guildInviteUsernameInput').value.trim();
+    if (!username) return;
+    inviteBtn.disabled = true;
+    const { error } = await sb.schema('platform').rpc('invite_player', { p_guild_id: guild.id, p_username: username });
+    inviteBtn.disabled = false;
+    if (error) { showMsg('guildStatusMsg', error.message, false); return; }
+    showMsg('guildStatusMsg', 'Einladung verschickt.', true);
+    document.getElementById('guildInviteUsernameInput').value = '';
+  };
+
+  const depositBtn = document.getElementById('guildDepositBtn');
+  depositBtn.onclick = async () => {
+    const input = document.getElementById('guildDepositInput');
+    const amount = parseFloat(input.value);
+    if (!amount || amount <= 0) { showMsg('guildStatusMsg', 'Bitte eine gültige MOGC-Menge eingeben.', false); return; }
+    depositBtn.disabled = true;
+    const { error } = await sb.schema('platform').rpc('deposit_guild_treasury', { p_amount: amount });
+    depositBtn.disabled = false;
+    if (error) { showMsg('guildStatusMsg', error.message, false); return; }
+    input.value = '';
+    showMsg('guildStatusMsg', 'Eingezahlt.', true, 'coin');
+    await loadEverything({ light: true });
+    await loadGuildTab();
+  };
+
+  document.getElementById('guildTreasuryBalance').textContent = `${fmtCoin(guild.treasury_balance)} MOGC`;
+  document.getElementById('guildMemberCountTag').textContent = `${guild.member_count}/${guild.member_cap}`;
+
+  await Promise.all([
+    renderGuildMembers(guild.id, isOfficer),
+    isOfficer && guild.join_mode === 'request' ? renderGuildJoinRequests(guild.id) : Promise.resolve(),
+    renderGuildUpgrades(guild.id, isOfficer)
+  ]);
+}
+
+async function renderGuildMembers(guildId, isOfficer){
+  const wrap = document.getElementById('guildMembersList');
+  const { data, error } = await sb.schema('platform').rpc('get_guild_members', { p_guild_id: guildId });
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Mitglieder nicht laden.</div>'; return; }
+  const rows = data || [];
+
+  wrap.innerHTML = rows.map(m => {
+    const isMe = m.player_id === currentUser?.id;
+    const actions = [];
+    if (isOfficer && !isMe && m.role !== 'leader') {
+      if (m.role === 'member') actions.push(`<button type="button" class="btn btn-ghost" data-promote="${m.player_id}">Befördern</button>`);
+      if (m.role === 'officer') actions.push(`<button type="button" class="btn btn-ghost" data-demote="${m.player_id}">Degradieren</button>`);
+      actions.push(`<button type="button" class="btn btn-ghost" data-kick="${m.player_id}">Entfernen</button>`);
+    }
+    return `
+      <div class="guild-row">
+        <div>
+          <div class="gr-main">${m.username || 'Unbekannt'}${guildRoleBadge(m.role)}</div>
+          <div class="gr-sub">${fmtCoin(m.nexus_points)} Nexus-Punkte · beigetreten ${new Date(m.joined_at).toLocaleDateString('de-DE')}</div>
+        </div>
+        <div class="gr-actions">${actions.join('')}</div>
+      </div>`;
+  }).join('') || '<div class="sm-hint">Keine Mitglieder.</div>';
+
+  wrap.querySelectorAll('[data-promote]').forEach(btn => btn.addEventListener('click', async () => {
+    await sb.schema('platform').rpc('promote_member', { p_player_id: btn.dataset.promote });
+    await loadGuildTab();
+  }));
+  wrap.querySelectorAll('[data-demote]').forEach(btn => btn.addEventListener('click', async () => {
+    await sb.schema('platform').rpc('demote_member', { p_player_id: btn.dataset.demote });
+    await loadGuildTab();
+  }));
+  wrap.querySelectorAll('[data-kick]').forEach(btn => btn.addEventListener('click', async () => {
+    if (!confirm('Mitglied wirklich aus der Gilde entfernen?')) return;
+    const { error } = await sb.schema('platform').rpc('kick_member', { p_player_id: btn.dataset.kick });
+    if (error) { showMsg('guildStatusMsg', error.message, false); return; }
+    await loadGuildTab();
+  }));
+}
+
+async function renderGuildJoinRequests(guildId){
+  const wrap = document.getElementById('guildJoinRequestsList');
+  const { data, error } = await sb.schema('platform').rpc('get_guild_join_requests', { p_guild_id: guildId });
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Anfragen nicht laden.</div>'; return; }
+  const rows = data || [];
+  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Keine offenen Anfragen.</div>'; return; }
+
+  wrap.innerHTML = rows.map(r => `
+    <div class="guild-row">
+      <div>
+        <div class="gr-main">${r.username || 'Unbekannt'}</div>
+        <div class="gr-sub">Angefragt ${new Date(r.created_at).toLocaleString('de-DE')}</div>
+      </div>
+      <div class="gr-actions">
+        <button type="button" class="btn btn-primary" data-req-accept="${r.id}">Annehmen</button>
+        <button type="button" class="btn btn-ghost" data-req-reject="${r.id}">Ablehnen</button>
+      </div>
+    </div>`).join('');
+
+  wrap.querySelectorAll('[data-req-accept]').forEach(btn => btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const { error } = await sb.schema('platform').rpc('resolve_join_request', { p_request_id: btn.dataset.reqAccept, p_accept: true });
+    if (error) { showMsg('guildStatusMsg', error.message, false); btn.disabled = false; return; }
+    await loadGuildTab();
+  }));
+  wrap.querySelectorAll('[data-req-reject]').forEach(btn => btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    await sb.schema('platform').rpc('resolve_join_request', { p_request_id: btn.dataset.reqReject, p_accept: false });
+    await loadGuildTab();
+  }));
+}
+
+async function renderGuildUpgrades(guildId, isOfficer){
+  const wrap = document.getElementById('guildUpgradesList');
+  const { data, error } = await sb.schema('platform').rpc('get_guild_upgrade_catalog', { p_guild_id: guildId });
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Upgrades nicht laden.</div>'; return; }
+  const rows = data || [];
+
+  wrap.innerHTML = rows.map(u => {
+    let actionHtml;
+    if (u.owned) actionHtml = '<span class="sm-hint">✅ freigeschaltet</span>';
+    else if (!u.purchasable) actionHtml = '<span class="sm-hint">🔒 gesperrt</span>';
+    else if (isOfficer) actionHtml = `<button type="button" class="btn btn-primary" data-buy-upgrade="${u.key}">${fmtCoin(u.cost_mogc)} MOGC</button>`;
+    else actionHtml = `<span class="sm-hint">${fmtCoin(u.cost_mogc)} MOGC</span>`;
+    return `
+      <div class="guild-upgrade-card ${u.owned ? 'owned' : ''}">
+        <div class="gu-name">${u.name}</div>
+        <div class="gu-desc">${u.description}</div>
+        <div class="gu-meta"><span>Stufe ${u.tier} · ${(u.dividend_rate_bp / 100).toFixed(2)}%/Std.</span>${actionHtml}</div>
+      </div>`;
+  }).join('') || '<div class="sm-hint">Keine Upgrades verfügbar.</div>';
+
+  wrap.querySelectorAll('[data-buy-upgrade]').forEach(btn => btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const { error } = await sb.schema('platform').rpc('purchase_guild_upgrade', { p_upgrade_key: btn.dataset.buyUpgrade });
+    if (error) { showMsg('guildStatusMsg', error.message, false); btn.disabled = false; return; }
+    showMsg('guildStatusMsg', 'Upgrade freigeschaltet!', true, 'levelup');
+    await loadGuildTab();
+  }));
+}
+
+async function renderGuildLeaderboard(){
+  const wrap = document.getElementById('guildLeaderboardList');
+  const { data, error } = await sb.schema('platform').rpc('get_guild_leaderboard', { p_limit: 20 });
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Rangliste nicht laden.</div>'; return; }
+  const rows = data || [];
+  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Noch keine Gilden gegründet.</div>'; return; }
+
+  wrap.innerHTML = rows.map((g, i) => `
+    <div class="guild-row">
+      <div>
+        <div class="gr-main">#${i + 1} [${g.tag}] ${g.name}</div>
+        <div class="gr-sub">${g.member_count} Mitglieder · Kasse ${fmtCoin(g.treasury_balance)} MOGC</div>
+      </div>
+      <div class="gr-actions"><span class="gr-main">${fmtCoin(g.total_points)} Pkt.</span></div>
+    </div>`).join('');
 }
 
 /* ---------- BOND: Festgeld auf STBL (Sperren/Claim) ---------- */
