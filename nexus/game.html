@@ -395,11 +395,11 @@
   }
 
   #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
-  .wrap{ position:relative; z-index:2; max-width:1080px; margin:0 auto; padding:0 24px; }
+  .wrap{ position:relative; z-index:2; max-width:1600px; margin:0 auto; padding:0 24px; }
 
   /* ---------- nav ---------- */
   .nav{ position:sticky; top:0; z-index:10; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
-  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .nav-inner{ max-width:1600px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
   .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; }
   .brand .mark{ width:26px; height:26px; border-radius:50%; background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--blue), var(--gold)); box-shadow:0 0 16px var(--blue-dim); flex-shrink:0; animation:markPulse 3.2s ease-in-out infinite; }
   @keyframes markPulse{ 0%,100%{ box-shadow:0 0 10px var(--blue-dim); } 50%{ box-shadow:0 0 20px rgba(47,140,255,0.5); } }
@@ -718,6 +718,15 @@
   .main-tab-btn{ font-family:'Space Grotesk', sans-serif; font-weight:600; white-space:nowrap;
     width:62px; height:62px; flex:0 0 auto; padding:0; border-radius:14px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
     cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s, border-color .15s; }
+  /* Auf breiten Bildschirmen: Kacheln zentriert ueber die Zeile verteilen statt linksbuendig zu
+     klumpen (Panels darunter sind volle Breite, die Tab-Leiste sah dagegen "kaputt" aus).
+     WICHTIG: keine feste max-width/flex-stretch hier -- Kacheln mit Text-Label (z.B. "Uebersicht",
+     "Prestige") brauchen ihre natuerliche Breite, sonst wird der Text abgeschnitten.
+     Unter 901px bleibt das urspruengliche horizontale Scroll-Verhalten (mobile) unangetastet. */
+  @media (min-width:901px){
+    .main-tabs{ justify-content:center; flex-wrap:wrap; gap:14px; overflow-x:visible; }
+    .main-tab-btn{ flex:0 0 auto; width:auto; min-width:62px; padding:0 18px; }
+  }
   .main-tab-btn .mt-icon{ width:36px; height:36px; object-fit:contain; flex:0 0 auto; }
   /* Emoji-Fallback fuer Tabs ohne eigenes art/tabs/*.png (z.B. Sprungmärkte, neu) --
      gleiche Groesse/Zentrierung wie .mt-icon, nur Text statt Bild. */
@@ -780,8 +789,13 @@
   .cycle-streak-days{ display:flex; gap:4px; flex-wrap:wrap; }
   .cycle-day-dot{ width:14px; height:14px; border-radius:4px; background:var(--panel); border:1px solid var(--line); }
   .cycle-day-dot.filled{ background:var(--up); border-color:var(--up); box-shadow:0 0 6px rgba(61,220,132,0.5); }
-  .sm-market-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:14px; align-items:start; }
-  .sm-market-grid .panel{ margin-bottom:0; }
+  /* Fest auf 3 Karten pro Reihe (Desktop), 2 pro Reihe (mittel), 1 pro Reihe (mobil) --
+     statt variabler auto-wrap-Breite, die je nach Fensterbreite mal 4, mal 3 Karten
+     in eine Reihe gepackt hat. */
+  .sm-market-grid{ display:grid; grid-template-columns:1fr; gap:14px; align-items:stretch; }
+  .sm-market-grid .panel{ margin-bottom:0; display:flex; flex-direction:column; min-width:0; }
+  @media (min-width:640px){ .sm-market-grid{ grid-template-columns:repeat(2, 1fr); } }
+  @media (min-width:1000px){ .sm-market-grid{ grid-template-columns:repeat(3, 1fr); } }
   .sm-cycle-panel{ border-color:rgba(61,220,132,0.35); }
   /* ---------- CYCLE-Handelsplatz (Spieler-Orderbuch) ---------- */
   .cycle-market-panel{ border-color:rgba(61,220,132,0.35); }
@@ -808,6 +822,14 @@
   .sm-trade-box select{ background:var(--panel); border:1px solid var(--line); color:var(--fg); border-radius:8px;
     padding:9px 12px; font-family:var(--mono); font-size:13px; }
   .sm-hint{ font-size:12px; color:var(--fg-dim); margin-top:8px; }
+  .sm-info{ margin-top:8px; }
+  .sm-info summary{ list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; color:var(--fg-dim); padding:5px 10px; border:1px solid var(--line);
+    border-radius:999px; background:var(--bg-alt); width:fit-content; }
+  .sm-info summary::-webkit-details-marker{ display:none; }
+  .sm-info summary:hover{ color:var(--fg); border-color:var(--blue); }
+  .sm-info[open] summary{ color:var(--blue); border-color:var(--blue); }
+  .sm-info .sm-hint{ margin-top:8px; }
 
   /* ---------- BOND (Festgeld auf STBL) ---------- */
   .bond-section{ margin-top:22px; padding-top:18px; border-top:1px solid var(--line); }
@@ -1740,7 +1762,10 @@
           <button type="button" class="btn btn-ghost" id="qntmSellMaxBtn">Alles</button>
           <button type="button" class="btn btn-primary" id="qntmSellBtn">Verkaufen</button>
         </div>
-        <div class="sm-hint">Kollabiert sprunghaft auf einen von 12 Preis-Leveln — 6 normale Zustände (Kollaps · Tiefzustand · Grundzustand · Angeregt · Überlagerung · Singularität) und darunter 6 Krisen-Zustände (Instabile Dekohärenz · Quantenriss · Vakuum-Zerfall · Ereignishorizont · Informationsverlust · Totalkollaps). In der Krisen-Zone sind Käufe gesperrt, verkaufen geht immer — und da der Kurs nur schrittweise driftet, kann es Stunden dauern, bis er wieder positiv ist.</div>
+        <details class="sm-info">
+          <summary>ℹ️ Wie funktioniert QNTM?</summary>
+          <div class="sm-hint">Kollabiert sprunghaft auf einen von 12 Preis-Leveln — 6 normale Zustände (Kollaps · Tiefzustand · Grundzustand · Angeregt · Überlagerung · Singularität) und darunter 6 Krisen-Zustände (Instabile Dekohärenz · Quantenriss · Vakuum-Zerfall · Ereignishorizont · Informationsverlust · Totalkollaps). In der Krisen-Zone sind Käufe gesperrt, verkaufen geht immer — und da der Kurs nur schrittweise driftet, kann es Stunden dauern, bis er wieder positiv ist.</div>
+        </details>
       </div>
 
       <div class="panel">
