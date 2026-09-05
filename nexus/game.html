@@ -822,6 +822,19 @@
   .sm-trade-box select{ background:var(--panel); border:1px solid var(--line); color:var(--fg); border-radius:8px;
     padding:9px 12px; font-family:var(--mono); font-size:13px; }
   .sm-hint{ font-size:12px; color:var(--fg-dim); margin-top:8px; }
+  /* ---------- GOV-Abstimmung ---------- */
+  .gov-vote-opt{ position:relative; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--bg-alt);
+    cursor:pointer; overflow:hidden; text-align:left; font-family:inherit; color:var(--fg); font-size:13px; }
+  .gov-vote-opt:disabled{ cursor:default; opacity:0.85; }
+  .gov-vote-opt .gvo-fill{ position:absolute; inset:0; background:rgba(167,139,250,0.16); width:0%;
+    transition:width .3s ease; z-index:0; }
+  .gov-vote-opt.mine{ border-color:var(--violet); }
+  .gov-vote-opt.mine .gvo-fill{ background:rgba(167,139,250,0.28); }
+  .gov-vote-opt .gvo-label, .gov-vote-opt .gvo-pct{ position:relative; z-index:1; }
+  .gov-vote-opt .gvo-label{ font-weight:600; }
+  .gov-vote-opt .gvo-pct{ font-family:var(--mono); color:var(--fg-dim); white-space:nowrap; }
+  .gov-vote-opt.mine .gvo-pct{ color:var(--violet); }
   .sm-info{ margin-top:8px; }
   .sm-info summary{ list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
     font-size:12px; font-weight:600; color:var(--fg-dim); padding:5px 10px; border:1px solid var(--line);
@@ -1718,6 +1731,14 @@
           <div class="kc-sub">nur durch Erfolge verdienbar, siehe 🏆 Erfolge-Tab</div>
         </div>
       </div>
+    </div>
+
+    <div class="panel" id="govVotePanel" style="margin-top:14px; border-color:rgba(167,139,250,0.35);">
+      <h3>🗳️ <span id="govVoteTitle">GOV-Abstimmung</span> <span class="tag">— dein GOV-Bestand ist dein Stimmgewicht</span></h3>
+      <div class="sm-hint" id="govVoteDesc">–</div>
+      <div id="govVoteOptions" style="display:flex; flex-direction:column; gap:10px; margin-top:14px;"></div>
+      <div class="sm-hint" id="govVoteFooter" style="margin-top:10px;">–</div>
+      <div class="sm-hint" id="govVoteLastResult" style="margin-top:10px; display:none;"></div>
     </div>
 
     <div class="sm-market-grid">
@@ -4037,6 +4058,7 @@ function applySprungmaerkteState(gs){
   // separat laden, "fire and forget" damit der Rest der Anzeige nicht drauf wartet.
   loadCycleMarket();
   loadSigilMarket();
+  loadGovernanceVote();
 }
 
 /* ---------- CYCLE-Handelsplatz: Spieler-Orderbuch gegen MOGC ---------- */
@@ -4219,6 +4241,114 @@ async function loadSigilMarket(){
   } finally {
     sigilMarketLoading = false;
   }
+}
+
+/* ---------- GOV-Abstimmung: Stimmgewicht = aktueller GOV-Bestand ----------
+   Eigene RPCs (get_governance_state / cast_governance_vote), haengt nicht am
+   gebuendelten gs-Objekt -- analog CYCLE-/SIGIL-Handelsplatz oben. */
+let govVoteLoading = false;
+let govVoteCountdownTimer = null;
+async function loadGovernanceVote(){
+  if (govVoteLoading) return;
+  govVoteLoading = true;
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_governance_state');
+    if (error) return;
+    renderGovernanceVote(data || {});
+  } finally {
+    govVoteLoading = false;
+  }
+}
+
+function renderGovernanceVote(state){
+  const panel = document.getElementById('govVotePanel');
+  if (!panel) return;
+  const proposal = state.proposal === null ? null : (state.proposal || state);
+  const optsBox = document.getElementById('govVoteOptions');
+  const descEl = document.getElementById('govVoteDesc');
+  const footerEl = document.getElementById('govVoteFooter');
+  const lastResultEl = document.getElementById('govVoteLastResult');
+
+  if (govVoteCountdownTimer) { clearInterval(govVoteCountdownTimer); govVoteCountdownTimer = null; }
+
+  if (!proposal || !proposal.id) {
+    descEl.textContent = 'Gerade keine aktive Abstimmung — die nächste startet automatisch.';
+    optsBox.innerHTML = '';
+    footerEl.textContent = '–';
+    lastResultEl.style.display = 'none';
+    return;
+  }
+
+  document.getElementById('govVoteTitle').textContent = proposal.title || 'GOV-Abstimmung';
+  descEl.textContent = proposal.description || '–';
+
+  const tally = proposal.tally || {};
+  const totalWeight = Object.values(tally).reduce((sum, v) => sum + Number(v || 0), 0);
+  const myOption = proposal.my_option || null;
+  const myWeight = Number(proposal.my_weight || 0);
+
+  optsBox.innerHTML = (proposal.options || []).map(opt => {
+    const weight = Number(tally[opt.key] || 0);
+    const pct = totalWeight > 0 ? Math.round((weight / totalWeight) * 100) : 0;
+    const isMine = opt.key === myOption;
+    return `
+      <button type="button" class="gov-vote-opt${isMine ? ' mine' : ''}" data-gov-option="${opt.key}">
+        <div class="gvo-fill" style="width:${pct}%;"></div>
+        <span class="gvo-label">${isMine ? '✓ ' : ''}${opt.label}</span>
+        <span class="gvo-pct">${pct}% · ${fmtCoin(weight)} GOV</span>
+      </button>`;
+  }).join('');
+
+  optsBox.querySelectorAll('[data-gov-option]').forEach(btn => {
+    btn.addEventListener('click', () => castGovernanceVote(proposal.id, btn.dataset.govOption));
+  });
+
+  function updateFooter(){
+    const endsAt = new Date(proposal.ends_at).getTime();
+    const remainMs = endsAt - Date.now();
+    const remainTxt = remainMs > 0 ? fmtDuration(remainMs) : 'wird gerade ausgezählt …';
+    const weightTxt = myWeight > 0
+      ? `Dein Stimmgewicht: ${fmtCoin(myWeight)} GOV.`
+      : 'Du hast aktuell 0 GOV — hol dir GOV über Prestige, um mitzustimmen.';
+    footerEl.textContent = `${weightTxt} ${proposal.voter_count ?? 0} Abstimmende insgesamt. Noch ${remainTxt}.`;
+  }
+  updateFooter();
+  govVoteCountdownTimer = setInterval(updateFooter, 30000);
+
+  if (proposal.last_result && proposal.last_result.winning_option) {
+    const won = (proposal.last_result.options || []).find(o => o.key === proposal.last_result.winning_option);
+    lastResultEl.style.display = '';
+    lastResultEl.textContent = won
+      ? `Letztes Ergebnis: "${won.label}" hat gewonnen und ist aktuell als globales Event aktiv.`
+      : '';
+  } else {
+    lastResultEl.style.display = 'none';
+  }
+}
+
+async function castGovernanceVote(proposalId, optionKey){
+  const buttons = document.querySelectorAll('#govVoteOptions [data-gov-option]');
+  buttons.forEach(b => b.disabled = true);
+  const { error } = await sb.schema('platform').rpc('cast_governance_vote', {
+    p_proposal_id: proposalId, p_option_key: optionKey
+  });
+  if (error) {
+    showMsg('statusMsg', error.message, false);
+    buttons.forEach(b => b.disabled = false);
+    return;
+  }
+  showMsg('statusMsg', 'Stimme abgegeben.', true, 'coin');
+  await loadGovernanceVote();
+}
+
+// Kleiner Helfer fuer "noch X Std. Y Min." -- an anderer Stelle im File gibt es
+// keine generische Restzeit-Formatierung, daher hier lokal.
+function fmtDuration(ms){
+  const totalMin = Math.max(0, Math.floor(ms / 60000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h <= 0) return `${m} Min.`;
+  return `${h} Std. ${m} Min.`;
 }
 
 function renderSigilOrderBook(rows){
