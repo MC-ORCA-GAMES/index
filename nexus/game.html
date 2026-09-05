@@ -2,6 +2,38 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.35: Gilden-Wirtschaft umgebaut (auf Jens' Wunsch). Drei Teile:
+    (1) Gildensteuer: guilds.tax_percent (0-5%, Standard 0), vom Leiter per
+    neuer RPC platform.set_guild_tax() einstellbar (#guildTaxRow, nur Leiter
+    sichtbar). Wird automatisch in platform.wallet_credit() abgezogen, wenn
+    MOGC gutgeschrieben wird UND der Spieler in einer Gilde ist -- zentral an
+    einer Stelle statt an jeder einzelnen MOGC-Einnahmequelle (Quests, Prestige,
+    Markt-Verkaeufe, Boersen-Trades etc.), da die alle ohnehin ueber
+    wallet_credit(...,'MOGC',...) laufen. Neuer 4. Parameter
+    p_apply_guild_tax (default true), von tick_guild_dividends() bewusst auf
+    false gesetzt, sonst wuerde die Gilde ihre eigene Dividende nochmal
+    besteuern. Steuerbetrag geht direkt in guilds.treasury_balance, geloggt in
+    guild_treasury_log mit neuer direction 'tax_income'.
+    (2) Gilden-Upgrades: bisher "Gilden-Sparbuch I-IV" (dividend_rate_bp,
+    schaltete/erhoehte eine stuendliche Dividende frei) -- fuehlte sich laut
+    Jens bei der Dividenden-Mathematik komisch an. Umbenannt in
+    "Foerdermengen-Boost I-IV", neue Spalte production_boost_bp statt
+    dividend_rate_bp (Werte 200/400/700/1000 Basispunkte = kumulativ +23%
+    Foerdermenge bei Vollausbau). crypto_farm.get_production_rate() multipliziert
+    jetzt zusaetzlich mit (1 + Summe der gekauften Gilden-Upgrades des
+    Spielers), analog zum bestehenden Skill-Bonus-Faktor. dividend_rate_bp-
+    Spalte bewusst NICHT geloescht (Altdaten, keine Breaking-Change-Notwendigkeit),
+    wird aber von keiner Funktion mehr gelesen.
+    (3) Dividende: statt automatisch ab Kauf irgendeines Upgrades zahlt
+    tick_guild_dividends() jetzt nur noch, wenn die Gilde ALLE Upgrades besitzt
+    (Vollausbau) -- dann taeglich (Cron von stuendlich auf 03:00 UTC umgestellt)
+    1% der Kassenwert gleichmaessig auf alle Mitglieder verteilt (nicht mehr
+    anteilig nach Einzahlung, das war explizit Jens' Entscheidung). Neue
+    direction 'daily_dividend' im Treasury-Log. get_my_guild() liefert dafuer
+    zusaetzlich dividend_unlocked (bool) und tax_percent zurueck -- beides in
+    der "Meine Gilde"-Metazeile fuer alle Mitglieder sichtbar, nicht nur Leiter.
+    Migrationen: guild_tax_and_production_upgrades, wallet_credit_guild_tax,
+    guild_daily_dividend_after_full_upgrade, guild_tax_rpc_and_catalog_updates_v2.
   - v3.34: COMET in platform.snapshot_currency_balances() ergaenzt (letzte
     bekannte Kleinigkeit aus dem Saisonale-Events-Handoff) -- die Funktion hat
     eine hartkodierte Symbol-Liste statt dynamisch aus platform.currencies zu
@@ -2316,6 +2348,17 @@
             </select>
             <button type="button" class="btn btn-ghost" id="guildJoinModeSaveBtn">Beitrittsmodus ändern</button>
           </div>
+          <div class="guild-form-row" id="guildTaxRow" style="display:none;">
+            <select id="guildTaxSelect">
+              <option value="0">0% Gildensteuer</option>
+              <option value="1">1% Gildensteuer</option>
+              <option value="2">2% Gildensteuer</option>
+              <option value="3">3% Gildensteuer</option>
+              <option value="4">4% Gildensteuer</option>
+              <option value="5">5% Gildensteuer</option>
+            </select>
+            <button type="button" class="btn btn-ghost" id="guildTaxSaveBtn">Steuersatz ändern</button>
+          </div>
           <div class="guild-actions-row" id="guildMineActions"></div>
         </div>
 
@@ -2334,7 +2377,7 @@
         </div>
 
         <div class="panel">
-          <h3>💰 Gildenkasse <span class="tag">— finanziert die stündliche Dividende an alle Mitglieder</span></h3>
+          <h3>💰 Gildenkasse <span class="tag">— gefüllt durch Gildensteuer + freiwillige Einzahlungen</span></h3>
           <div class="guild-treasury-box">
             <div class="guild-treasury-balance" id="guildTreasuryBalance">–</div>
             <div class="guild-form-row">
@@ -2346,7 +2389,7 @@
         </div>
 
         <div class="panel">
-          <h3>⬆️ Gilden-Upgrades <span class="tag">— aus der Kasse finanziert, schaltet/erhöht die Dividende dauerhaft frei</span></h3>
+          <h3>⬆️ Gilden-Upgrades <span class="tag">— aus der Kasse finanziert, boostet die Fördermenge aller Mitglieder dauerhaft; nach Vollausbau gibt's zusätzlich eine tägliche Dividende</span></h3>
           <div class="guild-upgrade-grid" id="guildUpgradesList"><div class="sm-hint">Lade Upgrades…</div></div>
         </div>
       </div>
@@ -5177,7 +5220,7 @@ async function renderGuildBrowse(p_search){
       <div class="guild-row">
         <div>
           <div class="gr-main">[${g.tag}] ${g.name}</div>
-          <div class="gr-sub">${g.member_count}/${g.member_cap} Mitglieder · ${GUILD_JOIN_MODE_LABEL[g.join_mode]} · Kasse ${fmtCoin(g.treasury_balance)} MOGC · Dividende Stufe ${g.dividend_tier}</div>
+          <div class="gr-sub">${g.member_count}/${g.member_cap} Mitglieder · ${GUILD_JOIN_MODE_LABEL[g.join_mode]} · Kasse ${fmtCoin(g.treasury_balance)} MOGC · Ausbau ${g.dividend_tier}/4</div>
         </div>
         <div class="gr-actions">${actionHtml}</div>
       </div>`;
@@ -5216,7 +5259,7 @@ async function renderGuildMine(guild){
   document.getElementById('guildMineTitle').textContent = `🛡️ [${guild.tag}] ${guild.name}`;
   document.getElementById('guildMineJoinMode').textContent = GUILD_JOIN_MODE_LABEL[guild.join_mode] || guild.join_mode;
   document.getElementById('guildMineMeta').textContent =
-    `${guild.member_count}/${guild.member_cap} Mitglieder · deine Rolle: ${guild.my_role === 'leader' ? 'Leiter' : guild.my_role === 'officer' ? 'Offizier' : 'Mitglied'} · gegründet ${new Date(guild.created_at).toLocaleDateString('de-DE')}`;
+    `${guild.member_count}/${guild.member_cap} Mitglieder · deine Rolle: ${guild.my_role === 'leader' ? 'Leiter' : guild.my_role === 'officer' ? 'Offizier' : 'Mitglied'} · gegründet ${new Date(guild.created_at).toLocaleDateString('de-DE')} · Gildensteuer: ${guild.tax_percent}% · ${guild.dividend_unlocked ? 'tägliche Dividende aktiv ✅' : 'Dividende ab Vollausbau 🔒'}`;
 
   const isLeader = guild.my_role === 'leader';
   const isOfficer = guild.my_role === 'officer' || isLeader;
@@ -5262,6 +5305,23 @@ async function renderGuildMine(guild){
       joinModeSaveBtn.disabled = false;
       if (error) { showMsg('guildStatusMsg', error.message, false); return; }
       showMsg('guildStatusMsg', 'Beitrittsmodus geändert.', true);
+      await loadGuildTab();
+    };
+  }
+
+  const taxRow = document.getElementById('guildTaxRow');
+  taxRow.style.display = isLeader ? '' : 'none';
+  if (isLeader) {
+    document.getElementById('guildTaxSelect').value = String(guild.tax_percent);
+    const taxSaveBtn = document.getElementById('guildTaxSaveBtn');
+    taxSaveBtn.onclick = async () => {
+      const newTax = parseInt(document.getElementById('guildTaxSelect').value, 10);
+      if (newTax === guild.tax_percent) return;
+      taxSaveBtn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('set_guild_tax', { p_percent: newTax });
+      taxSaveBtn.disabled = false;
+      if (error) { showMsg('guildStatusMsg', error.message, false); return; }
+      showMsg('guildStatusMsg', 'Steuersatz geändert.', true);
       await loadGuildTab();
     };
   }
@@ -5391,7 +5451,7 @@ async function renderGuildUpgrades(guildId, isOfficer){
       <div class="guild-upgrade-card ${u.owned ? 'owned' : ''}">
         <div class="gu-name">${u.name}</div>
         <div class="gu-desc">${u.description}</div>
-        <div class="gu-meta"><span>Stufe ${u.tier} · ${(u.dividend_rate_bp / 100).toFixed(2)}%/Std.</span>${actionHtml}</div>
+        <div class="gu-meta"><span>Stufe ${u.tier} · +${(u.production_boost_bp / 100).toFixed(1)}% Fördermenge</span>${actionHtml}</div>
       </div>`;
   }).join('') || '<div class="sm-hint">Keine Upgrades verfügbar.</div>';
 
