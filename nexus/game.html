@@ -2386,6 +2386,8 @@
             </div>
           </div>
           <div id="guildTreasuryLog" class="sm-hint"></div>
+          <div class="gr-sub" style="margin-top:14px; text-transform:uppercase; letter-spacing:.04em;">Beiträge pro Mitglied</div>
+          <div id="guildContributionsList" style="margin-top:6px;"><div class="sm-hint">Lade Beiträge…</div></div>
         </div>
 
         <div class="panel">
@@ -5359,8 +5361,32 @@ async function renderGuildMine(guild){
   await Promise.all([
     renderGuildMembers(guild.id, isOfficer),
     isOfficer && guild.join_mode === 'request' ? renderGuildJoinRequests(guild.id) : Promise.resolve(),
-    renderGuildUpgrades(guild.id, isOfficer)
+    renderGuildUpgrades(guild.id, isOfficer),
+    renderGuildContributions(guild.id)
   ]);
+}
+
+async function renderGuildContributions(guildId){
+  const wrap = document.getElementById('guildContributionsList');
+  const { data, error } = await sb.schema('platform').rpc('get_guild_treasury_contributions', { p_guild_id: guildId });
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Beiträge nicht laden.</div>'; return; }
+  const rows = data || [];
+  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Noch keine Beiträge.</div>'; return; }
+
+  wrap.innerHTML = rows.map(c => {
+    const total = Number(c.total_contributed) || 0;
+    const sub = total > 0
+      ? `Steuer ${fmtCoin(c.tax_paid)} · Einzahlungen ${fmtCoin(c.deposited)} MOGC · zuletzt ${new Date(c.last_contribution_at).toLocaleDateString('de-DE')}`
+      : 'Noch kein Beitrag';
+    return `
+      <div class="guild-row">
+        <div>
+          <div class="gr-main">${c.username || 'Unbekannt'}${guildRoleBadge(c.role)}</div>
+          <div class="gr-sub">${sub}</div>
+        </div>
+        <div class="gr-main" style="color:var(--blue);">${fmtCoin(total)} MOGC</div>
+      </div>`;
+  }).join('');
 }
 
 async function renderGuildMembers(guildId, isOfficer){
