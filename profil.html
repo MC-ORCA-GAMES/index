@@ -160,6 +160,7 @@
   .preview{ display:flex; align-items:center; gap:14px; margin-bottom:26px; padding-bottom:26px; border-bottom:1px solid var(--line); }
   .preview .pv-avatar{ width:52px; height:52px; border-radius:50%; background:var(--bg-alt); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; }
   .preview .pv-text{ min-width:0; }
+  .pv-title{ font-size:11px; font-weight:600; color:var(--gold); margin-bottom:2px; letter-spacing:0.01em; }
   .preview .pv-name{ font-family:'Space Grotesk'; font-weight:700; font-size:16px; }
   .preview .pv-bio{ font-size:12.5px; color:var(--fg-faint); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
@@ -301,6 +302,7 @@
       <div class="preview">
         <div class="pv-avatar" id="previewAvatar">🚀</div>
         <div class="pv-text">
+          <div class="pv-title" id="previewTitle" style="display:none;"></div>
           <div class="pv-name" id="previewName">Spieler</div>
           <div class="pv-bio" id="previewBio">Noch kein Status-Text</div>
         </div>
@@ -448,6 +450,7 @@
   var previewAvatar = document.getElementById('previewAvatar');
   var previewName = document.getElementById('previewName');
   var previewBio = document.getElementById('previewBio');
+  var previewTitle = document.getElementById('previewTitle');
   var selectedAvatar = '🚀';
 
   var AVATARS = ['🚀','🛰️','👨‍🚀','👽','🪐','🌌','⭐','🌠','🌍','🔭','🛸','⚡','🔥','💫','🌟','🧭','🛡️','⚙️','🎯','☄️','🐋','🦾','🧬','🌙'];
@@ -867,6 +870,19 @@
       }
     }catch(e){
       console.warn('Profil konnte nicht geladen werden', e);
+    }
+    // Exklusiver Titel aus dem Nexus-Kometen-Event -- rein lesend, ausgewaehlt
+    // wird er im Event-Tab von Nexus selbst (platform.set_active_seasonal_title).
+    try{
+      var titleRes = await supabaseClient.schema('platform').from('player_active_title').select('title_text').eq('player_id', user.id).maybeSingle();
+      if(!titleRes.error && titleRes.data && titleRes.data.title_text){
+        previewTitle.textContent = titleRes.data.title_text;
+        previewTitle.style.display = '';
+      } else {
+        previewTitle.style.display = 'none';
+      }
+    }catch(e){
+      previewTitle.style.display = 'none';
     }
     updatePreview();
     renderAcct();

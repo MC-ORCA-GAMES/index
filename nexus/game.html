@@ -1222,6 +1222,7 @@
       <button type="button" class="main-tab-btn" data-tab="prestige" title="Prestige" aria-label="Prestige"><img class="mt-icon" src="art/tabs/prestige.png" alt="Prestige"></button>
       <button type="button" class="main-tab-btn" data-tab="shop" title="Shop" aria-label="Shop"><img class="mt-icon" src="art/tabs/shop.png" alt="Shop"></button>
       <button type="button" class="main-tab-btn" data-tab="erfolge" title="Erfolge" aria-label="Erfolge"><span class="mt-icon-emoji">🏆</span></button>
+      <button type="button" class="main-tab-btn" data-tab="event" title="Kometen-Event" aria-label="Kometen-Event"><span class="mt-icon-emoji">☄️</span></button>
     </nav>
 
     <div class="tab-page active" id="tabPage-uebersicht">
@@ -2310,6 +2311,43 @@
       </div>
       <div id="achCategoriesWrap"><div class="sm-hint">Lade Erfolge…</div></div>
     </div>
+
+    <div class="tab-page" id="tabPage-event">
+      <div class="panel">
+        <h3>☄️ Kometen-Event <span class="tag">— wiederkehrendes Monats-Event, Belohnung in Kometen-Fragmenten (COMET)</span></h3>
+        <div class="top-row">
+          <div class="stat-card">
+            <div class="label">Kometen-Fragmente</div>
+            <div class="value coin-value">☄️ <span class="js-balance-comet">–</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Läuft noch</div>
+            <div class="value" id="eventCountdown">–</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>📋 Event-Aufgaben <span class="tag">— gelten für den ganzen Monat, Reset bei Rollover</span></h3>
+        <div class="quest-summary" id="eventQuestsSummary">–</div>
+        <div class="quest-grid" id="eventQuestsList"><div class="sm-hint">Lade Event-Aufgaben…</div></div>
+      </div>
+
+      <div class="panel">
+        <h3>🏆 Event-Erfolge</h3>
+        <div class="ach-grid" id="eventAchList"><div class="sm-hint">Lade Event-Erfolge…</div></div>
+      </div>
+
+      <div class="panel">
+        <h3>🛍️ Event-Shop <span class="tag">— exklusiv, nur mit COMET, Items bleiben dauerhaft im Besitz</span></h3>
+        <div class="ach-grid" id="eventShopList"><div class="sm-hint">Lade Event-Shop…</div></div>
+      </div>
+
+      <div class="panel">
+        <h3>🏷️ Dein Titel <span class="tag">— sichtbar auf der Rangliste (Ränge) und im Profil</span></h3>
+        <div id="eventTitleWrap"><div class="sm-hint">Lade Titel…</div></div>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -2815,6 +2853,9 @@ function enterGame(){
     }
     if (tabId === 'gilde') {
       loadGuildTab();
+    }
+    if (tabId === 'event') {
+      loadSeasonalEvent();
     }
     if (tabId === 'wallet') {
       if (novaChart) novaChart.resize();
@@ -5270,6 +5311,152 @@ async function renderGuildLeaderboard(){
       </div>
       <div class="gr-actions"><span class="gr-main">${fmtCoin(g.total_points)} Pkt.</span></div>
     </div>`).join('');
+}
+
+/* ---------- Kometen-Event (Saisonales Event) ---------- */
+let seasonalEventLoading = false;
+let seasonalEventData = null;
+
+async function loadSeasonalEvent(){
+  if (seasonalEventLoading) return;
+  seasonalEventLoading = true;
+  clearMsg('statusMsg');
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_seasonal_event');
+    if (error) {
+      document.getElementById('eventQuestsList').innerHTML = '<div class="sm-hint">Konnte Event nicht laden.</div>';
+      return;
+    }
+    seasonalEventData = data;
+    document.querySelector('.js-balance-comet').textContent = fmtCoin(data.comet_balance);
+    renderEventCountdown(data.run);
+    renderEventQuests(data.quests || []);
+    renderEventAchievements(data.achievements || []);
+    renderEventShop(data.shop_items || [], data.owned_titles || [], data.active_title || null);
+  } finally {
+    seasonalEventLoading = false;
+  }
+}
+
+function renderEventCountdown(run){
+  const el = document.getElementById('eventCountdown');
+  if (!run || !run.ends_at) { el.textContent = '–'; return; }
+  const ms = new Date(run.ends_at).getTime() - Date.now();
+  el.textContent = ms > 0 ? fmtDuration(ms) : 'endet in Kürze';
+}
+
+function renderEventQuests(rows){
+  const wrap = document.getElementById('eventQuestsList');
+  const doneCount = rows.filter(q => q.completed).length;
+  document.getElementById('eventQuestsSummary').textContent = isGuest()
+    ? 'Für Gast-Accounts nicht verfügbar — mach dir einen eigenen Account, um Belohnungen einzusammeln.'
+    : `${doneCount} / ${rows.length} in diesem Lauf abgeschlossen`;
+
+  wrap.innerHTML = rows.map(q => {
+    const pct = Math.max(0, Math.min(100, Math.round((Number(q.progress) / Number(q.target_value)) * 100)));
+    let actionHtml;
+    if (isGuest()) {
+      actionHtml = '<span class="quest-progress-txt">Gast-Account</span>';
+    } else if (q.claimed) {
+      actionHtml = '<span class="quest-claimed-txt">✅ abgeholt</span>';
+    } else if (q.completed) {
+      actionHtml = `<button type="button" class="btn btn-primary event-quest-claim-btn" data-quest-id="${q.id}">Abholen</button>`;
+    } else {
+      actionHtml = `<span class="quest-progress-txt">${fmtCoin(q.progress)} / ${fmtCoin(q.target_value)}</span>`;
+    }
+    return `
+      <div class="quest-card ${q.completed ? 'done' : ''} ${q.claimed ? 'claimed' : ''}">
+        <div class="q-title">${q.title}</div>
+        <div class="q-desc">${q.description}</div>
+        <div class="q-track"><div class="q-fill" style="width:${pct}%"></div></div>
+        <div class="q-meta">
+          <span class="quest-reward">+${fmtCoin(q.reward_comet)} COMET</span>
+          ${actionHtml}
+        </div>
+      </div>`;
+  }).join('') || '<div class="sm-hint">Keine Event-Aufgaben gefunden.</div>';
+
+  wrap.querySelectorAll('.event-quest-claim-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('claim_seasonal_quest', { p_quest_id: btn.dataset.questId });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Belohnung abgeholt.', true, 'coin');
+      await loadSeasonalEvent();
+      await loadEverything({ light: true });
+    });
+  });
+}
+
+function renderEventAchievements(rows){
+  const wrap = document.getElementById('eventAchList');
+  wrap.innerHTML = rows.map(a => `
+    <div class="ach-card ${a.unlocked ? 'unlocked' : 'locked'}">
+      ${a.unlocked ? '<span class="ach-check">✅</span>' : ''}
+      <div class="ach-name">${a.name}</div>
+      <div class="ach-desc">${a.description}</div>
+      <div class="ach-meta">
+        <span></span>
+        <span class="ach-reward">${a.reward_comet > 0 ? '+' + fmtCoin(a.reward_comet) + ' COMET' : ''}</span>
+      </div>
+    </div>
+  `).join('') || '<div class="sm-hint">Keine Event-Erfolge gefunden.</div>';
+}
+
+function renderEventShop(items, ownedTitles, activeTitle){
+  const wrap = document.getElementById('eventShopList');
+  wrap.innerHTML = items.map(it => `
+    <div class="ach-card ${it.owned ? 'unlocked' : 'locked'}" style="opacity:1;">
+      ${it.owned ? '<span class="ach-check">✅</span>' : ''}
+      <div class="ach-name">${it.name}</div>
+      <div class="ach-desc">${it.description}</div>
+      <div class="ach-meta">
+        <span class="ach-reward">${fmtCoin(it.price_comet)} COMET</span>
+        ${it.owned
+          ? '<span class="quest-claimed-txt">im Besitz</span>'
+          : `<button type="button" class="btn btn-primary event-shop-buy-btn" data-item-id="${it.id}">Kaufen</button>`}
+      </div>
+    </div>
+  `).join('') || '<div class="sm-hint">Kein Event-Shop verfügbar.</div>';
+
+  wrap.querySelectorAll('.event-shop-buy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('purchase_seasonal_item', { p_item_id: btn.dataset.itemId });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Gekauft.', true, 'coin');
+      await loadSeasonalEvent();
+      await loadEverything({ light: true });
+    });
+  });
+
+  const titleWrap = document.getElementById('eventTitleWrap');
+  if (!ownedTitles.length) {
+    titleWrap.innerHTML = '<div class="sm-hint">Noch kein Titel freigeschaltet — im Event-Shop erhältlich.</div>';
+    return;
+  }
+  titleWrap.innerHTML = `
+    <div class="guild-actions-row">
+      ${ownedTitles.map(t => `
+        <button type="button" class="btn ${t === activeTitle ? 'btn-primary' : 'btn-ghost'} event-title-select-btn" data-title="${t}">${t}</button>
+      `).join('')}
+      <button type="button" class="btn btn-ghost" id="eventTitleClearBtn">Kein Titel</button>
+    </div>`;
+
+  titleWrap.querySelectorAll('.event-title-select-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const item = (seasonalEventData.shop_items || []).find(it => it.title_text === btn.dataset.title);
+      if (!item) return;
+      const { error } = await sb.schema('platform').rpc('set_active_seasonal_title', { p_item_id: item.id });
+      if (error) { showMsg('statusMsg', error.message, false); return; }
+      await loadSeasonalEvent();
+    });
+  });
+  document.getElementById('eventTitleClearBtn').addEventListener('click', async () => {
+    const { error } = await sb.schema('platform').rpc('set_active_seasonal_title', { p_item_id: null });
+    if (error) { showMsg('statusMsg', error.message, false); return; }
+    await loadSeasonalEvent();
+  });
 }
 
 /* ---------- BOND: Festgeld auf STBL (Sperren/Claim) ---------- */
