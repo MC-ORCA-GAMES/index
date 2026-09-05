@@ -1244,6 +1244,14 @@
     <div class="panel">
       <div id="bankBar" class="bank-bar-box compact"></div>
     </div>
+
+    <div class="panel" id="govVotePanel" style="border-color:rgba(167,139,250,0.35);">
+      <h3>🗳️ <span id="govVoteTitle">GOV-Abstimmung</span> <span class="tag">— dein GOV-Bestand ist dein Stimmgewicht</span></h3>
+      <div class="sm-hint" id="govVoteDesc">–</div>
+      <div id="govVoteOptions" style="display:flex; flex-direction:column; gap:10px; margin-top:14px;"></div>
+      <div class="sm-hint" id="govVoteFooter" style="margin-top:10px;">–</div>
+      <div class="sm-hint" id="govVoteLastResult" style="margin-top:10px; display:none;"></div>
+    </div>
     </div>
 
     <div class="tab-page" id="tabPage-wallet">
@@ -1731,14 +1739,6 @@
           <div class="kc-sub">nur durch Erfolge verdienbar, siehe 🏆 Erfolge-Tab</div>
         </div>
       </div>
-    </div>
-
-    <div class="panel" id="govVotePanel" style="margin-top:14px; border-color:rgba(167,139,250,0.35);">
-      <h3>🗳️ <span id="govVoteTitle">GOV-Abstimmung</span> <span class="tag">— dein GOV-Bestand ist dein Stimmgewicht</span></h3>
-      <div class="sm-hint" id="govVoteDesc">–</div>
-      <div id="govVoteOptions" style="display:flex; flex-direction:column; gap:10px; margin-top:14px;"></div>
-      <div class="sm-hint" id="govVoteFooter" style="margin-top:10px;">–</div>
-      <div class="sm-hint" id="govVoteLastResult" style="margin-top:10px; display:none;"></div>
     </div>
 
     <div class="sm-market-grid">
@@ -4746,18 +4746,20 @@ document.getElementById('govClaimBtn').addEventListener('click', async () => {
   await loadEverything({ light: true });
 });
 
-/* ---------- Starter-Rig (Opt-in-Claim statt Auto-Vergabe) ---------- */
-async function claimStarterRig(){
+/* ---------- Willkommenspaket (Opt-in-Claim statt Auto-Vergabe): USB-Miner + MOGC + GOV ---------- */
+async function claimWelcomePackage(){
   const btn = document.getElementById('claimStarterRigBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Wird geholt …'; }
-  const { data, error } = await sb.schema('crypto_farm').rpc('claim_starter_rig');
+  const { data, error } = await sb.schema('crypto_farm').rpc('claim_welcome_package');
   if (error) {
     showMsg('statusMsg', error.message, false);
-    if (btn) { btn.disabled = false; btn.textContent = '🎁 Kostenlosen Starter-Miner holen'; }
+    if (btn) { btn.disabled = false; btn.textContent = '🎁 Willkommenspaket abholen'; }
     return;
   }
-  if (data) {
-    showMsg('statusMsg', 'Starter-Miner abgeholt! 🎉', true, 'coin');
+  if (data && data.claimed) {
+    showMsg('statusMsg', `Willkommenspaket abgeholt: USB-Miner + ${fmtCoin(data.mogc)} MOGC + ${fmtCoin(data.gov)} GOV 🎉`, true, 'coin');
+  } else {
+    showMsg('statusMsg', (data && data.reason) || 'Willkommenspaket wurde bereits abgeholt.', false);
   }
   await loadEverything({ light: true });
 }
@@ -4768,11 +4770,11 @@ function renderFarmOverview(){
   const owned = rigTypes.filter(rt => (playerRigs[rt.id] || 0) > 0);
   if (owned.length === 0) {
     el.innerHTML = `
-      <p class="farm-empty">Noch keine Rigs — hol dir deinen kostenlosen Starter-Miner, oder kauf
-        direkt unten im Mining-Rigs-Panel.</p>
-      <button type="button" class="btn btn-primary" id="claimStarterRigBtn">🎁 Kostenlosen Starter-Miner holen</button>`;
+      <p class="farm-empty">Noch keine Rigs — hol dir dein kostenloses Willkommenspaket (USB-Miner + etwas
+        MOGC + GOV zum direkten Mitreden bei der Abstimmung), oder kauf direkt unten im Mining-Rigs-Panel.</p>
+      <button type="button" class="btn btn-primary" id="claimStarterRigBtn">🎁 Willkommenspaket abholen</button>`;
     const claimBtn = document.getElementById('claimStarterRigBtn');
-    if (claimBtn) claimBtn.addEventListener('click', claimStarterRig, { once: true });
+    if (claimBtn) claimBtn.addEventListener('click', claimWelcomePackage, { once: true });
     return;
   }
   el.innerHTML = '<div class="farm-grid"></div>';
