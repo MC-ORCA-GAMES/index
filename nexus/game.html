@@ -1684,6 +1684,11 @@
     </div>
 
     <div class="tab-page" id="tabPage-aussenposten">
+      <div class="panel" id="outpostLockPanel" style="display:none;border:1px solid rgba(255,180,80,0.35);background:rgba(255,180,80,0.06);">
+        <h3>🔒 Außenposten errichten</h3>
+        <div class="sm-hint">Der Außenposten ist noch nicht errichtet. Solange er geschlossen ist, wird nichts Richtung 🌌 Nexus Singularity exportiert -- geförderte Rohstoffe bleiben komplett in deinem NEXUS-Wallet.</div>
+        <button type="button" class="btn btn-primary" id="outpostBuyBtn" style="margin-top:10px;">Außenposten errichten — 250 Nova-Rift</button>
+      </div>
       <div class="panel">
         <h3>🏗️ Außenposten</h3>
         <div class="top-row" id="forgeBalanceRow"></div>
@@ -2480,6 +2485,8 @@ let forgeBuildingTypes = [];       // alle 40 Gebäude, ungefiltert
 let forgePlayerBuildings = {};     // building_type_id -> quantity
 let forgeBalances = { METAL: 0, KRISTALL: 0, DEUT: 0, ENERGIE: 0 };
 let forgeExportSettings = { export_pct_metal: 0, export_pct_kristall: 0, export_pct_deut: 0, export_pct_energie: 0 };
+let outpostUnlocked = false;
+let buyingOutpost = false;
 let forgeSliderTouched = {};       // resource -> true, solange der Nutzer gerade zieht (nicht vom Server überschreiben)
 let inventoryItemIds = new Set();
 let currentBalance = 0;   // Nova-Rift (volatil, gehalten)
@@ -3596,9 +3603,45 @@ function applyForgeState(gs){
     updateForgeExportPreview(sym);
   });
 
+  outpostUnlocked = !!gs.forge_outpost_unlocked;
+  renderOutpostLock();
+
   renderForgeBuildings();
   renderForgeExportHistory(gs.forge_export_ledger_recent || []);
 }
+
+function renderOutpostLock(){
+  const panel = document.getElementById('outpostLockPanel');
+  const btn = document.getElementById('outpostBuyBtn');
+  if (!panel || !btn) return;
+  panel.style.display = outpostUnlocked ? 'none' : '';
+  btn.disabled = buyingOutpost || currentBalance < 250;
+  btn.textContent = buyingOutpost ? 'Errichte …' : 'Außenposten errichten — 250 Nova-Rift';
+  document.querySelectorAll('#tabPage-aussenposten .forge-export-slider, #tabPage-aussenposten .forge-export-save, #tabPage-aussenposten .forge-export-now')
+    .forEach(el => { el.disabled = !outpostUnlocked; });
+}
+
+async function purchaseOutpost(){
+  if (buyingOutpost || outpostUnlocked) return;
+  buyingOutpost = true;
+  renderOutpostLock();
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('purchase_outpost');
+    if (error) { showMsg('statusMsg', error.message, false); return; }
+    const row = Array.isArray(data) ? data[0] : data;
+    outpostUnlocked = !!row?.outpost_unlocked;
+    currentBalance = Number(row?.nova_rift_balance ?? currentBalance);
+    showMsg('statusMsg', 'Außenposten errichtet -- Export nach Nexus Singularity ist jetzt freigeschaltet.', true);
+    await loadEverything({ light: true });
+  }catch(err){
+    console.error('purchaseOutpost fehlgeschlagen:', err);
+    showMsg('statusMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }finally{
+    buyingOutpost = false;
+    renderOutpostLock();
+  }
+}
+document.getElementById('outpostBuyBtn')?.addEventListener('click', purchaseOutpost);
 
 function forgeBuildingCost(bt, owned, qty){
   const g = Number(bt.cost_growth);
