@@ -2,6 +2,46 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v3.34: COMET in platform.snapshot_currency_balances() ergaenzt (letzte
+    bekannte Kleinigkeit aus dem Saisonale-Events-Handoff) -- die Funktion hat
+    eine hartkodierte Symbol-Liste statt dynamisch aus platform.currencies zu
+    lesen, COMET (seit v-- Saisonale Events) fehlte seit Einfuehrung. Reiner
+    DB-Fix, kein Frontend-Code noetig (Historie wird nur fuer Bestands-
+    Verlaufs-Charts gelesen). Dabei aufgefallen, aber bewusst NICHT mit
+    angefasst: METAL/KRISTALL/DEUT/ENERGIE (Forge-Ressourcen) fehlen in
+    derselben Liste ebenfalls -- war nicht Teil des im Handoff vermerkten
+    Punkts, daher nur als Fund notiert statt ungefragt mitgefixt.
+  - v3.33: Fehlendes update_join_mode() nachgezogen (letzte bekannte offene
+    Kleinigkeit aus dem Governance-Nachtrag). Vorher konnte der Beitrittsmodus
+    (open/request/invite) nur bei Gildengruendung gesetzt werden -- der Hinweis
+    "kannst du spaeter nicht mehr aendern" auf der Gruendungs-Karte war
+    tatsaechlich zutreffend, da schlicht keine RPC dafuer existierte. Neue
+    Funktion platform.update_join_mode(p_join_mode text), analog zum Muster von
+    kick_member()/promote_member() -- Gilde wird ueber die eigene
+    guild_members-Zeile des Aufrufers bestimmt (kein Gilden-Id-Parameter noetig),
+    erlaubt fuer Leiter UND Offiziere (gleiche Berechtigungsstufe wie Einladen/
+    Kick, nicht auf Leiter beschraenkt wie Auflösen/Leitung-uebertragen). Neues
+    Select+Button in der "Meine Gilde"-Karte (#guildJoinModeRow), nur fuer
+    Leiter/Offiziere sichtbar, vorbelegt mit dem aktuellen Modus. Veralteten
+    Hinweistext auf der Gruendungs-Karte entsprechend korrigiert.
+  - v3.32: Mehr Prestige-Tiefe (offener Punkt aus dem Saisonale-Events-Handoff)
+    -- reiner DB-Migrationsschritt, kein Code hier noetig, da renderSkillTree()/
+    buySkillNode() den Skillbaum schon vollstaendig datengetrieben aus
+    platform.skill_nodes rendern (kein hartcodiertes Tier-Limit) und alle
+    Effekt-RPCs (get_production_rate/buy_rig/collect_earnings/do_prestige)
+    effect_value ohnehin per SUM() über alle player_skills lesen. Je Ast
+    (Markt/Oekonomie/Produktion) vier neue, teurere Tiers 5-8 ergaenzt
+    (Kosten 15/21/28/36, Fortsetzung der bestehenden Dreieckszahlen-Reihe
+    1/3/6/10) -- Produktion: +55/+80/+110/+145% (kumulativ +4,6x zusaetzlich
+    zu den bestehenden +70%), Markt: Krisenschutz +15/+15% (Ast-Summe damit
+    70%, bewusst unter dem 80%-Cap in collect_earnings belassen), Bonus-
+    Verstaerker +15/+15% (Ast-Summe 40%, kein Cap), Oekonomie: Grosshandel
+    +10/+10% (Ast-Summe 30% Rabatt, Cap liegt bei 60%, noch Luft fuer
+    spaeter), Neustart-Kapital 5.000/15.000. Dafuer skill_nodes_tier_check
+    von "tier <= 4" auf "tier <= 8" erweitert. Wie im Handoff vermerkt vorher
+    geprueft, wie verzweigt der Baum ist: keine echte Verzweigung, drei
+    unabhaengige lineare Aeste -- daher einfach linear fortgesetzt statt neu
+    strukturiert.
   - v3.31: Spieler-Markt-Gebuehren-Ausschuettung nachgezogen (letzter offener
     Punkt aus v3.30). market_fee_reserve war bisher nur befuellt, nie ausge-
     zahlt. Anders als bei CYCLE/SIGIL (fester 5000er-Schwellwert, immer MOGC
@@ -2240,7 +2280,7 @@
             </select>
             <button type="button" class="btn btn-primary" id="guildCreateBtn">Gründen</button>
           </div>
-          <div class="sm-hint">Beitrittsmodus kannst du später nicht mehr ändern — wähl ihn bewusst.</div>
+          <div class="sm-hint">Leiter und Offiziere können den Beitrittsmodus später jederzeit in der Gilden-Ansicht ändern.</div>
         </div>
 
         <div class="panel" id="guildInvitesPanel" style="display:none;">
@@ -2263,6 +2303,14 @@
         <div class="panel">
           <h3><span id="guildMineTitle">🛡️ Meine Gilde</span> <span class="tag" id="guildMineJoinMode"></span></h3>
           <div id="guildMineMeta" class="sm-hint"></div>
+          <div class="guild-form-row" id="guildJoinModeRow" style="display:none;">
+            <select id="guildJoinModeSelect">
+              <option value="open">Offen — jeder tritt sofort bei</option>
+              <option value="request">Beitrittsanfrage — du bestätigst</option>
+              <option value="invite">Nur per Einladung</option>
+            </select>
+            <button type="button" class="btn btn-ghost" id="guildJoinModeSaveBtn">Beitrittsmodus ändern</button>
+          </div>
           <div class="guild-actions-row" id="guildMineActions"></div>
         </div>
 
@@ -5157,6 +5205,23 @@ async function renderGuildMine(guild){
 
   document.getElementById('guildInviteRow').style.display = isOfficer ? '' : 'none';
   document.getElementById('guildJoinRequestsPanel').style.display = (isOfficer && guild.join_mode === 'request') ? '' : 'none';
+
+  const joinModeRow = document.getElementById('guildJoinModeRow');
+  joinModeRow.style.display = isOfficer ? '' : 'none';
+  if (isOfficer) {
+    document.getElementById('guildJoinModeSelect').value = guild.join_mode;
+    const joinModeSaveBtn = document.getElementById('guildJoinModeSaveBtn');
+    joinModeSaveBtn.onclick = async () => {
+      const newMode = document.getElementById('guildJoinModeSelect').value;
+      if (newMode === guild.join_mode) return;
+      joinModeSaveBtn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('update_join_mode', { p_join_mode: newMode });
+      joinModeSaveBtn.disabled = false;
+      if (error) { showMsg('guildStatusMsg', error.message, false); return; }
+      showMsg('guildStatusMsg', 'Beitrittsmodus geändert.', true);
+      await loadGuildTab();
+    };
+  }
 
   const inviteBtn = document.getElementById('guildInviteBtn');
   inviteBtn.onclick = async () => {
