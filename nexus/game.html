@@ -489,15 +489,24 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
 <style>
   :root{
-    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    /* ---------- Redesign Phase 1 (Richtung A: dicht & funktional,
+       Binance/Kraken-inspiriert) -- siehe nexus_redesign_plan.md.
+       Nur Kern-Tokens (Flaeche/Rahmen/Radius/Kurs-Farben) umgestellt.
+       Die Waehrungs-Akzente darunter bleiben bewusst unveraendert bis
+       Phase 5 (Icon-System statt Farbe pro Waehrung) -- sonst brechen
+       ~49 Stellen im Code, die noch darauf zeigen. ---------- */
+    --bg:#0B0B0E; --bg-alt:#0F0F12; --panel:#131317; --line:rgba(255,255,255,0.08);
     --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+    --radius:6px;
 
+    /* Legacy Waehrungs-Akzente -- Ablösung in Phase 5 */
     --gold:#D4AF37; --red:#D6303F; --violet:#B23AFF; --orange:#FF6A2B;
 
-    /* fuenfte Akzentfarbe: Blau -- fuer NEXUS / den uebergreifenden Markt */
+    /* einziger Marken-Akzent -- fuer NEXUS / den uebergreifenden Markt */
     --blue:#2F8CFF; --blue-dim:rgba(47,140,255,0.14);
-    --up:#3ddc84; --down:#ff5d5d; --mono:'JetBrains Mono', monospace;
-    --cyan:#22D3EE; --pink:#FF4FA3; --teal:#2DD4A7; --lime:#B4E61D; --indigo:#8A63F5;
+    --up:#0ECB81; --up-dim:rgba(14,203,129,0.14);
+    --down:#F6465D; --down-dim:rgba(246,70,93,0.14);
+    --mono:'JetBrains Mono', monospace;
   }
   *{ box-sizing:border-box; }
   html{ scroll-behavior:smooth; }
@@ -507,7 +516,7 @@
   }
   h1,h2,h3, .display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
   a{ color:inherit; text-decoration:none; }
-  ::selection{ background:var(--blue); color:#0a0b12; }
+  ::selection{ background:var(--blue); color:#0B0B0E; }
   :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
   .hidden{ display:none !important; }
 
@@ -529,7 +538,7 @@
   .brand .divider{ width:1px; height:16px; background:var(--line); margin:0 2px; }
   .brand .sub{ color:var(--blue); font-weight:700; }
   .brand .game-pill{ font-family:'Inter'; font-weight:600; font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase; color:var(--blue); background:var(--blue-dim); padding:3px 9px; border-radius:999px; }
-  .brand .game-pill.pill-alt{ color:var(--up); background:rgba(61,220,132,0.12); }
+  .brand .game-pill.pill-alt{ color:var(--up); background:rgba(14,203,129,0.12); }
   @media (max-width:760px){ .brand .game-pill.pill-alt{ display:none; } }
   @media (max-width:600px){ .brand .game-pill{ display:none; } }
   .back-link{ font-size:12.5px; color:var(--fg-dim); display:inline-flex; align-items:center; gap:6px; transition:color .15s; }
@@ -575,7 +584,7 @@
   .hero h1 .accent{ background:linear-gradient(100deg, #6fb4ff, var(--blue) 60%, #1a5fd6); -webkit-background-clip:text; background-clip:text; color:transparent; }
   .hero p{ font-size:16.5px; line-height:1.65; color:var(--fg-dim); max-width:520px; margin:0 0 30px; }
   .hero-ctas{ display:flex; gap:14px; flex-wrap:wrap; }
-  .btn{ display:inline-flex; align-items:center; gap:8px; font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; padding:13px 24px; border-radius:10px; transition:transform .15s, box-shadow .15s, background .15s, border-color .15s; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; padding:13px 24px; border-radius:var(--radius); transition:transform .15s, box-shadow .15s, background .15s, border-color .15s; }
   .btn-primary{ background:var(--blue); color:#061224; }
   .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 8px 24px var(--blue-dim); }
   .btn-ghost{ border:1px solid var(--line); color:var(--fg); }
@@ -583,7 +592,7 @@
 
   /* ---------- feature strip: warum uebergreifend ---------- */
   .features{ padding:8px 0 56px; display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:18px; }
-  .feature{ border:1px solid var(--line); border-radius:14px; padding:20px 20px 22px; background:var(--panel); }
+  .feature{ border:1px solid var(--line); border-radius:var(--radius); padding:20px 20px 22px; background:var(--panel); }
   .feature .fi{ width:34px; height:34px; border-radius:9px; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:14px; }
   .feature h4{ margin:0 0 6px; font-size:14.5px; font-weight:600; }
   .feature p{ margin:0; font-size:13px; line-height:1.55; color:var(--fg-dim); }
@@ -606,15 +615,15 @@
 
   /* ---------- login ---------- */
   .login-section{ padding:10px 0 90px; display:flex; justify-content:center; }
-  .login-box{ width:100%; max-width:380px; border:1px solid var(--line); border-radius:16px; background:var(--panel); padding:28px 26px; }
+  .login-box{ width:100%; max-width:380px; border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); padding:28px 26px; }
   .login-box .lb-head{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
   .login-box .lb-head .fi{ width:30px; height:30px; border-radius:8px; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:14px; }
   .login-box h2{ font-size:15.5px; font-weight:600; margin:0; }
   .login-box .lb-sub{ font-size:12.5px; color:var(--fg-dim); margin:6px 0 20px; line-height:1.5; }
-  input{ width:100%; box-sizing:border-box; padding:11px 12px; margin:6px 0; border-radius:9px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-family:'Inter'; font-size:13.5px; }
+  input{ width:100%; box-sizing:border-box; padding:11px 12px; margin:6px 0; border-radius:var(--radius); border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-family:'Inter'; font-size:13.5px; }
   input:focus{ outline:none; border-color:var(--blue); }
   input#otpInput{ font-family:var(--mono); letter-spacing:3px; text-align:center; }
-  button{ font-family:'Space Grotesk'; font-size:13px; font-weight:600; padding:11px 16px; border-radius:9px; border:1px solid var(--line); background:transparent; color:var(--fg); cursor:pointer; transition:border-color .15s, background .15s; }
+  button{ font-family:'Space Grotesk'; font-size:13px; font-weight:600; padding:11px 16px; border-radius:var(--radius); border:1px solid var(--line); background:transparent; color:var(--fg); cursor:pointer; transition:border-color .15s, background .15s; }
   button:hover:not(:disabled){ border-color:var(--blue); background:rgba(47,140,255,0.06); }
   button:disabled{ opacity:0.4; cursor:default; }
   .btn-block{ width:100%; margin-top:8px; background:var(--blue); border-color:var(--blue); color:#061224; }
@@ -625,8 +634,8 @@
   .btn-block-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); color:var(--fg); }
   .lb-guest-hint{ font-size:11px; color:var(--fg-faint); line-height:1.5; margin:8px 0 0; text-align:center; }
   .msg{ font-family:'Inter'; font-size:12.5px; padding:10px 12px; border-radius:9px; margin-top:10px; text-align:left; line-height:1.5; }
-  .msg.ok{ background:rgba(61,220,132,0.1); color:var(--up); }
-  .msg.err{ background:rgba(255,93,93,0.1); color:var(--down); }
+  .msg.ok{ background:rgba(14,203,129,0.1); color:var(--up); }
+  .msg.err{ background:rgba(246,70,93,0.1); color:var(--down); }
 
   /* ---------- dashboard ---------- */
   .dash{ padding:0 0 90px; position:relative; }
@@ -635,14 +644,14 @@
   @media (max-width:760px){ .dash-watermark{ display:none; } }
   .bank-bar-box{
     border:1px solid var(--line); background:var(--panel);
-    border-radius:12px; padding:14px 16px; margin-bottom:20px;
+    border-radius:var(--radius); padding:14px 16px; margin-bottom:20px;
   }
   .bank-bar-box .bb-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; font-family:var(--mono); font-size:12px; margin-bottom:9px; }
   .bank-bar-box .bb-label{ color:var(--fg-faint); display:flex; align-items:center; gap:7px; }
-  .bank-bar-box .bb-label .bb-icon{ color:var(--gold); }
-  .bank-bar-box .bb-value{ color:var(--gold); font-weight:600; }
-  .bank-bar-box .bb-track{ position:relative; height:8px; border-radius:999px; background:rgba(212,175,55,0.1); overflow:hidden; }
-  .bank-bar-box .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, #8a6c1c, var(--gold)); box-shadow:0 0 12px rgba(212,175,55,0.65), 0 0 2px rgba(212,175,55,0.9); transition:width .8s cubic-bezier(.2,.8,.2,1); animation:bbPulse 2.6s ease-in-out infinite; }
+  .bank-bar-box .bb-label .bb-icon{ color:var(--blue); }
+  .bank-bar-box .bb-value{ color:var(--blue); font-weight:600; }
+  .bank-bar-box .bb-track{ position:relative; height:8px; border-radius:999px; background:var(--blue-dim); overflow:hidden; }
+  .bank-bar-box .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, #1a5fd6, var(--blue)); box-shadow:0 0 12px rgba(47,140,255,0.65), 0 0 2px rgba(47,140,255,0.9); transition:width .8s cubic-bezier(.2,.8,.2,1); animation:bbPulse 2.6s ease-in-out infinite; }
   @keyframes bbPulse{ 0%,100%{ filter:brightness(1); } 50%{ filter:brightness(1.28); } }
   .bank-bar-box .bb-sub{ font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-top:6px; }
   .bank-bar-box .bb-divider{ height:1px; background:var(--line); margin:12px 0; }
@@ -652,28 +661,28 @@
   #pulseBankBar{ font-family:var(--mono); }
   #pulseBankBar .bb-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:12px; margin-bottom:9px; }
   #pulseBankBar .bb-label{ color:var(--fg-faint); display:flex; align-items:center; gap:7px; }
-  #pulseBankBar .bb-label .bb-icon{ color:var(--teal); }
-  #pulseBankBar .bb-value{ color:var(--teal); font-weight:600; }
-  #pulseBankBar .bb-track{ position:relative; height:8px; border-radius:999px; background:rgba(45,212,167,0.1); overflow:hidden; }
-  #pulseBankBar .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, #17705a, var(--teal)); box-shadow:0 0 12px rgba(45,212,167,0.65), 0 0 2px rgba(45,212,167,0.9); transition:width .8s cubic-bezier(.2,.8,.2,1); }
+  #pulseBankBar .bb-label .bb-icon{ color:var(--blue); }
+  #pulseBankBar .bb-value{ color:var(--blue); font-weight:600; }
+  #pulseBankBar .bb-track{ position:relative; height:8px; border-radius:999px; background:var(--blue-dim); overflow:hidden; }
+  #pulseBankBar .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, #1a5fd6, var(--blue)); box-shadow:0 0 12px rgba(47,140,255,0.65), 0 0 2px rgba(47,140,255,0.9); transition:width .8s cubic-bezier(.2,.8,.2,1); }
   #pulseBankBar .bb-sub{ font-size:10.5px; color:var(--fg-faint); margin-top:6px; }
   #pulseBankBar .bb-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; padding:4px 0; border-top:1px solid var(--line); }
   #pulseBankBar .bb-payout-row:first-child{ border-top:none; }
-  #pulseBankBar .bb-payout-rank{ color:var(--teal); font-weight:600; min-width:22px; }
+  #pulseBankBar .bb-payout-rank{ color:var(--blue); font-weight:600; min-width:22px; }
   #pulseBankBar .bb-payout-name{ color:var(--fg-faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #pulseBankBar .bb-payout-amount{ color:var(--fg); }
 
   #relayBankBar{ font-family:var(--mono); }
   #relayBankBar .bb-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:12px; margin-bottom:9px; }
   #relayBankBar .bb-label{ color:var(--fg-faint); display:flex; align-items:center; gap:7px; }
-  #relayBankBar .bb-label .bb-icon{ color:var(--indigo); }
-  #relayBankBar .bb-value{ color:var(--indigo); font-weight:600; }
-  #relayBankBar .bb-track{ position:relative; height:8px; border-radius:999px; background:rgba(138,99,245,0.1); overflow:hidden; }
-  #relayBankBar .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, #4a3480, var(--indigo)); box-shadow:0 0 12px rgba(138,99,245,0.65), 0 0 2px rgba(138,99,245,0.9); transition:width .8s cubic-bezier(.2,.8,.2,1); }
+  #relayBankBar .bb-label .bb-icon{ color:var(--blue); }
+  #relayBankBar .bb-value{ color:var(--blue); font-weight:600; }
+  #relayBankBar .bb-track{ position:relative; height:8px; border-radius:999px; background:var(--blue-dim); overflow:hidden; }
+  #relayBankBar .bb-fill{ position:absolute; inset:0 auto 0 0; height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, #1a5fd6, var(--blue)); box-shadow:0 0 12px rgba(47,140,255,0.65), 0 0 2px rgba(47,140,255,0.9); transition:width .8s cubic-bezier(.2,.8,.2,1); }
   #relayBankBar .bb-sub{ font-size:10.5px; color:var(--fg-faint); margin-top:6px; }
   #relayBankBar .bb-payout-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; padding:4px 0; border-top:1px solid var(--line); }
   #relayBankBar .bb-payout-row:first-child{ border-top:none; }
-  #relayBankBar .bb-payout-rank{ color:var(--indigo); font-weight:600; min-width:22px; }
+  #relayBankBar .bb-payout-rank{ color:var(--blue); font-weight:600; min-width:22px; }
   #relayBankBar .bb-payout-name{ color:var(--fg-faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #relayBankBar .bb-payout-amount{ color:var(--fg); }
 
@@ -681,7 +690,7 @@
      da hier oft mehrere Bloecke pro Panel sichtbar sind: Orderbuch + Reserve +
      eigene Orders). Rang wandert mit in die bb-sub-Zeile statt eigener Zeile,
      leere Ausschuettungsliste wird komplett weggelassen statt Platzhaltertext. */
-  #cycleBankBar, #sigilBankBar{ font-family:var(--mono); background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  #cycleBankBar, #sigilBankBar{ font-family:var(--mono); background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
   #cycleBankBar .bb-top, #sigilBankBar .bb-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11.5px; margin-bottom:6px; }
   #cycleBankBar .bb-label, #sigilBankBar .bb-label{ color:var(--fg-faint); display:flex; align-items:center; gap:6px; }
   #cycleBankBar .bb-track, #sigilBankBar .bb-track{ position:relative; height:5px; border-radius:999px; overflow:hidden; }
@@ -692,20 +701,20 @@
   #cycleBankBar .bb-payout-name, #sigilBankBar .bb-payout-name{ color:var(--fg-faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #cycleBankBar .bb-payout-amount, #sigilBankBar .bb-payout-amount{ color:var(--fg); }
 
-  #cycleBankBar .bb-label .bb-icon, #cycleBankBar .bb-value, #cycleBankBar .bb-payout-rank{ color:#A78BFA; }
+  #cycleBankBar .bb-label .bb-icon, #cycleBankBar .bb-value, #cycleBankBar .bb-payout-rank{ color:var(--blue); }
   #cycleBankBar .bb-value{ font-weight:600; }
   #cycleBankBar .bb-payout-rank{ font-weight:600; min-width:20px; }
-  #cycleBankBar .bb-track{ background:rgba(167,139,250,0.12); }
-  #cycleBankBar .bb-fill{ background:linear-gradient(90deg, #5b3fa0, #A78BFA); box-shadow:0 0 8px rgba(167,139,250,0.55); }
+  #cycleBankBar .bb-track{ background:var(--blue-dim); }
+  #cycleBankBar .bb-fill{ background:linear-gradient(90deg, #1a5fd6, var(--blue)); box-shadow:0 0 8px rgba(47,140,255,0.55); }
 
-  #sigilBankBar .bb-label .bb-icon, #sigilBankBar .bb-value, #sigilBankBar .bb-payout-rank{ color:#F472B6; }
+  #sigilBankBar .bb-label .bb-icon, #sigilBankBar .bb-value, #sigilBankBar .bb-payout-rank{ color:var(--blue); }
   #sigilBankBar .bb-value{ font-weight:600; }
   #sigilBankBar .bb-payout-rank{ font-weight:600; min-width:20px; }
-  #sigilBankBar .bb-track{ background:rgba(244,114,182,0.12); }
-  #sigilBankBar .bb-fill{ background:linear-gradient(90deg, #9d3d70, #F472B6); box-shadow:0 0 8px rgba(244,114,182,0.55); }
+  #sigilBankBar .bb-track{ background:var(--blue-dim); }
+  #sigilBankBar .bb-fill{ background:linear-gradient(90deg, #1a5fd6, var(--blue)); box-shadow:0 0 8px rgba(47,140,255,0.55); }
   /* ---------- Spieler-Markt: Gebuehren-Reserve pro Waehrung (Bank-Tab) ---------- */
   #marketFeeBankList{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
-  .mf-bar{ font-family:var(--mono); background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .mf-bar{ font-family:var(--mono); background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
   .mf-bar .bb-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11.5px; margin-bottom:4px; }
   .mf-bar .bb-label{ color:var(--fg-faint); }
   .mf-bar .bb-value{ color:var(--blue); font-weight:600; }
@@ -768,7 +777,7 @@
   /* ---------- offline earnings modal ---------- */
   .offline-modal-backdrop{ position:fixed; inset:0; z-index:100; background:rgba(6,7,12,0.72); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn .25s ease; }
   @keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
-  .offline-modal-card{ width:100%; max-width:360px; border:1px solid var(--line); background:var(--panel); border-radius:18px; padding:28px 26px 24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5); animation:popIn .35s cubic-bezier(.2,.9,.25,1.2); }
+  .offline-modal-card{ width:100%; max-width:360px; border:1px solid var(--line); background:var(--panel); border-radius:var(--radius); padding:28px 26px 24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5); animation:popIn .35s cubic-bezier(.2,.9,.25,1.2); }
   @keyframes popIn{ from{ opacity:0; transform:translateY(14px) scale(.96); } to{ opacity:1; transform:translateY(0) scale(1); } }
   .offline-modal-card .om-icon{ width:52px; height:52px; margin:0 auto 14px; border-radius:50%; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 0 22px var(--blue-dim); overflow:hidden; }
   .offline-modal-card .om-icon img{ width:70%; height:70%; object-fit:contain; }
@@ -786,18 +795,18 @@
   .offline-modal-card .om-amount-row .om-amount-val{ font-size:22px; }
   .offline-modal-card .om-amount-row:first-child .om-amount-val{ font-size:28px; }
   .offline-modal-card .om-amount-row .om-plus{ font-size:16px; opacity:0.8; margin-right:1px; }
-  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 22px; margin-bottom:18px; }
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-bottom:18px; }
   .panel h3{ font-family:'Space Grotesk'; font-size:14px; font-weight:600; margin:0 0 16px; display:flex; align-items:center; gap:8px; }
   .panel h3 .tag{ font-weight:400; color:var(--fg-faint); font-size:12px; }
   .panel h3 .live-dot{ width:7px; height:7px; border-radius:50%; background:var(--up); box-shadow:0 0 8px var(--up); animation:livePulse 2.2s ease-in-out infinite; flex-shrink:0; }
   @keyframes livePulse{ 0%,100%{ opacity:0.5; transform:scale(1); } 50%{ opacity:1; transform:scale(1.25); } }
-  .fly-amount{ position:fixed; z-index:50; font-family:'Space Grotesk'; font-weight:700; font-size:16px; color:var(--up); pointer-events:none; animation:flyUp 900ms ease-out forwards; text-shadow:0 0 10px rgba(61,220,132,0.5); }
+  .fly-amount{ position:fixed; z-index:50; font-family:'Space Grotesk'; font-weight:700; font-size:16px; color:var(--up); pointer-events:none; animation:flyUp 900ms ease-out forwards; text-shadow:0 0 10px rgba(14,203,129,0.5); }
   @keyframes flyUp{ 0%{ opacity:0; transform:translateY(0) scale(0.9); } 15%{ opacity:1; transform:translateY(-6px) scale(1); } 100%{ opacity:0; transform:translateY(-46px) scale(1); } }
 
   .top-row{ display:flex; gap:16px; flex-wrap:wrap; }
-  .stat-card{ flex:1; min-width:190px; border:1px solid var(--line); border-radius:14px; padding:16px 18px; background:radial-gradient(circle at 20% 0%, var(--blue-dim), transparent 65%); }
+  .stat-card{ flex:1; min-width:190px; border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; background:transparent; }
   .stat-card .label{ font-size:11px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:0.08em; }
-  .stat-card .value{ font-family:'Space Grotesk'; font-size:28px; font-weight:700; color:var(--fg); margin-top:6px; }
+  .stat-card .value{ font-family:var(--mono); font-size:26px; font-weight:600; color:var(--fg); margin-top:6px; }
   .stat-card .value.up{ color:var(--up); }
   .coin-value{ display:flex; align-items:center; gap:8px; }
   .coin-icon{ width:26px; height:26px; object-fit:contain; filter:drop-shadow(0 0 6px rgba(80,140,255,0.5)); }
@@ -836,7 +845,7 @@
   .mini-chart-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
   .mini-chart-grid .mc-item h4{ font-family:'Space Grotesk'; font-size:11.5px; font-weight:600; margin:0 0 8px;
     display:flex; align-items:center; gap:6px; color:var(--fg-dim); }
-  .dot-kurs{ background:#D4AF37; }
+  .dot-kurs{ background:var(--blue); }
   @media (max-width:640px){ .mini-chart-grid{ grid-template-columns:1fr; } }
   /* NEU (Wallet-Übersicht "genauso wie NRC/MOGC"): 2-spaltiges Grid mit voller Chart-Höhe
      (kein .compact mehr) für die restlichen Sprungmärkte/Ressourcen -- läuft über dieselben
@@ -852,16 +861,16 @@
   .wallet-range-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 12px; }
   .chart-legend{ display:flex; gap:18px; font-size:11.5px; color:var(--fg-dim); margin:0 0 10px; }
   .chart-legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:-1px; }
-  .chart-legend .dot-nova{ background:#3ddc84; }
-  .chart-legend .dot-sc{ background:var(--red); }
+  .chart-legend .dot-nova{ background:var(--blue); }
+  .chart-legend .dot-sc{ background:var(--blue); }
   h3 .dot-nova, h3 .dot-sc, h4 .dot-nova, h4 .dot-sc, h4 .dot-kurs, h4 .dot-volt, h4 .dot-qntm, h4 .dot-drift{
     display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:2px; vertical-align:1px; }
-  h3 .dot-nova, h4 .dot-nova{ background:#3ddc84; }
-  h3 .dot-sc, h4 .dot-sc{ background:var(--red); }
-  h4 .dot-kurs{ background:var(--gold); }
-  h4 .dot-volt{ background:var(--orange); }
-  h4 .dot-qntm{ background:var(--gold); }
-  h4 .dot-drift{ background:#4C8DFF; }
+  h3 .dot-nova, h4 .dot-nova{ background:var(--blue); }
+  h3 .dot-sc, h4 .dot-sc{ background:var(--blue); }
+  h4 .dot-kurs{ background:var(--blue); }
+  h4 .dot-volt{ background:var(--blue); }
+  h4 .dot-qntm{ background:var(--blue); }
+  h4 .dot-drift{ background:var(--blue); }
   .wr-tab{ font-family:'JetBrains Mono', monospace; font-size:11px; padding:5px 10px; border-radius:999px;
     border:1px solid rgba(232,230,227,0.14); background:transparent; color:#8b8fa3; cursor:pointer; }
   .wr-tab:hover{ border-color:rgba(232,230,227,0.3); color:#e8e6e3; }
@@ -869,7 +878,7 @@
 
   /* ---------- Unter-Tabs (z.B. Farm: NRC / Pulse) ---------- */
   .sub-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 18px; }
-  .sub-tab{ font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600; padding:8px 16px; border-radius:10px;
+  .sub-tab{ font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600; padding:8px 16px; border-radius:var(--radius);
     border:1px solid var(--line); background:var(--panel); color:var(--fg-dim); cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
   .sub-tab:hover{ border-color:rgba(232,230,227,0.3); color:var(--fg); }
   .sub-tab.active{ background:var(--blue); border-color:var(--blue); color:#fff; }
@@ -881,7 +890,7 @@
     scrollbar-width:none; padding-bottom:2px; }
   .main-tabs::-webkit-scrollbar{ display:none; }
   .main-tab-btn{ font-family:'Space Grotesk', sans-serif; font-weight:600; white-space:nowrap;
-    width:62px; height:62px; flex:0 0 auto; padding:0; border-radius:14px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
+    width:62px; height:62px; flex:0 0 auto; padding:0; border-radius:var(--radius); border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
     cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s, border-color .15s; }
   /* Auf breiten Bildschirmen: Kacheln zentriert ueber die Zeile verteilen statt linksbuendig zu
      klumpen (Panels darunter sind volle Breite, die Tab-Leiste sah dagegen "kaputt" aus).
@@ -902,13 +911,13 @@
   .tab-page.active{ display:block; }
   @media (max-width:600px){
     .main-tabs{ margin:16px 0 14px; gap:8px; }
-    .main-tab-btn{ width:54px; height:54px; border-radius:12px; }
+    .main-tab-btn{ width:54px; height:54px; }
     .main-tab-btn .mt-icon{ width:30px; height:30px; }
     .main-tab-btn .mt-icon-emoji{ font-size:22px; }
   }
 
   /* ---------- Sprungmärkte-Tab (STBL/VOLT/GOV) ---------- */
-  .sm-card{ border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--bg-alt); }
+  .sm-card{ border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; background:var(--bg-alt); }
   .sm-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; }
   .sm-grid.compact-grid{ grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:10px; }
   .sm-grid.compact-grid .sm-card{ padding:10px 12px; }
@@ -917,17 +926,14 @@
   .sm-card .kc-label{ font-size:12px; color:var(--fg-dim); margin-bottom:4px; }
   .sm-card .kc-value{ font-family:var(--mono); font-size:20px; font-weight:600; }
   .sm-card .kc-sub{ font-size:11px; color:var(--fg-faint); margin-top:4px; }
-  .sm-stable .kc-value{ color:var(--fg); }
-  .sm-volt .kc-value{ color:var(--orange); }
-  .sm-gov .kc-value{ color:var(--violet); }
-  .sm-sigil .kc-value{ color:var(--gold); }
+  .sm-stable .kc-value, .sm-volt .kc-value, .sm-gov .kc-value, .sm-sigil .kc-value{ color:var(--fg); }
 
   /* ---------- Erfolge ---------- */
   .ach-summary{ font-family:var(--mono); font-size:14px; color:var(--fg-dim); }
   .ach-category{ margin-top:18px; }
   .ach-category h4{ font-size:14px; color:var(--fg-dim); text-transform:uppercase; letter-spacing:0.04em; margin:0 0 10px; }
   .ach-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
-  .ach-card{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--bg-alt); position:relative; }
+  .ach-card{ border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; background:var(--bg-alt); position:relative; }
   .ach-card.locked{ opacity:0.5; }
   .ach-card.unlocked{ border-color:rgba(212,175,55,0.35); }
   .ach-card .ach-name{ font-weight:600; font-size:14px; margin-bottom:4px; }
@@ -944,7 +950,7 @@
   /* ---------- Tagesaufgaben ---------- */
   .quest-summary{ font-family:var(--mono); font-size:14px; color:var(--fg-dim); }
   .quest-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:10px; margin-top:14px; }
-  .quest-card{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--bg-alt); }
+  .quest-card{ border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; background:var(--bg-alt); }
   .quest-card.done{ border-color:rgba(47,140,255,0.35); }
   .quest-card.claimed{ opacity:0.6; }
   .quest-card .q-title{ font-weight:600; font-size:14px; margin-bottom:4px; }
@@ -956,19 +962,13 @@
   .quest-progress-txt{ font-family:var(--mono); color:var(--fg-dim); }
   .quest-claimed-txt{ font-family:var(--mono); color:var(--up); }
   .quest-claim-btn{ padding:6px 14px; font-size:12px; }
-  .sm-qntm .kc-value{ color:var(--gold); }
-  .sm-drift .kc-value{ color:var(--blue); }
-  .sm-cycle .kc-value{ color:var(--up); }
-  .sm-pulse .kc-value{ color:var(--cyan); }
-  .sm-relay .kc-value{ color:var(--indigo); }
-  .sm-ionx .kc-value{ color:var(--pink); }
-  .sm-anch .kc-value{ color:var(--teal); }
-  .sm-gridcoin .kc-value{ color:var(--lime); }
+  .sm-qntm .kc-value, .sm-drift .kc-value, .sm-cycle .kc-value, .sm-pulse .kc-value,
+  .sm-relay .kc-value, .sm-ionx .kc-value, .sm-anch .kc-value, .sm-gridcoin .kc-value{ color:var(--fg); }
   .cycle-streak-row{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-top:10px; }
   .cycle-streak-num{ font-family:'Space Grotesk'; font-weight:700; font-size:26px; color:var(--up); }
   .cycle-streak-days{ display:flex; gap:4px; flex-wrap:wrap; }
   .cycle-day-dot{ width:14px; height:14px; border-radius:4px; background:var(--panel); border:1px solid var(--line); }
-  .cycle-day-dot.filled{ background:var(--up); border-color:var(--up); box-shadow:0 0 6px rgba(61,220,132,0.5); }
+  .cycle-day-dot.filled{ background:var(--up); border-color:var(--up); box-shadow:0 0 6px rgba(14,203,129,0.5); }
   /* Fest auf 3 Karten pro Reihe (Desktop), 2 pro Reihe (mittel), 1 pro Reihe (mobil) --
      statt variabler auto-wrap-Breite, die je nach Fensterbreite mal 4, mal 3 Karten
      in eine Reihe gepackt hat. */
@@ -976,22 +976,22 @@
   .sm-market-grid .panel{ margin-bottom:0; display:flex; flex-direction:column; min-width:0; }
   @media (min-width:640px){ .sm-market-grid{ grid-template-columns:repeat(2, 1fr); } }
   @media (min-width:1000px){ .sm-market-grid{ grid-template-columns:repeat(3, 1fr); } }
-  .sm-cycle-panel{ border-color:rgba(61,220,132,0.35); }
+  .sm-cycle-panel{ border-color:rgba(14,203,129,0.35); }
   /* ---------- CYCLE-Handelsplatz (Spieler-Orderbuch) ---------- */
-  .cycle-market-panel{ border-color:rgba(61,220,132,0.35); }
+  .cycle-market-panel{ border-color:rgba(14,203,129,0.35); }
   .cycle-ob-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px; }
   @media (max-width:720px){ .cycle-ob-grid{ grid-template-columns:1fr; } }
   .cycle-ob-col h5{ margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--fg-dim); }
   .cycle-ob-col.buy h5{ color:var(--up); }
   .cycle-ob-col.sell h5{ color:var(--down); }
   .cycle-ob-row{ display:flex; justify-content:space-between; gap:8px; font-family:var(--mono); font-size:13px; padding:4px 6px; border-radius:6px; }
-  .cycle-ob-row.buy{ background:rgba(61,220,132,0.08); }
-  .cycle-ob-row.sell{ background:rgba(255,93,93,0.08); }
+  .cycle-ob-row.buy{ background:rgba(14,203,129,0.08); }
+  .cycle-ob-row.sell{ background:rgba(246,70,93,0.08); }
   .cycle-ob-empty{ color:var(--fg-faint); font-size:13px; padding:4px 6px; }
   .cycle-side-toggle{ display:flex; gap:8px; margin-top:12px; }
   .cycle-side-btn{ flex:1; padding:8px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg-dim); cursor:pointer; font-weight:600; }
-  .cycle-side-btn.active.buy{ border-color:var(--up); color:var(--up); background:rgba(61,220,132,0.1); }
-  .cycle-side-btn.active.sell{ border-color:var(--down); color:var(--down); background:rgba(255,93,93,0.1); }
+  .cycle-side-btn.active.buy{ border-color:var(--up); color:var(--up); background:rgba(14,203,129,0.1); }
+  .cycle-side-btn.active.sell{ border-color:var(--down); color:var(--down); background:rgba(246,70,93,0.1); }
   .cycle-order-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; margin-top:6px; font-size:13px; }
   .cycle-order-row .btn{ padding:4px 10px; font-size:12px; }
   .cycle-total-hint{ font-family:var(--mono); font-size:13px; color:var(--fg-dim); margin-top:6px; }
@@ -1033,7 +1033,7 @@
   .bond-item .bi-main{ color:var(--fg); }
   .bond-item .bi-sub{ color:var(--fg-faint); font-size:11.5px; margin-top:2px; }
   .bond-item .bi-status{ font-size:11px; padding:3px 9px; border-radius:999px; white-space:nowrap; }
-  .bond-item .bi-status.ready{ background:rgba(61,220,132,0.15); color:var(--up); border:1px solid rgba(61,220,132,0.4); }
+  .bond-item .bi-status.ready{ background:rgba(14,203,129,0.15); color:var(--up); border:1px solid rgba(14,203,129,0.4); }
   .bond-item .bi-status.waiting{ background:rgba(212,175,55,0.12); color:var(--gold); border:1px solid rgba(212,175,55,0.35); }
   .bond-item .bi-claim{ padding:6px 14px; font-size:12px; }
   .bond-empty-hint{ font-size:12px; color:var(--fg-faint); margin-top:14px; font-style:italic; }
@@ -1054,7 +1054,7 @@
   .skill-branch h4{ margin:0 0 12px; font-size:13.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--fg-dim); }
   .skill-node{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:var(--panel); opacity:0.45; }
   .skill-node.available{ opacity:1; border-color:rgba(47,140,255,0.35); }
-  .skill-node.owned{ opacity:1; border-color:var(--up); background:rgba(61,220,132,0.06); }
+  .skill-node.owned{ opacity:1; border-color:var(--up); background:rgba(14,203,129,0.06); }
   .skill-node .sn-name{ font-weight:600; font-size:13.5px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .skill-node .sn-desc{ font-size:12px; color:var(--fg-dim); margin-top:4px; line-height:1.5; }
   .skill-node .sn-cost{ font-family:var(--mono); font-size:11.5px; color:var(--violet); margin-top:8px; }
@@ -1103,7 +1103,7 @@
   @media (max-width:600px){
     .wrap{ padding:0 14px; }
     .hero{ padding:60px 0 40px; }
-    .panel{ padding:15px 16px; margin-bottom:14px; border-radius:12px; }
+    .panel{ padding:15px 16px; margin-bottom:14px; }
     .stat-card{ min-width:130px; flex-basis:calc(50% - 8px); padding:13px 14px; }
     .stat-card .value{ font-size:20px; }
     .chart-box{ height:130px; }
@@ -1295,6 +1295,7 @@
       <button type="button" class="main-tab-btn" data-tab="shop" title="Shop" aria-label="Shop"><img class="mt-icon" src="art/tabs/shop.png" alt="Shop"></button>
       <button type="button" class="main-tab-btn" data-tab="erfolge" title="Erfolge" aria-label="Erfolge"><span class="mt-icon-emoji">🏆</span></button>
       <button type="button" class="main-tab-btn" data-tab="event" title="Kometen-Event" aria-label="Kometen-Event"><span class="mt-icon-emoji">☄️</span></button>
+      <button type="button" class="main-tab-btn hidden" data-tab="holiday" id="holidayTabBtn" title="Wintersonnenwende" aria-label="Wintersonnenwende"><span class="mt-icon-emoji">❄️</span></button>
     </nav>
 
     <div class="tab-page active" id="tabPage-uebersicht">
@@ -1539,7 +1540,7 @@
       <h3>Alle Sprungmärkte & Ressourcen <span class="tag">— gleicher Zeitraum wie oben, dein persönlicher Bestand, kein Marktkurs</span></h3>
       <div class="wallet-chart-grid-2col">
         <div class="mc-item">
-          <h4><i class="dot-nova" style="background:var(--fg);"></i> STBL <span class="kc-tab-hint">🏦 Bank</span></h4>
+          <h4><i class="dot-nova"></i> STBL <span class="kc-tab-hint">🏦 Bank</span></h4>
           <div class="kc-value js-balance-stbl" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletStblChart"></canvas></div>
         </div>
@@ -1549,7 +1550,7 @@
           <div class="chart-box"><canvas id="walletVoltChart"></canvas></div>
         </div>
         <div class="mc-item">
-          <h4><i class="dot-nova" style="background:var(--violet);"></i> GOV <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <h4><i class="dot-nova"></i> GOV <span class="kc-tab-hint">🪙 Markt</span></h4>
           <div class="kc-value js-balance-gov" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletGovChart"></canvas></div>
         </div>
@@ -1569,37 +1570,37 @@
           <div class="chart-box"><canvas id="walletCycleChart"></canvas></div>
         </div>
         <div class="mc-item">
-          <h4><i class="dot-nova" style="background:var(--gold);"></i> SIGIL <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <h4><i class="dot-nova"></i> SIGIL <span class="kc-tab-hint">🪙 Markt</span></h4>
           <div class="kc-value js-balance-sigil" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletSigilChart"></canvas></div>
         </div>
         <div class="mc-item">
-          <h4><i class="dot-nova" style="background:var(--cyan);"></i> PULSE <span class="kc-tab-hint">⛏️ Farm</span></h4>
+          <h4><i class="dot-nova"></i> PULSE <span class="kc-tab-hint">⛏️ Farm</span></h4>
           <div class="kc-value js-balance-pulse" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletPulseChart"></canvas></div>
         </div>
         <div class="mc-item">
-          <h4><i class="dot-nova" style="background:var(--indigo);"></i> RELAY <span class="kc-tab-hint">⛏️ Farm</span></h4>
+          <h4><i class="dot-nova"></i> RELAY <span class="kc-tab-hint">⛏️ Farm</span></h4>
           <div class="kc-value js-balance-relay" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletRelayChart"></canvas></div>
         </div>
         <div class="mc-item">
-          <h4><i class="dot-nova" style="background:var(--pink);"></i> IONX <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <h4><i class="dot-nova"></i> IONX <span class="kc-tab-hint">🪙 Markt</span></h4>
           <div class="kc-value js-balance-ionx" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletIonxChart"></canvas></div>
         </div>
         <div class="mc-item">
-          <h4><i class="dot-nova" style="background:var(--teal);"></i> ANCH <span class="kc-tab-hint">🏦 Bank</span></h4>
+          <h4><i class="dot-nova"></i> ANCH <span class="kc-tab-hint">🏦 Bank</span></h4>
           <div class="kc-value js-balance-anch" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletAnchChart"></canvas></div>
         </div>
         <div class="mc-item">
-          <h4><i class="dot-nova" style="background:var(--fg);"></i> NVLT <span class="kc-tab-hint">🏦 Bank</span></h4>
+          <h4><i class="dot-nova"></i> NVLT <span class="kc-tab-hint">🏦 Bank</span></h4>
           <div class="kc-value js-balance-nvlt" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletNvltChart"></canvas></div>
         </div>
         <div class="mc-item">
-          <h4><i class="dot-nova" style="background:var(--lime);"></i> GRID <span class="kc-tab-hint">🪙 Markt</span></h4>
+          <h4><i class="dot-nova"></i> GRID <span class="kc-tab-hint">🪙 Markt</span></h4>
           <div class="kc-value js-balance-grid" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletGridChart"></canvas></div>
         </div>
@@ -1934,7 +1935,7 @@
         <h3>GOV — Prestige umwandeln <span class="tag">— Umtauschkurs: 1 Prestige-Punkt = 2 GOV</span></h3>
         <div class="sm-hint" id="govClaimHint">–</div>
         <button type="button" class="btn btn-primary" id="govClaimBtn" style="margin-top:10px;">GOV abholen</button>
-        <h4 style="margin-top:16px;"><i class="dot-nova" style="background:var(--violet);"></i> Bestandsverlauf</h4>
+        <h4 style="margin-top:16px;"><i class="dot-nova"></i> Bestandsverlauf</h4>
         <div class="chart-box compact"><canvas id="govChart"></canvas></div>
       </div>
 
@@ -2212,7 +2213,7 @@
         <button type="button" class="btn btn-primary" id="anchWithdrawBtn">Auszahlen</button>
       </div>
       <div class="sm-hint">Einzahlen läuft über deinen Pulse-Bestand (⛏️ Farm-Tab, Reiter ⚡ Pulse). Auszahlung kostet 1&nbsp;% Gebühr (wird verbrannt, kein Nova-Rift-Transfer, da andere Währung) — Einzahlen ist gebührenfrei.</div>
-      <h4 style="margin-top:16px;"><i class="dot-nova" style="background:var(--teal);"></i> Bestandsverlauf</h4>
+      <h4 style="margin-top:16px;"><i class="dot-nova"></i> Bestandsverlauf</h4>
       <div class="chart-box compact"><canvas id="anchChart"></canvas></div>
     </div>
 
@@ -2412,7 +2413,8 @@
 
     <div class="tab-page" id="tabPage-event">
       <div class="panel">
-        <h3>☄️ Kometen-Event <span class="tag">— wiederkehrendes Monats-Event, Belohnung in Kometen-Fragmenten (COMET)</span></h3>
+        <h3><span id="eventHeaderTitle">☄️ Kometen-Event</span> <span class="tag">— wiederkehrendes Monats-Event, Belohnung in Kometen-Fragmenten (COMET)</span></h3>
+        <div class="sm-hint" id="eventHeaderDesc"></div>
         <div class="top-row">
           <div class="stat-card">
             <div class="label">Kometen-Fragmente</div>
@@ -2444,6 +2446,29 @@
       <div class="panel">
         <h3>🏷️ Dein Titel <span class="tag">— sichtbar auf der Rangliste (Ränge) und im Profil</span></h3>
         <div id="eventTitleWrap"><div class="sm-hint">Lade Titel…</div></div>
+      </div>
+    </div>
+
+    <div class="tab-page" id="tabPage-holiday">
+      <div class="panel">
+        <h3><span id="holidayHeaderTitle">❄️ Wintersonnenwende</span> <span class="tag">— zeitlich begrenztes Zusatz-Event, Belohnung in Kometen-Fragmenten (COMET)</span></h3>
+        <div class="sm-hint" id="holidayHeaderDesc"></div>
+        <div class="top-row">
+          <div class="stat-card">
+            <div class="label">Kometen-Fragmente</div>
+            <div class="value coin-value">☄️ <span id="holidayCometBalance">–</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Läuft noch</div>
+            <div class="value" id="holidayCountdown">–</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>📋 Wintersonnenwende-Aufgaben <span class="tag">— nur während des Events verfügbar</span></h3>
+        <div class="quest-summary" id="holidayQuestsSummary">–</div>
+        <div class="quest-grid" id="holidayQuestsList"><div class="sm-hint">Lade Aufgaben…</div></div>
       </div>
     </div>
   </div>
@@ -2791,11 +2816,13 @@ function setLastSeenTs(){
   localStorage.setItem(LAST_SEEN_KEY, Date.now().toString());
 }
 function fmtDuration(ms){
-  const totalMin = Math.floor(ms / 60000);
-  const h = Math.floor(totalMin / 60);
+  const totalMin = Math.max(0, Math.floor(ms / 60000));
+  const d = Math.floor(totalMin / 1440);
+  const h = Math.floor((totalMin % 1440) / 60);
   const m = totalMin % 60;
-  if (h <= 0) return `${m} Min.`;
-  return `${h} Std. ${m} Min.`;
+  if (d > 0) return `${d} Tag${d === 1 ? '' : 'e'} ${h} Std. ${m} Min.`;
+  if (h > 0) return `${h} Std. ${m} Min.`;
+  return `${m} Min.`;
 }
 
 /* ---------- Fliegende +/-X¢-Zahl (visuelles Feedback bei Kauf/Sammeln) ---------- */
@@ -2957,6 +2984,9 @@ function enterGame(){
     if (tabId === 'event') {
       loadSeasonalEvent();
     }
+    if (tabId === 'holiday') {
+      loadHolidayEvent();
+    }
     if (tabId === 'wallet') {
       if (novaChart) novaChart.resize();
       if (scChart) scChart.resize();
@@ -3095,6 +3125,7 @@ document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
     enterGame();
     await sb.schema('platform').rpc('ensure_player_ready'); // liegt im 'platform'-Schema
     initCharts();
+    checkHolidayEventVisibility();
     await loadEverything();
     startPolling();
   } catch (err) {
@@ -3122,6 +3153,7 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
     enterGame();
     await sb.schema('platform').rpc('ensure_player_ready');
     initCharts();
+    checkHolidayEventVisibility();
     await loadEverything();
     startPolling();
   } catch (err) {
@@ -3137,6 +3169,7 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
     enterGame();
     await sb.schema('platform').rpc('ensure_player_ready');
     initCharts();
+    checkHolidayEventVisibility();
     await loadEverything();
     startPolling();
   }
@@ -3188,78 +3221,81 @@ function initCharts(){
 
   novaChart = new Chart(document.getElementById('novaChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: zeroFloor(commonOpts)
   });
   scChart = new Chart(document.getElementById('scChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#D6303F', backgroundColor: 'rgba(214,48,63,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: zeroFloor(commonOpts)
   });
   marketChart = new Chart(document.getElementById('marketChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: commonOpts
   });
   // FIX: voltChart/qntmChart/driftChart/ionxChart/gridChart zeigen jetzt Achsen-Zahlen
   // + Gitterlinien links wie die Uebersicht-Mini-Charts (miniOpts, kleine Schrift,
   // max. 3 Ticks) -- die chart-box dafuer wurde per CSS-Klasse "market-chart" auf
   // 120px erhoeht (statt 92px), damit die Ticks nicht wieder mit der Linie kollidieren.
+  // Farbe: neutrales Blau als Startwert, wird nach dem ersten Laden von
+  // setChartTrendColor() auf gruen/rot je nach Kursrichtung umgeschaltet
+  // (echte Kurs-Charts, kein Bestandsverlauf -- siehe Phase 6 Redesign-Plan).
   voltChart = new Chart(document.getElementById('voltChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#FF6A2B', backgroundColor: 'rgba(255,106,43,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
   qntmChart = new Chart(document.getElementById('qntmChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.14)', fill: true, tension: 0, stepped: true, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0, stepped: true, borderWidth: 2 }] },
     options: miniOpts
   });
   driftChart = new Chart(document.getElementById('driftChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#4C8DFF', backgroundColor: 'rgba(76,141,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
   ionxChart = new Chart(document.getElementById('ionxChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#FF4FA3', backgroundColor: 'rgba(255,79,163,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
   gridChart = new Chart(document.getElementById('gridChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#B4E61D', backgroundColor: 'rgba(180,230,29,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
   cycleTradeChart = new Chart(document.getElementById('cycleTradeChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
   sigilTradeChart = new Chart(document.getElementById('sigilTradeChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#F0B93A', backgroundColor: 'rgba(240,185,58,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
 
   // ---- STBL/GOV/CYCLE/ANCH: kein Markt-Kurs, nur Bestandsverlauf (compact) ----
   stblChart = new Chart(document.getElementById('stblChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: zeroFloor(compactOpts)
   });
   anchChart = new Chart(document.getElementById('anchChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#2DD4A7', backgroundColor: 'rgba(45,212,167,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: zeroFloor(compactOpts)
   });
   govChart = new Chart(document.getElementById('govChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#B23AFF', backgroundColor: 'rgba(178,58,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: zeroFloor(compactOpts)
   });
   cycleChart = new Chart(document.getElementById('cycleChart'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: zeroFloor(compactOpts)
   });
 
@@ -3274,48 +3310,48 @@ function initCharts(){
     data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: bg, fill: true, tension: 0.25, borderWidth: 2 }] },
     options: opts || compactOpts
   });
-  walletStblChart = makeCompact('walletStblChart', '#3ddc84', 'rgba(61,220,132,0.14)', zeroFloor(commonOpts));
-  walletVoltChart = makeCompact('walletVoltChart', '#FF6A2B', 'rgba(255,106,43,0.14)', zeroFloor(commonOpts));
-  walletGovChart = makeCompact('walletGovChart', '#B23AFF', 'rgba(178,58,255,0.14)', zeroFloor(commonOpts));
-  walletQntmChart = makeCompact('walletQntmChart', '#D4AF37', 'rgba(212,175,55,0.14)', zeroFloor(commonOpts));
-  walletDriftChart = makeCompact('walletDriftChart', '#4C8DFF', 'rgba(76,141,255,0.14)', zeroFloor(commonOpts));
-  walletCycleChart = makeCompact('walletCycleChart', '#3ddc84', 'rgba(61,220,132,0.14)', zeroFloor(commonOpts));
-  walletSigilChart = makeCompact('walletSigilChart', '#D4AF37', 'rgba(212,175,55,0.14)', zeroFloor(commonOpts));
-  walletPulseChart = makeCompact('walletPulseChart', '#22D3EE', 'rgba(34,211,238,0.14)', zeroFloor(commonOpts));
-  walletRelayChart = makeCompact('walletRelayChart', '#8A63F5', 'rgba(138,99,245,0.14)', zeroFloor(commonOpts));
-  walletIonxChart = makeCompact('walletIonxChart', '#FF4FA3', 'rgba(255,79,163,0.14)', zeroFloor(commonOpts));
-  walletAnchChart = makeCompact('walletAnchChart', '#2DD4A7', 'rgba(45,212,167,0.14)', zeroFloor(commonOpts));
-  walletNvltChart = makeCompact('walletNvltChart', '#E8E6E3', 'rgba(232,230,227,0.14)', zeroFloor(commonOpts));
-  walletGridChart = makeCompact('walletGridChart', '#B4E61D', 'rgba(180,230,29,0.14)', zeroFloor(commonOpts));
+  walletStblChart = makeCompact('walletStblChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletVoltChart = makeCompact('walletVoltChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletGovChart = makeCompact('walletGovChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletQntmChart = makeCompact('walletQntmChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletDriftChart = makeCompact('walletDriftChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletCycleChart = makeCompact('walletCycleChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletSigilChart = makeCompact('walletSigilChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletPulseChart = makeCompact('walletPulseChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletRelayChart = makeCompact('walletRelayChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletIonxChart = makeCompact('walletIonxChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletAnchChart = makeCompact('walletAnchChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletNvltChart = makeCompact('walletNvltChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletGridChart = makeCompact('walletGridChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
 
   novaChartMini = new Chart(document.getElementById('novaChartMini'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#3ddc84', backgroundColor: 'rgba(61,220,132,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: zeroFloor(miniOpts)
   });
   scChartMini = new Chart(document.getElementById('scChartMini'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#D6303F', backgroundColor: 'rgba(214,48,63,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: zeroFloor(miniOpts)
   });
   marketChartMini = new Chart(document.getElementById('marketChartMini'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
   voltChartMini = new Chart(document.getElementById('voltChartMini'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#FF6A2B', backgroundColor: 'rgba(255,106,43,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
   qntmChartMini = new Chart(document.getElementById('qntmChartMini'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.14)', fill: true, tension: 0, stepped: true, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0, stepped: true, borderWidth: 2 }] },
     options: miniOpts
   });
   driftChartMini = new Chart(document.getElementById('driftChartMini'), {
     type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: '#4C8DFF', backgroundColor: 'rgba(76,141,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
 
@@ -3352,8 +3388,8 @@ async function loadWalletHistory(){
   await loadAllWalletCurrencyCharts();
 }
 
-function setMarketChartTrend(trendUp){
-  [marketChart, marketChartMini].forEach(chart => {
+function setChartTrendColor(charts, trendUp){
+  charts.forEach(chart => {
     if (!chart) return;
     const ds = chart.data.datasets[0];
     const canvasEl = chart.canvas;
@@ -3361,16 +3397,19 @@ function setMarketChartTrend(trendUp){
     const h = canvasEl.height || 190;
     const gradient = gctx.createLinearGradient(0, 0, 0, h);
     if (trendUp) {
-      ds.borderColor = '#3ddc84';
-      gradient.addColorStop(0, 'rgba(61,220,132,0.32)');
-      gradient.addColorStop(1, 'rgba(61,220,132,0.02)');
+      ds.borderColor = '#0ECB81';
+      gradient.addColorStop(0, 'rgba(14,203,129,0.32)');
+      gradient.addColorStop(1, 'rgba(14,203,129,0.02)');
     } else {
-      ds.borderColor = '#ff5d5d';
-      gradient.addColorStop(0, 'rgba(255,93,93,0.32)');
-      gradient.addColorStop(1, 'rgba(255,93,93,0.02)');
+      ds.borderColor = '#F6465D';
+      gradient.addColorStop(0, 'rgba(246,70,93,0.32)');
+      gradient.addColorStop(1, 'rgba(246,70,93,0.02)');
     }
     ds.backgroundColor = gradient;
   });
+}
+function setMarketChartTrend(trendUp){
+  setChartTrendColor([marketChart, marketChartMini], trendUp);
 }
 
 /* ---------- Hauptladefunktion ----------
@@ -3907,6 +3946,7 @@ function applyPulseState(gs){
   document.getElementById('ionxRateDisplay').textContent =
     ionxStatus ? `Förderrate-Index: ${Number(ionxStatus.pulse_rate_index).toFixed(2)}× (relativ zum 24h-Schnitt) — hoch = Kurs sinkt` : 'Förderrate-Index: –';
   updateChart(ionxChart, ionxHistOrdered, 'price');
+  setChartTrendColor([ionxChart], ionxTrendUp);
 
   // ---- GRID: Utility gegen MOGC ----
   const gridStatus = gs.grid_status || null;
@@ -3921,6 +3961,7 @@ function applyPulseState(gs){
       ? `Kurs: ${Number(lastGrid).toFixed(2)} <span style="color:${gridTrendUp ? 'var(--up)' : 'var(--down)'}">${gridTrendUp ? '▲' : '▼'}</span>`
       : 'Kurs: –';
   updateChart(gridChart, gridHistOrdered, 'price');
+  setChartTrendColor([gridChart], gridTrendUp);
 
   const gridBoostBtn = document.getElementById('gridBoostBtn');
   if (gridBoostBtn) gridBoostBtn.disabled = gridBalance < 40;
@@ -4372,6 +4413,7 @@ function applySprungmaerkteState(gs){
       : 'Kurs: –';
   updateChart(voltChart, voltHistOrdered, 'price');
   updateChart(voltChartMini, voltHistOrdered, 'price');
+  setChartTrendColor([voltChart, voltChartMini], voltTrendUp);
 
   // ---- QNTM: springt zwischen festen Zustaenden ----
   const qntmStatus = gs.qntm_status || null;
@@ -4395,6 +4437,7 @@ function applySprungmaerkteState(gs){
   document.getElementById('qntmBuyInput').disabled = qntmNegative;
   updateChart(qntmChart, qntmHistOrdered, 'price');
   updateChart(qntmChartMini, qntmHistOrdered, 'price');
+  setChartTrendColor([qntmChart, qntmChartMini], qntmTrendUp);
 
   // ---- DRIFT: Hedge gegen Nova-Rift-Foerderrate ----
   const driftStatus = gs.drift_status || null;
@@ -4412,6 +4455,7 @@ function applySprungmaerkteState(gs){
     driftStatus ? `Förderrate-Index: ${Number(driftStatus.mining_rate_index).toFixed(2)}× (relativ zum 24h-Schnitt)` : 'Förderrate-Index: –';
   updateChart(driftChart, driftHistOrdered, 'price');
   updateChart(driftChartMini, driftHistOrdered, 'price');
+  setChartTrendColor([driftChart, driftChartMini], driftTrendUp);
 
   // ---- CYCLE: taeglicher Streak-Claim ----
   const streak = gs.cycle_streak || { current_streak: 0, longest_streak: 0, claimed_today: false };
@@ -4529,6 +4573,8 @@ async function loadCycleMarket(){
       updateChart(cycleTradeChart, hist || [], 'price', { bucket_start: true, showDate: false });
       const rows = hist || [];
       const last = rows.length ? rows[rows.length - 1].price : null;
+      const prev = rows.length > 1 ? rows[rows.length - 2].price : last;
+      if (last != null && prev != null) setChartTrendColor([cycleTradeChart], last >= prev);
       document.getElementById('cycleLastPriceDisplay').textContent =
         last != null ? `Letzter Kurs: ${Number(last).toFixed(3)} MOGC/CYCLE` : 'Letzter Kurs: – (noch kein Trade)';
     }
@@ -4682,6 +4728,8 @@ async function loadSigilMarket(){
       updateChart(sigilTradeChart, hist || [], 'price', { bucket_start: true, showDate: false });
       const rows = hist || [];
       const last = rows.length ? rows[rows.length - 1].price : null;
+      const prev = rows.length > 1 ? rows[rows.length - 2].price : last;
+      if (last != null && prev != null) setChartTrendColor([sigilTradeChart], last >= prev);
       document.getElementById('sigilLastPriceDisplay').textContent =
         last != null ? `Letzter Kurs: ${Number(last).toFixed(3)} MOGC/SIGIL` : 'Letzter Kurs: – (noch kein Trade)';
     }
@@ -4793,10 +4841,12 @@ async function castGovernanceVote(proposalId, optionKey){
 // keine generische Restzeit-Formatierung, daher hier lokal.
 function fmtDuration(ms){
   const totalMin = Math.max(0, Math.floor(ms / 60000));
-  const h = Math.floor(totalMin / 60);
+  const d = Math.floor(totalMin / 1440);
+  const h = Math.floor((totalMin % 1440) / 60);
   const m = totalMin % 60;
-  if (h <= 0) return `${m} Min.`;
-  return `${h} Std. ${m} Min.`;
+  if (d > 0) return `${d} Tag${d === 1 ? '' : 'e'} ${h} Std. ${m} Min.`;
+  if (h > 0) return `${h} Std. ${m} Min.`;
+  return `${m} Min.`;
 }
 
 function renderSigilOrderBook(rows){
@@ -5510,6 +5560,8 @@ async function renderGuildLeaderboard(){
 /* ---------- Kometen-Event (Saisonales Event) ---------- */
 let seasonalEventLoading = false;
 let seasonalEventData = null;
+let seasonalEventEndsAt = null;
+let seasonalEventCountdownTimer = null;
 
 async function loadSeasonalEvent(){
   if (seasonalEventLoading) return;
@@ -5523,6 +5575,7 @@ async function loadSeasonalEvent(){
     }
     seasonalEventData = data;
     document.querySelector('.js-balance-comet').textContent = fmtCoin(data.comet_balance);
+    renderEventTheme(data.theme);
     renderEventCountdown(data.run);
     renderEventQuests(data.quests || []);
     renderEventAchievements(data.achievements || []);
@@ -5532,10 +5585,26 @@ async function loadSeasonalEvent(){
   }
 }
 
+function renderEventTheme(theme){
+  const headEl = document.getElementById('eventHeaderTitle');
+  const descEl = document.getElementById('eventHeaderDesc');
+  if (!theme || !theme.name) return;
+  if (headEl) headEl.textContent = `${theme.icon || '☄️'} ${theme.name}`;
+  if (descEl) descEl.textContent = theme.description || '';
+}
+
 function renderEventCountdown(run){
+  seasonalEventEndsAt = (run && run.ends_at) ? new Date(run.ends_at).getTime() : null;
+  tickEventCountdown();
+  if (seasonalEventCountdownTimer) clearInterval(seasonalEventCountdownTimer);
+  seasonalEventCountdownTimer = setInterval(tickEventCountdown, 30000);
+}
+
+function tickEventCountdown(){
   const el = document.getElementById('eventCountdown');
-  if (!run || !run.ends_at) { el.textContent = '–'; return; }
-  const ms = new Date(run.ends_at).getTime() - Date.now();
+  if (!el) return;
+  if (!seasonalEventEndsAt) { el.textContent = '–'; return; }
+  const ms = seasonalEventEndsAt - Date.now();
   el.textContent = ms > 0 ? fmtDuration(ms) : 'endet in Kürze';
 }
 
@@ -5650,6 +5719,130 @@ function renderEventShop(items, ownedTitles, activeTitle){
     const { error } = await sb.schema('platform').rpc('set_active_seasonal_title', { p_item_id: null });
     if (error) { showMsg('statusMsg', error.message, false); return; }
     await loadSeasonalEvent();
+  });
+}
+
+/* ---------- Wintersonnenwende (zeitlich begrenztes Zusatz-Event) ---------- */
+let holidayEventLoading = false;
+let holidayEventData = null;
+let holidayEventEndsAt = null;
+let holidayEventCountdownTimer = null;
+
+// Leichter Check beim Login: blendet den Tab-Button nur ein, wenn das Event
+// gerade laeuft. Bewusst nicht awaited an den Login-Stellen, damit der Login
+// selbst nicht darauf wartet -- Fehler sind hier egal (Tab bleibt dann versteckt).
+async function checkHolidayEventVisibility(){
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_holiday_event');
+    if (error || !data) return;
+    holidayEventData = data;
+    const btn = document.getElementById('holidayTabBtn');
+    if (btn) btn.classList.toggle('hidden', !data.active);
+  } catch (e) {
+    console.error('Wintersonnenwende-Sichtbarkeitscheck fehlgeschlagen:', e);
+  }
+}
+
+async function loadHolidayEvent(){
+  if (holidayEventLoading) return;
+  holidayEventLoading = true;
+  clearMsg('statusMsg');
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_holiday_event');
+    if (error) {
+      document.getElementById('holidayQuestsList').innerHTML = '<div class="sm-hint">Konnte Event nicht laden.</div>';
+      return;
+    }
+    holidayEventData = data;
+    const btn = document.getElementById('holidayTabBtn');
+    if (btn) btn.classList.toggle('hidden', !data.active);
+    if (!data.active) {
+      document.getElementById('holidayQuestsSummary').textContent = '';
+      document.getElementById('holidayQuestsList').innerHTML = '<div class="sm-hint">Die Wintersonnenwende ist vorbei — schau beim nächsten Mal wieder vorbei!</div>';
+      document.getElementById('holidayCountdown').textContent = '–';
+      return;
+    }
+    document.getElementById('holidayCometBalance').textContent = fmtCoin(data.comet_balance);
+    renderHolidayTheme(data.theme);
+    renderHolidayCountdown(data.run);
+    renderHolidayQuests(data.quests || []);
+  } finally {
+    holidayEventLoading = false;
+  }
+}
+
+function renderHolidayTheme(theme){
+  const headEl = document.getElementById('holidayHeaderTitle');
+  const descEl = document.getElementById('holidayHeaderDesc');
+  if (!theme || !theme.name) return;
+  if (headEl) headEl.textContent = `${theme.icon || '❄️'} ${theme.name}`;
+  if (descEl) descEl.textContent = theme.description || '';
+}
+
+function renderHolidayCountdown(run){
+  holidayEventEndsAt = (run && run.ends_at) ? new Date(run.ends_at).getTime() : null;
+  tickHolidayCountdown();
+  if (holidayEventCountdownTimer) clearInterval(holidayEventCountdownTimer);
+  holidayEventCountdownTimer = setInterval(tickHolidayCountdown, 30000);
+}
+
+function tickHolidayCountdown(){
+  const el = document.getElementById('holidayCountdown');
+  if (!el) return;
+  if (!holidayEventEndsAt) { el.textContent = '–'; return; }
+  const ms = holidayEventEndsAt - Date.now();
+  if (ms > 0) {
+    el.textContent = fmtDuration(ms);
+    return;
+  }
+  // Fenster ist gerade abgelaufen, waehrend die Seite offen war -- einmalig
+  // neu laden, damit Tab/Quests serverseitig sauber auf "vorbei" umschalten,
+  // statt nur den Text auf "endet in Kuerze" stehen zu lassen.
+  el.textContent = 'endet in Kürze';
+  holidayEventEndsAt = null;
+  loadHolidayEvent();
+}
+
+function renderHolidayQuests(rows){
+  const wrap = document.getElementById('holidayQuestsList');
+  const doneCount = rows.filter(q => q.completed).length;
+  document.getElementById('holidayQuestsSummary').textContent = isGuest()
+    ? 'Für Gast-Accounts nicht verfügbar — mach dir einen eigenen Account, um Belohnungen einzusammeln.'
+    : `${doneCount} / ${rows.length} in diesem Event abgeschlossen`;
+
+  wrap.innerHTML = rows.map(q => {
+    const pct = Math.max(0, Math.min(100, Math.round((Number(q.progress) / Number(q.target_value)) * 100)));
+    let actionHtml;
+    if (isGuest()) {
+      actionHtml = '<span class="quest-progress-txt">Gast-Account</span>';
+    } else if (q.claimed) {
+      actionHtml = '<span class="quest-claimed-txt">✅ abgeholt</span>';
+    } else if (q.completed) {
+      actionHtml = `<button type="button" class="btn btn-primary holiday-quest-claim-btn" data-quest-id="${q.id}">Abholen</button>`;
+    } else {
+      actionHtml = `<span class="quest-progress-txt">${fmtCoin(q.progress)} / ${fmtCoin(q.target_value)}</span>`;
+    }
+    return `
+      <div class="quest-card ${q.completed ? 'done' : ''} ${q.claimed ? 'claimed' : ''}">
+        <div class="q-title">${q.title}</div>
+        <div class="q-desc">${q.description}</div>
+        <div class="q-track"><div class="q-fill" style="width:${pct}%"></div></div>
+        <div class="q-meta">
+          <span class="quest-reward">+${fmtCoin(q.reward_comet)} COMET</span>
+          ${actionHtml}
+        </div>
+      </div>`;
+  }).join('') || '<div class="sm-hint">Keine Aufgaben gefunden.</div>';
+
+  wrap.querySelectorAll('.holiday-quest-claim-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('claim_holiday_quest', { p_quest_id: btn.dataset.questId });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Belohnung abgeholt.', true, 'coin');
+      await loadHolidayEvent();
+      await loadEverything({ light: true });
+    });
   });
 }
 
