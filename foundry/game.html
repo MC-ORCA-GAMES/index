@@ -27,6 +27,26 @@
   Abschnitt 4 offene Design-Frage, da Reputation vorher nur durch Zufall/
   passive Erholung beeinflussbar war, obwohl sie Voraussetzung für die
   Börsenreife (≥55) ist.
+
+  v1.2: MVP-Testfall Bergbau→Technologie über einen globalen Marktpool
+  (foundry.resource_market) — abgelöst in v1.3, siehe unten.
+
+  v1.3: Volle Sektor-Wirtschaft für alle 8 Sektoren + echter Firma-zu-Firma-
+  Handel (Migration foundry_full_sector_economy). Der globale Pool ist weg;
+  jede Firma produziert ihr Sektor-Gut pro Tick ins eigene Lager
+  (foundry.company_inventory) und kann es über ein echtes Orderbuch
+  (foundry.market_orders, RPCs create_sell_order/buy_market_order/
+  cancel_sell_order) an andere Firmen verkaufen. Wer (noch) keinen
+  Handelspartner hat, kauft stattdessen sofort am simulierten Bot-Markt
+  (get_bot_price/buy_from_bot_market). make_decision() hat eine neue,
+  generische Entscheidung 'use_input' (mit p_resource_name) ersetzt das alte
+  sektorspezifische 'buy_input' — jeder Sektor kann jetzt passende Waren
+  verbrauchen (Effizienz/Reputation/Rücklage/Risiko je nach Ware, siehe
+  foundry.sector_inputs in der DB bzw. SECTOR_INPUTS hier im Frontend).
+  Getestet Ende-zu-Ende gegen die echte DB (Produktion → Verkauf → Kauf →
+  Bot-Zukauf → Verbrauch), danach wieder bereinigt. RLS auf companies/
+  decisions_log/company_events wurde in derselben Session aktiviert
+  (siehe HANDOFF.md Abschnitt 2 — jetzt erledigt).
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -325,6 +345,7 @@
       <div class="main-tabs" id="mainTabs">
         <button type="button" class="main-tab-btn active" data-tab="entscheidungen">Entscheidungen</button>
         <button type="button" class="main-tab-btn" data-tab="ereignisse">Ereignisse</button>
+        <button type="button" class="main-tab-btn" data-tab="markt">Markt</button>
         <button type="button" class="main-tab-btn" data-tab="boersengang">Börsengang</button>
         <button type="button" class="main-tab-btn" data-tab="gruenden2">Neue Firma</button>
       </div>
@@ -348,6 +369,42 @@
         <div class="panel">
           <h3>Ereignis-Feed <span class="tag">— letzte 25 Ereignisse dieser Firma</span></h3>
           <div class="event-list" id="eventList"></div>
+        </div>
+      </div>
+
+      <div class="tab-page" id="tabPage-markt">
+        <div class="panel">
+          <h3>Eigenes Lager <span class="tag" id="marketCompanyTag"></span></h3>
+          <div class="decision-grid" id="inventoryGrid"></div>
+        </div>
+        <div class="panel">
+          <h3>Angebot einstellen</h3>
+          <div class="field-row">
+            <div>
+              <label for="sellResource">Ware</label>
+              <select id="sellResource"></select>
+            </div>
+            <div>
+              <label for="sellQuantity">Menge</label>
+              <input type="number" id="sellQuantity" min="0.01" step="0.01" placeholder="z. B. 10">
+            </div>
+            <div>
+              <label for="sellPrice">Preis je Einheit (MOGC)</label>
+              <input type="number" id="sellPrice" min="0.01" step="0.01" placeholder="z. B. 9">
+            </div>
+          </div>
+          <button type="button" class="btn-block" id="sellBtn" style="max-width:260px; margin-top:6px;">Angebot einstellen</button>
+          <div id="sellMsg"></div>
+        </div>
+        <div class="panel">
+          <h3>Offene Angebote <span class="tag">— Firma-zu-Firma</span></h3>
+          <div class="event-list" id="marketOrderList"></div>
+          <div id="buyMsg"></div>
+        </div>
+        <div class="panel">
+          <h3>Bot-Markt <span class="tag">— sofort verfügbar, auch ohne Handelspartner</span></h3>
+          <div class="decision-grid" id="botMarketGrid"></div>
+          <div id="botMsg"></div>
         </div>
       </div>
 
@@ -437,12 +494,91 @@ const DECISIONS = [
   { kind:'rnd', base:200, title:'Forschung & Entwicklung', desc:'+0,1 Effizienz dauerhaft.' },
 ];
 
+// Spiegelt foundry.sector_production / foundry.sector_inputs (statische Spieldaten).
+// Sektor -> welches Gut produziert er selbst (fuer Verkauf/Anzeige).
+const SECTOR_PRODUCES = {
+  'Bergbau & Rohstoffe': 'Rohstoffe',
+  'Energie': 'Energieeinheiten',
+  'Raumfahrt & Logistik': 'Frachtkapazität',
+  'Technologie & Halbleiter': 'Bauteile',
+  'Biotech & Terraforming': 'Bio-Einheiten',
+  'Finanzen': 'Kapitalzugang',
+  'Verteidigung & Sicherheit': 'Schutzverträge',
+};
+// Sektor -> welche Waren er verbrauchen kann (Entscheidung "use_input").
+const SECTOR_INPUTS = {
+  'Technologie & Halbleiter': [
+    { resource:'Rohstoffe', units:15, effect:'+0,15 Effizienz' },
+    { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
+    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
+    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+  ],
+  'Bergbau & Rohstoffe': [
+    { resource:'Energieeinheiten', units:15, effect:'+0,12 Effizienz' },
+    { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
+    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
+    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+  ],
+  'Biotech & Terraforming': [
+    { resource:'Energieeinheiten', units:15, effect:'+0,12 Effizienz' },
+    { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
+    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
+    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+  ],
+  'Raumfahrt & Logistik': [
+    { resource:'Bauteile', units:10, effect:'+0,15 Effizienz' },
+    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
+    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+  ],
+  'Verteidigung & Sicherheit': [
+    { resource:'Bauteile', units:10, effect:'+0,15 Effizienz' },
+    { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
+    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
+  ],
+  'Energie': [
+    { resource:'Bio-Einheiten', units:10, effect:'+0,12 Effizienz' },
+    { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
+    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
+    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+  ],
+  'Konsum & Unterhaltung': [
+    { resource:'Bauteile', units:10, effect:'+6 Reputation' },
+    { resource:'Bio-Einheiten', units:10, effect:'+6 Reputation' },
+    { resource:'Frachtkapazität', units:10, effect:'+4 Reputation' },
+    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
+    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+  ],
+  'Finanzen': [
+    { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
+    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+  ],
+};
+const ALL_RESOURCES = ['Rohstoffe','Energieeinheiten','Frachtkapazität','Bauteile','Bio-Einheiten','Kapitalzugang','Schutzverträge'];
+
 let companies = [];
 let selectedCompanyId = null;
 let galaxyIndex = 1.0;
 let selectedSector = null;
 let selectedSector2 = null;
 let mogcBalance = 0;
+let myInventory = [];
+let marketOrders = [];
+
+async function loadInventory(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_my_inventory');
+    if (error) { console.error(error); return; }
+    myInventory = data || [];
+  } catch(e){ console.error(e); }
+}
+
+async function loadMarketOrders(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_market_orders');
+    if (error) { console.error(error); return; }
+    marketOrders = data || [];
+  } catch(e){ console.error(e); }
+}
 
 function showMsg(elId, text, ok){
   const el = document.getElementById(elId);
@@ -520,9 +656,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -640,6 +776,11 @@ function render(){
     { label:'Gewinn (letztes Quartal)', value: fmt2(company.last_profit) + ' MOGC', cls: company.last_profit >= 0 ? 'up' : 'down' },
     { label:'Profitable Quartale in Folge', value: company.profitable_streak },
   ];
+  const produces = SECTOR_PRODUCES[company.sector];
+  if (produces) {
+    const inv = myInventory.find(i => i.company_id === company.id && i.resource_name === produces);
+    cards.push({ label:'Lager: ' + produces, value: fmt2(inv ? inv.quantity : 0), cls:'up' });
+  }
   const statCards = document.getElementById('statCards');
   statCards.innerHTML = '';
   cards.forEach(c => {
@@ -650,6 +791,7 @@ function render(){
   });
 
   renderDecisions(company);
+  renderMarket(company);
   renderIpoPanel(company);
   loadEvents(company.id).then(renderEvents);
 }
@@ -667,6 +809,19 @@ function renderDecisions(company){
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, d.kind));
     grid.appendChild(card);
   });
+  (SECTOR_INPUTS[company.sector] || []).forEach(inp => {
+    const owned = myInventory.find(i => i.company_id === company.id && i.resource_name === inp.resource);
+    const have = owned ? Number(owned.quantity) : 0;
+    const enough = have >= inp.units;
+    const card = document.createElement('div');
+    card.className = 'decision-card';
+    card.innerHTML = '<h4>' + inp.resource + ' verwenden</h4><p>' + inp.effect + ' dauerhaft — verbraucht ' + inp.units +
+      ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' +
+      '<div class="dc-cost" style="color:' + (enough ? 'var(--up)' : 'var(--down)') + '">Im Lager: ' + fmt2(have) + ' / ' + inp.units + '</div>' +
+      '<button type="button"' + (active && enough ? '' : ' disabled') + '>Entscheiden</button>';
+    card.querySelector('button').addEventListener('click', () => makeDecision(company.id, 'use_input', null, inp.resource));
+    grid.appendChild(card);
+  });
   document.getElementById('reserveBtn').onclick = () => {
     const amt = Number(document.getElementById('reserveAmount').value);
     if (!amt || amt <= 0) { showMsg('decisionMsg', 'Bitte einen gültigen Betrag eingeben.', false); return; }
@@ -674,20 +829,165 @@ function renderDecisions(company){
   };
 }
 
-async function makeDecision(companyId, kind, amount){
+async function makeDecision(companyId, kind, amount, resourceName){
   if (isGuest()) { showMsg('decisionMsg', 'Als Gast keine Entscheidungen möglich — bitte mit E-Mail-Code einloggen.', false); return; }
   clearMsg('decisionMsg');
   showMsg('decisionMsg', 'Wird verarbeitet …', true);
   try {
     const args = { p_company_id: companyId, p_kind: kind };
     if (amount != null) args.p_amount = amount;
+    if (resourceName != null) args.p_resource_name = resourceName;
     const { data, error } = await sb.schema('foundry').rpc('make_decision', args);
     if (error) { showMsg('decisionMsg', error.message, false); return; }
     showMsg('decisionMsg', 'Entscheidung übernommen.', true);
-    await Promise.all([loadWallet(), loadCompanies()]);
+    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]);
     render();
   } catch (err) {
     showMsg('decisionMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+
+/* ---------- Markt-Tab ---------- */
+function renderMarket(company){
+  document.getElementById('marketCompanyTag').textContent = '— ' + company.ticker;
+
+  const invGrid = document.getElementById('inventoryGrid');
+  invGrid.innerHTML = '';
+  const ownInv = myInventory.filter(i => i.company_id === company.id && Number(i.quantity) > 0);
+  if (!ownInv.length) {
+    invGrid.innerHTML = '<div class="event-empty">Noch keine Ware im Lager — entsteht durch Produktion pro Quartal oder Zukauf.</div>';
+  } else {
+    ownInv.forEach(i => {
+      const div = document.createElement('div');
+      div.className = 'stat-card';
+      div.innerHTML = '<div class="label">' + i.resource_name + '</div><div class="value up">' + fmt2(i.quantity) + '</div>';
+      invGrid.appendChild(div);
+    });
+  }
+
+  const sel = document.getElementById('sellResource');
+  const prevVal = sel.value;
+  sel.innerHTML = '';
+  (ownInv.length ? ownInv.map(i => i.resource_name) : ALL_RESOURCES).forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r; opt.textContent = r;
+    sel.appendChild(opt);
+  });
+  if (prevVal && [...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
+
+  const orderList = document.getElementById('marketOrderList');
+  orderList.innerHTML = '';
+  if (!marketOrders.length) {
+    orderList.innerHTML = '<div class="event-empty">Noch keine offenen Angebote — sei die erste Firma, die verkauft, oder nutze den Bot-Markt unten.</div>';
+  } else {
+    marketOrders.forEach(o => {
+      const isOwn = company.id === o.seller_company_id;
+      const row = document.createElement('div');
+      row.className = 'event-row';
+      row.innerHTML = '<span class="ev-time">' + o.resource_name + '</span>' +
+        fmt2(o.quantity) + ' Stk. à ' + fmt2(o.price_per_unit) + ' MOGC · ' + o.seller_ticker +
+        (isOwn ? ' (eigenes Angebot) <button type="button" class="cancel-order-btn" data-order="' + o.id + '" style="margin-left:8px;">Zurückziehen</button>'
+               : ' <button type="button" class="buy-order-btn" data-order="' + o.id + '" style="margin-left:8px;">Kaufen</button>');
+      orderList.appendChild(row);
+    });
+    orderList.querySelectorAll('.buy-order-btn').forEach(btn => {
+      btn.addEventListener('click', () => buyOrder(btn.dataset.order, company.id));
+    });
+    orderList.querySelectorAll('.cancel-order-btn').forEach(btn => {
+      btn.addEventListener('click', () => cancelOrder(btn.dataset.order));
+    });
+  }
+
+  const botGrid = document.getElementById('botMarketGrid');
+  botGrid.innerHTML = '';
+  const relevant = (SECTOR_INPUTS[company.sector] || []).map(x => x.resource);
+  const botResources = relevant.length ? relevant : ALL_RESOURCES;
+  botResources.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'decision-card';
+    card.innerHTML = '<h4>' + r + '</h4><p>Sofort verfügbar, Preis schwankt leicht um den Basiswert.</p>' +
+      '<div class="dc-cost" id="botPrice-' + r.replace(/[^a-zA-Z0-9]/g,'') + '">…</div>' +
+      '<input type="number" min="1" step="1" value="10" style="margin-bottom:8px;" id="botQty-' + r.replace(/[^a-zA-Z0-9]/g,'') + '">' +
+      '<button type="button">Kaufen</button>';
+    card.querySelector('button').addEventListener('click', () => buyFromBot(company.id, r));
+    botGrid.appendChild(card);
+    sb.schema('foundry').rpc('get_bot_price', { p_resource_name: r }).then(({ data, error }) => {
+      if (error) return;
+      const el = document.getElementById('botPrice-' + r.replace(/[^a-zA-Z0-9]/g,''));
+      if (el) el.textContent = fmt2(data) + ' MOGC / Einheit';
+    });
+  });
+}
+
+document.getElementById('sellBtn').addEventListener('click', async () => {
+  const company = companies.find(c => c.id === selectedCompanyId);
+  if (!company) return;
+  if (isGuest()) { showMsg('sellMsg', 'Als Gast kein Handel möglich.', false); return; }
+  const resource = document.getElementById('sellResource').value;
+  const qty = Number(document.getElementById('sellQuantity').value);
+  const price = Number(document.getElementById('sellPrice').value);
+  if (!resource || !qty || qty <= 0) { showMsg('sellMsg', 'Bitte Menge angeben.', false); return; }
+  if (!price || price <= 0) { showMsg('sellMsg', 'Bitte Preis je Einheit angeben.', false); return; }
+  clearMsg('sellMsg');
+  showMsg('sellMsg', 'Angebot wird eingestellt …', true);
+  try {
+    const { error } = await sb.schema('foundry').rpc('create_sell_order', {
+      p_company_id: company.id, p_resource_name: resource, p_quantity: qty, p_price_per_unit: price
+    });
+    if (error) { showMsg('sellMsg', error.message, false); return; }
+    showMsg('sellMsg', 'Angebot eingestellt.', true);
+    document.getElementById('sellQuantity').value = '';
+    document.getElementById('sellPrice').value = '';
+    await Promise.all([loadInventory(), loadMarketOrders()]);
+    render();
+  } catch (err) {
+    showMsg('sellMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+async function buyOrder(orderId, buyerCompanyId){
+  if (isGuest()) { showMsg('buyMsg', 'Als Gast kein Handel möglich.', false); return; }
+  clearMsg('buyMsg');
+  showMsg('buyMsg', 'Kauf wird verarbeitet …', true);
+  try {
+    const { error } = await sb.schema('foundry').rpc('buy_market_order', { p_order_id: orderId, p_buyer_company_id: buyerCompanyId });
+    if (error) { showMsg('buyMsg', error.message, false); return; }
+    showMsg('buyMsg', 'Kauf erfolgreich.', true);
+    await Promise.all([loadWallet(), loadInventory(), loadMarketOrders()]);
+    render();
+  } catch (err) {
+    showMsg('buyMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+
+async function cancelOrder(orderId){
+  clearMsg('buyMsg');
+  try {
+    const { error } = await sb.schema('foundry').rpc('cancel_sell_order', { p_order_id: orderId });
+    if (error) { showMsg('buyMsg', error.message, false); return; }
+    showMsg('buyMsg', 'Angebot zurückgezogen.', true);
+    await Promise.all([loadInventory(), loadMarketOrders()]);
+    render();
+  } catch (err) {
+    showMsg('buyMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+
+async function buyFromBot(companyId, resource){
+  if (isGuest()) { showMsg('botMsg', 'Als Gast kein Handel möglich.', false); return; }
+  const qtyEl = document.getElementById('botQty-' + resource.replace(/[^a-zA-Z0-9]/g,''));
+  const qty = Number(qtyEl ? qtyEl.value : 0);
+  if (!qty || qty <= 0) { showMsg('botMsg', 'Bitte eine Menge angeben.', false); return; }
+  clearMsg('botMsg');
+  showMsg('botMsg', 'Kauf wird verarbeitet …', true);
+  try {
+    const { error } = await sb.schema('foundry').rpc('buy_from_bot_market', { p_buyer_company_id: companyId, p_resource_name: resource, p_quantity: qty });
+    if (error) { showMsg('botMsg', error.message, false); return; }
+    showMsg('botMsg', 'Eingekauft.', true);
+    await Promise.all([loadWallet(), loadInventory()]);
+    render();
+  } catch (err) {
+    showMsg('botMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
   }
 }
 
@@ -748,7 +1048,7 @@ async function doIpo(companyId){
     const { data, error } = await sb.schema('foundry').rpc('ipo_company', { p_company_id: companyId });
     if (error) { showMsg('ipoMsg', error.message, false); return; }
     showMsg('ipoMsg', 'Geschafft! ' + (data && data.ticker ? data.ticker : '') + ' notiert jetzt im NEXUS-Aktienmarkt.', true);
-    await Promise.all([loadWallet(), loadCompanies()]);
+    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]);
     render();
   } catch (err) {
     showMsg('ipoMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
@@ -771,7 +1071,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId){
     if (error) { showMsg(msgId, error.message, false); return; }
     showMsg(msgId, data.name + ' (' + data.ticker + ') wurde gegründet!', true);
     selectedCompanyId = data.id;
-    await Promise.all([loadWallet(), loadCompanies()]);
+    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]);
     render();
     document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'entscheidungen'));
     document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-entscheidungen'));
@@ -781,7 +1081,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId){
 }
 document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg'));
 document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies()]); render(); });
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){
