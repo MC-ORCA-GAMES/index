@@ -2667,6 +2667,7 @@
     <div class="am-modal-desc" id="amDetailDesc"></div>
     <div class="am-modal-stats">
       <div class="am-modal-stat"><div class="ams-label">Marktkap.</div><div class="ams-value" id="amDetailMcap">–</div></div>
+      <div class="am-modal-stat"><div class="ams-label">Aktien im Umlauf</div><div class="ams-value" id="amDetailShares">–</div></div>
       <div class="am-modal-stat"><div class="ams-label">Volatilität</div><div class="ams-value" id="amDetailVol">–</div></div>
       <div class="am-modal-stat"><div class="ams-label">Gegründet</div><div class="ams-value" id="amDetailYear">–</div></div>
       <div class="am-modal-stat"><div class="ams-label">Im Bestand</div><div class="ams-value" id="amDetailMyShares">0</div></div>
@@ -6950,6 +6951,7 @@ async function openAmDetail(companyId){
     `${Number(c.current_price).toFixed(2)} MOGC <span style="font-size:14px; color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.change_24h_pct >= 0 ? '▲' : '▼'} ${Math.abs(c.change_24h_pct).toFixed(1)}%</span>`;
   document.getElementById('amDetailDesc').textContent = c.description || '';
   document.getElementById('amDetailMcap').textContent = fmtCoin(c.market_cap) + ' MOGC';
+  document.getElementById('amDetailShares').textContent = Number(c.shares_outstanding).toLocaleString('de-DE');
   document.getElementById('amDetailVol').textContent = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }[c.volatility_class] || c.volatility_class;
   document.getElementById('amDetailYear').textContent = c.founded_year || '–';
   document.getElementById('amDetailMyShares').textContent = fmtCoin(c.my_shares || 0);
