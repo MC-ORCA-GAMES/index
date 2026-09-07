@@ -2197,6 +2197,17 @@
             </table>
           </div>
         </div>
+        <div class="panel" style="margin-top:14px;">
+          <h3>Meine Dividenden <span class="tag">— letzte 50 Ausschüttungen</span></h3>
+          <div class="am-table-wrap">
+            <table class="am-table" id="amDividendsTable">
+              <thead>
+                <tr><th>Datum</th><th>Ticker</th><th>Name</th><th>Aktien</th><th>Betrag</th></tr>
+              </thead>
+              <tbody id="amDividendsTableBody"><tr><td colspan="5" class="am-loading">Lädt…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
     </div>
@@ -2675,11 +2686,13 @@
       <span class="am-star" id="amDetailStar" title="Zur Watchlist">★</span>
     </div>
     <div class="am-modal-price" id="amDetailPrice">–</div>
+    <div class="am-modal-desc" id="amDetailHaltBanner" style="display:none; color:var(--down); font-weight:600;"></div>
     <div class="am-modal-desc" id="amDetailDesc"></div>
     <div class="am-modal-stats">
       <div class="am-modal-stat"><div class="ams-label">Marktkap.</div><div class="ams-value" id="amDetailMcap">–</div></div>
       <div class="am-modal-stat"><div class="ams-label">Aktien im Umlauf</div><div class="ams-value" id="amDetailShares">–</div></div>
       <div class="am-modal-stat"><div class="ams-label">Volatilität</div><div class="ams-value" id="amDetailVol">–</div></div>
+      <div class="am-modal-stat"><div class="ams-label">Dividendenrendite</div><div class="ams-value" id="amDetailDividend">–</div></div>
       <div class="am-modal-stat"><div class="ams-label">Gegründet</div><div class="ams-value" id="amDetailYear">–</div></div>
       <div class="am-modal-stat"><div class="ams-label">Im Bestand</div><div class="ams-value" id="amDetailMyShares">0</div></div>
       <div class="am-modal-stat"><div class="ams-label">Hoch (Zeitraum)</div><div class="ams-value" id="amDetailHigh">–</div></div>
@@ -6772,6 +6785,23 @@ async function loadAmMarketStatus(){
   renderAmMarketStatus();
 }
 
+function renderAmDetailHaltState(c){
+  const banner = document.getElementById('amDetailHaltBanner');
+  const marketBox = document.getElementById('amTradeMarket');
+  const orderBox = document.getElementById('amTradeOrder');
+  const halted = c.trading_halted_until && new Date(c.trading_halted_until) > new Date();
+  if (halted) {
+    const time = new Date(c.trading_halted_until).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    banner.innerHTML = `<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 2L12.5 11.5H1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="7" y1="5.5" x2="7" y2="8.3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="7" cy="10" r="0.6" fill="currentColor"/></svg></span> Handelsstopp wegen starker Kursbewegung — Handel pausiert bis ${time} Uhr.`;
+    banner.style.display = 'block';
+    if (marketBox) marketBox.classList.add('am-trade-disabled');
+    if (orderBox) orderBox.classList.add('am-trade-disabled');
+  } else {
+    banner.style.display = 'none';
+    // let renderAmMarketStatus's global open/closed state stand
+  }
+}
+
 function renderAmMarketStatus(){
   const el = document.getElementById('amMarketStatus');
   const txt = document.getElementById('amMarketStatusText');
@@ -6880,7 +6910,7 @@ function renderAmTable(){
   body.innerHTML = rows.map(c => `
     <tr class="am-row" data-id="${c.company_id}">
       <td><span class="am-star${c.in_watchlist ? ' active' : ''}" data-id="${c.company_id}">★</span></td>
-      <td>${c.ticker}</td>
+      <td>${c.ticker}${c.trading_halted_until && new Date(c.trading_halted_until) > new Date() ? ' <span class="nx-icon" title="Handelsstopp aktiv" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;color:var(--down)" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 2L12.5 11.5H1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="7" y1="5.5" x2="7" y2="8.3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="7" cy="10" r="0.6" fill="currentColor"/></svg></span>' : ''}</td>
       <td>${c.name}</td>
       <td>${Number(c.current_price).toFixed(2)}</td>
       <td style="color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.change_24h_pct >= 0 ? '+' : ''}${Number(c.change_24h_pct).toFixed(1)}%</td>
@@ -6945,6 +6975,22 @@ async function loadAmPortfolio(){
       <td>${Number(r.current_price).toFixed(2)}</td>
       <td>${fmtCoin(r.current_value)} MOGC</td>
       <td style="color:${r.pl_abs >= 0 ? 'var(--up)' : 'var(--down)'}">${r.pl_abs >= 0 ? '+' : ''}${fmtCoin(r.pl_abs)} MOGC (${r.pl_pct >= 0 ? '+' : ''}${Number(r.pl_pct).toFixed(1)}%)</td>
+    </tr>`).join('');
+}
+
+async function loadAmDividends(){
+  const { data, error } = await sb.schema('platform').rpc('get_my_dividend_history', { p_limit: 50 });
+  const body = document.getElementById('amDividendsTableBody');
+  if (error) { body.innerHTML = '<tr><td colspan="5" class="am-loading">Fehler beim Laden.</td></tr>'; return; }
+  const rows = data || [];
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="am-loading">Noch keine Ausschüttungen.</td></tr>'; return; }
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td>${new Date(r.paid_at).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit' })}</td>
+      <td>${r.ticker}</td>
+      <td>${r.name}</td>
+      <td>${fmtCoin(r.shares)}</td>
+      <td style="color:var(--up)">+${fmtCoin(r.amount)} MOGC</td>
     </tr>`).join('');
 }
 
@@ -7013,6 +7059,7 @@ async function openAmDetail(companyId){
   document.getElementById('amDetailShares').textContent = Number(c.shares_outstanding).toLocaleString('de-DE');
   document.getElementById('amDetailVol').textContent = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }[c.volatility_class] || c.volatility_class;
   document.getElementById('amDetailYear').textContent = c.founded_year || '–';
+  document.getElementById('amDetailDividend').textContent = c.dividend_yield_pct > 0 ? `${Number(c.dividend_yield_pct).toFixed(2)} %/Jahr` : '–';
   document.getElementById('amDetailMyShares').textContent = fmtCoin(c.my_shares || 0);
   document.getElementById('amDetailStar').classList.toggle('active', !!c.in_watchlist);
   document.getElementById('amMarketAmountInput').value = '';
@@ -7021,6 +7068,7 @@ async function openAmDetail(companyId){
   document.getElementById('amOrderPriceInput').value = '';
   renderAmCompanyNews(companyId);
   renderAmMarketStatus();
+  renderAmDetailHaltState(c);
 
   document.getElementById('amDetailModal').classList.remove('hidden');
 
@@ -7145,7 +7193,7 @@ document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListene
   document.getElementById('amView-watchlist').style.display = view === 'watchlist' ? '' : 'none';
   document.getElementById('amView-portfolio').style.display = view === 'portfolio' ? '' : 'none';
   if (view === 'watchlist') renderAmWatchlistTable();
-  if (view === 'portfolio') { loadAmPortfolio(); loadAmTrades(); }
+  if (view === 'portfolio') { loadAmPortfolio(); loadAmTrades(); loadAmDividends(); }
 }));
 </script>
 
