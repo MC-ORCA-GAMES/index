@@ -6738,7 +6738,7 @@ async function loadAktienmarkt(force){
 
   // Sparklines fuer alle Firmen parallel nachladen (kleiner Zeitraum, 24h)
   const histResults = await Promise.all(amSnapshot.map(c =>
-    sb.schema('platform').rpc('get_stock_price_history', { p_company_id: c.company_id, p_since: '24 hours' })
+    sb.schema('platform').rpc('get_stock_price_history', { p_company_id: c.company_id, p_since: '7 days' })
   ));
   histResults.forEach((r, i) => { amSparklines[amSnapshot[i].company_id] = r.data || []; });
   renderAmTable();
