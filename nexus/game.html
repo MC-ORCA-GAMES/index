@@ -922,6 +922,61 @@
   /* ---------- Sprungmärkte-Tab (STBL/VOLT/GOV) ---------- */
   .sm-card{ border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; background:var(--bg-alt); }
   .sm-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; }
+
+  /* ---------- Aktienmarkt (neuer Untertab im Markt-Tab) ---------- */
+  .markt-subnav{ display:flex; gap:8px; margin-bottom:14px; }
+  .markt-subnav-btn{ flex:1; padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--panel-alt,rgba(255,255,255,0.03)); color:var(--fg-dim); font-family:'Space Grotesk'; font-weight:600; font-size:13px; cursor:pointer; }
+  .markt-subnav-btn.active{ background:var(--blue-dim); color:var(--blue); border-color:var(--blue); }
+  .am-innernav{ display:flex; gap:6px; margin-top:12px; }
+  .am-innernav-btn{ padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg-dim); font-size:12px; cursor:pointer; }
+  .am-innernav-btn.active{ background:var(--blue-dim); color:var(--blue); border-color:var(--blue); }
+  .am-loading{ color:var(--fg-faint); font-size:12.5px; padding:10px 0; }
+  .am-heatmap{ display:grid; grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:8px; }
+  .am-heat-tile{ border-radius:10px; padding:12px 10px; cursor:pointer; border:1px solid rgba(255,255,255,0.06); transition:transform .15s ease; }
+  .am-heat-tile:hover{ transform:translateY(-2px); }
+  .am-heat-tile .aht-sector{ font-size:11px; font-weight:600; opacity:0.9; margin-bottom:4px; line-height:1.25; }
+  .am-heat-tile .aht-pct{ font-family:'Space Grotesk'; font-size:16px; font-weight:700; }
+  .am-movers{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .am-movers-col h5{ margin:0 0 8px; font-size:11.5px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:.04em; }
+  .am-mover-row{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); font-size:12.5px; cursor:pointer; }
+  .am-mover-row:last-child{ border-bottom:none; }
+  .am-news-ticker{ display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto; }
+  .am-news-item{ font-size:12px; color:var(--fg-dim); padding:6px 10px; border-radius:8px; background:rgba(255,255,255,0.03); }
+  .am-news-item .ani-label{ font-weight:600; color:var(--fg); }
+  .am-table-toolbar{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; align-items:center; }
+  .am-table-toolbar input{ flex:1; min-width:160px; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--fg); font-size:12.5px; }
+  .am-sector-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .am-chip{ padding:5px 10px; border-radius:14px; border:1px solid var(--line); font-size:11px; color:var(--fg-dim); cursor:pointer; }
+  .am-chip.active{ background:var(--blue-dim); color:var(--blue); border-color:var(--blue); }
+  .am-table-wrap{ overflow-x:auto; }
+  .am-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .am-table th{ text-align:left; padding:8px 10px; color:var(--fg-faint); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; cursor:pointer; white-space:nowrap; }
+  .am-table td{ padding:8px 10px; border-top:1px solid var(--line); white-space:nowrap; }
+  .am-table tr.am-row{ cursor:pointer; }
+  .am-table tr.am-row:hover td{ background:rgba(255,255,255,0.02); }
+  .am-star{ cursor:pointer; color:var(--fg-faint); font-size:14px; }
+  .am-star.active{ color:#ffcc4d; }
+  .am-mini-spark{ width:70px; height:24px; display:block; }
+  .am-buy-mini{ padding:5px 10px; border-radius:7px; border:1px solid var(--blue); color:var(--blue); background:transparent; font-size:11.5px; cursor:pointer; }
+  .am-modal-card{ max-width:560px; text-align:left; max-height:88vh; overflow-y:auto; }
+  .am-modal-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px; }
+  .am-modal-head h3{ margin:0; font-size:17px; }
+  .am-modal-sector{ font-size:11px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:.03em; }
+  .am-modal-price{ font-family:'Space Grotesk'; font-size:26px; font-weight:700; margin:6px 0; }
+  .am-modal-desc{ font-size:12.5px; color:var(--fg-dim); margin-bottom:12px; line-height:1.5; }
+  .am-modal-stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; margin-bottom:14px; }
+  .am-modal-stat .ams-label{ font-size:10.5px; color:var(--fg-faint); text-transform:uppercase; }
+  .am-modal-stat .ams-value{ font-family:'Space Grotesk'; font-size:14px; font-weight:600; }
+  .am-modal-chartbox{ height:150px; margin-bottom:14px; }
+  .am-trade-tabs{ display:flex; gap:6px; margin-bottom:10px; }
+  .am-trade-tab{ flex:1; padding:8px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg-dim); font-size:12px; cursor:pointer; }
+  .am-trade-tab.active{ background:var(--blue-dim); color:var(--blue); border-color:var(--blue); }
+  .am-orderbook{ margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:11.5px; }
+  .am-orderbook h5{ margin:0 0 6px; font-size:10.5px; color:var(--fg-faint); text-transform:uppercase; }
+  .am-ob-row{ display:flex; justify-content:space-between; padding:3px 0; }
+  .am-ob-row.buy{ color:var(--up); }
+  .am-ob-row.sell{ color:var(--down); }
+  .am-modal-close{ position:absolute; top:14px; right:16px; background:none; border:none; color:var(--fg-faint); font-size:20px; cursor:pointer; }
   .sm-grid.compact-grid{ grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:10px; }
   .sm-grid.compact-grid .sm-card{ padding:10px 12px; }
   .sm-grid.compact-grid .kc-value{ font-size:15px; }
@@ -1861,6 +1916,11 @@
     </div>
 
     <div class="tab-page" id="tabPage-markt">
+    <div class="markt-subnav">
+      <button type="button" class="markt-subnav-btn active" data-marktsub="sprungmaerkte">Sprungmärkte</button>
+      <button type="button" class="markt-subnav-btn" data-marktsub="aktienmarkt">Aktienmarkt</button>
+    </div>
+    <div id="marktSubpage-sprungmaerkte">
     <div class="panel">
       <h3><span class="live-dot"></span>Kurs <span class="tag">— bestimmt den Umtauschkurs beim Verkauf, nicht mehr deinen Ertrag</span></h3>
       <div class="market-price-big" id="marketPriceDisplay">Kurs: –</div>
@@ -2033,6 +2093,83 @@
         </div>
         <div class="sm-hint" id="gridBoostHint">40 GRID → +25&nbsp;% Pulse-Förderrate für 2 Std.</div>
         <button type="button" class="btn btn-primary" id="gridBoostBtn" style="margin-top:8px;">Boost aktivieren</button>
+      </div>
+    </div>
+    </div>
+
+    <div id="marktSubpage-aktienmarkt" style="display:none">
+      <div class="panel">
+        <h3><span class="live-dot"></span>Aktienmarkt <span class="tag">— 32 Firmen, Kurs bewegt sich automatisch, zusätzlich Spieler-Orderbuch pro Firma, gehandelt gegen MOGC</span></h3>
+        <div class="am-innernav">
+          <button type="button" class="am-innernav-btn active" data-amview="uebersicht">Markt-Übersicht</button>
+          <button type="button" class="am-innernav-btn" data-amview="watchlist">Watchlist</button>
+          <button type="button" class="am-innernav-btn" data-amview="portfolio">Portfolio</button>
+        </div>
+      </div>
+
+      <div id="amView-uebersicht">
+        <div class="panel">
+          <h3>Sektoren <span class="tag">— Kachelgröße = Marktkapitalisierung, Farbe = Tagesveränderung</span></h3>
+          <div class="am-heatmap" id="amHeatmap"><div class="am-loading">Lädt…</div></div>
+        </div>
+        <div class="panel">
+          <h3>Bewegung des Tages</h3>
+          <div class="am-movers" id="amMovers"><div class="am-loading">Lädt…</div></div>
+        </div>
+        <div class="panel">
+          <h3>Sektor-News</h3>
+          <div class="am-news-ticker" id="amNewsTicker"><div class="am-loading">Lädt…</div></div>
+        </div>
+        <div class="panel">
+          <div class="am-table-toolbar">
+            <input type="text" id="amSearchInput" placeholder="Firma oder Ticker suchen…">
+            <div class="am-sector-chips" id="amSectorChips"></div>
+          </div>
+          <div class="am-table-wrap">
+            <table class="am-table" id="amTable">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th data-sort="ticker">Ticker</th>
+                  <th data-sort="name">Name</th>
+                  <th data-sort="current_price">Kurs</th>
+                  <th data-sort="change_24h_pct">24h %</th>
+                  <th>Verlauf</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="amTableBody"><tr><td colspan="7" class="am-loading">Lädt…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="amView-watchlist" style="display:none">
+        <div class="panel">
+          <h3>Watchlist <span class="tag">— per Stern in der Übersicht markiert</span></h3>
+          <div class="am-table-wrap">
+            <table class="am-table" id="amWatchlistTable">
+              <thead>
+                <tr><th></th><th>Ticker</th><th>Name</th><th>Kurs</th><th>24h %</th><th>Verlauf</th><th></th></tr>
+              </thead>
+              <tbody id="amWatchlistTableBody"><tr><td colspan="7" class="am-loading">Lädt…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="amView-portfolio" style="display:none">
+        <div class="panel">
+          <h3>Mein Portfolio</h3>
+          <div class="am-table-wrap">
+            <table class="am-table" id="amPortfolioTable">
+              <thead>
+                <tr><th>Ticker</th><th>Name</th><th>Menge</th><th>Ø Kaufkurs</th><th>Kurs</th><th>Wert</th><th>Gewinn/Verlust</th></tr>
+              </thead>
+              <tbody id="amPortfolioTableBody"><tr><td colspan="7" class="am-loading">Lädt…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
     </div>
@@ -2497,6 +2634,59 @@
     <div class="om-away">Heute noch nicht abgeholt — <span id="cycleReminderStreakNum">0</span> Tage Streak nicht verlieren.</div>
     <button class="btn-block" id="cycleReminderClaimBtn" style="margin-bottom:8px;">Jetzt abholen</button>
     <button class="btn-ghost" id="cycleReminderLaterBtn" style="width:100%; border-radius:10px; padding:11px 16px;">Später</button>
+  </div>
+</div>
+
+<div id="amDetailModal" class="offline-modal-backdrop hidden">
+  <div class="offline-modal-card am-modal-card">
+    <button type="button" class="am-modal-close" id="amDetailCloseBtn">&times;</button>
+    <div class="am-modal-head">
+      <div>
+        <div class="am-modal-sector" id="amDetailSector">–</div>
+        <h3 id="amDetailName">–</h3>
+      </div>
+      <span class="am-star" id="amDetailStar" title="Zur Watchlist">★</span>
+    </div>
+    <div class="am-modal-price" id="amDetailPrice">–</div>
+    <div class="am-modal-desc" id="amDetailDesc"></div>
+    <div class="am-modal-stats">
+      <div class="am-modal-stat"><div class="ams-label">Marktkap.</div><div class="ams-value" id="amDetailMcap">–</div></div>
+      <div class="am-modal-stat"><div class="ams-label">Volatilität</div><div class="ams-value" id="amDetailVol">–</div></div>
+      <div class="am-modal-stat"><div class="ams-label">Gegründet</div><div class="ams-value" id="amDetailYear">–</div></div>
+      <div class="am-modal-stat"><div class="ams-label">Im Bestand</div><div class="ams-value" id="amDetailMyShares">0</div></div>
+    </div>
+    <div class="am-modal-chartbox"><canvas id="amDetailChart"></canvas></div>
+
+    <div class="am-trade-tabs">
+      <button type="button" class="am-trade-tab active" data-amtrade="market">Sofort (Referenzkurs)</button>
+      <button type="button" class="am-trade-tab" data-amtrade="order">Eigenes Gebot</button>
+    </div>
+
+    <div id="amTradeMarket">
+      <div class="sm-trade-box">
+        <input type="number" id="amMarketAmountInput" min="0" step="any" placeholder="Anzahl Aktien">
+        <button type="button" class="btn btn-primary" id="amMarketBuyBtn">Kaufen</button>
+        <button type="button" class="btn btn-ghost" id="amMarketSellBtn">Verkaufen</button>
+      </div>
+      <div class="am-modal-desc" id="amMarketPreview"></div>
+    </div>
+
+    <div id="amTradeOrder" style="display:none">
+      <div class="am-trade-tabs">
+        <button type="button" class="am-trade-tab active" data-amorderside="buy">Kaufen</button>
+        <button type="button" class="am-trade-tab" data-amorderside="sell">Verkaufen</button>
+      </div>
+      <div class="sm-trade-box">
+        <input type="number" id="amOrderAmountInput" min="0" step="any" placeholder="Anzahl Aktien">
+        <input type="number" id="amOrderPriceInput" min="0" step="any" placeholder="Preis je Aktie (MOGC)">
+        <button type="button" class="btn btn-primary" id="amOrderSubmitBtn">Order platzieren</button>
+      </div>
+      <div class="am-orderbook">
+        <div><h5>Kaufgebote</h5><div id="amOrderBookBuy"></div></div>
+        <div><h5>Verkaufsgebote</h5><div id="amOrderBookSell"></div></div>
+      </div>
+      <div class="am-modal-desc" id="amMyOrdersHint" style="margin-top:10px;"></div>
+    </div>
   </div>
 </div>
 
@@ -6463,6 +6653,358 @@ function renderInventory(){
   }
   el.innerHTML = owned.map(i => `<div class="rig-row"><div class="rig-name">${i.name}</div></div>`).join('');
 }
+
+/* ============================================================
+   Aktienmarkt (neuer Untertab im Markt-Tab)
+   ============================================================ */
+let amSnapshot = [];
+let amSectorSummary = [];
+let amSparklines = {};
+let amLoaded = false;
+let amSortField = 'sector';
+let amSortDir = 1;
+let amSearchQuery = '';
+let amSectorFilter = null;
+let amDetailCompanyId = null;
+let amDetailChart = null;
+let amOrderSide = 'buy';
+
+function amSectorColor(pct){
+  const p = Math.max(-15, Math.min(15, Number(pct) || 0));
+  if (p >= 0) {
+    const a = 0.12 + (p / 15) * 0.55;
+    return `rgba(46,204,113,${a.toFixed(2)})`;
+  } else {
+    const a = 0.12 + (-p / 15) * 0.55;
+    return `rgba(235,87,87,${a.toFixed(2)})`;
+  }
+}
+
+function amSparkSvg(points){
+  if (!points || points.length < 2) return '<svg class="am-mini-spark" viewBox="0 0 70 24"></svg>';
+  const vals = points.map(p => Number(p.price));
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max - min) || 1;
+  const step = 70 / (vals.length - 1);
+  const coords = vals.map((v, i) => `${(i * step).toFixed(1)},${(22 - ((v - min) / range) * 20).toFixed(1)}`).join(' ');
+  const up = vals[vals.length - 1] >= vals[0];
+  return `<svg class="am-mini-spark" viewBox="0 0 70 24"><polyline points="${coords}" fill="none" stroke="${up ? 'var(--up)' : 'var(--down)'}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+async function loadAktienmarkt(force){
+  if (amLoaded && !force) return;
+  const [{ data: snap, error: snapErr }, { data: sectors, error: secErr }, { data: events, error: evErr }] =
+    await Promise.all([
+      sb.schema('platform').rpc('get_stock_market_snapshot'),
+      sb.schema('platform').rpc('get_sector_summary'),
+      sb.schema('platform').rpc('get_recent_stock_events', { p_limit: 12 })
+    ]);
+  if (snapErr) { console.error(snapErr); return; }
+  amSnapshot = snap || [];
+  amSectorSummary = sectors || [];
+  amLoaded = true;
+
+  renderAmHeatmap();
+  renderAmMovers();
+  renderAmNewsTicker(events || []);
+  renderAmSectorChips();
+  renderAmTable();
+
+  // Sparklines fuer alle Firmen parallel nachladen (kleiner Zeitraum, 24h)
+  const histResults = await Promise.all(amSnapshot.map(c =>
+    sb.schema('platform').rpc('get_stock_price_history', { p_company_id: c.company_id, p_since: '24 hours' })
+  ));
+  histResults.forEach((r, i) => { amSparklines[amSnapshot[i].company_id] = r.data || []; });
+  renderAmTable();
+}
+
+function renderAmHeatmap(){
+  const el = document.getElementById('amHeatmap');
+  if (!amSectorSummary.length) { el.innerHTML = '<div class="am-loading">Keine Daten.</div>'; return; }
+  el.innerHTML = amSectorSummary.map(s => `
+    <div class="am-heat-tile" style="background:${amSectorColor(s.avg_change_24h_pct)}" data-sector="${s.sector}">
+      <div class="aht-sector">${s.sector}</div>
+      <div class="aht-pct">${s.avg_change_24h_pct >= 0 ? '+' : ''}${Number(s.avg_change_24h_pct).toFixed(1)}%</div>
+    </div>`).join('');
+  el.querySelectorAll('.am-heat-tile').forEach(t => t.addEventListener('click', () => {
+    amSectorFilter = t.dataset.sector === amSectorFilter ? null : t.dataset.sector;
+    renderAmSectorChips();
+    renderAmTable();
+  }));
+}
+
+function renderAmMovers(){
+  const el = document.getElementById('amMovers');
+  const sorted = [...amSnapshot].sort((a, b) => b.change_24h_pct - a.change_24h_pct);
+  const gainers = sorted.slice(0, 3);
+  const losers = sorted.slice(-3).reverse();
+  function row(c){
+    const up = c.change_24h_pct >= 0;
+    return `<div class="am-mover-row" data-id="${c.company_id}"><span>${c.ticker}</span><span style="color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲' : '▼'} ${Math.abs(c.change_24h_pct).toFixed(1)}%</span></div>`;
+  }
+  el.innerHTML = `
+    <div class="am-movers-col"><h5>Top Gewinner</h5>${gainers.map(row).join('')}</div>
+    <div class="am-movers-col"><h5>Top Verlierer</h5>${losers.map(row).join('')}</div>`;
+  el.querySelectorAll('.am-mover-row').forEach(r => r.addEventListener('click', () => openAmDetail(r.dataset.id)));
+}
+
+function renderAmNewsTicker(events){
+  const el = document.getElementById('amNewsTicker');
+  if (!events.length) { el.innerHTML = '<div class="am-loading">Noch keine Sektor-Events.</div>'; return; }
+  el.innerHTML = events.map(e => `
+    <div class="am-news-item"><span class="ani-label">${e.label}</span> — ${e.description || ''} (${e.effect_pct >= 0 ? '+' : ''}${Number(e.effect_pct).toFixed(1)}%, ${e.sector})</div>`).join('');
+}
+
+function renderAmSectorChips(){
+  const el = document.getElementById('amSectorChips');
+  const sectors = [...new Set(amSnapshot.map(c => c.sector))];
+  el.innerHTML = `<div class="am-chip${!amSectorFilter ? ' active' : ''}" data-sector="">Alle</div>` +
+    sectors.map(s => `<div class="am-chip${amSectorFilter === s ? ' active' : ''}" data-sector="${s}">${s}</div>`).join('');
+  el.querySelectorAll('.am-chip').forEach(c => c.addEventListener('click', () => {
+    amSectorFilter = c.dataset.sector || null;
+    renderAmSectorChips();
+    renderAmTable();
+  }));
+}
+
+function renderAmTable(){
+  let rows = [...amSnapshot];
+  if (amSectorFilter) rows = rows.filter(c => c.sector === amSectorFilter);
+  if (amSearchQuery) {
+    const q = amSearchQuery.toLowerCase();
+    rows = rows.filter(c => c.ticker.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+  }
+  rows.sort((a, b) => (a[amSortField] > b[amSortField] ? 1 : a[amSortField] < b[amSortField] ? -1 : 0) * amSortDir);
+
+  const body = document.getElementById('amTableBody');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="7" class="am-loading">Keine Treffer.</td></tr>'; return; }
+  body.innerHTML = rows.map(c => `
+    <tr class="am-row" data-id="${c.company_id}">
+      <td><span class="am-star${c.in_watchlist ? ' active' : ''}" data-id="${c.company_id}">★</span></td>
+      <td>${c.ticker}</td>
+      <td>${c.name}</td>
+      <td>${Number(c.current_price).toFixed(2)}</td>
+      <td style="color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.change_24h_pct >= 0 ? '+' : ''}${Number(c.change_24h_pct).toFixed(1)}%</td>
+      <td>${amSparkSvg(amSparklines[c.company_id])}</td>
+      <td><button type="button" class="am-buy-mini" data-id="${c.company_id}">Kaufen</button></td>
+    </tr>`).join('');
+
+  body.querySelectorAll('.am-row').forEach(r => r.addEventListener('click', (e) => {
+    if (e.target.closest('.am-star') || e.target.closest('.am-buy-mini')) return;
+    openAmDetail(r.dataset.id);
+  }));
+  body.querySelectorAll('.am-star').forEach(s => s.addEventListener('click', (e) => {
+    e.stopPropagation();
+    amToggleWatchlist(s.dataset.id);
+  }));
+  body.querySelectorAll('.am-buy-mini').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAmDetail(b.dataset.id);
+  }));
+}
+
+function renderAmWatchlistTable(){
+  const rows = amSnapshot.filter(c => c.in_watchlist);
+  const body = document.getElementById('amWatchlistTableBody');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="7" class="am-loading">Noch keine Firma auf der Watchlist — Stern in der Übersicht anklicken.</td></tr>'; return; }
+  body.innerHTML = rows.map(c => `
+    <tr class="am-row" data-id="${c.company_id}">
+      <td><span class="am-star active" data-id="${c.company_id}">★</span></td>
+      <td>${c.ticker}</td>
+      <td>${c.name}</td>
+      <td>${Number(c.current_price).toFixed(2)}</td>
+      <td style="color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.change_24h_pct >= 0 ? '+' : ''}${Number(c.change_24h_pct).toFixed(1)}%</td>
+      <td>${amSparkSvg(amSparklines[c.company_id])}</td>
+      <td><button type="button" class="am-buy-mini" data-id="${c.company_id}">Kaufen</button></td>
+    </tr>`).join('');
+  body.querySelectorAll('.am-row').forEach(r => r.addEventListener('click', (e) => {
+    if (e.target.closest('.am-star') || e.target.closest('.am-buy-mini')) return;
+    openAmDetail(r.dataset.id);
+  }));
+  body.querySelectorAll('.am-star').forEach(s => s.addEventListener('click', (e) => {
+    e.stopPropagation();
+    amToggleWatchlist(s.dataset.id);
+  }));
+  body.querySelectorAll('.am-buy-mini').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAmDetail(b.dataset.id);
+  }));
+}
+
+async function loadAmPortfolio(){
+  const { data, error } = await sb.schema('platform').rpc('get_my_stock_portfolio');
+  const body = document.getElementById('amPortfolioTableBody');
+  if (error) { body.innerHTML = '<tr><td colspan="7" class="am-loading">Fehler beim Laden.</td></tr>'; return; }
+  const rows = data || [];
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="7" class="am-loading">Noch keine Aktien im Bestand.</td></tr>'; return; }
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.ticker}</td>
+      <td>${r.name}</td>
+      <td>${fmtCoin(r.shares)}</td>
+      <td>${Number(r.avg_buy_price).toFixed(2)}</td>
+      <td>${Number(r.current_price).toFixed(2)}</td>
+      <td>${fmtCoin(r.current_value)} MOGC</td>
+      <td style="color:${r.pl_abs >= 0 ? 'var(--up)' : 'var(--down)'}">${r.pl_abs >= 0 ? '+' : ''}${fmtCoin(r.pl_abs)} MOGC (${r.pl_pct >= 0 ? '+' : ''}${Number(r.pl_pct).toFixed(1)}%)</td>
+    </tr>`).join('');
+}
+
+async function amToggleWatchlist(companyId){
+  const { data, error } = await sb.schema('platform').rpc('toggle_stock_watchlist', { p_company_id: companyId });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const c = amSnapshot.find(x => x.company_id === companyId);
+  if (c) c.in_watchlist = !!data;
+  renderAmTable();
+  renderAmWatchlistTable();
+  if (amDetailCompanyId === companyId) {
+    document.getElementById('amDetailStar').classList.toggle('active', !!data);
+  }
+}
+
+async function openAmDetail(companyId){
+  const c = amSnapshot.find(x => x.company_id === companyId);
+  if (!c) return;
+  amDetailCompanyId = companyId;
+  document.getElementById('amDetailSector').textContent = c.sector;
+  document.getElementById('amDetailName').textContent = `${c.ticker} — ${c.name}`;
+  document.getElementById('amDetailPrice').innerHTML =
+    `${Number(c.current_price).toFixed(2)} MOGC <span style="font-size:14px; color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.change_24h_pct >= 0 ? '▲' : '▼'} ${Math.abs(c.change_24h_pct).toFixed(1)}%</span>`;
+  document.getElementById('amDetailDesc').textContent = c.description || '';
+  document.getElementById('amDetailMcap').textContent = fmtCoin(c.market_cap) + ' MOGC';
+  document.getElementById('amDetailVol').textContent = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }[c.volatility_class] || c.volatility_class;
+  document.getElementById('amDetailYear').textContent = c.founded_year || '–';
+  document.getElementById('amDetailMyShares').textContent = fmtCoin(c.my_shares || 0);
+  document.getElementById('amDetailStar').classList.toggle('active', !!c.in_watchlist);
+  document.getElementById('amMarketAmountInput').value = '';
+  document.getElementById('amMarketPreview').textContent = '';
+  document.getElementById('amOrderAmountInput').value = '';
+  document.getElementById('amOrderPriceInput').value = '';
+
+  document.getElementById('amDetailModal').classList.remove('hidden');
+
+  if (!amDetailChart) {
+    amDetailChart = new Chart(document.getElementById('amDetailChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2, pointRadius: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { ticks: { maxTicksLimit: 4, font: { size: 10 } }, grid: { display: false } },
+                  y: { ticks: { maxTicksLimit: 4, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+    });
+  }
+  const { data: hist } = await sb.schema('platform').rpc('get_stock_price_history', { p_company_id: companyId, p_since: '7 days' });
+  updateChart(amDetailChart, hist || [], 'price');
+  amDetailChart.resize();
+
+  await amRefreshOrderBook();
+}
+
+document.getElementById('amDetailCloseBtn').addEventListener('click', () => {
+  document.getElementById('amDetailModal').classList.add('hidden');
+  amDetailCompanyId = null;
+});
+document.getElementById('amDetailStar').addEventListener('click', () => {
+  if (amDetailCompanyId) amToggleWatchlist(amDetailCompanyId);
+});
+
+document.getElementById('amMarketAmountInput').addEventListener('input', () => {
+  const c = amSnapshot.find(x => x.company_id === amDetailCompanyId);
+  const n = parseFloat(document.getElementById('amMarketAmountInput').value);
+  document.getElementById('amMarketPreview').textContent = (c && n > 0)
+    ? `≈ ${fmtCoin(n * c.current_price)} MOGC zum aktuellen Kurs` : '';
+});
+
+document.getElementById('amMarketBuyBtn').addEventListener('click', async () => {
+  const n = parseFloat(document.getElementById('amMarketAmountInput').value);
+  if (!n || n <= 0) { showMsg('statusMsg', 'Bitte gültige Anzahl eingeben.', false); return; }
+  const { error } = await sb.schema('platform').rpc('buy_stock', { p_company_id: amDetailCompanyId, p_shares: n });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  showMsg('statusMsg', `${fmtCoin(n)} Aktien gekauft.`, true);
+  await loadAktienmarkt(true);
+  await loadEverything({ light: true });
+  openAmDetail(amDetailCompanyId);
+});
+document.getElementById('amMarketSellBtn').addEventListener('click', async () => {
+  const n = parseFloat(document.getElementById('amMarketAmountInput').value);
+  if (!n || n <= 0) { showMsg('statusMsg', 'Bitte gültige Anzahl eingeben.', false); return; }
+  const { error } = await sb.schema('platform').rpc('sell_stock', { p_company_id: amDetailCompanyId, p_shares: n });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  showMsg('statusMsg', `${fmtCoin(n)} Aktien verkauft.`, true);
+  await loadAktienmarkt(true);
+  await loadEverything({ light: true });
+  openAmDetail(amDetailCompanyId);
+});
+
+document.querySelectorAll('.am-trade-tab[data-amtrade]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.am-trade-tab[data-amtrade]').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('amTradeMarket').style.display = btn.dataset.amtrade === 'market' ? '' : 'none';
+  document.getElementById('amTradeOrder').style.display = btn.dataset.amtrade === 'order' ? '' : 'none';
+}));
+document.querySelectorAll('.am-trade-tab[data-amorderside]').forEach(btn => btn.addEventListener('click', () => {
+  amOrderSide = btn.dataset.amorderside;
+  document.querySelectorAll('.am-trade-tab[data-amorderside]').forEach(b => b.classList.toggle('active', b === btn));
+}));
+
+async function amRefreshOrderBook(){
+  const { data } = await sb.schema('platform').rpc('get_stock_order_book', { p_company_id: amDetailCompanyId, p_limit: 10 });
+  const rows = data || [];
+  const buys = rows.filter(r => r.side === 'buy');
+  const sells = rows.filter(r => r.side === 'sell');
+  document.getElementById('amOrderBookBuy').innerHTML = buys.length
+    ? buys.map(r => `<div class="am-ob-row buy"><span>${Number(r.price_per_unit).toFixed(2)}</span><span>${fmtCoin(r.amount_remaining)}</span></div>`).join('')
+    : '<div class="am-loading">Keine Gebote.</div>';
+  document.getElementById('amOrderBookSell').innerHTML = sells.length
+    ? sells.map(r => `<div class="am-ob-row sell"><span>${Number(r.price_per_unit).toFixed(2)}</span><span>${fmtCoin(r.amount_remaining)}</span></div>`).join('')
+    : '<div class="am-loading">Keine Gebote.</div>';
+}
+
+document.getElementById('amOrderSubmitBtn').addEventListener('click', async () => {
+  const amount = parseFloat(document.getElementById('amOrderAmountInput').value);
+  const price = parseFloat(document.getElementById('amOrderPriceInput').value);
+  if (!amount || amount <= 0 || !price || price <= 0) { showMsg('statusMsg', 'Bitte gültige Menge und Preis eingeben.', false); return; }
+  const { data, error } = await sb.schema('platform').rpc('place_stock_order', {
+    p_company_id: amDetailCompanyId, p_side: amOrderSide, p_amount: amount, p_price_per_unit: price
+  });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  const filled = Number(row?.filled_amount ?? 0);
+  showMsg('statusMsg', filled > 0
+    ? `Order platziert: ${fmtCoin(filled)} sofort ausgeführt (Ø ${Number(row?.avg_fill_price ?? 0).toFixed(3)} MOGC), ${fmtCoin(row?.remaining_amount ?? 0)} bleibt offen.`
+    : `Order ins Buch gestellt: ${fmtCoin(amount)} @ ${price.toFixed(2)} MOGC.`, true);
+  document.getElementById('amOrderAmountInput').value = '';
+  document.getElementById('amOrderPriceInput').value = '';
+  await amRefreshOrderBook();
+  await loadAktienmarkt(true);
+  await loadEverything({ light: true });
+});
+
+document.getElementById('amSearchInput').addEventListener('input', (e) => {
+  amSearchQuery = e.target.value;
+  renderAmTable();
+});
+document.querySelectorAll('#amTable th[data-sort]').forEach(th => th.addEventListener('click', () => {
+  const field = th.dataset.sort;
+  amSortDir = (amSortField === field) ? -amSortDir : 1;
+  amSortField = field;
+  renderAmTable();
+}));
+
+document.querySelectorAll('.markt-subnav-btn').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.markt-subnav-btn').forEach(b => b.classList.toggle('active', b === btn));
+  const sub = btn.dataset.marktsub;
+  document.getElementById('marktSubpage-sprungmaerkte').style.display = sub === 'sprungmaerkte' ? '' : 'none';
+  document.getElementById('marktSubpage-aktienmarkt').style.display = sub === 'aktienmarkt' ? '' : 'none';
+  if (sub === 'aktienmarkt') loadAktienmarkt();
+}));
+
+document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.am-innernav-btn').forEach(b => b.classList.toggle('active', b === btn));
+  const view = btn.dataset.amview;
+  document.getElementById('amView-uebersicht').style.display = view === 'uebersicht' ? '' : 'none';
+  document.getElementById('amView-watchlist').style.display = view === 'watchlist' ? '' : 'none';
+  document.getElementById('amView-portfolio').style.display = view === 'portfolio' ? '' : 'none';
+  if (view === 'watchlist') renderAmWatchlistTable();
+  if (view === 'portfolio') loadAmPortfolio();
+}));
 </script>
 
 <!-- ---------- NEXUS global gemined -- Badge im Header ---------- -->
