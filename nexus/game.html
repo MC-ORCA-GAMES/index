@@ -2186,6 +2186,17 @@
             </table>
           </div>
         </div>
+        <div class="panel" style="margin-top:14px;">
+          <h3>Meine Trades <span class="tag">— letzte 50 Ausführungen</span></h3>
+          <div class="am-table-wrap">
+            <table class="am-table" id="amTradesTable">
+              <thead>
+                <tr><th>Datum</th><th>Ticker</th><th>Name</th><th>Seite</th><th>Menge</th><th>Preis</th><th>Gesamt</th></tr>
+              </thead>
+              <tbody id="amTradesTableBody"><tr><td colspan="7" class="am-loading">Lädt…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
     </div>
@@ -2671,6 +2682,14 @@
       <div class="am-modal-stat"><div class="ams-label">Volatilität</div><div class="ams-value" id="amDetailVol">–</div></div>
       <div class="am-modal-stat"><div class="ams-label">Gegründet</div><div class="ams-value" id="amDetailYear">–</div></div>
       <div class="am-modal-stat"><div class="ams-label">Im Bestand</div><div class="ams-value" id="amDetailMyShares">0</div></div>
+      <div class="am-modal-stat"><div class="ams-label">Hoch (Zeitraum)</div><div class="ams-value" id="amDetailHigh">–</div></div>
+      <div class="am-modal-stat"><div class="ams-label">Tief (Zeitraum)</div><div class="ams-value" id="amDetailLow">–</div></div>
+    </div>
+    <div class="am-trade-tabs" id="amChartRangeTabs" style="margin-bottom:8px;">
+      <button type="button" class="am-trade-tab" data-amrange="1 day">1T</button>
+      <button type="button" class="am-trade-tab" data-amrange="7 days">1W</button>
+      <button type="button" class="am-trade-tab active" data-amrange="30 days">1M</button>
+      <button type="button" class="am-trade-tab" data-amrange="3650 days">Alles</button>
     </div>
     <div class="am-modal-chartbox"><canvas id="amDetailChart"></canvas></div>
 
@@ -6929,6 +6948,24 @@ async function loadAmPortfolio(){
     </tr>`).join('');
 }
 
+async function loadAmTrades(){
+  const { data, error } = await sb.schema('platform').rpc('get_my_stock_trades', { p_limit: 50 });
+  const body = document.getElementById('amTradesTableBody');
+  if (error) { body.innerHTML = '<tr><td colspan="7" class="am-loading">Fehler beim Laden.</td></tr>'; return; }
+  const rows = data || [];
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="7" class="am-loading">Noch keine Trades.</td></tr>'; return; }
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td>${new Date(r.executed_at).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</td>
+      <td>${r.ticker}</td>
+      <td>${r.name}</td>
+      <td style="color:${r.side === 'buy' ? 'var(--up)' : 'var(--down)'}">${r.side === 'buy' ? 'Kauf' : 'Verkauf'}</td>
+      <td>${fmtCoin(r.amount)}</td>
+      <td>${Number(r.price_per_unit).toFixed(2)}</td>
+      <td>${fmtCoin(r.total)} MOGC</td>
+    </tr>`).join('');
+}
+
 async function amToggleWatchlist(companyId){
   const { data, error } = await sb.schema('platform').rpc('toggle_stock_watchlist', { p_company_id: companyId });
   if (error) { showMsg('statusMsg', error.message, false); return; }
@@ -6940,6 +6977,28 @@ async function amToggleWatchlist(companyId){
     document.getElementById('amDetailStar').classList.toggle('active', !!data);
   }
 }
+
+async function loadAmDetailChart(companyId, since){
+  const { data: hist } = await sb.schema('platform').rpc('get_stock_price_history', { p_company_id: companyId, p_since: since });
+  const points = hist || [];
+  updateChart(amDetailChart, points, 'price');
+  if (points.length){
+    const prices = points.map(p => Number(p.price));
+    document.getElementById('amDetailHigh').textContent = Math.max(...prices).toFixed(2) + ' MOGC';
+    document.getElementById('amDetailLow').textContent = Math.min(...prices).toFixed(2) + ' MOGC';
+  } else {
+    document.getElementById('amDetailHigh').textContent = '–';
+    document.getElementById('amDetailLow').textContent = '–';
+  }
+}
+
+document.getElementById('amChartRangeTabs').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-amrange]');
+  if (!btn || !amDetailCompanyId) return;
+  document.querySelectorAll('#amChartRangeTabs .am-trade-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  await loadAmDetailChart(amDetailCompanyId, btn.dataset.amrange);
+});
 
 async function openAmDetail(companyId){
   const c = amSnapshot.find(x => x.company_id === companyId);
@@ -6974,8 +7033,8 @@ async function openAmDetail(companyId){
                   y: { ticks: { maxTicksLimit: 4, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
     });
   }
-  const { data: hist } = await sb.schema('platform').rpc('get_stock_price_history', { p_company_id: companyId, p_since: '7 days' });
-  updateChart(amDetailChart, hist || [], 'price');
+  document.querySelectorAll('#amChartRangeTabs .am-trade-tab').forEach(b => b.classList.toggle('active', b.dataset.amrange === '30 days'));
+  await loadAmDetailChart(companyId, '30 days');
   amDetailChart.resize();
 
   await amRefreshOrderBook();
@@ -7086,7 +7145,7 @@ document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListene
   document.getElementById('amView-watchlist').style.display = view === 'watchlist' ? '' : 'none';
   document.getElementById('amView-portfolio').style.display = view === 'portfolio' ? '' : 'none';
   if (view === 'watchlist') renderAmWatchlistTable();
-  if (view === 'portfolio') loadAmPortfolio();
+  if (view === 'portfolio') { loadAmPortfolio(); loadAmTrades(); }
 }));
 </script>
 
