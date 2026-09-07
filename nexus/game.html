@@ -931,6 +931,13 @@
   .am-innernav-btn{ padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg-dim); font-size:12px; cursor:pointer; }
   .am-innernav-btn.active{ background:var(--blue-dim); color:var(--blue); border-color:var(--blue); }
   .am-loading{ color:var(--fg-faint); font-size:12.5px; padding:10px 0; }
+  .am-market-status{ display:flex; align-items:center; gap:8px; margin-top:10px; font-size:12.5px; color:var(--fg-dim); }
+  .am-status-dot{ width:8px; height:8px; border-radius:50%; background:var(--fg-faint); flex-shrink:0; }
+  .am-market-status.open .am-status-dot{ background:var(--up); box-shadow:0 0 8px var(--up); animation:livePulse 2.2s ease-in-out infinite; }
+  .am-market-status.closed .am-status-dot{ background:var(--down); }
+  .am-market-status.open #amMarketStatusText{ color:var(--up); }
+  .am-market-status.closed #amMarketStatusText{ color:var(--down); }
+  .am-trade-disabled{ opacity:0.5; pointer-events:none; }
   .am-heatmap{ display:grid; grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:8px; }
   .am-heat-tile{ border-radius:10px; padding:12px 10px; cursor:pointer; border:1px solid rgba(255,255,255,0.06); transition:transform .15s ease; }
   .am-heat-tile:hover{ transform:translateY(-2px); }
@@ -2104,6 +2111,7 @@
     <div id="marktSubpage-aktienmarkt" style="display:none">
       <div class="panel">
         <h3><span class="live-dot"></span>Aktienmarkt <span class="tag">— 32 Firmen, Kurs bewegt sich automatisch, zusätzlich Spieler-Orderbuch pro Firma, gehandelt gegen MOGC</span></h3>
+        <div class="am-market-status" id="amMarketStatus"><span class="am-status-dot"></span><span id="amMarketStatusText">Lädt…</span></div>
         <div class="am-innernav">
           <button type="button" class="am-innernav-btn active" data-amview="uebersicht">Markt-Übersicht</button>
           <button type="button" class="am-innernav-btn" data-amview="watchlist">Watchlist</button>
@@ -6678,6 +6686,8 @@ let amSectorFilter = null;
 let amDetailCompanyId = null;
 let amDetailChart = null;
 let amCompanyNews = [];
+let amMarketOpen = null;
+let amMarketNextChange = null;
 let amOrderSide = 'buy';
 
 function amSectorColor(pct){
@@ -6704,6 +6714,7 @@ function amSparkSvg(points){
 
 async function loadAktienmarkt(force){
   if (amLoaded && !force) return;
+  loadAmMarketStatus();
   const [{ data: snap, error: snapErr }, { data: sectors, error: secErr }, { data: events, error: evErr }, { data: news, error: newsErr }] =
     await Promise.all([
       sb.schema('platform').rpc('get_stock_market_snapshot'),
@@ -6732,6 +6743,36 @@ async function loadAktienmarkt(force){
   histResults.forEach((r, i) => { amSparklines[amSnapshot[i].company_id] = r.data || []; });
   renderAmTable();
 }
+
+async function loadAmMarketStatus(){
+  const { data, error } = await sb.schema('platform').rpc('get_stock_market_status');
+  if (error || !data || !data.length) return;
+  amMarketOpen = data[0].is_open;
+  amMarketNextChange = data[0].next_change;
+  renderAmMarketStatus();
+}
+
+function renderAmMarketStatus(){
+  const el = document.getElementById('amMarketStatus');
+  const txt = document.getElementById('amMarketStatusText');
+  if (!el || amMarketOpen === null) return;
+  el.classList.toggle('open', amMarketOpen);
+  el.classList.toggle('closed', !amMarketOpen);
+  const diffMs = new Date(amMarketNextChange) - new Date();
+  const mins = Math.max(0, Math.round(diffMs / 60000));
+  const h = Math.floor(mins / 60), m = mins % 60;
+  const dur = h > 0 ? `${h} Std. ${m} Min.` : `${m} Min.`;
+  txt.textContent = amMarketOpen
+    ? `Markt geöffnet — schließt in ${dur}`
+    : `Markt geschlossen — öffnet in ${dur} (Mo–Fr, 15:30–22:00 Uhr)`;
+  const marketBox = document.getElementById('amTradeMarket');
+  const orderBox = document.getElementById('amTradeOrder');
+  if (marketBox) marketBox.classList.toggle('am-trade-disabled', !amMarketOpen);
+  if (orderBox) orderBox.classList.toggle('am-trade-disabled', !amMarketOpen);
+}
+
+setInterval(() => { if (amMarketNextChange) renderAmMarketStatus(); }, 30000);
+setInterval(loadAmMarketStatus, 5 * 60 * 1000);
 
 function renderAmHeatmap(){
   const el = document.getElementById('amHeatmap');
@@ -6918,6 +6959,7 @@ async function openAmDetail(companyId){
   document.getElementById('amOrderAmountInput').value = '';
   document.getElementById('amOrderPriceInput').value = '';
   renderAmCompanyNews(companyId);
+  renderAmMarketStatus();
 
   document.getElementById('amDetailModal').classList.remove('hidden');
 
