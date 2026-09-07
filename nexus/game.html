@@ -943,6 +943,10 @@
   .am-news-ticker{ display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto; }
   .am-news-item{ font-size:12px; color:var(--fg-dim); padding:6px 10px; border-radius:8px; background:rgba(255,255,255,0.03); }
   .am-news-item .ani-label{ font-weight:600; color:var(--fg); }
+  .am-news-item.prediction{ border-left:2px solid rgba(255,255,255,0.12); }
+  .ani-pred{ font-size:11px; font-weight:600; white-space:nowrap; }
+  .ani-pred.resolved.hit{ color:var(--up); }
+  .ani-pred.resolved.miss{ color:var(--fg-faint); }
   .am-table-toolbar{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; align-items:center; }
   .am-table-toolbar input{ flex:1; min-width:160px; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--fg); font-size:12.5px; }
   .am-sector-chips{ display:flex; flex-wrap:wrap; gap:6px; }
@@ -2121,6 +2125,10 @@
           <div class="am-news-ticker" id="amNewsTicker"><div class="am-loading">Lädt…</div></div>
         </div>
         <div class="panel">
+          <h3>Firmen-News &amp; Prognosen <span class="tag">— Gerüchte/Insider-Hinweise lösen sich nach 15–45 Min auf, ~75% Trefferquote</span></h3>
+          <div class="am-news-ticker" id="amCompanyNewsTicker"><div class="am-loading">Lädt…</div></div>
+        </div>
+        <div class="panel">
           <div class="am-table-toolbar">
             <input type="text" id="amSearchInput" placeholder="Firma oder Ticker suchen…">
             <div class="am-sector-chips" id="amSectorChips"></div>
@@ -2656,6 +2664,8 @@
       <div class="am-modal-stat"><div class="ams-label">Im Bestand</div><div class="ams-value" id="amDetailMyShares">0</div></div>
     </div>
     <div class="am-modal-chartbox"><canvas id="amDetailChart"></canvas></div>
+
+    <div class="am-news-ticker" id="amDetailNewsTicker" style="margin-bottom:14px;"><div class="am-loading">Lädt…</div></div>
 
     <div class="am-trade-tabs">
       <button type="button" class="am-trade-tab active" data-amtrade="market">Sofort (Referenzkurs)</button>
@@ -6667,6 +6677,7 @@ let amSearchQuery = '';
 let amSectorFilter = null;
 let amDetailCompanyId = null;
 let amDetailChart = null;
+let amCompanyNews = [];
 let amOrderSide = 'buy';
 
 function amSectorColor(pct){
@@ -6693,20 +6704,24 @@ function amSparkSvg(points){
 
 async function loadAktienmarkt(force){
   if (amLoaded && !force) return;
-  const [{ data: snap, error: snapErr }, { data: sectors, error: secErr }, { data: events, error: evErr }] =
+  const [{ data: snap, error: snapErr }, { data: sectors, error: secErr }, { data: events, error: evErr }, { data: news, error: newsErr }] =
     await Promise.all([
       sb.schema('platform').rpc('get_stock_market_snapshot'),
       sb.schema('platform').rpc('get_sector_summary'),
-      sb.schema('platform').rpc('get_recent_stock_events', { p_limit: 12 })
+      sb.schema('platform').rpc('get_recent_stock_events', { p_limit: 12 }),
+      sb.schema('platform').rpc('get_stock_company_news', { p_limit: 30 })
     ]);
   if (snapErr) { console.error(snapErr); return; }
   amSnapshot = snap || [];
   amSectorSummary = sectors || [];
+  if (newsErr) console.error(newsErr);
+  amCompanyNews = news || [];
   amLoaded = true;
 
   renderAmHeatmap();
   renderAmMovers();
   renderAmNewsTicker(events || []);
+  renderAmCompanyNews();
   renderAmSectorChips();
   renderAmTable();
 
@@ -6753,6 +6768,29 @@ function renderAmNewsTicker(events){
   if (!events.length) { el.innerHTML = '<div class="am-loading">Noch keine Sektor-Events.</div>'; return; }
   el.innerHTML = events.map(e => `
     <div class="am-news-item"><span class="ani-label">${e.label}</span> — ${e.description || ''} (${e.effect_pct >= 0 ? '+' : ''}${Number(e.effect_pct).toFixed(1)}%, ${e.sector})</div>`).join('');
+}
+
+function amNewsMeta(n){
+  if (n.kind !== 'prediction') return '';
+  const dirArrow = n.predicted_direction === 'up' ? '▲' : '▼';
+  const dirColor = n.predicted_direction === 'up' ? 'var(--up)' : 'var(--down)';
+  const strengthLabel = { leicht: 'leicht', spuerbar: 'spürbar', stark: 'stark' }[n.predicted_strength] || n.predicted_strength;
+  if (!n.resolved) {
+    return ` <span class="ani-pred pending" style="color:${dirColor}">${dirArrow} ${strengthLabel} · noch offen</span>`;
+  }
+  const hit = n.accurate;
+  const effect = n.actual_effect_pct;
+  const effColor = effect >= 0 ? 'var(--up)' : 'var(--down)';
+  return ` <span class="ani-pred resolved ${hit ? 'hit' : 'miss'}">${hit ? '✓ eingetroffen' : '✗ Fehlinfo'} <span style="color:${effColor}">(${effect >= 0 ? '+' : ''}${Number(effect).toFixed(1)}%)</span></span>`;
+}
+
+function renderAmCompanyNews(companyId){
+  const el = document.getElementById(companyId ? 'amDetailNewsTicker' : 'amCompanyNewsTicker');
+  if (!el) return;
+  const list = companyId ? amCompanyNews.filter(n => n.company_id === companyId) : amCompanyNews;
+  if (!list.length) { el.innerHTML = `<div class="am-loading">${companyId ? 'Noch keine News zu dieser Firma.' : 'Noch keine Firmen-News.'}</div>`; return; }
+  el.innerHTML = list.slice(0, companyId ? 8 : 20).map(n => `
+    <div class="am-news-item${n.kind === 'prediction' ? ' prediction' : ''}"><span class="ani-label">${n.ticker}</span> — ${n.headline}${amNewsMeta(n)}</div>`).join('');
 }
 
 function renderAmSectorChips(){
@@ -6879,6 +6917,7 @@ async function openAmDetail(companyId){
   document.getElementById('amMarketPreview').textContent = '';
   document.getElementById('amOrderAmountInput').value = '';
   document.getElementById('amOrderPriceInput').value = '';
+  renderAmCompanyNews(companyId);
 
   document.getElementById('amDetailModal').classList.remove('hidden');
 
