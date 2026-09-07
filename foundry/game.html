@@ -1,0 +1,798 @@
+<!--
+  FOUNDRY — game.html (v1.0)
+  Das eigentliche Spiel: Firma(en) gründen, pro Quartal eine Entscheidung
+  treffen, Ereignis-Feed verfolgen, bei Börsenreife an die Börse gehen.
+  Backend: Schema `foundry` (siehe HANDOFF.md / schema.sql), Supabase-Projekt
+  iuvckfoikhifywayuwkj. Alle Schreib-/Lesezugriffe laufen ausschliesslich über
+  RPCs (sb.schema('foundry').rpc(...)) — die Tabellen selbst haben absichtlich
+  KEINE Grants für authenticated/anon, nur SECURITY DEFINER-Funktionen.
+
+  Login-Flow folgt 1:1 dem NEXUS-Muster (E-Mail-Code, gleicher Account wie
+  überall, plus geteilter Gast-Login) — FOUNDRY braucht wie NEXUS zwingend ein
+  Konto, weil Gründungskapital direkt aus der echten MOGC-Wallet kommt.
+
+  Offen (siehe HANDOFF.md Abschnitt 4, bewusst nicht in dieser Session gelöst):
+  Reputation lässt sich aktuell durch keine Spieler-Entscheidung direkt heben,
+  nur durch Zufallsereignisse + passive Erholung. Mit dem Nutzer absprechen,
+  bevor eine neue "PR-Kampagne"-Entscheidung ergänzt wird.
+
+  Neu in dieser Session: foundry.get_company_events() RPC ergänzt (Migration
+  foundry_get_company_events) — fehlte im Backend-Stand aus HANDOFF.md, war
+  aber nötig, um den Ereignis-Feed hier überhaupt anzuzeigen.
+
+  v1.1: Schema `foundry` per pgrst.db_schemas freigegeben (Migration
+  expose_foundry_schema_via_postgrest) — vorher blockte PostgREST alle RPC-
+  Aufrufe. Neue Entscheidung "PR-Kampagne" (kind:'pr', hebt Reputation direkt
+  um +8, Migration foundry_add_pr_decision) ergänzt — löst die in HANDOFF.md
+  Abschnitt 4 offene Design-Frage, da Reputation vorher nur durch Zufall/
+  passive Erholung beeinflussbar war, obwohl sie Voraussetzung für die
+  Börsenreife (≥55) ist.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOUNDRY — spielen · MC ORCA Games</title>
+<meta name="description" content="FOUNDRY: gründe eine Firma, triff jedes Quartal Entscheidungen, riskiere Insolvenz und geh an die Börse.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e; --radius:10px;
+    --accent:#21C7B8; --accent-dim:rgba(33,199,184,0.14);
+    --up:#0ECB81; --up-dim:rgba(14,203,129,0.14);
+    --down:#F6465D; --down-dim:rgba(246,70,93,0.14);
+    --warn:#e3a87b; --mono:'JetBrains Mono', monospace;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--accent); color:#0a0b12; }
+  .hidden{ display:none !important; }
+  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.5; }
+  .wrap{ position:relative; z-index:2; max-width:1100px; margin:0 auto; padding:0 24px; }
+
+  /* ---------- nav (identisch zum Hub-Muster) ---------- */
+  .nav{ position:sticky; top:0; z-index:30; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1100px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; }
+  .brand .mark{ width:26px; height:26px; border-radius:50%; background:var(--accent); box-shadow:0 0 16px var(--accent-dim); flex-shrink:0; }
+  .brand .divider{ width:1px; height:16px; background:var(--line); margin:0 2px; }
+  .brand .sub{ color:var(--accent); font-weight:700; }
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{ display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px; width:38px; height:38px; border-radius:10px; border:1px solid var(--line); background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0; }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{ position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px; box-shadow:0 16px 40px rgba(0,0,0,0.5); opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none; transition:opacity .15s, transform .15s; max-height:min(75vh,520px); overflow-y:auto; }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
+  /* ---------- login ---------- */
+  .login-section{ padding:60px 0 90px; display:flex; justify-content:center; }
+  .login-box{ width:100%; max-width:380px; border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); padding:28px 26px; }
+  .login-box h2{ font-size:16px; font-weight:600; margin:0 0 4px; }
+  .login-box .lb-sub{ font-size:12.5px; color:var(--fg-dim); margin:0 0 20px; line-height:1.55; }
+  input, select{ width:100%; box-sizing:border-box; padding:11px 12px; margin:6px 0; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-family:'Inter'; font-size:13.5px; }
+  input:focus, select:focus{ outline:none; border-color:var(--accent); }
+  input#otpInput{ font-family:var(--mono); letter-spacing:3px; text-align:center; }
+  button{ font-family:'Space Grotesk'; font-size:13px; font-weight:600; padding:11px 16px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg); cursor:pointer; transition:border-color .15s, background .15s; }
+  button:hover:not(:disabled){ border-color:var(--accent); background:var(--accent-dim); }
+  button:disabled{ opacity:0.4; cursor:default; }
+  .btn-block{ width:100%; margin-top:8px; background:var(--accent); border-color:var(--accent); color:#06231f; }
+  .btn-block:hover{ filter:brightness(1.08); background:var(--accent); }
+  .lb-divider{ display:flex; align-items:center; gap:10px; margin:16px 0 10px; font-size:11px; color:var(--fg-faint); }
+  .lb-divider::before, .lb-divider::after{ content:''; flex:1; height:1px; background:var(--line); }
+  .btn-block-ghost{ width:100%; background:transparent; border-color:var(--line); color:var(--fg-dim); }
+  .btn-block-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); color:var(--fg); }
+  .lb-guest-hint{ font-size:11px; color:var(--fg-faint); line-height:1.5; margin:8px 0 0; text-align:center; }
+  .msg{ font-size:12.5px; padding:10px 12px; border-radius:9px; margin-top:10px; line-height:1.5; }
+  .msg.ok{ background:var(--up-dim); color:var(--up); }
+  .msg.err{ background:var(--down-dim); color:var(--down); }
+
+  /* ---------- dashboard shell ---------- */
+  .dash{ padding:28px 0 90px; }
+  .wallet-bar{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; border:1px solid var(--line); background:var(--panel); border-radius:var(--radius); padding:14px 18px; margin-bottom:20px; }
+  .wallet-bar .wb-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); }
+  .wallet-bar .wb-value{ font-family:var(--mono); font-size:20px; font-weight:600; color:var(--accent); }
+  .wallet-bar .wb-guest{ font-size:11.5px; color:var(--warn); }
+
+  .company-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .company-chip{ font-family:'Space Grotesk'; font-size:12.5px; font-weight:600; padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim); cursor:pointer; display:inline-flex; align-items:center; gap:7px; }
+  .company-chip:hover{ border-color:var(--fg-faint); color:var(--fg); }
+  .company-chip.active{ background:var(--accent); border-color:var(--accent); color:#06231f; }
+  .company-chip .stage-dot{ width:7px; height:7px; border-radius:50%; }
+  .company-chip.add-new{ border-style:dashed; }
+
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-bottom:18px; }
+  .panel h3{ font-size:14.5px; font-weight:600; margin:0 0 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .panel h3 .tag{ font-weight:400; color:var(--fg-faint); font-size:12px; }
+  .stage-badge{ font-family:var(--mono); font-size:10.5px; letter-spacing:0.05em; text-transform:uppercase; padding:3px 9px; border-radius:999px; }
+  .stage-badge.aufbau{ background:var(--accent-dim); color:var(--accent); }
+  .stage-badge.boersenreif{ background:rgba(212,175,55,0.15); color:#D4AF37; }
+  .stage-badge.ipo{ background:var(--up-dim); color:var(--up); }
+  .stage-badge.insolvent{ background:var(--down-dim); color:var(--down); }
+
+  .top-row{ display:flex; gap:14px; flex-wrap:wrap; }
+  .stat-card{ flex:1; min-width:150px; border:1px solid var(--line); border-radius:9px; padding:14px 16px; }
+  .stat-card .label{ font-size:10.5px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:0.07em; }
+  .stat-card .value{ font-family:var(--mono); font-size:21px; font-weight:600; color:var(--fg); margin-top:6px; }
+  .stat-card .value.up{ color:var(--up); }
+  .stat-card .value.down{ color:var(--down); }
+  .stat-card .sub{ font-family:var(--mono); font-size:11px; color:var(--fg-dim); margin-top:3px; }
+
+  .main-tabs{ display:flex; gap:8px; margin:4px 0 18px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .main-tabs::-webkit-scrollbar{ display:none; }
+  .main-tab-btn{ font-family:'Space Grotesk'; font-weight:600; font-size:13px; white-space:nowrap; padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim); cursor:pointer; flex:0 0 auto; }
+  .main-tab-btn:hover{ border-color:var(--fg-faint); color:var(--fg); }
+  .main-tab-btn.active{ background:var(--accent); border-color:var(--accent); color:#06231f; }
+  .tab-page{ display:none; }
+  .tab-page.active{ display:block; }
+
+  .sector-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(210px,1fr)); gap:10px; margin-top:6px; }
+  .sector-card{ border:1px solid var(--line); border-radius:9px; padding:14px 16px; background:var(--bg-alt); cursor:pointer; transition:border-color .15s, background .15s; }
+  .sector-card:hover{ border-color:var(--accent); }
+  .sector-card.selected{ border-color:var(--accent); background:var(--accent-dim); }
+  .sector-card .sc-name{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; margin-bottom:6px; }
+  .sector-card .sc-cost{ font-family:var(--mono); font-size:13px; color:var(--accent); }
+
+  .decision-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:12px; }
+  .decision-card{ border:1px solid var(--line); border-radius:9px; padding:16px; background:var(--bg-alt); display:flex; flex-direction:column; gap:8px; }
+  .decision-card h4{ margin:0; font-family:'Space Grotesk'; font-size:14px; }
+  .decision-card p{ margin:0; font-size:12px; color:var(--fg-dim); line-height:1.5; flex:1; }
+  .decision-card .dc-cost{ font-family:var(--mono); font-size:13px; color:var(--accent); }
+
+  .event-list{ display:flex; flex-direction:column; gap:0; }
+  .event-row{ padding:12px 0; border-top:1px solid var(--line); font-size:13px; line-height:1.5; }
+  .event-row:first-child{ border-top:none; }
+  .event-row .ev-time{ font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-bottom:3px; display:block; }
+  .event-row.kind-durchbruch{ color:var(--up); }
+  .event-row.kind-boersenreif{ color:#D4AF37; }
+  .event-row.kind-insolvenz{ color:var(--down); }
+  .event-empty{ color:var(--fg-faint); font-size:13px; padding:6px 0; }
+
+  .ipo-callout{ border:1px solid rgba(212,175,55,0.35); background:rgba(212,175,55,0.06); border-radius:9px; padding:16px 18px; margin-top:10px; }
+  .ipo-callout h4{ margin:0 0 6px; font-family:'Space Grotesk'; font-size:14px; color:#D4AF37; }
+
+  .bankrupt-callout{ border:1px solid rgba(246,70,93,0.35); background:var(--down-dim); border-radius:9px; padding:16px 18px; }
+
+  .reserve-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .reserve-row input{ flex:1; min-width:140px; margin:0; }
+  .reserve-row button{ margin:0; }
+
+  .field-row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .field-row > div{ flex:1; min-width:160px; }
+  label{ font-size:11.5px; color:var(--fg-faint); display:block; margin-bottom:4px; }
+
+  .empty-state{ text-align:center; padding:40px 20px; color:var(--fg-dim); font-size:13.5px; line-height:1.6; }
+
+  html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"></span>
+      MC ORCA GAMES <span class="divider"></span> <span class="sub">FOUNDRY</span>
+    </div>
+    <div class="burger-wrap">
+      <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="burger-panel" id="burgerPanel">
+        <div class="burger-group">
+          <div class="burger-label">Seiten</div>
+          <a href="../index.html">Hub</a>
+          <a href="../profil.html">Profil</a>
+          <a href="../raenge.html">Ränge</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Spiele</div>
+          <a href="../aetheris/game.html">Aetheris</a>
+          <a href="../astrion/game.html">Astrion</a>
+          <a href="../deepanchor/game.html">Deep Anchor</a>
+          <a href="../pathofthestars/game.html">Path of the Stars</a>
+          <a href="../nexus/game.html">NEXUS</a>
+          <a href="../nexus/nexus_singularity/game.html">Nexus Singularity</a>
+          <a href="game.html">FOUNDRY</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Info</div>
+          <a href="../aetheris/index.html">Aetheris</a>
+          <a href="../astrion/index.html">Astrion</a>
+          <a href="../deepanchor/index.html">Deep Anchor</a>
+          <a href="../pathofthestars/index.html">Path of the Stars</a>
+          <a href="../nexus/index.html">NEXUS</a>
+          <a href="../nexus/nexus_singularity/index.html">Nexus Singularity</a>
+          <a href="index.html">FOUNDRY</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Impressum &amp; Datenschutz</div>
+          <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+          <a href="../aetheris/impressum.html">Aetheris</a>
+          <a href="../astrion/impressum.html">Astrion</a>
+          <a href="../deepanchor/impressum.html">Deep Anchor</a>
+          <a href="../pathofthestars/impressum.html">Path of the Stars</a>
+          <a href="../nexus/impressum.html">NEXUS</a>
+          <a href="impressum.html">FOUNDRY</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
+<div class="wrap">
+
+  <!-- ---------- LOGIN ---------- -->
+  <div id="loginView">
+    <section class="login-section">
+      <div class="login-box">
+        <h2>Per E-Mail-Code anmelden</h2>
+        <p class="lb-sub">Gleicher Account wie in allen MC ORCA Games. Kein Passwort — nur ein
+           6-stelliger Code per E-Mail. Kostenlos, kein Echtgeld erforderlich. FOUNDRY-Gründungskapital
+           kommt direkt aus deiner MOGC-Wallet.</p>
+        <input type="email" id="emailInput" placeholder="deine@email.de">
+        <button class="btn-block" id="sendOtpBtn" type="button">Code anfordern</button>
+        <input type="text" id="otpInput" placeholder="6-stelliger Code" class="hidden">
+        <button class="btn-block hidden" id="verifyOtpBtn" type="button">Einloggen</button>
+        <div id="loginMsg"></div>
+        <div class="lb-divider"><span>oder</span></div>
+        <button class="btn-block-ghost" id="guestLoginBtn" type="button">Erstmal als Gast reinschauen</button>
+        <p class="lb-guest-hint">Als Gast kannst du dich umsehen, aber keine eigene Firma gründen
+           (geteilter Account ohne eigenen Fortschritt).</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ---------- GAME ---------- -->
+  <div id="gameView" class="hidden dash">
+
+    <div class="wallet-bar">
+      <div>
+        <div class="wb-label">MOGC-Wallet</div>
+        <div class="wb-value" id="walletDisplay">–</div>
+      </div>
+      <div id="guestNotice" class="wb-guest hidden">Gast-Modus — Firmengründung ist deaktiviert.</div>
+      <button type="button" id="refreshBtn" style="margin:0;">Aktualisieren</button>
+    </div>
+
+    <div id="companyTabsWrap" class="company-tabs hidden"></div>
+
+    <div id="noCompanyState" class="empty-state hidden">
+      Du hast noch keine Firma gegründet. Wähle unten einen Sektor, vergib Ticker
+      und Namen — los geht's.
+    </div>
+
+    <div id="foundingPanel" class="panel hidden">
+      <h3>Firma gründen <span class="tag" id="galaxyIndexTag"></span></h3>
+      <div class="field-row">
+        <div>
+          <label for="tickerInput">Ticker (2–6 Zeichen, A–Z/0–9)</label>
+          <input type="text" id="tickerInput" placeholder="z. B. NOVX" maxlength="6" style="text-transform:uppercase;">
+        </div>
+        <div>
+          <label for="nameInput">Firmenname</label>
+          <input type="text" id="nameInput" placeholder="z. B. Novarift Dynamics" maxlength="60">
+        </div>
+      </div>
+      <label style="margin-top:10px;">Sektor (bestimmt Basis-Gründungskosten)</label>
+      <div class="sector-grid" id="sectorGrid"></div>
+      <button type="button" class="btn-block" id="foundBtn" style="margin-top:16px;">Firma gründen</button>
+      <div id="foundMsg"></div>
+    </div>
+
+    <div id="dashboardArea" class="hidden">
+
+      <div class="panel" id="overviewPanel">
+        <h3 id="companyTitle"></h3>
+        <div class="top-row" id="statCards"></div>
+      </div>
+
+      <div class="main-tabs" id="mainTabs">
+        <button type="button" class="main-tab-btn active" data-tab="entscheidungen">Entscheidungen</button>
+        <button type="button" class="main-tab-btn" data-tab="ereignisse">Ereignisse</button>
+        <button type="button" class="main-tab-btn" data-tab="boersengang">Börsengang</button>
+        <button type="button" class="main-tab-btn" data-tab="gruenden2">Neue Firma</button>
+      </div>
+
+      <div class="tab-page active" id="tabPage-entscheidungen">
+        <div class="panel">
+          <h3>Quartals-Entscheidung <span class="tag">— eine pro Quartal, 60 Min. Cooldown</span></h3>
+          <div class="decision-grid" id="decisionGrid"></div>
+          <div class="panel" style="margin-top:14px; margin-bottom:0; background:var(--bg-alt);">
+            <h3 style="margin-bottom:10px;">Freie Rücklage einzahlen</h3>
+            <div class="reserve-row">
+              <input type="number" id="reserveAmount" placeholder="Betrag in MOGC" min="1" step="1">
+              <button type="button" id="reserveBtn">Einzahlen</button>
+            </div>
+          </div>
+          <div id="decisionMsg"></div>
+        </div>
+      </div>
+
+      <div class="tab-page" id="tabPage-ereignisse">
+        <div class="panel">
+          <h3>Ereignis-Feed <span class="tag">— letzte 25 Ereignisse dieser Firma</span></h3>
+          <div class="event-list" id="eventList"></div>
+        </div>
+      </div>
+
+      <div class="tab-page" id="tabPage-boersengang">
+        <div class="panel" id="ipoPanel"></div>
+      </div>
+
+      <div class="tab-page" id="tabPage-gruenden2">
+        <div class="panel">
+          <h3>Weitere Firma gründen <span class="tag" id="galaxyIndexTag2"></span></h3>
+          <div class="field-row">
+            <div>
+              <label for="tickerInput2">Ticker</label>
+              <input type="text" id="tickerInput2" placeholder="z. B. NOVX" maxlength="6" style="text-transform:uppercase;">
+            </div>
+            <div>
+              <label for="nameInput2">Firmenname</label>
+              <input type="text" id="nameInput2" placeholder="z. B. Novarift Dynamics" maxlength="60">
+            </div>
+          </div>
+          <label style="margin-top:10px;">Sektor</label>
+          <div class="sector-grid" id="sectorGrid2"></div>
+          <button type="button" class="btn-block" id="foundBtn2" style="margin-top:16px;">Firma gründen</button>
+          <div id="foundMsg2"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+/* ---------- Sternenfeld ---------- */
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], w, h;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    const count = Math.min(160, Math.floor((w*h)/13000));
+    stars = Array.from({length:count}, () => ({ x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.1+0.2, p:Math.random()*Math.PI*2, s:Math.random()*0.015+0.005 }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#E9E7E2';
+    stars.forEach(st=>{
+      const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.08 + tw*0.22;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if(!reduced) requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize(); requestAnimationFrame(draw);
+  if(reduced) draw(0);
+})();
+
+/* ---------- Supabase ---------- */
+const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+
+const GUEST_USER_ID = 'c0ffee00-0000-4000-8000-000000000001';
+let currentUser = null;
+function isGuest(){ return !!(currentUser && currentUser.id === GUEST_USER_ID); }
+
+const SECTORS = [
+  { key:'Konsum & Unterhaltung', base:500 },
+  { key:'Finanzen', base:700 },
+  { key:'Bergbau & Rohstoffe', base:800 },
+  { key:'Energie', base:900 },
+  { key:'Technologie & Halbleiter', base:1000 },
+  { key:'Biotech & Terraforming', base:1100 },
+  { key:'Raumfahrt & Logistik', base:1200 },
+  { key:'Verteidigung & Sicherheit', base:1300 },
+];
+const DECISIONS = [
+  { kind:'capacity', base:150, title:'Kapazität ausbauen', desc:'+5 Produktionskapazität dauerhaft.' },
+  { kind:'staff', base:100, title:'Personal einstellen', desc:'+2 Mitarbeiter, senkt das Risiko leicht.' },
+  { kind:'marketing', base:80, title:'Marketing-Kampagne', desc:'+25% Umsatz — nur dieses Quartal.' },
+  { kind:'pr', base:90, title:'PR-Kampagne', desc:'+8 Reputation dauerhaft (bis 100).' },
+  { kind:'rnd', base:200, title:'Forschung & Entwicklung', desc:'+0,1 Effizienz dauerhaft.' },
+];
+
+let companies = [];
+let selectedCompanyId = null;
+let galaxyIndex = 1.0;
+let selectedSector = null;
+let selectedSector2 = null;
+let mogcBalance = 0;
+
+function showMsg(elId, text, ok){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.innerHTML = '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + text + '</div>';
+}
+function clearMsg(elId){ const el = document.getElementById(elId); if(el) el.innerHTML=''; }
+function fmt(n){
+  n = Number(n) || 0;
+  return n.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+}
+function fmt2(n){
+  n = Number(n) || 0;
+  return n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+}
+function enterGame(){
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('gameView').classList.remove('hidden');
+  document.getElementById('guestNotice').classList.toggle('hidden', !isGuest());
+}
+
+/* ---------- Login-Flow ---------- */
+document.getElementById('sendOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) return;
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Sende Code …', true);
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    document.getElementById('otpInput').classList.remove('hidden');
+    document.getElementById('verifyOtpBtn').classList.remove('hidden');
+    showMsg('loginMsg', 'Code wurde an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', true);
+  } catch (err) {
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const token = document.getElementById('otpInput').value.trim();
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Prüfe Code …', true);
+  try {
+    const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    await afterLogin();
+  } catch (err) {
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('guestLoginBtn').addEventListener('click', async () => {
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Melde als Gast an …', true);
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email: 'gast@mc-orca-games.local', password: 'nexus-gast-2026' });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    await afterLogin();
+  } catch (err) {
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    currentUser = data.session.user;
+    await afterLogin();
+  }
+})();
+
+async function afterLogin(){
+  enterGame();
+  try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies()]);
+  render();
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies()]); render(); }, 60000);
+}
+
+/* ---------- Daten laden ---------- */
+async function loadWallet(){
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_wallet_balances');
+    if (error) { console.error(error); return; }
+    const row = (data || []).find(r => r.symbol === 'MOGC');
+    mogcBalance = row ? Number(row.balance) : 0;
+    document.getElementById('walletDisplay').textContent = fmt2(mogcBalance) + ' MOGC';
+  } catch(e){ console.error(e); }
+}
+
+async function loadSectorCosts(){
+  try {
+    const results = await Promise.all(SECTORS.map(s => sb.schema('foundry').rpc('get_founding_cost', { p_sector: s.key })));
+    results.forEach((r, i) => { SECTORS[i].cost = (r.error ? null : Number(r.data)); });
+    const finanzen = SECTORS.find(s => s.key === 'Finanzen');
+    if (finanzen && finanzen.cost) galaxyIndex = finanzen.cost / finanzen.base;
+  } catch(e){ console.error(e); }
+}
+
+async function loadCompanies(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_my_companies');
+    if (error) { console.error(error); return; }
+    companies = data || [];
+    if (!selectedCompanyId && companies.length) selectedCompanyId = companies[0].id;
+    if (selectedCompanyId && !companies.some(c => c.id === selectedCompanyId)) {
+      selectedCompanyId = companies.length ? companies[0].id : null;
+    }
+  } catch(e){ console.error(e); }
+}
+
+async function loadEvents(companyId){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_company_events', { p_company_id: companyId, p_limit: 25 });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  } catch(e){ console.error(e); return []; }
+}
+
+/* ---------- Rendering ---------- */
+function stageLabel(stage){
+  return { aufbau:'Im Aufbau', boersenreif:'Börsenreif', ipo:'Börsennotiert', insolvent:'Insolvent' }[stage] || stage;
+}
+
+function renderSectorGrid(gridId, selectedKeyGetter, onSelect){
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = '';
+  SECTORS.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'sector-card' + (selectedKeyGetter() === s.key ? ' selected' : '');
+    card.innerHTML = '<div class="sc-name">' + s.key + '</div><div class="sc-cost">' +
+      (s.cost != null ? fmt(s.cost) + ' MOGC' : '…') + '</div>';
+    card.addEventListener('click', () => onSelect(s.key));
+    grid.appendChild(card);
+  });
+}
+
+function render(){
+  const hasCompanies = companies.length > 0;
+  document.getElementById('companyTabsWrap').classList.toggle('hidden', !hasCompanies);
+  document.getElementById('noCompanyState').classList.toggle('hidden', hasCompanies);
+  document.getElementById('foundingPanel').classList.toggle('hidden', hasCompanies);
+  document.getElementById('dashboardArea').classList.toggle('hidden', !hasCompanies);
+
+  document.getElementById('galaxyIndexTag').textContent = '— Galaxie-Index: ' + galaxyIndex.toFixed(2) + '×';
+  document.getElementById('galaxyIndexTag2').textContent = '— Galaxie-Index: ' + galaxyIndex.toFixed(2) + '×';
+
+  if (!hasCompanies) {
+    renderSectorGrid('sectorGrid', () => selectedSector, (key) => { selectedSector = key; render(); });
+  }
+
+  const companyTabsWrap = document.getElementById('companyTabsWrap');
+  companyTabsWrap.innerHTML = '';
+  companies.forEach(c => {
+    const chip = document.createElement('div');
+    chip.className = 'company-chip' + (c.id === selectedCompanyId ? ' active' : '');
+    const dotColor = c.stage === 'insolvent' ? 'var(--down)' : (c.stage === 'ipo' ? 'var(--up)' : (c.stage === 'boersenreif' ? '#D4AF37' : 'var(--accent)'));
+    chip.innerHTML = '<span class="stage-dot" style="background:' + dotColor + '"></span>' + c.ticker;
+    chip.addEventListener('click', () => { selectedCompanyId = c.id; render(); });
+    companyTabsWrap.appendChild(chip);
+  });
+  if (hasCompanies) {
+    const addChip = document.createElement('div');
+    addChip.className = 'company-chip add-new';
+    addChip.textContent = '+ Neue Firma';
+    addChip.addEventListener('click', () => {
+      document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'gruenden2'));
+      document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-gruenden2'));
+    });
+    companyTabsWrap.appendChild(addChip);
+  }
+
+  renderSectorGrid('sectorGrid2', () => selectedSector2, (k)=>{ selectedSector2 = k; render(); });
+
+  if (!hasCompanies) return;
+
+  const company = companies.find(c => c.id === selectedCompanyId);
+  if (!company) return;
+
+  document.getElementById('companyTitle').innerHTML = company.name + ' <span class="tag">' + company.ticker + '</span> ' +
+    '<span class="stage-badge ' + company.stage + '">' + stageLabel(company.stage) + '</span>';
+
+  const cards = [
+    { label:'Sektor', value: company.sector, mono:false },
+    { label:'Kapazität', value: fmt(company.capacity) },
+    { label:'Mitarbeiter', value: fmt(company.employees) },
+    { label:'Effizienz', value: Number(company.efficiency).toFixed(2) + '×' },
+    { label:'Reputation', value: Math.round(company.reputation) + ' / 100' },
+    { label:'Risiko', value: Math.round(company.risk_score) + ' / 100' },
+    { label:'Rücklage', value: fmt2(company.cash_reserve) + ' MOGC', cls: company.cash_reserve < 0 ? 'down' : 'up' },
+    { label:'Umsatz (letztes Quartal)', value: fmt2(company.last_revenue) + ' MOGC' },
+    { label:'Gewinn (letztes Quartal)', value: fmt2(company.last_profit) + ' MOGC', cls: company.last_profit >= 0 ? 'up' : 'down' },
+    { label:'Profitable Quartale in Folge', value: company.profitable_streak },
+  ];
+  const statCards = document.getElementById('statCards');
+  statCards.innerHTML = '';
+  cards.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'stat-card';
+    div.innerHTML = '<div class="label">' + c.label + '</div><div class="value ' + (c.cls||'') + '">' + c.value + '</div>';
+    statCards.appendChild(div);
+  });
+
+  renderDecisions(company);
+  renderIpoPanel(company);
+  loadEvents(company.id).then(renderEvents);
+}
+
+function renderDecisions(company){
+  const grid = document.getElementById('decisionGrid');
+  grid.innerHTML = '';
+  const active = ['aufbau','boersenreif','ipo'].includes(company.stage);
+  DECISIONS.forEach(d => {
+    const cost = Math.round(d.base * galaxyIndex);
+    const card = document.createElement('div');
+    card.className = 'decision-card';
+    card.innerHTML = '<h4>' + d.title + '</h4><p>' + d.desc + '</p><div class="dc-cost">' + fmt(cost) + ' MOGC</div>' +
+      '<button type="button" data-kind="' + d.kind + '"' + (active ? '' : ' disabled') + '>Entscheiden</button>';
+    card.querySelector('button').addEventListener('click', () => makeDecision(company.id, d.kind));
+    grid.appendChild(card);
+  });
+  document.getElementById('reserveBtn').onclick = () => {
+    const amt = Number(document.getElementById('reserveAmount').value);
+    if (!amt || amt <= 0) { showMsg('decisionMsg', 'Bitte einen gültigen Betrag eingeben.', false); return; }
+    makeDecision(company.id, 'reserve', amt);
+  };
+}
+
+async function makeDecision(companyId, kind, amount){
+  if (isGuest()) { showMsg('decisionMsg', 'Als Gast keine Entscheidungen möglich — bitte mit E-Mail-Code einloggen.', false); return; }
+  clearMsg('decisionMsg');
+  showMsg('decisionMsg', 'Wird verarbeitet …', true);
+  try {
+    const args = { p_company_id: companyId, p_kind: kind };
+    if (amount != null) args.p_amount = amount;
+    const { data, error } = await sb.schema('foundry').rpc('make_decision', args);
+    if (error) { showMsg('decisionMsg', error.message, false); return; }
+    showMsg('decisionMsg', 'Entscheidung übernommen.', true);
+    await Promise.all([loadWallet(), loadCompanies()]);
+    render();
+  } catch (err) {
+    showMsg('decisionMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+
+function renderEvents(events){
+  const list = document.getElementById('eventList');
+  list.innerHTML = '';
+  if (!events.length) { list.innerHTML = '<div class="event-empty">Noch keine Ereignisse — der nächste Quartals-Tick läuft automatisch alle 10 Minuten.</div>'; return; }
+  events.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'event-row kind-' + e.kind;
+    const time = new Date(e.created_at).toLocaleString('de-DE');
+    row.innerHTML = '<span class="ev-time">' + time + '</span>' + e.headline;
+    list.appendChild(row);
+  });
+}
+
+function renderIpoPanel(company){
+  const panel = document.getElementById('ipoPanel');
+  if (company.stage === 'insolvent') {
+    panel.innerHTML = '<div class="bankrupt-callout"><h4 style="color:var(--down); margin:0 0 6px;">Insolvent</h4>' +
+      'Diese Firma ist insolvent gegangen. Das eingesetzte Gründungskapital ist verloren — gründe eine neue Firma, um weiterzuspielen.</div>';
+    return;
+  }
+  if (company.stage === 'ipo') {
+    panel.innerHTML = '<h3>Börsennotiert</h3><p style="color:var(--fg-dim); font-size:13.5px; line-height:1.6;">' +
+      company.name + ' (' + company.ticker + ') ist an der Börse. Deine Quartalsperformance verschiebt laufend den echten Kurs im ' +
+      '<a href="../nexus/index.html" style="color:var(--accent); text-decoration:underline;">NEXUS-Aktienmarkt</a>. Dein Gründeranteil (25%) unterliegt einer ' +
+      '14-Tage-Vesting-Sperre ab Börsengang.</p>';
+    return;
+  }
+  if (company.stage === 'boersenreif') {
+    const annualized = Math.max(company.last_revenue, 0) * 4;
+    const margin = company.last_revenue > 0 ? company.last_profit / company.last_revenue : 0;
+    const multiple = Math.max(1.5, Math.min(8, 4 + margin * 10));
+    const repFactor = 0.4 + (company.reputation / 100) * 0.6;
+    const marketCap = Math.max(Math.round(annualized * multiple * repFactor), company.capital_invested);
+    const ipoPrice = Math.max(Math.round((marketCap / 10000) * 100) / 100, 0.5);
+    panel.innerHTML = '<h3>Bereit für den Börsengang</h3>' +
+      '<div class="ipo-callout"><h4>Geschätzte Bewertung</h4>' +
+      '<div style="font-family:var(--mono); font-size:22px; color:#D4AF37; margin-bottom:6px;">≈ ' + fmt(marketCap) + ' MOGC</div>' +
+      '<div style="font-size:12.5px; color:var(--fg-dim); line-height:1.6;">Erstnotiz ≈ ' + fmt2(ipoPrice) + ' MOGC je Aktie · 10.000 Aktien gesamt · ' +
+      'du behältst 2.500 (25%, 14 Tage gesperrt) · der Rest geht sofort in den freien Markt-Float. Die tatsächliche Bewertung wird beim Börsengang final aus deinen Fundamentaldaten berechnet.</div></div>' +
+      '<button type="button" class="btn-block" id="ipoBtn" style="max-width:260px; margin-top:14px;">Jetzt an die Börse gehen</button>' +
+      '<div id="ipoMsg"></div>';
+    document.getElementById('ipoBtn').addEventListener('click', () => doIpo(company.id));
+  } else {
+    panel.innerHTML = '<h3>Noch nicht börsenreif</h3><p style="color:var(--fg-dim); font-size:13.5px; line-height:1.6;">' +
+      'Voraussetzung: 6 profitable Quartale in Folge, Umsatz ≥ 200 MOGC und Reputation ≥ 55. ' +
+      'Aktuell: ' + company.profitable_streak + ' profitable Quartale in Folge, Reputation ' + Math.round(company.reputation) + '/100.</p>';
+  }
+}
+
+async function doIpo(companyId){
+  if (isGuest()) { showMsg('ipoMsg', 'Als Gast kein Börsengang möglich.', false); return; }
+  clearMsg('ipoMsg');
+  showMsg('ipoMsg', 'Börsengang wird durchgeführt …', true);
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('ipo_company', { p_company_id: companyId });
+    if (error) { showMsg('ipoMsg', error.message, false); return; }
+    showMsg('ipoMsg', 'Geschafft! ' + (data && data.ticker ? data.ticker : '') + ' notiert jetzt im NEXUS-Aktienmarkt.', true);
+    await Promise.all([loadWallet(), loadCompanies()]);
+    render();
+  } catch (err) {
+    showMsg('ipoMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+
+/* ---------- Gründungsformulare ---------- */
+async function doFound(tickerId, nameId, sectorGetter, msgId){
+  if (isGuest()) { showMsg(msgId, 'Als Gast keine Firmengründung möglich — bitte mit E-Mail-Code einloggen.', false); return; }
+  const ticker = document.getElementById(tickerId).value.trim().toUpperCase();
+  const name = document.getElementById(nameId).value.trim();
+  const sector = sectorGetter();
+  clearMsg(msgId);
+  if (!/^[A-Z0-9]{2,6}$/.test(ticker)) { showMsg(msgId, 'Ticker muss 2–6 Grossbuchstaben/Ziffern sein.', false); return; }
+  if (name.length < 2 || name.length > 60) { showMsg(msgId, 'Firmenname muss 2–60 Zeichen lang sein.', false); return; }
+  if (!sector) { showMsg(msgId, 'Bitte einen Sektor auswählen.', false); return; }
+  showMsg(msgId, 'Firma wird gegründet …', true);
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('found_company', { p_ticker: ticker, p_name: name, p_sector: sector });
+    if (error) { showMsg(msgId, error.message, false); return; }
+    showMsg(msgId, data.name + ' (' + data.ticker + ') wurde gegründet!', true);
+    selectedCompanyId = data.id;
+    await Promise.all([loadWallet(), loadCompanies()]);
+    render();
+    document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'entscheidungen'));
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-entscheidungen'));
+  } catch (err) {
+    showMsg(msgId, 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg'));
+document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2'));
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies()]); render(); });
+
+/* ---------- Haupt-Tabs ---------- */
+(function initMainTabs(){
+  const nav = document.getElementById('mainTabs');
+  nav.querySelectorAll('.main-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      nav.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-' + btn.dataset.tab));
+    });
+  });
+})();
+</script>
+</body>
+</html>
