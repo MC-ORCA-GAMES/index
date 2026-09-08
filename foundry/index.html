@@ -15,7 +15,7 @@
 
   medien.html (Screenshots/Videos) wurde am 07.09. als Platzhalterseite
   angelegt, analog zu astrion/medien.html — echtes Bild-/Videomaterial fehlt
-  noch. Nav-Button (📸 Medien) und Footer-Link hier in index.html ergänzt.
+  noch. Nav-Button (Medien) und Footer-Link hier in index.html ergänzt.
 -->
 
 <!DOCTYPE html>
@@ -214,14 +214,14 @@
       MC ORCA GAMES <span class="divider"></span> <span class="sub">FOUNDRY</span>
     </div>
     <div style="display:flex; align-items:center; gap:10px;">
-      <a class="nav-cta" href="medien.html">📸 Medien</a>
+      <a class="nav-cta" href="medien.html"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px;"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Medien</a>
       <div class="burger-wrap">
         <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
           <span></span><span></span><span></span>
         </button>
         <div class="burger-panel" id="burgerPanel">
           <div class="burger-group burger-account acct-wrap" id="cloudAccountBar">
-            <button class="nav-cta acct-toggle" id="cloudAccountToggle" type="button">☁ Konto</button>
+            <button class="nav-cta acct-toggle" id="cloudAccountToggle" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px;"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span id="cloudAccountToggleText">Konto</span></button>
             <div class="acct-panel" id="cloudAccountPanel">
               <div id="cloudStepEmail">
                 <div class="lbl">Login per Code — kein Passwort. Gilt für alle Spiele auf dieser Seite, auch für Foundry.</div>
@@ -234,7 +234,7 @@
                 <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
               </div>
               <div id="cloudStepIn" style="display:none;">
-                <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
+                <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar"></span><span id="cloudUserName">—</span></div>
                 <a class="acct-btn" id="cloudProfileLink" href="../profil.html">Profil bearbeiten →</a>
                 <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
               </div>
@@ -376,7 +376,7 @@
       </div>
     </div>
     <div class="callout">
-      <div class="co-label">⚠ Echtes Risiko</div>
+      <div class="co-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Echtes Risiko</div>
       <p>Foundry ist kein Selbstläufer nach oben. Rutscht die Rücklage auf −600 MOGC oder folgen
         sechs Verlustquartale in Folge, ist die Firma <b style="color:var(--fg);">insolvent</b> — das
         gesamte Gründungskapital ist dann verloren, noch bevor es zum Börsengang kommt.</p>
@@ -540,18 +540,21 @@
     stepCode.style.display = uiState === 'code' ? '' : 'none';
     stepIn.style.display = uiState === 'in' ? '' : 'none';
     var profileName = window.__cloudProfile && window.__cloudProfile.username;
-    toggle.textContent = uiState === 'in' ? ('☁ ' + (profileName || 'Eingeloggt')) : '☁ Konto';
+    var toggleTextEl = document.getElementById('cloudAccountToggleText');
+    if(toggleTextEl) toggleTextEl.textContent = uiState === 'in' ? (profileName || 'Eingeloggt') : 'Konto';
     var avatarEl = document.getElementById('cloudUserAvatar');
     var nameEl = document.getElementById('cloudUserName');
     if(avatarEl){
-      var __av = (window.__cloudProfile && window.__cloudProfile.avatar) || '🚀';
+      var __av = (window.__cloudProfile && window.__cloudProfile.avatar) || '';
       if(/\.(png|jpg|jpeg|webp|gif)$/i.test(__av)){
         avatarEl.innerHTML = '';
         var __img = document.createElement('img');
         __img.src = __av; __img.alt = '';
         avatarEl.appendChild(__img);
-      } else {
+      } else if(__av){
         avatarEl.textContent = __av;
+      } else {
+        avatarEl.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0111 0"/></svg>';
       }
     }
     if(nameEl) nameEl.textContent = profileName || (window.__cloudUser ? window.__cloudUser.email : '—');
