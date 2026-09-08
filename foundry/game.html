@@ -275,6 +275,22 @@
   (Format-Bug in der ersten Version noch am selben Tag behoben: PL/pgSQL
   RAISE nutzt %, nicht %s), klappt sobald Level ausreicht, Testdaten
   vollständig entfernt.
+
+  v1.14: Entscheidungen-Tab in 3 Sub-Tabs aufgeteilt (reine Frontend-
+  Umstrukturierung, keine DB-Änderung) — Nutzerwunsch, da der Entscheidungs-
+  Grid mit Auf-/Abbau-, Wachstums- und Ressourcen-Karten zusammen zu
+  unübersichtlich wurde. "🏗️ Auf-/Abbau" (Kapazität/Personal je auf- und
+  abbauen), "📈 Wachstum" (Marketing, PR, F&E, Entscheidungsspeicher
+  erweitern), "📦 Ressourcen verwenden" (die sektorspezifischen use_input-
+  Karten aus SECTOR_INPUTS). DECISIONS-Einträge haben ein neues cat-Feld
+  ('ausbau'/'wachstum'), renderDecisions() rendert jetzt in drei getrennte
+  Grids (#decisionGrid, #decisionGridGrowth, #decisionGridResources) statt
+  einem gemeinsamen; Bank-Status-Zeile und Quartals-Countdown bleiben
+  gemeinsam oberhalb aller drei sichtbar. "Kapital einzahlen" bleibt als
+  eigenes Panel unterhalb, gehört zu keiner Kategorie. Sub-Tab-Auswahl ist
+  rein clientseitig (kein Server-Zustand) und setzt sich bei jedem render()
+  nicht zurück, da nur der Karteninhalt neu gebaut wird, nicht die aktive
+  Sub-Tab-Klasse.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -390,6 +406,12 @@
   .main-tab-btn.active{ background:var(--accent); border-color:var(--accent); color:#06231f; }
   .tab-page{ display:none; }
   .tab-page.active{ display:block; }
+  .sub-tab-row{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 14px; }
+  .sub-tab-btn{ font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; white-space:nowrap; padding:7px 14px; border-radius:7px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim); cursor:pointer; }
+  .sub-tab-btn:hover{ border-color:var(--fg-faint); color:var(--fg); }
+  .sub-tab-btn.active{ background:var(--accent); border-color:var(--accent); color:#06231f; }
+  .decision-subpage{ display:none; }
+  .decision-subpage.active{ display:block; }
 
   .sector-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(210px,1fr)); gap:10px; margin-top:6px; }
   .sector-card{ border:1px solid var(--line); border-radius:9px; padding:14px 16px; background:var(--bg-alt); cursor:pointer; transition:border-color .15s, background .15s; }
@@ -594,7 +616,20 @@
           <h3>Quartals-Entscheidung <span class="tag">— eine pro Quartal, Quartale enden zur vollen Stunde</span></h3>
           <p id="quarterCountdown" style="font-family:var(--mono); font-size:12px; color:var(--fg-dim); margin:-6px 0 6px;"></p>
           <p id="bankStatus" style="font-family:var(--mono); font-size:12px; color:var(--accent); margin:0 0 14px;"></p>
-          <div class="decision-grid" id="decisionGrid"></div>
+          <div class="sub-tab-row" id="decisionSubTabs">
+            <button type="button" class="sub-tab-btn active" data-subtab="ausbau">🏗️ Auf-/Abbau</button>
+            <button type="button" class="sub-tab-btn" data-subtab="wachstum">📈 Wachstum</button>
+            <button type="button" class="sub-tab-btn" data-subtab="ressourcen">📦 Ressourcen verwenden</button>
+          </div>
+          <div class="decision-subpage active" id="decisionSub-ausbau">
+            <div class="decision-grid" id="decisionGrid"></div>
+          </div>
+          <div class="decision-subpage" id="decisionSub-wachstum">
+            <div class="decision-grid" id="decisionGridGrowth"></div>
+          </div>
+          <div class="decision-subpage" id="decisionSub-ressourcen">
+            <div class="decision-grid" id="decisionGridResources"></div>
+          </div>
           <div class="panel" style="margin-top:14px; margin-bottom:0; background:var(--bg-alt);">
             <h3 style="margin-bottom:10px;">Kapital einzahlen</h3>
             <p style="font-size:12px; color:var(--fg-dim); margin:0 0 10px;">
@@ -799,14 +834,14 @@ const SECTORS = [
   { key:'Verteidigung & Sicherheit', base:1300 },
 ];
 const DECISIONS = [
-  { kind:'capacity', base:150, title:'Kapazität ausbauen', desc:'+5 Produktionskapazität dauerhaft.', downside:'Erhöht laufende Kosten dauerhaft (+3 MOGC/Kapazität pro Quartal) — lohnt sich nur, wenn der Umsatz mitwächst.' },
-  { kind:'capacity_down', base:75, title:'Kapazität abbauen', desc:'−5 Produktionskapazität, senkt laufende Kosten dauerhaft (−15 MOGC/Quartal).', downside:'Kostet einmalig Rückbaukosten. Kapazität kann nicht unter 5 sinken.', minCheck:(c)=>Number(c.capacity) > 5 },
-  { kind:'staff', base:100, title:'Personal einstellen', desc:'+2 Mitarbeiter, senkt das Risiko leicht.', downside:'Erhöht laufende Kosten dauerhaft (+40 MOGC/Mitarbeiter pro Quartal).' },
-  { kind:'staff_down', base:50, title:'Personal entlassen', desc:'−2 Mitarbeiter, senkt laufende Kosten dauerhaft (−80 MOGC/Quartal).', downside:'Kostet einmalig eine Abfindung. Erhöht das Risiko wieder leicht (+5).', minCheck:(c)=>Number(c.employees) >= 2 },
-  { kind:'marketing', base:80, title:'Marketing-Kampagne', desc:'+25% Umsatz — nur dieses Quartal.', downside:'Wirkt nur im nächsten Quartal, danach verpufft der Effekt vollständig — Kosten pro Quartal neu.' },
-  { kind:'pr', base:90, title:'PR-Kampagne', desc:'+8 Reputation dauerhaft (bis 100).', downside:'Reine Kosten ohne direkten Umsatzeffekt — wirkt nur indirekt über Reputation auf den Umsatz.' },
-  { kind:'rnd', base:200, title:'Forschung & Entwicklung', desc:'+0,1 Effizienz dauerhaft.', downside:'Höchste Einzelkosten der vier Optionen — Rücklage vorher prüfen.' },
-  { kind:'expand_bank', base:250, title:'Entscheidungsspeicher erweitern', desc:'+1 maximales Bank-Guthaben für verpasste Quartale (dauerhaft, bis maximal 8).', downside:'Braucht Mindest-Level = aktueller Speicher-Deckel (z.B. Level 3 für den Sprung von 3 auf 4). Level steigt mit jeder getroffenen Entscheidung, unabhängig von der Art.', minCheck:(c)=>Number(c.max_banked_decisions||0) < 8 && Number(c.level||1) >= Number(c.max_banked_decisions||0), lockedText:(c)=>{
+  { kind:'capacity', cat:'ausbau', base:150, title:'Kapazität ausbauen', desc:'+5 Produktionskapazität dauerhaft.', downside:'Erhöht laufende Kosten dauerhaft (+3 MOGC/Kapazität pro Quartal) — lohnt sich nur, wenn der Umsatz mitwächst.' },
+  { kind:'capacity_down', cat:'ausbau', base:75, title:'Kapazität abbauen', desc:'−5 Produktionskapazität, senkt laufende Kosten dauerhaft (−15 MOGC/Quartal).', downside:'Kostet einmalig Rückbaukosten. Kapazität kann nicht unter 5 sinken.', minCheck:(c)=>Number(c.capacity) > 5 },
+  { kind:'staff', cat:'ausbau', base:100, title:'Personal einstellen', desc:'+2 Mitarbeiter, senkt das Risiko leicht.', downside:'Erhöht laufende Kosten dauerhaft (+40 MOGC/Mitarbeiter pro Quartal).' },
+  { kind:'staff_down', cat:'ausbau', base:50, title:'Personal entlassen', desc:'−2 Mitarbeiter, senkt laufende Kosten dauerhaft (−80 MOGC/Quartal).', downside:'Kostet einmalig eine Abfindung. Erhöht das Risiko wieder leicht (+5).', minCheck:(c)=>Number(c.employees) >= 2 },
+  { kind:'marketing', cat:'wachstum', base:80, title:'Marketing-Kampagne', desc:'+25% Umsatz — nur dieses Quartal.', downside:'Wirkt nur im nächsten Quartal, danach verpufft der Effekt vollständig — Kosten pro Quartal neu.' },
+  { kind:'pr', cat:'wachstum', base:90, title:'PR-Kampagne', desc:'+8 Reputation dauerhaft (bis 100).', downside:'Reine Kosten ohne direkten Umsatzeffekt — wirkt nur indirekt über Reputation auf den Umsatz.' },
+  { kind:'rnd', cat:'wachstum', base:200, title:'Forschung & Entwicklung', desc:'+0,1 Effizienz dauerhaft.', downside:'Höchste Einzelkosten der vier Optionen — Rücklage vorher prüfen.' },
+  { kind:'expand_bank', cat:'wachstum', base:250, title:'Entscheidungsspeicher erweitern', desc:'+1 maximales Bank-Guthaben für verpasste Quartale (dauerhaft, bis maximal 8).', downside:'Braucht Mindest-Level = aktueller Speicher-Deckel (z.B. Level 3 für den Sprung von 3 auf 4). Level steigt mit jeder getroffenen Entscheidung, unabhängig von der Art.', minCheck:(c)=>Number(c.max_banked_decisions||0) < 8 && Number(c.level||1) >= Number(c.max_banked_decisions||0), lockedText:(c)=>{
     const cap = Number(c.max_banked_decisions||0);
     if (cap >= 8) return 'Maximum erreicht';
     if (Number(c.level||1) < cap) return 'Braucht Level ' + cap;
@@ -1373,8 +1408,12 @@ function renderGalaxyMap(){
 }
 
 function renderDecisions(company){
-  const grid = document.getElementById('decisionGrid');
-  grid.innerHTML = '';
+  const gridAusbau = document.getElementById('decisionGrid');
+  const gridWachstum = document.getElementById('decisionGridGrowth');
+  const gridRessourcen = document.getElementById('decisionGridResources');
+  gridAusbau.innerHTML = '';
+  gridWachstum.innerHTML = '';
+  gridRessourcen.innerHTML = '';
   const active = ['aufbau','boersenreif','ipo'].includes(company.stage);
   const slotUsed = decidedThisQuarter(company.id);
   const banked = Number(company.banked_decisions || 0);
@@ -1403,7 +1442,7 @@ function renderDecisions(company){
       '<div class="dc-cost">' + fmt(cost) + ' MOGC <span style="color:var(--fg-dim); font-weight:normal;">aus Firmen-Rücklage</span></div>' +
       '<button type="button" data-kind="' + d.kind + '"' + (canClick ? '' : ' disabled') + '>' + label + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, d.kind));
-    grid.appendChild(card);
+    (d.cat === 'wachstum' ? gridWachstum : gridAusbau).appendChild(card);
   });
   (SECTOR_INPUTS[company.sector] || []).forEach(inp => {
     const owned = myInventory.find(i => i.company_id === company.id && i.resource_name === inp.resource);
@@ -1431,8 +1470,11 @@ function renderDecisions(company){
       '<div class="dc-cost" style="color:' + (enough ? 'var(--up)' : 'var(--down)') + '">Im Lager: ' + fmt2(have) + ' / ' + inp.units + '</div>' +
       '<button type="button"' + (active && enough && !usedUp ? '' : ' disabled') + '>' + (usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben entscheiden' : 'Entscheiden')) + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, 'use_input', null, inp.resource));
-    grid.appendChild(card);
+    gridRessourcen.appendChild(card);
   });
+  if (!gridRessourcen.children.length) {
+    gridRessourcen.innerHTML = '<div class="event-empty">Dieser Sektor verwendet aktuell keine Ressourcen aus dem eigenen Lager.</div>';
+  }
   const reserveBtn = document.getElementById('reserveBtn');
   reserveBtn.disabled = !active || usedUp;
   reserveBtn.textContent = usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben einzahlen' : 'Einzahlen');
@@ -1794,6 +1836,17 @@ document.getElementById('refreshBtn').addEventListener('click', async () => { aw
     btn.addEventListener('click', () => {
       nav.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
       document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-' + btn.dataset.tab));
+    });
+  });
+})();
+
+/* ---------- Entscheidungen: Sub-Tabs ---------- */
+(function initDecisionSubTabs(){
+  const nav = document.getElementById('decisionSubTabs');
+  nav.querySelectorAll('.sub-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      nav.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.decision-subpage').forEach(p => p.classList.toggle('active', p.id === 'decisionSub-' + btn.dataset.subtab));
     });
   });
 })();
