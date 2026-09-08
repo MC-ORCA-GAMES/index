@@ -254,6 +254,27 @@
   selben Quartal verbraucht Guthaben statt zu blocken, dritte ohne Guthaben
   blockt korrekt, Erweiterungs-Deckel bei 8 greift, Insolvenzverfahren-Firma
   sammelt ohne Wirtschafts-Tick, Testdaten vollständig entfernt.
+
+  v1.13: Firmen-Level ergänzt (Migrationen foundry_add_company_level_xp,
+  foundry_fix_level_error_format) — Nutzerwunsch, damit "Entscheidungsspeicher
+  erweitern" nicht rein per MOGC sofort kaufbar ist, sondern auch Spielfort-
+  schritt braucht. Neue Spalten total_decisions (zaehlt JEDE erfolgreiche
+  Entscheidung, unabhaengig von der Art) und level, in make_decision() nach
+  jeder erfolgreichen Aktion neu berechnet: level = floor((total_decisions+1)/5)+1,
+  d.h. alle 5 Entscheidungen ein Level-Aufstieg. Level ist rein abgeleitet
+  (kein manuell setzbarer Zustand) und sinkt nie, auch nicht bei Insolvenz.
+  "Entscheidungsspeicher erweitern" braucht jetzt zusaetzlich zu den 250
+  MOGC-Basiskosten ein Mindest-Level = aktueller max_banked_decisions-Deckel
+  (Sprung 3->4 braucht Level 3, 4->5 braucht Level 4, usw. bis 7->8 bei
+  Level 7) — reine MOGC-Kaeufe ohne Fortschritt sind damit ausgeschlossen.
+  Frontend: neue Statkarte "Level" (Lv. X, Y Entscheidungen) in der Firmen-
+  Uebersicht, Karte "Entscheidungsspeicher erweitern" zeigt bei fehlendem
+  Level "Braucht Level N" statt "Nicht möglich" als Button-Text. Getestet
+  gegen echte DB: Level steigt exakt bei der 5./10./... Entscheidung,
+  expand_bank blockt bei zu niedrigem Level mit korrekter Fehlermeldung
+  (Format-Bug in der ersten Version noch am selben Tag behoben: PL/pgSQL
+  RAISE nutzt %, nicht %s), klappt sobald Level ausreicht, Testdaten
+  vollständig entfernt.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -785,7 +806,12 @@ const DECISIONS = [
   { kind:'marketing', base:80, title:'Marketing-Kampagne', desc:'+25% Umsatz — nur dieses Quartal.', downside:'Wirkt nur im nächsten Quartal, danach verpufft der Effekt vollständig — Kosten pro Quartal neu.' },
   { kind:'pr', base:90, title:'PR-Kampagne', desc:'+8 Reputation dauerhaft (bis 100).', downside:'Reine Kosten ohne direkten Umsatzeffekt — wirkt nur indirekt über Reputation auf den Umsatz.' },
   { kind:'rnd', base:200, title:'Forschung & Entwicklung', desc:'+0,1 Effizienz dauerhaft.', downside:'Höchste Einzelkosten der vier Optionen — Rücklage vorher prüfen.' },
-  { kind:'expand_bank', base:250, title:'Entscheidungsspeicher erweitern', desc:'+1 maximales Bank-Guthaben für verpasste Quartale (dauerhaft, bis maximal 8).', downside:'Teuerste Karte im Katalog — lohnt sich nur, wenn du regelmäßig mehrere Quartale am Stück verpasst.', minCheck:(c)=>Number(c.max_banked_decisions||0) < 8 },
+  { kind:'expand_bank', base:250, title:'Entscheidungsspeicher erweitern', desc:'+1 maximales Bank-Guthaben für verpasste Quartale (dauerhaft, bis maximal 8).', downside:'Braucht Mindest-Level = aktueller Speicher-Deckel (z.B. Level 3 für den Sprung von 3 auf 4). Level steigt mit jeder getroffenen Entscheidung, unabhängig von der Art.', minCheck:(c)=>Number(c.max_banked_decisions||0) < 8 && Number(c.level||1) >= Number(c.max_banked_decisions||0), lockedText:(c)=>{
+    const cap = Number(c.max_banked_decisions||0);
+    if (cap >= 8) return 'Maximum erreicht';
+    if (Number(c.level||1) < cap) return 'Braucht Level ' + cap;
+    return null;
+  } },
 ];
 
 // Spiegelt foundry.sector_production / foundry.sector_inputs (statische Spieldaten).
@@ -1218,6 +1244,7 @@ function render(){
 
   const cards = [
     { label:'Sektor', value: company.sector, mono:false },
+    { label:'Level', value: 'Lv. ' + Number(company.level||1) + ' (' + Number(company.total_decisions||0) + ' Entscheidungen)' },
     { label:'Kapazität', value: fmt(company.capacity) },
     { label:'Mitarbeiter', value: fmt(company.employees) },
     { label:'Effizienz', value: Number(company.efficiency).toFixed(2) + '×' },
@@ -1367,7 +1394,7 @@ function renderDecisions(company){
     let label = 'Entscheiden';
     if (usedUp) label = 'Quartal bereits verbraucht';
     else if (willUseBank) label = 'Aus Bank-Guthaben entscheiden';
-    else if (active && !eligible) label = 'Nicht möglich';
+    else if (active && !eligible) label = (d.lockedText ? d.lockedText(company) : null) || 'Nicht möglich';
     else if (active && !affordable) label = 'Rücklage reicht nicht';
     const card = document.createElement('div');
     card.className = 'decision-card';
