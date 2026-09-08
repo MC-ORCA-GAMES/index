@@ -291,6 +291,34 @@
   rein clientseitig (kein Server-Zustand) und setzt sich bei jedem render()
   nicht zurück, da nur der Karteninhalt neu gebaut wird, nicht die aktive
   Sub-Tab-Klasse.
+
+  v1.15: Backend-Only (kein Frontend-Change nötig, da bereits verdrahtet):
+  Unternehmenssteuer 15% auf Quartalsgewinn (fließt in platform.central_bank
+  als Geld-Sink) + Dividendenrendite nach IPO (dividend_yield_pct, vorher bei
+  FOUNDRY-Firmen fest 0, wächst jetzt mit der Marge — Anzeige im Dividenden-
+  Text oben war schon vorhanden). Migrationen foundry_quarterly_tax +
+  foundry_ipo_dividend_yield (Vorgänger-Session).
+
+  v1.16: Lieferketten ("Pflicht"-Inputs, Migrationen
+  create_foundry_sector_requirements + foundry_supply_chain_requirement_in_
+  tick). Neue Tabelle foundry.sector_requirements legt pro Sektor GENAU EINE
+  Pflicht-Ressource fest (die bisher stärkste 'efficiency'-Bonuswaren aus
+  sector_inputs, z.B. Technologie braucht Rohstoffe aus Bergbau). Jeden
+  Quartals-Tick wird automatisch geprüft: reicht der Lagerbestand (Bedarf =
+  Kapazität × 0,3), wird er stillschweigend verbraucht; reicht er nicht,
+  sinkt der Umsatz um 35% und ein neues Event 'lieferkette_engpass' erscheint
+  im Feed. Der alte manuelle "X verwenden"-Weg (use_input, permanenter
+  Effizienz-/Reputations-/Kredit-/Schutzvertrags-Bonus) bleibt unverändert
+  bestehen — er ist jetzt der optionale Ausbau obendrauf, die Pflicht-
+  Ressource ist die neue Basis. Konsum & Unterhaltung hat bewusst KEINE
+  Pflicht-Ressource (hatte in sector_inputs nie einen efficiency-Eintrag).
+  Frontend-Ergänzungen (rein informativ, keine neue Logik): neue
+  SECTOR_REQUIREMENTS-Konstante spiegelt die DB-Tabelle; neue Statuskarte
+  "Pflicht-Input: X" im Firmen-Header (grün wenn genug im Lager, rot mit
+  Prozent-Warnung wenn nicht); die passende Karte im Ressourcen-Tab bekommt
+  ein "Pflicht jedes Quartal"-Badge + Warnhinweis, damit klar ist, welcher
+  der SECTOR_INPUTS-Einträge automatisch verbraucht wird und welche nur
+  optionale Boni sind.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -933,6 +961,18 @@ const SECTOR_INPUTS = {
   ],
 };
 const ALL_RESOURCES = ['Rohstoffe','Energieeinheiten','Frachtkapazität','Bauteile','Bio-Einheiten','Kapitalzugang','Schutzverträge'];
+// Sektor -> Pflicht-Input pro Quartal (foundry.sector_requirements, v1.7 "Lieferketten").
+// Wird jedes Quartal automatisch aus dem Lager verbraucht (kein Klick nötig). Fehlt die
+// Menge, sinkt der Umsatz um penaltyPct % — Event 'lieferkette_engpass' im Feed.
+const SECTOR_REQUIREMENTS = {
+  'Bergbau & Rohstoffe':       { resource:'Energieeinheiten', perCapacity:0.3, penaltyPct:35 },
+  'Biotech & Terraforming':    { resource:'Energieeinheiten', perCapacity:0.3, penaltyPct:35 },
+  'Energie':                   { resource:'Bio-Einheiten',    perCapacity:0.3, penaltyPct:35 },
+  'Finanzen':                  { resource:'Frachtkapazität',  perCapacity:0.3, penaltyPct:35 },
+  'Raumfahrt & Logistik':      { resource:'Bauteile',         perCapacity:0.3, penaltyPct:35 },
+  'Technologie & Halbleiter':  { resource:'Rohstoffe',        perCapacity:0.3, penaltyPct:35 },
+  'Verteidigung & Sicherheit': { resource:'Bauteile',         perCapacity:0.3, penaltyPct:35 },
+};
 
 let companies = [];
 let selectedCompanyId = null;
@@ -1356,6 +1396,18 @@ function render(){
     const inv = myInventory.find(i => i.company_id === company.id && i.resource_name === produces);
     cards.push({ label:'Lager: ' + produces, value: fmt2(inv ? inv.quantity : 0), cls:'up' });
   }
+  const req = SECTOR_REQUIREMENTS[company.sector];
+  if (req) {
+    const need = Math.round(Number(company.capacity) * req.perCapacity * 100) / 100;
+    const owned = myInventory.find(i => i.company_id === company.id && i.resource_name === req.resource);
+    const have = owned ? Number(owned.quantity) : 0;
+    const ok = have >= need;
+    cards.push({
+      label: 'Pflicht-Input: ' + req.resource,
+      value: fmt2(have) + ' / ' + fmt2(need) + (ok ? ' ✓ pro Quartal' : ' — fehlt! −' + req.penaltyPct + '% Umsatz'),
+      cls: ok ? 'up' : 'down',
+    });
+  }
   const statCards = document.getElementById('statCards');
   statCards.innerHTML = '';
   cards.forEach(c => {
@@ -1584,10 +1636,19 @@ function renderDecisions(company){
       const installment = Math.round((total / term) * 100) / 100;
       effectText = 'Kredit: ' + fmt(principal) + ' sofort, ' + fmt2(total) + ' in ' + term + ' Q.-Raten à ' + fmt2(installment);
     }
+    const reqForSector = SECTOR_REQUIREMENTS[company.sector];
+    const isMandatory = reqForSector && reqForSector.resource === inp.resource;
+    const mandatoryBadge = isMandatory
+      ? ' <span class="tag" style="color:var(--down); border-color:var(--down);">Pflicht jedes Quartal</span>'
+      : '';
+    const mandatoryNote = isMandatory
+      ? '<p style="color:var(--down); font-size:13px; margin:-4px 0 8px;">' + ICON_WARNING_SM +
+        'Wird zusätzlich automatisch jedes Quartal verbraucht (siehe Statuskarte oben) — ohne genug Lagerbestand sinkt der Umsatz.</p>'
+      : '';
     const card = document.createElement('div');
     card.className = 'decision-card';
-    card.innerHTML = '<h4>' + inp.resource + ' verwenden</h4><p>' + effectText + suffix + ' — verbraucht ' + inp.units +
-      ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' +
+    card.innerHTML = '<h4>' + inp.resource + ' verwenden' + mandatoryBadge + '</h4><p>' + effectText + suffix + ' — verbraucht ' + inp.units +
+      ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' + mandatoryNote +
       '<div class="dc-cost" style="color:' + (enough ? 'var(--up)' : 'var(--down)') + '">Im Lager: ' + fmt2(have) + ' / ' + inp.units + '</div>' +
       '<button type="button"' + (active && enough && !usedUp ? '' : ' disabled') + '>' + (!iCanDecide ? 'Nur Leiter/Offiziere' : usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben entscheiden' : 'Entscheiden')) + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, 'use_input', null, inp.resource));
