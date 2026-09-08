@@ -149,6 +149,22 @@
   korrekt, P2P-Kauf identisch, künstlich fällig gemachte Lieferungen lösten
   korrekt ins Lager auf, eingesetzte Frachtkapazität korrekt verbraucht),
   danach vollständig aus der DB entfernt — echte MOG-Firma nicht betroffen.
+
+  v1.9: Galaxie-Karte hinzugefügt (Migration foundry_galaxy_map_rpc). Neue
+  RPC foundry.get_galaxy_map() liefert unbedenkliche, öffentliche Firmendaten
+  ALLER Spieler (Ticker, Name, Sektor, Stage, Kapazität, is_own) — bewusst
+  OHNE Rücklage/Reputation/Risiko/Umsatz, die bleiben privat und nur über
+  get_my_companies() für die eigene(n) Firma(en) sichtbar (Ticker/Name/Sektor
+  sind ohnehin schon öffentlich über Orderbuch-Verkäufer-Ticker bzw. den
+  NEXUS-Aktienmarkt bei IPO-Firmen). Frontend: neuer Tab „Galaxie" mit einer
+  SVG-Karte aller Firmen — Position deterministisch aus der Firmen-ID
+  gehasht (stabil pro Firma, kein Sprung bei Reload, rein kosmetisch/frei
+  verteilt statt sektor-geclustert), Farbe = Sektor (8-Farben-Legende),
+  Größe = Kapazität, Gold-Rand = börsenreif/börsennotiert, blass = insolvent,
+  weißer Ring = eigene Firma, Tooltip bei Hover mit Ticker/Name/Sektor/Stage.
+  Wird beim Login, im 60-Sekunden-Refresh, nach Firmengründung und nach
+  Börsengang neu geladen (loadGalaxyMap()). Getestet direkt gegen die echte
+  DB (RPC liefert die reale MOG-Firma korrekt mit allen erwarteten Feldern).
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -302,6 +318,15 @@
 
   .empty-state{ text-align:center; padding:40px 20px; color:var(--fg-dim); font-size:13.5px; line-height:1.6; }
 
+  .galaxy-map-wrap{ border:1px solid var(--line); border-radius:9px; background:radial-gradient(ellipse at 50% 40%, rgba(33,199,184,0.08), transparent 60%), var(--bg-alt); overflow:hidden; }
+  #galaxyMapSvg{ width:100%; height:auto; display:block; }
+  .galaxy-dot{ cursor:pointer; transition:opacity .15s; }
+  .galaxy-dot:hover{ opacity:1 !important; }
+  .galaxy-dot.own{ stroke:#fff; stroke-width:2px; }
+  .galaxy-legend{ display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:14px; }
+  .galaxy-legend-item{ display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--fg-dim); }
+  .galaxy-legend-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
   html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
   ::-webkit-scrollbar{ width:10px; height:10px; }
   ::-webkit-scrollbar-track{ background:var(--bg); }
@@ -448,6 +473,7 @@
         <button type="button" class="main-tab-btn active" data-tab="entscheidungen">Entscheidungen</button>
         <button type="button" class="main-tab-btn" data-tab="ereignisse">Ereignisse</button>
         <button type="button" class="main-tab-btn" data-tab="markt">Markt</button>
+        <button type="button" class="main-tab-btn" data-tab="galaxie">Galaxie</button>
         <button type="button" class="main-tab-btn" data-tab="boersengang">Börsengang</button>
         <button type="button" class="main-tab-btn" data-tab="gruenden2">Neue Firma</button>
       </div>
@@ -524,6 +550,21 @@
           <h3>Bot-Markt <span class="tag">— sofort verfügbar, auch ohne Handelspartner</span></h3>
           <div class="decision-grid" id="botMarketGrid"></div>
           <div id="botMsg"></div>
+        </div>
+      </div>
+
+      <div class="tab-page" id="tabPage-galaxie">
+        <div class="panel">
+          <h3>Galaxie-Karte <span class="tag" id="galaxyCountTag">— alle Firmen aller Spieler</span></h3>
+          <div class="galaxy-map-wrap">
+            <svg id="galaxyMapSvg" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+          <div class="galaxy-legend" id="galaxyLegend"></div>
+          <p style="font-size:11.5px; color:var(--fg-faint); margin:14px 0 0; line-height:1.6;">
+            Position ist rein kosmetisch (stabil pro Firma), Farbe = Sektor, Größe = Kapazität.
+            Gold umrandet = börsenreif/börsennotiert, blass = insolvent, weißer Ring = eigene Firma.
+            Fahr mit der Maus über einen Punkt für Details.
+          </p>
         </div>
       </div>
 
@@ -685,6 +726,7 @@ let marketOrders = [];
 let myLoans = [];
 let myContracts = [];
 let myDeliveries = [];
+let galaxyMap = [];
 
 async function loadInventory(){
   try {
@@ -723,6 +765,14 @@ async function loadDeliveries(){
     const { data, error } = await sb.schema('foundry').rpc('get_my_pending_deliveries');
     if (error) { console.error(error); return; }
     myDeliveries = data || [];
+  } catch(e){ console.error(e); }
+}
+
+async function loadGalaxyMap(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_galaxy_map');
+    if (error) { console.error(error); return; }
+    galaxyMap = data || [];
   } catch(e){ console.error(e); }
 }
 
@@ -802,9 +852,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries(), loadGalaxyMap()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries(), loadGalaxyMap()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -939,7 +989,71 @@ function render(){
   renderDecisions(company);
   renderMarket(company);
   renderIpoPanel(company);
+  renderGalaxyMap();
   loadEvents(company.id).then(renderEvents);
+}
+
+// Sektor -> Kartenfarbe für die Galaxie-Karte (8 klar unterscheidbare Töne).
+const SECTOR_COLORS = {
+  'Bergbau & Rohstoffe': '#c9a227',
+  'Energie': '#f5a623',
+  'Raumfahrt & Logistik': '#21C7B8',
+  'Finanzen': '#4a90d9',
+  'Technologie & Halbleiter': '#9b59b6',
+  'Verteidigung & Sicherheit': '#e74c3c',
+  'Biotech & Terraforming': '#2ecc71',
+  'Konsum & Unterhaltung': '#ff6fa5',
+};
+const STAGE_LABEL_GALAXY = { aufbau:'Im Aufbau', boersenreif:'Börsenreif', ipo:'Börsennotiert', insolvent:'Insolvent' };
+
+// Deterministischer Pseudo-Zufall aus einem String (FNV-1a-artig) — Positionen
+// auf der Galaxie-Karte bleiben so pro Firma stabil statt bei jedem Reload zu springen.
+function hashSeed(str){
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+function renderGalaxyMap(){
+  const svg = document.getElementById('galaxyMapSvg');
+  if (!svg) return;
+  svg.innerHTML = '';
+  const countTag = document.getElementById('galaxyCountTag');
+  if (countTag) countTag.textContent = '— ' + galaxyMap.length + ' Firmen aller Spieler';
+  const ns = 'http://www.w3.org/2000/svg';
+  galaxyMap.forEach(c => {
+    const x = 60 + hashSeed(c.id + 'x') * 880;
+    const y = 45 + hashSeed(c.id + 'y') * 470;
+    const r = Math.max(4, Math.min(13, 4 + Number(c.capacity || 0) / 18));
+    const color = SECTOR_COLORS[c.sector] || '#8b8fa3';
+    const circle = document.createElementNS(ns, 'circle');
+    circle.setAttribute('cx', x.toFixed(1));
+    circle.setAttribute('cy', y.toFixed(1));
+    circle.setAttribute('r', r.toFixed(1));
+    circle.setAttribute('fill', color);
+    circle.setAttribute('class', 'galaxy-dot' + (c.is_own ? ' own' : ''));
+    circle.setAttribute('opacity', c.stage === 'insolvent' ? '0.35' : '0.88');
+    if (c.stage === 'boersenreif' || c.stage === 'ipo') {
+      circle.setAttribute('stroke', '#D4AF37');
+      circle.setAttribute('stroke-width', c.is_own ? '2.5' : '1.5');
+    }
+    const title = document.createElementNS(ns, 'title');
+    title.textContent = c.ticker + ' — ' + c.name + '\n' + c.sector + ' · ' +
+      (STAGE_LABEL_GALAXY[c.stage] || c.stage) + (c.is_own ? ' · Eigene Firma' : '');
+    circle.appendChild(title);
+    svg.appendChild(circle);
+  });
+
+  const legend = document.getElementById('galaxyLegend');
+  if (legend) {
+    legend.innerHTML = '';
+    Object.entries(SECTOR_COLORS).forEach(([sector, color]) => {
+      const item = document.createElement('div');
+      item.className = 'galaxy-legend-item';
+      item.innerHTML = '<span class="galaxy-legend-dot" style="background:' + color + '"></span>' + sector;
+      legend.appendChild(item);
+    });
+  }
 }
 
 function renderDecisions(company){
@@ -1268,7 +1382,7 @@ async function doIpo(companyId){
     const { data, error } = await sb.schema('foundry').rpc('ipo_company', { p_company_id: companyId });
     if (error) { showMsg('ipoMsg', error.message, false); return; }
     showMsg('ipoMsg', 'Geschafft! ' + (data && data.ticker ? data.ticker : '') + ' notiert jetzt im NEXUS-Aktienmarkt.', true);
-    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]);
+    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadGalaxyMap()]);
     render();
   } catch (err) {
     showMsg('ipoMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
@@ -1291,7 +1405,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId){
     if (error) { showMsg(msgId, error.message, false); return; }
     showMsg(msgId, data.name + ' (' + data.ticker + ') wurde gegründet!', true);
     selectedCompanyId = data.id;
-    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]);
+    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadGalaxyMap()]);
     render();
     document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'entscheidungen'));
     document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-entscheidungen'));
@@ -1301,7 +1415,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId){
 }
 document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg'));
 document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries()]); render(); });
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries(), loadGalaxyMap()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){
