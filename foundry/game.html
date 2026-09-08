@@ -218,6 +218,16 @@
   stößt. Alles gegen die echte DB getestet (Sperre greift dienstags, Fixkosten
   inkl. Kreditrate korrekt ausgesetzt während Schlafzeit, korrekt wieder aktiv
   danach), Testdaten vollständig entfernt.
+
+  v1.11.1: 8-Stunden-Obergrenze für die Schlafzeit ergänzt (Migration
+  foundry_cap_sleep_window_max_8h, dabei auch einen ungültigen %.1f-Format-
+  string in der Fehlermeldung korrigiert) — Nutzerwunsch direkt nach v1.11,
+  sonst hätte jemand z.B. 23h "Schlafzeit" setzen und Fixkosten faktisch
+  komplett aushebeln können. Dauer wird inkl. Mitternacht-Fall (z.B.
+  22:00-05:00) korrekt berechnet, geprüft vor der Sonntags-/Wochen-Sperre.
+  Frontend spiegelt die Grenze im Hinweistext und prüft die Dauer clientseitig
+  vor dem RPC-Aufruf (gleiche Formel wie im Backend) für sofortiges Feedback.
+  Getestet: 5,5h/7h akzeptiert, 10h/23h korrekt abgelehnt, Testdaten entfernt.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -523,12 +533,12 @@
       </div>
 
       <div class="panel" id="sleepWindowPanel">
-        <h3>🌙 Schlafzeit-Schutz <span class="tag">— gilt für alle eigenen Firmen, änderbar nur sonntags</span></h3>
+        <h3>🌙 Schlafzeit-Schutz <span class="tag">— gilt für alle eigenen Firmen, max. 8h, änderbar nur sonntags</span></h3>
         <p style="font-size:12px; color:var(--fg-dim); margin:0 0 10px;">
           Während der Schlafzeit werden laufende Fixkosten (Personal, Kapazitäts-Unterhalt,
           fällige Kreditraten) ausgesetzt — Umsatz und Zufallsereignisse laufen normal weiter.
-          Kreditraten werden dabei nur verschoben, nicht erlassen. Einmal pro Woche, jeweils
-          sonntags, anpassbar.
+          Kreditraten werden dabei nur verschoben, nicht erlassen. Maximal 8 Stunden am Stück,
+          einmal pro Woche, jeweils sonntags, anpassbar.
         </p>
         <div class="reserve-row">
           <label style="font-size:12px; color:var(--fg-dim);">Von
@@ -940,6 +950,14 @@ async function saveSleepWindow(){
   const startVal = document.getElementById('sleepStart').value;
   const endVal = document.getElementById('sleepEnd').value;
   if (!startVal || !endVal) { showMsg('sleepMsg', 'Bitte Start- und Endzeit angeben.', false); return; }
+  const [sh,sm] = startVal.split(':').map(Number);
+  const [eh,em] = endVal.split(':').map(Number);
+  let durationMin = (eh*60+em) - (sh*60+sm);
+  if (durationMin <= 0) durationMin += 24*60;
+  if (durationMin > 480) {
+    showMsg('sleepMsg', 'Schlafzeit darf maximal 8 Stunden lang sein (aktuell: ' + (durationMin/60).toFixed(1) + ' Stunden).', false);
+    return;
+  }
   showMsg('sleepMsg', 'Wird gespeichert …', true);
   try {
     const { data, error } = await sb.schema('foundry').rpc('set_sleep_window', {
