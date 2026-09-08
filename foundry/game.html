@@ -165,6 +165,19 @@
   Wird beim Login, im 60-Sekunden-Refresh, nach Firmengründung und nach
   Börsengang neu geladen (loadGalaxyMap()). Getestet direkt gegen die echte
   DB (RPC liefert die reale MOG-Firma korrekt mit allen erwarteten Feldern).
+
+  v1.9.1: Galaxie-Karte optisch nachgebessert (Nutzer-Feedback: sah wie eine
+  leere Punktwolke ohne Kontext aus, kein erkennbares Zentrum). Statisches
+  Deko-Sternenfeld (260 kleine Punkte, einmalig generiert, ohne Bezug zu
+  echten Firmendaten) plus radialer Kern-Glow als sichtbares Galaxie-Zentrum
+  ergänzt (beides in <defs>/statischem SVG-Markup, nicht bei jedem Reload neu
+  gezeichnet). Firmen-Positionen laufen jetzt nicht mehr gleichverteilt im
+  Rechteck, sondern als drei Spiralarme um das Zentrum (Radius per
+  Potenzfunktion zum Zentrum hin verdichtet, winkelabhängiger Twist für die
+  Spiralkrümmung, leichte y-Stauchung für die Scheiben-Draufsicht) — weiterhin
+  deterministisch aus der Firmen-ID, also stabil pro Firma. Company-Punkte
+  liegen jetzt in einer eigenen SVG-Gruppe (galaxyCompanyDots), damit nur die
+  bei jedem Reload neu gezeichnet werden, nicht Hintergrund/Sterne/Glow.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -557,13 +570,27 @@
         <div class="panel">
           <h3>Galaxie-Karte <span class="tag" id="galaxyCountTag">— alle Firmen aller Spieler</span></h3>
           <div class="galaxy-map-wrap">
-            <svg id="galaxyMapSvg" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet"></svg>
+            <svg id="galaxyMapSvg" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <radialGradient id="galaxyCoreGlow" cx="50%" cy="50%" r="55%">
+                  <stop offset="0%" stop-color="#fff3d6" stop-opacity="0.85"/>
+                  <stop offset="10%" stop-color="#f5dfa0" stop-opacity="0.4"/>
+                  <stop offset="35%" stop-color="#21C7B8" stop-opacity="0.10"/>
+                  <stop offset="100%" stop-color="#21C7B8" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect x="0" y="0" width="1000" height="560" fill="url(#galaxyCoreGlow)"></rect>
+              <g id="galaxyBgStars"></g>
+              <circle cx="500" cy="280" r="9" fill="#fff8e6"></circle>
+              <circle cx="500" cy="280" r="18" fill="none" stroke="#fff3d6" stroke-opacity="0.25" stroke-width="1"></circle>
+              <g id="galaxyCompanyDots"></g>
+            </svg>
           </div>
           <div class="galaxy-legend" id="galaxyLegend"></div>
           <p style="font-size:11.5px; color:var(--fg-faint); margin:14px 0 0; line-height:1.6;">
-            Position ist rein kosmetisch (stabil pro Firma), Farbe = Sektor, Größe = Kapazität.
-            Gold umrandet = börsenreif/börsennotiert, blass = insolvent, weißer Ring = eigene Firma.
-            Fahr mit der Maus über einen Punkt für Details.
+            Position ist rein kosmetisch (stabil pro Firma, entlang von Spiralarmen um das Galaxie-Zentrum
+            verteilt), Farbe = Sektor, Größe = Kapazität. Gold umrandet = börsenreif/börsennotiert,
+            blass = insolvent, weißer Ring = eigene Firma. Fahr mit der Maus über einen Punkt für Details.
           </p>
         </div>
       </div>
@@ -1014,16 +1041,49 @@ function hashSeed(str){
   return ((h >>> 0) % 100000) / 100000;
 }
 
+let galaxyBgInitialized = false;
+function initGalaxyBackground(){
+  if (galaxyBgInitialized) return;
+  const group = document.getElementById('galaxyBgStars');
+  if (!group) return;
+  const ns = 'http://www.w3.org/2000/svg';
+  // Deko-Sternenfeld, einmalig generiert (kein Bezug zu echten Firmendaten) —
+  // rein damit die Karte wie eine Galaxie statt eine leere Fläche aussieht.
+  for (let i = 0; i < 260; i++) {
+    const star = document.createElementNS(ns, 'circle');
+    star.setAttribute('cx', (Math.random() * 1000).toFixed(1));
+    star.setAttribute('cy', (Math.random() * 560).toFixed(1));
+    star.setAttribute('r', (Math.random() * 1.1 + 0.3).toFixed(2));
+    star.setAttribute('fill', '#fff');
+    star.setAttribute('opacity', (Math.random() * 0.5 + 0.15).toFixed(2));
+    group.appendChild(star);
+  }
+  galaxyBgInitialized = true;
+}
+
 function renderGalaxyMap(){
-  const svg = document.getElementById('galaxyMapSvg');
-  if (!svg) return;
-  svg.innerHTML = '';
+  const dotsGroup = document.getElementById('galaxyCompanyDots');
+  if (!dotsGroup) return;
+  initGalaxyBackground();
+  dotsGroup.innerHTML = '';
   const countTag = document.getElementById('galaxyCountTag');
   if (countTag) countTag.textContent = '— ' + galaxyMap.length + ' Firmen aller Spieler';
   const ns = 'http://www.w3.org/2000/svg';
+  const centerX = 500, centerY = 280, maxRadius = 250, numArms = 3;
   galaxyMap.forEach(c => {
-    const x = 60 + hashSeed(c.id + 'x') * 880;
-    const y = 45 + hashSeed(c.id + 'y') * 470;
+    // Spiralarm-Verteilung um das Galaxie-Zentrum statt Gleichverteilung im
+    // Rechteck: Radius per Potenzfunktion zum Zentrum hin verdichtet (Bulge),
+    // Winkel bekommt einen radiusabhängigen "Twist" fuer die Spiralkruemmung,
+    // plus leichte y-Stauchung fuer die Draufsicht-Perspektive einer Scheibe.
+    const armSeed = hashSeed(c.id + 'arm');
+    const radiusSeed = hashSeed(c.id + 'r');
+    const angleSeed = hashSeed(c.id + 'a');
+    const arm = Math.floor(armSeed * numArms);
+    const radius = maxRadius * Math.pow(radiusSeed, 1.4);
+    const twist = (radius / maxRadius) * Math.PI * 2.4;
+    const angle = (arm / numArms) * Math.PI * 2 + (angleSeed - 0.5) * (Math.PI * 2 / numArms) * 0.7 + twist;
+    const x = centerX + radius * Math.cos(angle);
+    const y = centerY + radius * Math.sin(angle) * 0.55;
     const r = Math.max(4, Math.min(13, 4 + Number(c.capacity || 0) / 18));
     const color = SECTOR_COLORS[c.sector] || '#8b8fa3';
     const circle = document.createElementNS(ns, 'circle');
@@ -1041,7 +1101,7 @@ function renderGalaxyMap(){
     title.textContent = c.ticker + ' — ' + c.name + '\n' + c.sector + ' · ' +
       (STAGE_LABEL_GALAXY[c.stage] || c.stage) + (c.is_own ? ' · Eigene Firma' : '');
     circle.appendChild(title);
-    svg.appendChild(circle);
+    dotsGroup.appendChild(circle);
   });
 
   const legend = document.getElementById('galaxyLegend');
