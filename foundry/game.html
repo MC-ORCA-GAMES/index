@@ -178,6 +178,24 @@
   deterministisch aus der Firmen-ID, also stabil pro Firma. Company-Punkte
   liegen jetzt in einer eigenen SVG-Gruppe (galaxyCompanyDots), damit nur die
   bei jedem Reload neu gezeichnet werden, nicht Hintergrund/Sterne/Glow.
+
+  (Zwischen v1.9.1 und v1.10 wurde in einer separaten Session bereits das
+  Insolvenzverfahren ergänzt — 24 Verlust-Quartale bzw. Rücklage ≤ -600 lösen
+  jetzt ein 12h-Sanierungsfenster statt sofortiger Insolvenz aus, Rettung per
+  Kapitalspritze über attempt_rescue(); siehe DB-Funktion _tick_company_once
+  und Stage 'insolvenzverfahren'. Dieser Changelog-Block wurde damals nicht
+  aktualisiert, wird hier nachgetragen.)
+
+  v1.10: Zwei Rückbau-Entscheidungen ergänzt (Migration
+  foundry_add_downsizing_decisions) — Nutzerwunsch, nachdem eine Fehl-
+  entscheidung (z. B. zu früh Personal eingestellt) nicht mehr rückgängig
+  zu machen war und die Firma dauerhaft mit unnötigen Fixkosten belastete.
+  "Kapazität abbauen" (−5 Kapazität, Kapazität kann nicht unter 5 sinken)
+  und "Personal entlassen" (−2 Mitarbeiter, +5 Risiko als Reibungsverlust)
+  kosten beide einmalig Rückbaukosten (halber Preis der jeweiligen Aufbau-
+  Entscheidung) aus der Firmen-Rücklage und verbrauchen wie jede andere
+  Entscheidung den Quartals-Cooldown. Frontend: neue DECISIONS-Einträge mit
+  optionalem minCheck() zur Button-Sperre, wenn nichts zum Abbauen da ist.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -677,7 +695,9 @@ const SECTORS = [
 ];
 const DECISIONS = [
   { kind:'capacity', base:150, title:'Kapazität ausbauen', desc:'+5 Produktionskapazität dauerhaft.', downside:'Erhöht laufende Kosten dauerhaft (+3 MOGC/Kapazität pro Quartal) — lohnt sich nur, wenn der Umsatz mitwächst.' },
+  { kind:'capacity_down', base:75, title:'Kapazität abbauen', desc:'−5 Produktionskapazität, senkt laufende Kosten dauerhaft (−15 MOGC/Quartal).', downside:'Kostet einmalig Rückbaukosten. Kapazität kann nicht unter 5 sinken.', minCheck:(c)=>Number(c.capacity) > 5 },
   { kind:'staff', base:100, title:'Personal einstellen', desc:'+2 Mitarbeiter, senkt das Risiko leicht.', downside:'Erhöht laufende Kosten dauerhaft (+40 MOGC/Mitarbeiter pro Quartal).' },
+  { kind:'staff_down', base:50, title:'Personal entlassen', desc:'−2 Mitarbeiter, senkt laufende Kosten dauerhaft (−80 MOGC/Quartal).', downside:'Kostet einmalig eine Abfindung. Erhöht das Risiko wieder leicht (+5).', minCheck:(c)=>Number(c.employees) >= 2 },
   { kind:'marketing', base:80, title:'Marketing-Kampagne', desc:'+25% Umsatz — nur dieses Quartal.', downside:'Wirkt nur im nächsten Quartal, danach verpufft der Effekt vollständig — Kosten pro Quartal neu.' },
   { kind:'pr', base:90, title:'PR-Kampagne', desc:'+8 Reputation dauerhaft (bis 100).', downside:'Reine Kosten ohne direkten Umsatzeffekt — wirkt nur indirekt über Reputation auf den Umsatz.' },
   { kind:'rnd', base:200, title:'Forschung & Entwicklung', desc:'+0,1 Effizienz dauerhaft.', downside:'Höchste Einzelkosten der vier Optionen — Rücklage vorher prüfen.' },
@@ -1161,13 +1181,18 @@ function renderDecisions(company){
   DECISIONS.forEach(d => {
     const cost = Math.round(d.base * galaxyIndex);
     const affordable = Number(company.cash_reserve) >= cost;
+    const eligible = d.minCheck ? d.minCheck(company) : true;
+    const canClick = active && affordable && eligible && !usedUp;
+    let label = 'Entscheiden';
+    if (usedUp) label = 'Quartal bereits verbraucht';
+    else if (active && !eligible) label = 'Nicht möglich';
+    else if (active && !affordable) label = 'Rücklage reicht nicht';
     const card = document.createElement('div');
     card.className = 'decision-card';
     card.innerHTML = '<h4>' + d.title + '</h4><p>' + d.desc + '</p>' +
       '<p class="dc-downside" style="color:var(--fg-dim); font-size:11.5px; margin:-4px 0 8px;">⚠ ' + d.downside + '</p>' +
       '<div class="dc-cost">' + fmt(cost) + ' MOGC <span style="color:var(--fg-dim); font-weight:normal;">aus Firmen-Rücklage</span></div>' +
-      '<button type="button" data-kind="' + d.kind + '"' + ((active && affordable && !usedUp) ? '' : ' disabled') + '>' +
-      (usedUp ? 'Quartal bereits verbraucht' : (active && !affordable ? 'Rücklage reicht nicht' : 'Entscheiden')) + '</button>';
+      '<button type="button" data-kind="' + d.kind + '"' + (canClick ? '' : ' disabled') + '>' + label + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, d.kind));
     grid.appendChild(card);
   });
