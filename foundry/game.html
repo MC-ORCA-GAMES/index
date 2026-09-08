@@ -319,6 +319,29 @@
   ein "Pflicht jedes Quartal"-Badge + Warnhinweis, damit klar ist, welcher
   der SECTOR_INPUTS-Einträge automatisch verbraucht wird und welche nur
   optionale Boni sind.
+
+  v1.17: Zinssatz an Risiko-Score gekoppelt (Migration
+  foundry_loan_rate_by_risk_score). Vorher pauschal 20% für alle Kredite
+  (Entscheidung "Kapitalzugang verwenden" → cash-Zweig in make_decision()).
+  Jetzt: Zinssatz = 10% + (Risiko-Score/100)×30%, gedeckelt auf 10–40%. Bei
+  durchschnittlichem Start-Risiko (30) ergibt das ~19% — kaum spürbar anders
+  als vorher, aber schlecht geführte Firmen (hoher risk_score) zahlen jetzt
+  spürbar mehr für neues Kapital, gut geführte deutlich weniger. Frontend-
+  Vorschau in der Kredit-Karte rechnet den Zinssatz jetzt live aus dem
+  aktuellen Risiko-Score der Firma vor, statt fest 1,2× draufzuschlagen.
+
+  v1.18: Marktsättigung pro Sektor (Migration
+  foundry_sector_market_saturation). Je mehr aktive Firmen (Status aufbau/
+  boersenreif/ipo) im selben Sektor existieren, desto mehr drückt reales
+  Überangebot auf den Umsatz ALLER Firmen darin — die ersten 3 Firmen pro
+  Sektor sind abschlagsfrei, ab der 4. gibt's −8% pro zusätzlicher Firma,
+  gedeckelt bei −50% (ab 10 Firmen im Sektor). Zählung läuft live im Tick
+  gegen foundry.companies, kein Cache. Kein neues Event im Feed (würde bei
+  jedem Quartal spammen, solange der Sektor voll bleibt) — stattdessen neue
+  Statuskarte "Marktsättigung <Sektor>" im Firmen-Header, die die Live-Zahl
+  aus der ohnehin schon geladenen galaxyMap zieht (get_galaxy_map(), keine
+  neue RPC nötig). Macht Sektorwahl bei der Gründung taktischer, statt dass
+  alle in den vermeintlich besten Sektor rennen.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -1408,6 +1431,14 @@ function render(){
       cls: ok ? 'up' : 'down',
     });
   }
+  const activeStages = ['aufbau', 'boersenreif', 'ipo'];
+  const sectorCount = galaxyMap.filter(c => c.sector === company.sector && activeStages.includes(c.stage)).length;
+  const saturationPct = Math.min(50, Math.max(0, sectorCount - 3) * 8);
+  cards.push({
+    label: 'Marktsättigung ' + company.sector,
+    value: sectorCount + ' aktive Firmen im Sektor' + (saturationPct > 0 ? ' — −' + saturationPct + '% Umsatz' : ' — kein Abschlag'),
+    cls: saturationPct > 0 ? 'down' : 'up',
+  });
   const statCards = document.getElementById('statCards');
   statCards.innerHTML = '';
   cards.forEach(c => {
@@ -1626,15 +1657,18 @@ function renderDecisions(company){
     const suffix = isFinance ? ' — echter Kredit mit Rückzahlungsplan, siehe unten. Rate wird jedes Quartal automatisch von der Rücklage abgezogen; bei Insolvenz platzt der Kredit.'
       : isDefense ? ' — befristeter Schutzvertrag, siehe unten. Risiko steigt nach Vertragsende wieder auf den alten Wert.'
       : ' dauerhaft';
-    // Kredithöhe/-laufzeit skaliert mit der Kapazität (v1.6) — Formel muss
-    // 1:1 mit foundry.make_decision() übereinstimmen, damit die Vorschau stimmt.
+    // Kredithöhe/-laufzeit skaliert mit der Kapazität (v1.6); Zinssatz mit dem
+    // Risiko-Score (v1.17) — Formel muss 1:1 mit foundry.make_decision()
+    // übereinstimmen, damit die Vorschau stimmt.
     let effectText = inp.effect;
     if (isFinance) {
       const principal = Math.min(1400, Math.round(400 * (Number(company.capacity) / 10)));
       const term = Number(company.capacity) < 15 ? 8 : 6;
-      const total = Math.round(principal * 1.2 * 100) / 100;
+      const rate = Math.min(0.40, Math.max(0.10, 0.10 + (Number(company.risk_score) / 100) * 0.30));
+      const total = Math.round(principal * (1 + rate) * 100) / 100;
       const installment = Math.round((total / term) * 100) / 100;
-      effectText = 'Kredit: ' + fmt(principal) + ' sofort, ' + fmt2(total) + ' in ' + term + ' Q.-Raten à ' + fmt2(installment);
+      effectText = 'Kredit: ' + fmt(principal) + ' sofort, ' + fmt2(total) + ' in ' + term + ' Q.-Raten à ' + fmt2(installment) +
+        ' (Zinssatz ' + (rate * 100).toFixed(1) + '% bei aktuellem Risiko-Score ' + Math.round(Number(company.risk_score)) + ')';
     }
     const reqForSector = SECTOR_REQUIREMENTS[company.sector];
     const isMandatory = reqForSector && reqForSector.resource === inp.resource;
