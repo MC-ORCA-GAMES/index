@@ -196,6 +196,28 @@
   Entscheidung) aus der Firmen-Rücklage und verbrauchen wie jede andere
   Entscheidung den Quartals-Cooldown. Frontend: neue DECISIONS-Einträge mit
   optionalem minCheck() zur Button-Sperre, wenn nichts zum Abbauen da ist.
+
+  v1.11: Schlafzeit-Schutz ergänzt (Migration
+  foundry_add_sleep_window_protection) — Nutzerwunsch, da niemand 24h online
+  sein kann und Fixkosten (Personal/Kredite) sonst auch während der Abwesenheit
+  weiterlaufen. Neue Tabelle foundry.player_settings (eine Schlafzeit pro
+  Konto, gilt für alle eigenen Firmen, RLS wie überall nur SELECT für sich
+  selbst, Schreibzugriff ausschließlich über set_sleep_window()-RPC). Während
+  der gespeicherten UTC-Zeitspanne setzt _tick_company_once() laufende
+  Fixkosten (Personal, Kapazitäts-Unterhalt, fällige Kreditrate) auf 0 aus —
+  Umsatz, Zufallsereignisse und der (umsatzbasierte, keine Fixkosten)
+  Lieferengpass-Aufschlag laufen unverändert weiter. Kreditraten werden dabei
+  nur verschoben (Betrag/ticks_remaining unverändert), nicht erlassen.
+  set_sleep_window() erlaubt die Ersteinrichtung jederzeit, jede weitere
+  Änderung nur sonntags (extract(dow)=0) und höchstens einmal pro Kalenderwoche
+  (date_trunc('week', updated_at)). Frontend: neues Panel "🌙 Schlafzeit-Schutz"
+  oberhalb der Tab-Leiste (kontoweit, nicht pro Firma), zwei <input type=time>
+  in lokaler Browser-Zeit, Umrechnung zu/von UTC beim Laden/Speichern, Button
+  wird serverseitig-äquivalent client-seitig gesperrt (Sonntag-Check + Woche-
+  bereits-geändert-Check), damit der Nutzer nicht erst auf den RPC-Fehler
+  stößt. Alles gegen die echte DB getestet (Sperre greift dienstags, Fixkosten
+  inkl. Kreditrate korrekt ausgesetzt während Schlafzeit, korrekt wieder aktiv
+  danach), Testdaten vollständig entfernt.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -498,6 +520,27 @@
       <div class="panel" id="overviewPanel">
         <h3 id="companyTitle"></h3>
         <div class="top-row" id="statCards"></div>
+      </div>
+
+      <div class="panel" id="sleepWindowPanel">
+        <h3>🌙 Schlafzeit-Schutz <span class="tag">— gilt für alle eigenen Firmen, änderbar nur sonntags</span></h3>
+        <p style="font-size:12px; color:var(--fg-dim); margin:0 0 10px;">
+          Während der Schlafzeit werden laufende Fixkosten (Personal, Kapazitäts-Unterhalt,
+          fällige Kreditraten) ausgesetzt — Umsatz und Zufallsereignisse laufen normal weiter.
+          Kreditraten werden dabei nur verschoben, nicht erlassen. Einmal pro Woche, jeweils
+          sonntags, anpassbar.
+        </p>
+        <div class="reserve-row">
+          <label style="font-size:12px; color:var(--fg-dim);">Von
+            <input type="time" id="sleepStart" style="margin-left:4px;">
+          </label>
+          <label style="font-size:12px; color:var(--fg-dim);">bis
+            <input type="time" id="sleepEnd" style="margin-left:4px;">
+          </label>
+          <button type="button" id="sleepSaveBtn">Speichern</button>
+        </div>
+        <p id="sleepStatus" style="font-size:12px; color:var(--fg-dim); margin:8px 0 0;"></p>
+        <div id="sleepMsg"></div>
       </div>
 
       <div class="main-tabs" id="mainTabs">
@@ -836,6 +879,83 @@ async function loadContracts(){
   } catch(e){ console.error(e); }
 }
 
+let mySleepSettings = null;
+async function loadSleepSettings(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_my_sleep_settings');
+    if (error) { console.error(error); return; }
+    mySleepSettings = data || null;
+  } catch(e){ console.error(e); }
+}
+
+// Server speichert/prueft Schlafzeit in UTC. Anzeige/Eingabe in lokaler Zeit
+// des Browsers, damit der Nutzer nicht selbst umrechnen muss.
+function utcTimeToLocalInputValue(utcTimeStr){
+  if (!utcTimeStr) return '';
+  const [h,m] = utcTimeStr.split(':').map(Number);
+  const d = new Date(Date.UTC(2000,0,1,h,m,0));
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function localInputValueToUtcTime(localStr){
+  const [h,m] = localStr.split(':').map(Number);
+  const d = new Date(2000,0,1,h,m,0);
+  return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0') + ':00';
+}
+
+function renderSleepWindow(){
+  const startInput = document.getElementById('sleepStart');
+  const endInput = document.getElementById('sleepEnd');
+  const status = document.getElementById('sleepStatus');
+  const saveBtn = document.getElementById('sleepSaveBtn');
+  if (mySleepSettings && mySleepSettings.sleep_start) {
+    startInput.value = utcTimeToLocalInputValue(mySleepSettings.sleep_start);
+    endInput.value = utcTimeToLocalInputValue(mySleepSettings.sleep_end);
+    const changedDate = new Date(mySleepSettings.updated_at);
+    const now = new Date();
+    // Woche beginnt Montag (UTC), wie date_trunc('week', ...) im Backend.
+    const weekStart = new Date(now);
+    const dow = (weekStart.getUTCDay() + 6) % 7; // 0=Montag
+    weekStart.setUTCDate(weekStart.getUTCDate() - dow);
+    weekStart.setUTCHours(0,0,0,0);
+    const changedThisWeek = changedDate >= weekStart;
+    const isSunday = now.getUTCDay() === 0;
+    if (changedThisWeek) {
+      status.textContent = 'Diese Woche bereits angepasst — nächste Änderung erst nächsten Sonntag möglich.';
+      saveBtn.disabled = true;
+    } else if (!isSunday) {
+      status.textContent = 'Aktive Schlafzeit gespeichert. Ändern geht nur sonntags.';
+      saveBtn.disabled = true;
+    } else {
+      status.textContent = 'Heute ist Sonntag — Änderung möglich.';
+      saveBtn.disabled = false;
+    }
+  } else {
+    status.textContent = 'Noch keine Schlafzeit gesetzt — erste Einrichtung ist jederzeit möglich.';
+    saveBtn.disabled = false;
+  }
+}
+
+async function saveSleepWindow(){
+  clearMsg('sleepMsg');
+  const startVal = document.getElementById('sleepStart').value;
+  const endVal = document.getElementById('sleepEnd').value;
+  if (!startVal || !endVal) { showMsg('sleepMsg', 'Bitte Start- und Endzeit angeben.', false); return; }
+  showMsg('sleepMsg', 'Wird gespeichert …', true);
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('set_sleep_window', {
+      p_start: localInputValueToUtcTime(startVal),
+      p_end: localInputValueToUtcTime(endVal)
+    });
+    if (error) { showMsg('sleepMsg', error.message, false); return; }
+    mySleepSettings = data;
+    showMsg('sleepMsg', 'Schlafzeit gespeichert.', true);
+    renderSleepWindow();
+  } catch (err) {
+    showMsg('sleepMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+document.getElementById('sleepSaveBtn').addEventListener('click', saveSleepWindow);
+
 async function loadLastDecisions(){
   try {
     const { data, error } = await sb.schema('foundry').rpc('get_my_last_decisions');
@@ -936,9 +1056,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -1005,6 +1125,8 @@ function render(){
   document.getElementById('noCompanyState').classList.toggle('hidden', hasCompanies);
   document.getElementById('foundingPanel').classList.toggle('hidden', hasCompanies);
   document.getElementById('dashboardArea').classList.toggle('hidden', !hasCompanies);
+
+  if (hasCompanies) renderSleepWindow();
 
   document.getElementById('galaxyIndexTag').textContent = '— Galaxie-Index: ' + galaxyIndex.toFixed(2) + '×';
   document.getElementById('galaxyIndexTag2').textContent = '— Galaxie-Index: ' + galaxyIndex.toFixed(2) + '×';
@@ -1576,7 +1698,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId){
 }
 document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg'));
 document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap()]); render(); });
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){
