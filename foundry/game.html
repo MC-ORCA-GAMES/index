@@ -458,6 +458,10 @@
   .galaxy-legend{ display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:14px; }
   .galaxy-legend-item{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--fg-dim); }
   .galaxy-legend-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .transporter-route{ stroke:#21C7B8; stroke-width:1; stroke-opacity:0.35; stroke-dasharray:2 4; fill:none; }
+  .transporter-dot{ fill:#fff8e6; filter:drop-shadow(0 0 3px #21C7B8); }
+  @keyframes transporter-pulse{ 0%,100%{ opacity:0.55; } 50%{ opacity:1; } }
+  .transporter-dot{ animation:transporter-pulse 1.6s ease-in-out infinite; }
 
   html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
   ::-webkit-scrollbar{ width:10px; height:10px; }
@@ -727,6 +731,7 @@
               <circle cx="500" cy="280" r="9" fill="#fff8e6"></circle>
               <circle cx="500" cy="280" r="18" fill="none" stroke="#fff3d6" stroke-opacity="0.25" stroke-width="1"></circle>
               <g id="galaxyCompanyDots"></g>
+              <g id="galaxyTransporters"></g>
             </svg>
           </div>
           <div class="galaxy-legend" id="galaxyLegend"></div>
@@ -734,6 +739,8 @@
             Position ist rein kosmetisch (stabil pro Firma, entlang von Spiralarmen um das Galaxie-Zentrum
             verteilt), Farbe = Sektor, Größe = Kapazität. Gold umrandet = börsenreif/börsennotiert,
             blass = insolvent, weißer Ring = eigene Firma. Fahr mit der Maus über einen Punkt für Details.
+            Leuchtende Punkte mit gepunkteter Route = eigene Lieferungen unterwegs zu deinen Firmen
+            (Bot-Markt startet vom Galaxie-Zentrum, Firma-zu-Firma-Handel von einer zufälligen Route).
           </p>
         </div>
       </div>
@@ -1406,6 +1413,24 @@ function initGalaxyBackground(){
   galaxyBgInitialized = true;
 }
 
+// Geometrie der Spiralgalaxie zentral gehalten, damit renderGalaxyMap (Firmen-
+// Punkte) und renderGalaxyTransporters (Lieferrouten) exakt dieselben
+// Koordinaten benutzen. Nur von der ID abhaengig -> pro Firma stabil.
+const GALAXY_CENTER_X = 500, GALAXY_CENTER_Y = 280, GALAXY_MAX_RADIUS = 250, GALAXY_NUM_ARMS = 3;
+function companyGalaxyPos(id){
+  const armSeed = hashSeed(id + 'arm');
+  const radiusSeed = hashSeed(id + 'r');
+  const angleSeed = hashSeed(id + 'a');
+  const arm = Math.floor(armSeed * GALAXY_NUM_ARMS);
+  const radius = GALAXY_MAX_RADIUS * Math.pow(radiusSeed, 1.4);
+  const twist = (radius / GALAXY_MAX_RADIUS) * Math.PI * 2.4;
+  const angle = (arm / GALAXY_NUM_ARMS) * Math.PI * 2 + (angleSeed - 0.5) * (Math.PI * 2 / GALAXY_NUM_ARMS) * 0.7 + twist;
+  return {
+    x: GALAXY_CENTER_X + radius * Math.cos(angle),
+    y: GALAXY_CENTER_Y + radius * Math.sin(angle) * 0.55
+  };
+}
+
 function renderGalaxyMap(){
   const dotsGroup = document.getElementById('galaxyCompanyDots');
   if (!dotsGroup) return;
@@ -1414,21 +1439,8 @@ function renderGalaxyMap(){
   const countTag = document.getElementById('galaxyCountTag');
   if (countTag) countTag.textContent = '— ' + galaxyMap.length + ' Firmen aller Spieler';
   const ns = 'http://www.w3.org/2000/svg';
-  const centerX = 500, centerY = 280, maxRadius = 250, numArms = 3;
   galaxyMap.forEach(c => {
-    // Spiralarm-Verteilung um das Galaxie-Zentrum statt Gleichverteilung im
-    // Rechteck: Radius per Potenzfunktion zum Zentrum hin verdichtet (Bulge),
-    // Winkel bekommt einen radiusabhängigen "Twist" fuer die Spiralkruemmung,
-    // plus leichte y-Stauchung fuer die Draufsicht-Perspektive einer Scheibe.
-    const armSeed = hashSeed(c.id + 'arm');
-    const radiusSeed = hashSeed(c.id + 'r');
-    const angleSeed = hashSeed(c.id + 'a');
-    const arm = Math.floor(armSeed * numArms);
-    const radius = maxRadius * Math.pow(radiusSeed, 1.4);
-    const twist = (radius / maxRadius) * Math.PI * 2.4;
-    const angle = (arm / numArms) * Math.PI * 2 + (angleSeed - 0.5) * (Math.PI * 2 / numArms) * 0.7 + twist;
-    const x = centerX + radius * Math.cos(angle);
-    const y = centerY + radius * Math.sin(angle) * 0.55;
+    const { x, y } = companyGalaxyPos(c.id);
     const r = Math.max(4, Math.min(13, 4 + Number(c.capacity || 0) / 18));
     const color = SECTOR_COLORS[c.sector] || '#8b8fa3';
     const circle = document.createElementNS(ns, 'circle');
@@ -1448,6 +1460,7 @@ function renderGalaxyMap(){
     circle.appendChild(title);
     dotsGroup.appendChild(circle);
   });
+  renderGalaxyTransporters();
 
   const legend = document.getElementById('galaxyLegend');
   if (legend) {
@@ -1460,6 +1473,58 @@ function renderGalaxyMap(){
     });
   }
 }
+
+// Zeichnet eigene Lieferungen (myDeliveries) als leuchtende Punkte, die sich
+// entlang einer gepunkteten Route zur Ziel-Firma bewegen. Echte Herkunfts-
+// Koordinaten gibt es nicht (pending_deliveries speichert keinen Verkaeufer),
+// daher: Bot-Markt startet immer am Galaxie-Zentrum (dort findet der Bot-
+// Handel konzeptionell statt), Firma-zu-Firma-Lieferungen bekommen eine aus
+// der Lieferungs-ID abgeleitete, aber stabile Fantasie-Herkunft irgendwo in
+// der Galaxie -- so "wandert" derselbe Transporter nicht bei jedem Redraw.
+function renderGalaxyTransporters(){
+  const group = document.getElementById('galaxyTransporters');
+  if (!group) return;
+  group.innerHTML = '';
+  if (!myDeliveries.length) return;
+  const ns = 'http://www.w3.org/2000/svg';
+  const now = Date.now();
+  myDeliveries.forEach(d => {
+    const dest = companyGalaxyPos(d.company_id);
+    const origin = d.source === 'bot'
+      ? { x: GALAXY_CENTER_X, y: GALAXY_CENTER_Y }
+      : companyGalaxyPos(d.id + '-herkunft');
+    const orderedAt = new Date(d.ordered_at).getTime();
+    const arrivesAt = new Date(d.arrives_at).getTime();
+    const span = Math.max(1, arrivesAt - orderedAt);
+    const t = Math.max(0, Math.min(1, (now - orderedAt) / span));
+
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', origin.x.toFixed(1));
+    line.setAttribute('y1', origin.y.toFixed(1));
+    line.setAttribute('x2', dest.x.toFixed(1));
+    line.setAttribute('y2', dest.y.toFixed(1));
+    line.setAttribute('class', 'transporter-route');
+    group.appendChild(line);
+
+    const curX = origin.x + (dest.x - origin.x) * t;
+    const curY = origin.y + (dest.y - origin.y) * t;
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', curX.toFixed(1));
+    dot.setAttribute('cy', curY.toFixed(1));
+    dot.setAttribute('r', '3.4');
+    dot.setAttribute('class', 'transporter-dot');
+    const minsLeft = Math.max(0, Math.ceil((arrivesAt - now) / 60000));
+    const title = document.createElementNS(ns, 'title');
+    title.textContent = fmt2(d.quantity) + '× ' + d.resource_name + ' unterwegs zu ' + d.ticker +
+      ' (' + (d.source === 'bot' ? 'Bot-Markt' : 'Firma-zu-Firma') + ') · trifft in ' + minsLeft + ' Min. ein';
+    dot.appendChild(title);
+    group.appendChild(dot);
+  });
+}
+// Eigenes, leichtes Intervall nur fuer die Transporter-Animation (kein
+// Server-Refetch) -- laesst die Punkte sichtbar auf der Route "kriechen",
+// ohne auf den 60s-Datenabruf warten zu muessen.
+setInterval(renderGalaxyTransporters, 2000);
 
 function renderDecisions(company){
   const gridAusbau = document.getElementById('decisionGrid');
