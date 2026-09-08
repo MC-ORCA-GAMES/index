@@ -493,7 +493,8 @@
 
       <div class="tab-page active" id="tabPage-entscheidungen">
         <div class="panel">
-          <h3>Quartals-Entscheidung <span class="tag">— eine pro Quartal, 60 Min. Cooldown</span></h3>
+          <h3>Quartals-Entscheidung <span class="tag">— eine pro Quartal, Quartale enden zur vollen Stunde</span></h3>
+          <p id="quarterCountdown" style="font-family:var(--mono); font-size:12px; color:var(--fg-dim); margin:-6px 0 14px;"></p>
           <div class="decision-grid" id="decisionGrid"></div>
           <div class="panel" style="margin-top:14px; margin-bottom:0; background:var(--bg-alt);">
             <h3 style="margin-bottom:10px;">Kapital einzahlen</h3>
@@ -754,6 +755,33 @@ let myLoans = [];
 let myContracts = [];
 let myDeliveries = [];
 let galaxyMap = [];
+let myLastDecisions = [];
+
+function currentQuarterStart(){
+  const d = new Date();
+  d.setMinutes(0, 0, 0);
+  return d;
+}
+
+function decidedThisQuarter(companyId){
+  const row = myLastDecisions.find(r => r.company_id === companyId);
+  if (!row) return false;
+  return new Date(row.last_decision_at) >= currentQuarterStart();
+}
+
+function updateQuarterCountdown(){
+  const el = document.getElementById('quarterCountdown');
+  if (!el) return;
+  const now = new Date();
+  const next = currentQuarterStart();
+  next.setHours(next.getHours() + 1);
+  const diffMs = next - now;
+  const mins = Math.floor(diffMs / 60000);
+  const secs = Math.floor((diffMs % 60000) / 1000);
+  el.textContent = 'Quartal endet in ' + mins + ' Min ' + String(secs).padStart(2,'0') + ' Sek (um ' +
+    String(next.getHours()).padStart(2,'0') + ':00 Uhr) — danach ist wieder eine neue Entscheidung möglich.';
+}
+setInterval(updateQuarterCountdown, 1000);
 
 async function loadInventory(){
   try {
@@ -784,6 +812,14 @@ async function loadContracts(){
     const { data, error } = await sb.schema('foundry').rpc('get_my_protection_contracts');
     if (error) { console.error(error); return; }
     myContracts = data || [];
+  } catch(e){ console.error(e); }
+}
+
+async function loadLastDecisions(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_my_last_decisions');
+    if (error) { console.error(error); return; }
+    myLastDecisions = data || [];
   } catch(e){ console.error(e); }
 }
 
@@ -879,9 +915,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries(), loadGalaxyMap()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries(), loadGalaxyMap()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -1120,14 +1156,15 @@ function renderDecisions(company){
   const grid = document.getElementById('decisionGrid');
   grid.innerHTML = '';
   const active = ['aufbau','boersenreif','ipo'].includes(company.stage);
+  const usedUp = decidedThisQuarter(company.id);
   DECISIONS.forEach(d => {
     const cost = Math.round(d.base * galaxyIndex);
     const affordable = Number(company.cash_reserve) >= cost;
     const card = document.createElement('div');
     card.className = 'decision-card';
     card.innerHTML = '<h4>' + d.title + '</h4><p>' + d.desc + '</p><div class="dc-cost">' + fmt(cost) + ' MOGC <span style="color:var(--fg-dim); font-weight:normal;">aus Firmen-Rücklage</span></div>' +
-      '<button type="button" data-kind="' + d.kind + '"' + ((active && affordable) ? '' : ' disabled') + '>' +
-      (active && !affordable ? 'Rücklage reicht nicht' : 'Entscheiden') + '</button>';
+      '<button type="button" data-kind="' + d.kind + '"' + ((active && affordable && !usedUp) ? '' : ' disabled') + '>' +
+      (usedUp ? 'Quartal bereits verbraucht' : (active && !affordable ? 'Rücklage reicht nicht' : 'Entscheiden')) + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, d.kind));
     grid.appendChild(card);
   });
@@ -1155,11 +1192,14 @@ function renderDecisions(company){
     card.innerHTML = '<h4>' + inp.resource + ' verwenden</h4><p>' + effectText + suffix + ' — verbraucht ' + inp.units +
       ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' +
       '<div class="dc-cost" style="color:' + (enough ? 'var(--up)' : 'var(--down)') + '">Im Lager: ' + fmt2(have) + ' / ' + inp.units + '</div>' +
-      '<button type="button"' + (active && enough ? '' : ' disabled') + '>Entscheiden</button>';
+      '<button type="button"' + (active && enough && !usedUp ? '' : ' disabled') + '>' + (usedUp ? 'Quartal bereits verbraucht' : 'Entscheiden') + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, 'use_input', null, inp.resource));
     grid.appendChild(card);
   });
-  document.getElementById('reserveBtn').onclick = () => {
+  const reserveBtn = document.getElementById('reserveBtn');
+  reserveBtn.disabled = !active || usedUp;
+  reserveBtn.textContent = usedUp ? 'Quartal bereits verbraucht' : 'Einzahlen';
+  reserveBtn.onclick = () => {
     const amt = Number(document.getElementById('reserveAmount').value);
     if (!amt || amt <= 0) { showMsg('decisionMsg', 'Bitte einen gültigen Betrag eingeben.', false); return; }
     makeDecision(company.id, 'reserve', amt);
@@ -1215,7 +1255,7 @@ async function makeDecision(companyId, kind, amount, resourceName){
     const { data, error } = await sb.schema('foundry').rpc('make_decision', args);
     if (error) { showMsg('decisionMsg', error.message, false); return; }
     showMsg('decisionMsg', 'Entscheidung übernommen.', true);
-    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts()]);
+    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts()]);
     render();
   } catch (err) {
     showMsg('decisionMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
@@ -1475,7 +1515,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId){
 }
 document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg'));
 document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries(), loadGalaxyMap()]); render(); });
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){
