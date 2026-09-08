@@ -47,6 +47,49 @@
   Bot-Zukauf → Verbrauch), danach wieder bereinigt. RLS auf companies/
   decisions_log/company_events wurde in derselben Session aktiviert
   (siehe HANDOFF.md Abschnitt 2 — jetzt erledigt).
+
+  v1.4: Finanzen & Verteidigung auf echte Mechanik umgestellt (Migrationen
+  foundry_finance_defense_real_mechanics, foundry_make_decision_loans_and_
+  contracts, foundry_tick_processes_loans_and_contracts,
+  foundry_get_my_loans_and_contracts). "Kapitalzugang verwenden" gibt keine
+  Instant-Gutschrift mehr, sondern nimmt einen echten Kredit auf: 600 MOGC
+  sofort, Rückzahlung 720 MOGC (20% Zins) über 6 Quartale à 120 MOGC/Quartal
+  (neue Tabelle foundry.loans, Ratenabzug in _tick_company_once()).
+  "Schutzverträge verwenden" senkt das Risiko nicht mehr dauerhaft, sondern
+  befristet: -25 Risiko für 6 Quartale, danach läuft der Vertrag ab und der
+  Rabatt fällt wieder weg (neue Tabelle foundry.protection_contracts). Wird
+  eine Firma waehrend eines laufenden Kredits/Vertrags insolvent, platzt der
+  Kredit (status 'defaulted') bzw. der Vertrag endet ohne Risiko-Rückgabe.
+  Neue RPCs get_my_loans()/get_my_protection_contracts() für die beiden
+  neuen Listen-Panels unten im Entscheidungen-Tab. Getestet mit zwei
+  Wegwerf-Testfirmen unter einer frei erfundenen Test-Player-ID (volle
+  Kredit-Laufzeit bis zur Tilgung, Vertragsablauf, erzwungener Default bei
+  Insolvenz) — anschließend vollständig aus der DB entfernt, echte MOG-Firma
+  nicht betroffen.
+
+  Bugfix (gleicher Tag): alte, tote 3-Parameter-Überladung von make_decision()
+  aus der MVP-Phase entfernt (foundry_drop_legacy_make_decision_overload) —
+  verursachte "Could not choose the best candidate function" bei jeder
+  Entscheidung ohne p_resource_name (capacity/staff/marketing/rnd/pr/reserve).
+
+  v1.5: Firmen-Rücklage ist jetzt das echte Firmenkonto (Migration
+  foundry_decisions_paid_from_cash_reserve). Vorher zahlten Kapazität/
+  Personal/Marketing/F&E/PR aus der privaten MOGC-Wallet des Spielers — die
+  Rücklage war nur eine Buchungsgröße für die Insolvenzprüfung, ohne dass
+  die Firma wirklich davon "lebte". Jetzt zieht make_decision() diese
+  Kosten direkt von company.cash_reserve ab (reicht die Rücklage nicht,
+  schlägt die Entscheidung mit klarer Fehlermeldung fehl). Die Wallet wird
+  nur noch für die Gründung und für freiwillige Kapitaleinlagen ("Kapital
+  einzahlen", vorher "Rücklage einzahlen") gebraucht — wie ein Gründer, der
+  Eigenkapital einschießt, statt dass der Betrieb dauerhaft aus der privaten
+  Schatulle läuft. Start-Rücklage bei Gründung dafür von 15% auf 40% des
+  Gründungskapitals angehoben (found_company()), damit eine frische Firma
+  sich mindestens eine erste Investition leisten kann. Frontend: Entscheidungs-
+  karten zeigen "aus Firmen-Rücklage" und sind deaktiviert ("Rücklage reicht
+  nicht"), wenn company.cash_reserve < Kosten. Getestet mit einer Wegwerf-
+  Testfirma (Ablehnung bei zu wenig Rücklage, korrekter Abzug bei Erfolg),
+  danach entfernt — echte MOG-Firma nicht betroffen (Kontrolle: unverändert,
+  Rücklage sogar organisch auf 289,71 MOGC gewachsen).
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -355,13 +398,26 @@
           <h3>Quartals-Entscheidung <span class="tag">— eine pro Quartal, 60 Min. Cooldown</span></h3>
           <div class="decision-grid" id="decisionGrid"></div>
           <div class="panel" style="margin-top:14px; margin-bottom:0; background:var(--bg-alt);">
-            <h3 style="margin-bottom:10px;">Freie Rücklage einzahlen</h3>
+            <h3 style="margin-bottom:10px;">Kapital einzahlen</h3>
+            <p style="font-size:12px; color:var(--fg-dim); margin:0 0 10px;">
+              Überweist MOGC aus deiner privaten Wallet auf das Firmenkonto (Rücklage). Alle
+              operativen Entscheidungen oben werden aus dieser Rücklage bezahlt — nicht direkt
+              aus deiner Wallet.
+            </p>
             <div class="reserve-row">
               <input type="number" id="reserveAmount" placeholder="Betrag in MOGC" min="1" step="1">
               <button type="button" id="reserveBtn">Einzahlen</button>
             </div>
           </div>
           <div id="decisionMsg"></div>
+        </div>
+        <div class="panel">
+          <h3>Laufende Kredite <span class="tag">— aus „Kapitalzugang verwenden"</span></h3>
+          <div class="event-list" id="loansList"></div>
+        </div>
+        <div class="panel">
+          <h3>Laufende Schutzverträge <span class="tag">— aus „Schutzverträge verwenden"</span></h3>
+          <div class="event-list" id="contractsList"></div>
         </div>
       </div>
 
@@ -510,47 +566,47 @@ const SECTOR_INPUTS = {
   'Technologie & Halbleiter': [
     { resource:'Rohstoffe', units:15, effect:'+0,15 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
-    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Bergbau & Rohstoffe': [
     { resource:'Energieeinheiten', units:15, effect:'+0,12 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
-    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Biotech & Terraforming': [
     { resource:'Energieeinheiten', units:15, effect:'+0,12 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
-    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Raumfahrt & Logistik': [
     { resource:'Bauteile', units:10, effect:'+0,15 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
-    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Verteidigung & Sicherheit': [
     { resource:'Bauteile', units:10, effect:'+0,15 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
   ],
   'Energie': [
     { resource:'Bio-Einheiten', units:10, effect:'+0,12 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
-    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Konsum & Unterhaltung': [
     { resource:'Bauteile', units:10, effect:'+6 Reputation' },
     { resource:'Bio-Einheiten', units:10, effect:'+6 Reputation' },
     { resource:'Frachtkapazität', units:10, effect:'+4 Reputation' },
-    { resource:'Kapitalzugang', units:5, effect:'+150 Rücklage' },
-    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Finanzen': [
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Schutzverträge', units:5, effect:'-15 Risiko' },
+    { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
 };
 const ALL_RESOURCES = ['Rohstoffe','Energieeinheiten','Frachtkapazität','Bauteile','Bio-Einheiten','Kapitalzugang','Schutzverträge'];
@@ -563,6 +619,8 @@ let selectedSector2 = null;
 let mogcBalance = 0;
 let myInventory = [];
 let marketOrders = [];
+let myLoans = [];
+let myContracts = [];
 
 async function loadInventory(){
   try {
@@ -577,6 +635,22 @@ async function loadMarketOrders(){
     const { data, error } = await sb.schema('foundry').rpc('get_market_orders');
     if (error) { console.error(error); return; }
     marketOrders = data || [];
+  } catch(e){ console.error(e); }
+}
+
+async function loadLoans(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_my_loans');
+    if (error) { console.error(error); return; }
+    myLoans = data || [];
+  } catch(e){ console.error(e); }
+}
+
+async function loadContracts(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_my_protection_contracts');
+    if (error) { console.error(error); return; }
+    myContracts = data || [];
   } catch(e){ console.error(e); }
 }
 
@@ -656,9 +730,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -802,10 +876,12 @@ function renderDecisions(company){
   const active = ['aufbau','boersenreif','ipo'].includes(company.stage);
   DECISIONS.forEach(d => {
     const cost = Math.round(d.base * galaxyIndex);
+    const affordable = Number(company.cash_reserve) >= cost;
     const card = document.createElement('div');
     card.className = 'decision-card';
-    card.innerHTML = '<h4>' + d.title + '</h4><p>' + d.desc + '</p><div class="dc-cost">' + fmt(cost) + ' MOGC</div>' +
-      '<button type="button" data-kind="' + d.kind + '"' + (active ? '' : ' disabled') + '>Entscheiden</button>';
+    card.innerHTML = '<h4>' + d.title + '</h4><p>' + d.desc + '</p><div class="dc-cost">' + fmt(cost) + ' MOGC <span style="color:var(--fg-dim); font-weight:normal;">aus Firmen-Rücklage</span></div>' +
+      '<button type="button" data-kind="' + d.kind + '"' + ((active && affordable) ? '' : ' disabled') + '>' +
+      (active && !affordable ? 'Rücklage reicht nicht' : 'Entscheiden') + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, d.kind));
     grid.appendChild(card);
   });
@@ -813,9 +889,14 @@ function renderDecisions(company){
     const owned = myInventory.find(i => i.company_id === company.id && i.resource_name === inp.resource);
     const have = owned ? Number(owned.quantity) : 0;
     const enough = have >= inp.units;
+    const isFinance = inp.resource === 'Kapitalzugang';
+    const isDefense = inp.resource === 'Schutzverträge';
+    const suffix = isFinance ? ' — echter Kredit mit Rückzahlungsplan, siehe unten'
+      : isDefense ? ' — befristeter Schutzvertrag, siehe unten'
+      : ' dauerhaft';
     const card = document.createElement('div');
     card.className = 'decision-card';
-    card.innerHTML = '<h4>' + inp.resource + ' verwenden</h4><p>' + inp.effect + ' dauerhaft — verbraucht ' + inp.units +
+    card.innerHTML = '<h4>' + inp.resource + ' verwenden</h4><p>' + inp.effect + suffix + ' — verbraucht ' + inp.units +
       ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' +
       '<div class="dc-cost" style="color:' + (enough ? 'var(--up)' : 'var(--down)') + '">Im Lager: ' + fmt2(have) + ' / ' + inp.units + '</div>' +
       '<button type="button"' + (active && enough ? '' : ' disabled') + '>Entscheiden</button>';
@@ -827,6 +908,44 @@ function renderDecisions(company){
     if (!amt || amt <= 0) { showMsg('decisionMsg', 'Bitte einen gültigen Betrag eingeben.', false); return; }
     makeDecision(company.id, 'reserve', amt);
   };
+
+  renderLoansAndContracts(company);
+}
+
+const LOAN_STATUS_LABEL = { active:'Aktiv', paid_off:'Abbezahlt', defaulted:'Ausgefallen (Insolvenz)' };
+const CONTRACT_STATUS_LABEL = { active:'Aktiv', expired:'Ausgelaufen' };
+
+function renderLoansAndContracts(company){
+  const loanList = document.getElementById('loansList');
+  loanList.innerHTML = '';
+  const loans = myLoans.filter(l => l.company_id === company.id);
+  if (!loans.length) {
+    loanList.innerHTML = '<div class="event-empty">Noch kein Kredit aufgenommen — über „Kapitalzugang verwenden" möglich (Ware im „Markt"-Tab kaufen).</div>';
+  } else {
+    loans.forEach(l => {
+      const row = document.createElement('div');
+      row.className = 'event-row';
+      row.innerHTML = '<span class="ev-time">' + LOAN_STATUS_LABEL[l.status] + '</span>' +
+        fmt2(l.principal) + ' MOGC aufgenommen · Rest ' + fmt2(l.balance) + ' MOGC · ' +
+        fmt2(l.installment) + ' MOGC/Quartal · noch ' + l.ticks_remaining + ' von ' + l.ticks_total + ' Quartalen';
+      loanList.appendChild(row);
+    });
+  }
+
+  const contractList = document.getElementById('contractsList');
+  contractList.innerHTML = '';
+  const contracts = myContracts.filter(c => c.company_id === company.id);
+  if (!contracts.length) {
+    contractList.innerHTML = '<div class="event-empty">Noch kein Schutzvertrag abgeschlossen — über „Schutzverträge verwenden" möglich (Ware im „Markt"-Tab kaufen).</div>';
+  } else {
+    contracts.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'event-row';
+      row.innerHTML = '<span class="ev-time">' + CONTRACT_STATUS_LABEL[c.status] + '</span>' +
+        '-' + fmt2(c.risk_reduction) + ' Risiko · noch ' + c.ticks_remaining + ' von ' + c.ticks_total + ' Quartalen';
+      contractList.appendChild(row);
+    });
+  }
 }
 
 async function makeDecision(companyId, kind, amount, resourceName){
@@ -840,7 +959,7 @@ async function makeDecision(companyId, kind, amount, resourceName){
     const { data, error } = await sb.schema('foundry').rpc('make_decision', args);
     if (error) { showMsg('decisionMsg', error.message, false); return; }
     showMsg('decisionMsg', 'Entscheidung übernommen.', true);
-    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]);
+    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts()]);
     render();
   } catch (err) {
     showMsg('decisionMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
