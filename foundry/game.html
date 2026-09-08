@@ -342,6 +342,57 @@
   aus der ohnehin schon geladenen galaxyMap zieht (get_galaxy_map(), keine
   neue RPC nötig). Macht Sektorwahl bei der Gründung taktischer, statt dass
   alle in den vermeintlich besten Sektor rennen.
+
+  v1.19: Working Capital / Liquiditätsengpass (neue Spalte
+  foundry.companies.receivables + Migration
+  foundry_working_capital_liquidity). Bisher landete der komplette
+  Quartalsumsatz sofort und vollständig als Kasse in cash_reserve — ein
+  Buchgewinn war also immer auch ein Kassengewinn. Jetzt kommen nur noch 75%
+  des Umsatzes SOFORT als Kasse rein, die restlichen 25% werden zu offenen
+  Forderungen (receivables) und erst im nächsten Tick eingezogen (dann
+  vollständig, bevor der neue Umsatz wieder zu 75/25 aufgeteilt wird). Steuer,
+  Lohn, laufende Kosten und Kredittilgung sind davon unberührt weiterhin
+  SOFORT in echter Kasse fällig. Dadurch kann eine wachsende Firma trotz
+  positivem Buchgewinn eine schrumpfende Kasse haben, weil zu viel Kapital in
+  Außenständen gebunden ist — neues Event 'liquiditaetsengpass' im Feed, wenn
+  genau das passiert (Buchgewinn > 0 UND echte Kasse sinkt trotzdem). Die
+  Insolvenz-Schwelle (Rücklage ≤ -600 oder 24 Verlust-Quartale) prüft jetzt
+  ebenfalls die ECHTE Kassenbewegung statt des Buchgewinns — realistischer,
+  da Insolvenz eine Frage der Zahlungsfähigkeit ist, nicht der Bilanz. Bei
+  hohem Gewinn-Puffer (Umsatz deutlich über den Kosten) ist der Effekt
+  unspürbar; knapp kalkulierte Firmen (Umsatz nur wenig über den Kosten)
+  trifft es am ehesten. Mit 25 simulierten Ticks per Rollback getestet.
+  Frontend: neue Statuskarte "Außenstände (Forderungen)" im Firmen-Header
+  (rot, wenn die Forderungen die aktuelle Rücklage übersteigen), neues
+  Event-Styling für kind-liquiditaetsengpass (rot wie Insolvenz-Events).
+
+  v1.20: Fusionen & Übernahmen (Migration foundry_acquisitions, neue RPCs
+  get_acquisition_targets() + acquire_insolvent_company()). Andere Spieler
+  können ab jetzt Firmen im Insolvenzverfahren übernehmen, statt dass diese
+  bei abgelaufener Sanierungsfrist einfach verfallen. Dem ursprünglichen
+  Eigentümer gehört exklusiv die ERSTE Hälfte der 12h-Sanierungsfrist zur
+  Selbst-Sanierung per Kapitalspritze (unverändert); erst danach wird die
+  Firma für andere Spieler übernehmbar. Die Übernahme tilgt die negative
+  Rücklage (cash_reserve → 0) und kostet eine Übernahmegebühr von 15% des
+  ursprünglichen Gründungskapitals (mind. 50 MOGC, Sink an
+  platform.central_bank wie bei der Unternehmenssteuer) — beides zahlt der
+  Käufer aus der eigenen Wallet, analog zu attempt_rescue(). Die Firma geht
+  danach in den Besitz des Käufers über (player_id wechselt, guild_id wird
+  genullt) und startet mit reduzierter Kapazität/Personal (×0,7) und -10
+  Reputation neu im Aufbau — Name, Ticker, Sektor und die komplette
+  Event-/Entscheidungs-Historie bleiben erhalten. Schutzregeln: die eigene
+  Firma kann nicht per Übernahme "gerettet" werden (dafür bleibt die
+  Kapitalspritze), Corp-Firmen (guild_id gesetzt) sind komplett geschützt
+  und nur von den eigenen Leitern/Offizieren sanierbar, Gast-Accounts können
+  nicht übernehmen. Alle vier Schutzfälle + der Erfolgsfall (inkl. korrekter
+  Fee-Berechnung und Wallet-Abbuchung) wurden per Rollback-Transaktion mit
+  simulierten Test-Spielern getestet. Frontend: neuer Haupt-Tab "Übernahmen"
+  mit Liste aller übernehmbaren Firmen (Kosten-Vorschau, Countdown bis
+  übernehmbar bzw. bis Fristende, Button deaktiviert bis zur Freigabe).
+  Bewusst NICHT umgesetzt: Übernahme "unterbewerteter" (aber gesunder)
+  börsennotierter Firmen über den Aktienkurs — das würde direkt in die
+  bestehende platform.stock_*-Mechanik eingreifen und ist als eigenes,
+  größeres Feature zu betrachten, falls gewünscht.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -484,6 +535,7 @@
   .event-row.kind-durchbruch{ color:var(--up); }
   .event-row.kind-boersenreif{ color:#D4AF37; }
   .event-row.kind-insolvenz{ color:var(--down); }
+  .event-row.kind-liquiditaetsengpass{ color:var(--down); }
   .event-empty{ color:var(--fg-faint); font-size:15px; padding:6px 0; }
 
   .ipo-callout{ border:1px solid rgba(212,175,55,0.35); background:rgba(212,175,55,0.06); border-radius:9px; padding:16px 18px; margin-top:10px; }
@@ -668,6 +720,7 @@
         <button type="button" class="main-tab-btn" data-tab="ereignisse">Ereignisse</button>
         <button type="button" class="main-tab-btn" data-tab="markt">Markt</button>
         <button type="button" class="main-tab-btn" data-tab="galaxie">Galaxie</button>
+        <button type="button" class="main-tab-btn" data-tab="uebernahme">Übernahmen</button>
         <button type="button" class="main-tab-btn" data-tab="boersengang">Börsengang</button>
         <button type="button" class="main-tab-btn" data-tab="gruenden2">Neue Firma</button>
         <button type="button" class="main-tab-btn" data-tab="einstellungen"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px; flex-shrink:0;"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="1.8" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="1.8" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="1.8" fill="currentColor" stroke="none"/></svg>Einstellungen</button>
@@ -793,6 +846,24 @@
             Leuchtende Punkte mit gepunkteter Route = eigene Lieferungen unterwegs zu deinen Firmen
             (Bot-Markt startet vom Galaxie-Zentrum, Firma-zu-Firma-Handel von einer zufälligen Route).
           </p>
+        </div>
+      </div>
+
+      <div class="tab-page" id="tabPage-uebernahme">
+        <div class="panel">
+          <h3>Übernahme-Markt <span class="tag">— insolvenzreife Firmen anderer Spieler</span></h3>
+          <p style="font-size:13.5px; color:var(--fg-dim); margin:0 0 12px; line-height:1.6;">
+            Firmen im Insolvenzverfahren stehen ab der Hälfte ihrer 12-Stunden-Sanierungsfrist
+            zur Übernahme frei — dem ursprünglichen Eigentümer bleibt die erste Hälfte exklusiv
+            zur Selbst-Sanierung. Die Übernahme tilgt die negative Rücklage und kostet eine
+            Übernahmegebühr (15% des ursprünglichen Gründungskapitals, mind. 50 MOGC) — beides
+            zahlst du aus deiner eigenen Wallet. Die Firma geht danach in deinen Besitz über,
+            läuft mit reduzierter Kapazität/Personal und etwas Reputationsverlust neu an, bleibt
+            aber als laufender Betrieb erhalten statt endgültig zu verfallen. Corp-Firmen sind
+            geschützt und nicht übernehmbar.
+          </p>
+          <div class="event-list" id="acquisitionList"></div>
+          <div id="acquireMsg"></div>
         </div>
       </div>
 
@@ -1007,6 +1078,7 @@ let myInventory = [];
 let marketOrders = [];
 let myLoans = [];
 let myContracts = [];
+let acquisitionTargets = [];
 let myDeliveries = [];
 let galaxyMap = [];
 let myLastDecisions = [];
@@ -1078,6 +1150,14 @@ async function loadContracts(){
     const { data, error } = await sb.schema('foundry').rpc('get_my_protection_contracts');
     if (error) { console.error(error); return; }
     myContracts = data || [];
+  } catch(e){ console.error(e); }
+}
+
+async function loadAcquisitionTargets(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_acquisition_targets');
+    if (error) { console.error(error); return; }
+    acquisitionTargets = data || [];
   } catch(e){ console.error(e); }
 }
 
@@ -1277,9 +1357,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -1410,6 +1490,11 @@ function render(){
     { label:'Reputation', value: Math.round(company.reputation) + ' / 100' },
     { label:'Risiko', value: Math.round(company.risk_score) + ' / 100' },
     { label:'Rücklage', value: fmt2(company.cash_reserve) + ' MOGC', cls: company.cash_reserve < 0 ? 'down' : 'up' },
+    {
+      label: 'Außenstände (Forderungen)',
+      value: fmt2(company.receivables) + ' MOGC' + (Number(company.receivables) > 0 ? ' — kommt nächstes Quartal als Kasse rein' : ''),
+      cls: Number(company.receivables) > Number(company.cash_reserve) ? 'down' : 'up',
+    },
     { label:'Umsatz (letztes Quartal)', value: fmt2(company.last_revenue) + ' MOGC' },
     { label:'Gewinn (letztes Quartal)', value: fmt2(company.last_profit) + ' MOGC', cls: company.last_profit >= 0 ? 'up' : 'down' },
     { label:'Profitable Quartale in Folge', value: company.profitable_streak },
@@ -1452,6 +1537,7 @@ function render(){
   renderMarket(company);
   renderIpoPanel(company);
   renderGalaxyMap();
+  renderAcquisitionMarket();
   loadEvents(company.id).then(renderEvents);
 }
 
@@ -1939,6 +2025,62 @@ async function buyFromBot(companyId, resource){
   }
 }
 
+function renderAcquisitionMarket(){
+  const list = document.getElementById('acquisitionList');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!acquisitionTargets.length) {
+    list.innerHTML = '<div class="event-empty">Aktuell keine Firma im Insolvenzverfahren, die zur Übernahme steht.</div>';
+    return;
+  }
+  const guest = isGuest();
+  acquisitionTargets.forEach(t => {
+    const now = new Date();
+    const acquirableFrom = new Date(t.acquirable_from);
+    const deadline = new Date(t.insolvency_deadline);
+    const isOpen = acquirableFrom <= now;
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    row.style.display = 'flex';
+    row.style.flexWrap = 'wrap';
+    row.style.alignItems = 'center';
+    row.style.gap = '10px';
+    row.style.justifyContent = 'space-between';
+    const info = document.createElement('div');
+    info.innerHTML = '<b>' + t.name + '</b> <span class="tag">' + t.ticker + '</span> — ' + t.sector + '<br>' +
+      '<span style="color:var(--fg-dim); font-size:13px;">Kapazität ' + fmt(t.capacity) + ' · Reputation ' + Math.round(t.reputation) + '/100 · ' +
+      'Schulden ' + fmt2(t.debt) + ' + Gebühr ' + fmt2(t.fee) + ' = <b>' + fmt2(t.total_cost) + ' MOGC</b><br>' +
+      (isOpen
+        ? 'Übernehmbar bis ' + deadline.toLocaleString('de-DE')
+        : 'Übernehmbar ab ' + acquirableFrom.toLocaleString('de-DE')) + '</span>';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-block';
+    btn.style.maxWidth = '200px';
+    btn.style.flex = '0 0 auto';
+    btn.textContent = isOpen ? 'Übernehmen (' + fmt2(t.total_cost) + ' MOGC)' : 'Noch gesperrt';
+    btn.disabled = !isOpen || guest;
+    btn.addEventListener('click', () => acquireCompany(t.id));
+    row.appendChild(info);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+}
+
+async function acquireCompany(targetId){
+  clearMsg('acquireMsg');
+  showMsg('acquireMsg', 'Übernahme wird verarbeitet …', true);
+  try {
+    const { error } = await sb.schema('foundry').rpc('acquire_insolvent_company', { p_target_company_id: targetId });
+    if (error) { showMsg('acquireMsg', error.message, false); return; }
+    showMsg('acquireMsg', 'Übernahme erfolgreich — die Firma läuft jetzt unter deiner Leitung.', true);
+    await Promise.all([loadWallet(), loadCompanies(), loadAcquisitionTargets(), loadGalaxyMap()]);
+    render();
+  } catch (err) {
+    showMsg('acquireMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+
 function renderEvents(events){
   const list = document.getElementById('eventList');
   list.innerHTML = '';
@@ -2064,7 +2206,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId, corpCheckId){
 }
 document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg', 'corpFundCheck'));
 document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2', 'corpFundCheck2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild()]); render(); });
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){
