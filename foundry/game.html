@@ -501,7 +501,8 @@
             <p style="font-size:12px; color:var(--fg-dim); margin:0 0 10px;">
               Überweist MOGC aus deiner privaten Wallet auf das Firmenkonto (Rücklage). Alle
               operativen Entscheidungen oben werden aus dieser Rücklage bezahlt — nicht direkt
-              aus deiner Wallet.
+              aus deiner Wallet. ⚠ Zählt selbst als Quartals-Entscheidung — danach ist bis zum
+              nächsten Quartal keine weitere Aktion mehr möglich.
             </p>
             <div class="reserve-row">
               <input type="number" id="reserveAmount" placeholder="Betrag in MOGC" min="1" step="1">
@@ -675,11 +676,11 @@ const SECTORS = [
   { key:'Verteidigung & Sicherheit', base:1300 },
 ];
 const DECISIONS = [
-  { kind:'capacity', base:150, title:'Kapazität ausbauen', desc:'+5 Produktionskapazität dauerhaft.' },
-  { kind:'staff', base:100, title:'Personal einstellen', desc:'+2 Mitarbeiter, senkt das Risiko leicht.' },
-  { kind:'marketing', base:80, title:'Marketing-Kampagne', desc:'+25% Umsatz — nur dieses Quartal.' },
-  { kind:'pr', base:90, title:'PR-Kampagne', desc:'+8 Reputation dauerhaft (bis 100).' },
-  { kind:'rnd', base:200, title:'Forschung & Entwicklung', desc:'+0,1 Effizienz dauerhaft.' },
+  { kind:'capacity', base:150, title:'Kapazität ausbauen', desc:'+5 Produktionskapazität dauerhaft.', downside:'Erhöht laufende Kosten dauerhaft (+3 MOGC/Kapazität pro Quartal) — lohnt sich nur, wenn der Umsatz mitwächst.' },
+  { kind:'staff', base:100, title:'Personal einstellen', desc:'+2 Mitarbeiter, senkt das Risiko leicht.', downside:'Erhöht laufende Kosten dauerhaft (+40 MOGC/Mitarbeiter pro Quartal).' },
+  { kind:'marketing', base:80, title:'Marketing-Kampagne', desc:'+25% Umsatz — nur dieses Quartal.', downside:'Wirkt nur im nächsten Quartal, danach verpufft der Effekt vollständig — Kosten pro Quartal neu.' },
+  { kind:'pr', base:90, title:'PR-Kampagne', desc:'+8 Reputation dauerhaft (bis 100).', downside:'Reine Kosten ohne direkten Umsatzeffekt — wirkt nur indirekt über Reputation auf den Umsatz.' },
+  { kind:'rnd', base:200, title:'Forschung & Entwicklung', desc:'+0,1 Effizienz dauerhaft.', downside:'Höchste Einzelkosten der vier Optionen — Rücklage vorher prüfen.' },
 ];
 
 // Spiegelt foundry.sector_production / foundry.sector_inputs (statische Spieldaten).
@@ -962,7 +963,7 @@ async function loadEvents(companyId){
 
 /* ---------- Rendering ---------- */
 function stageLabel(stage){
-  return { aufbau:'Im Aufbau', boersenreif:'Börsenreif', ipo:'Börsennotiert', insolvent:'Insolvent' }[stage] || stage;
+  return { aufbau:'Im Aufbau', boersenreif:'Börsenreif', ipo:'Börsennotiert', insolvenzverfahren:'Insolvenzverfahren', insolvent:'Insolvent' }[stage] || stage;
 }
 
 function renderSectorGrid(gridId, selectedKeyGetter, onSelect){
@@ -997,7 +998,7 @@ function render(){
   companies.forEach(c => {
     const chip = document.createElement('div');
     chip.className = 'company-chip' + (c.id === selectedCompanyId ? ' active' : '');
-    const dotColor = c.stage === 'insolvent' ? 'var(--down)' : (c.stage === 'ipo' ? 'var(--up)' : (c.stage === 'boersenreif' ? '#D4AF37' : 'var(--accent)'));
+    const dotColor = c.stage === 'insolvent' ? 'var(--down)' : (c.stage === 'insolvenzverfahren' ? '#D4AF37' : (c.stage === 'ipo' ? 'var(--up)' : (c.stage === 'boersenreif' ? '#D4AF37' : 'var(--accent)')));
     chip.innerHTML = '<span class="stage-dot" style="background:' + dotColor + '"></span>' + c.ticker;
     chip.addEventListener('click', () => { selectedCompanyId = c.id; render(); });
     companyTabsWrap.appendChild(chip);
@@ -1067,7 +1068,7 @@ const SECTOR_COLORS = {
   'Biotech & Terraforming': '#2ecc71',
   'Konsum & Unterhaltung': '#ff6fa5',
 };
-const STAGE_LABEL_GALAXY = { aufbau:'Im Aufbau', boersenreif:'Börsenreif', ipo:'Börsennotiert', insolvent:'Insolvent' };
+const STAGE_LABEL_GALAXY = { aufbau:'Im Aufbau', boersenreif:'Börsenreif', ipo:'Börsennotiert', insolvenzverfahren:'Insolvenzverfahren', insolvent:'Insolvent' };
 
 // Deterministischer Pseudo-Zufall aus einem String (FNV-1a-artig) — Positionen
 // auf der Galaxie-Karte bleiben so pro Firma stabil statt bei jedem Reload zu springen.
@@ -1162,7 +1163,9 @@ function renderDecisions(company){
     const affordable = Number(company.cash_reserve) >= cost;
     const card = document.createElement('div');
     card.className = 'decision-card';
-    card.innerHTML = '<h4>' + d.title + '</h4><p>' + d.desc + '</p><div class="dc-cost">' + fmt(cost) + ' MOGC <span style="color:var(--fg-dim); font-weight:normal;">aus Firmen-Rücklage</span></div>' +
+    card.innerHTML = '<h4>' + d.title + '</h4><p>' + d.desc + '</p>' +
+      '<p class="dc-downside" style="color:var(--fg-dim); font-size:11.5px; margin:-4px 0 8px;">⚠ ' + d.downside + '</p>' +
+      '<div class="dc-cost">' + fmt(cost) + ' MOGC <span style="color:var(--fg-dim); font-weight:normal;">aus Firmen-Rücklage</span></div>' +
       '<button type="button" data-kind="' + d.kind + '"' + ((active && affordable && !usedUp) ? '' : ' disabled') + '>' +
       (usedUp ? 'Quartal bereits verbraucht' : (active && !affordable ? 'Rücklage reicht nicht' : 'Entscheiden')) + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, d.kind));
@@ -1174,8 +1177,8 @@ function renderDecisions(company){
     const enough = have >= inp.units;
     const isFinance = inp.resource === 'Kapitalzugang';
     const isDefense = inp.resource === 'Schutzverträge';
-    const suffix = isFinance ? ' — echter Kredit mit Rückzahlungsplan, siehe unten'
-      : isDefense ? ' — befristeter Schutzvertrag, siehe unten'
+    const suffix = isFinance ? ' — echter Kredit mit Rückzahlungsplan, siehe unten. ⚠ Rate wird jedes Quartal automatisch von der Rücklage abgezogen; bei Insolvenz platzt der Kredit.'
+      : isDefense ? ' — befristeter Schutzvertrag, siehe unten. ⚠ Risiko steigt nach Vertragsende wieder auf den alten Wert.'
       : ' dauerhaft';
     // Kredithöhe/-laufzeit skaliert mit der Kapazität (v1.6) — Formel muss
     // 1:1 mit foundry.make_decision() übereinstimmen, damit die Vorschau stimmt.
@@ -1241,6 +1244,23 @@ function renderLoansAndContracts(company){
         '-' + fmt2(c.risk_reduction) + ' Risiko · noch ' + c.ticks_remaining + ' von ' + c.ticks_total + ' Quartalen';
       contractList.appendChild(row);
     });
+  }
+}
+
+async function attemptRescue(companyId){
+  if (isGuest()) { showMsg('rescueMsg', 'Als Gast keine Sanierung möglich — bitte mit E-Mail-Code einloggen.', false); return; }
+  const amt = Number(document.getElementById('rescueAmount').value);
+  if (!amt || amt <= 0) { showMsg('rescueMsg', 'Bitte einen gültigen Betrag eingeben.', false); return; }
+  clearMsg('rescueMsg');
+  showMsg('rescueMsg', 'Wird verarbeitet …', true);
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('attempt_rescue', { p_company_id: companyId, p_amount: amt });
+    if (error) { showMsg('rescueMsg', error.message, false); return; }
+    showMsg('rescueMsg', data && data.stage === 'aufbau' ? 'Sanierung erfolgreich — Betrieb läuft wieder!' : 'Kapitalspritze übernommen, weitere Einzahlung nötig.', true);
+    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts()]);
+    render();
+  } catch (err) {
+    showMsg('rescueMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
   }
 }
 
@@ -1440,6 +1460,22 @@ function renderEvents(events){
 
 function renderIpoPanel(company){
   const panel = document.getElementById('ipoPanel');
+  if (company.stage === 'insolvenzverfahren') {
+    const deadline = new Date(company.insolvency_deadline);
+    const msLeft = deadline - new Date();
+    const hrs = Math.max(0, Math.floor(msLeft / 3600000));
+    const mins = Math.max(0, Math.floor((msLeft % 3600000) / 60000));
+    panel.innerHTML = '<div class="bankrupt-callout"><h4 style="color:#D4AF37; margin:0 0 6px;">Insolvenzverfahren</h4>' +
+      'Rücklage negativ oder zu viele Verlust-Quartale in Folge. Noch <b>' + hrs + ' Std ' + mins + ' Min</b> Zeit, um die Firma per Kapitalspritze zu sanieren ' +
+      '(aktuelle Rücklage: ' + fmt(company.cash_reserve) + ' MOGC — muss auf mindestens 0 gebracht werden). ' +
+      'Danach ist die Firma endgültig insolvent, das Kapital ist verloren. Bei erfolgreicher Sanierung: Kapazität/Personal -30%, Reputation -10 (Restrukturierungskosten), sonst bleibt alles erhalten.' +
+      '<div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
+      '<input type="number" id="rescueAmount" placeholder="Betrag in MOGC" style="max-width:180px;" min="1" step="1">' +
+      '<button type="button" class="btn-block" id="rescueBtn" style="max-width:220px;">Kapitalspritze einzahlen</button></div>' +
+      '<p id="rescueMsg" style="margin-top:8px; font-size:12.5px;"></p></div>';
+    document.getElementById('rescueBtn').onclick = () => attemptRescue(company.id);
+    return;
+  }
   if (company.stage === 'insolvent') {
     panel.innerHTML = '<div class="bankrupt-callout"><h4 style="color:var(--down); margin:0 0 6px;">Insolvent</h4>' +
       'Diese Firma ist insolvent gegangen. Das eingesetzte Gründungskapital ist verloren — gründe eine neue Firma, um weiterzuspielen.</div>';
