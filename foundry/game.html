@@ -228,6 +228,32 @@
   Frontend spiegelt die Grenze im Hinweistext und prüft die Dauer clientseitig
   vor dem RPC-Aufruf (gleiche Formel wie im Backend) für sofortiges Feedback.
   Getestet: 5,5h/7h akzeptiert, 10h/23h korrekt abgelehnt, Testdaten entfernt.
+
+  v1.12: Entscheidungsspeicher ergänzt (Migrationen foundry_add_decision_
+  banking, foundry_fix_bank_accumulation_scope, foundry_make_decision_use_
+  bank_and_expand) — Nutzerwunsch, da man nicht 24h online sein kann und
+  verpasste Quartale bisher ersatzlos verfielen. Jede Firma hat jetzt
+  banked_decisions (Start 0) und max_banked_decisions (Start 3, Deckel 8).
+  _tick_company_once() zählt banked_decisions pro verpasstem Quartal um 1
+  hoch (gedeckelt bei max_banked_decisions), wenn im gerade abgelaufenen
+  Quartal keine Entscheidung in decisions_log stand; Firmen im Insolvenz-
+  verfahren sammeln ebenfalls, laufen dafür aber bewusst NICHT durch den
+  vollen Wirtschafts-Tick (eigener Codepfad in tick_foundry(), sonst hätten
+  sie während der Sanierungsfrist unerwartet Umsatz/Kosten/Zufallsereignisse
+  bekommen). make_decision() blockt eine zweite Entscheidung im selben
+  Quartal nur noch, wenn banked_decisions = 0 ist — sonst wird das Guthaben
+  um 1 verbraucht, die Entscheidung läuft ganz normal zu regulären Kosten
+  durch. Guthaben verfällt nicht von selbst. Neue Karte "Entscheidungsspeicher
+  erweitern" (250 MOGC-Basis, teuerste Karte, +1 max_banked_decisions
+  dauerhaft, gesperrt bei bereits erreichtem Deckel 8) verbraucht wie jede
+  normale Karte den Quartals-Slot. Frontend: neue Statuszeile "🕓 Entscheidungs-
+  speicher" im Entscheidungen-Tab, alle Karten inkl. Kapital-einzahlen bleiben
+  nutzbar (Button-Label "Aus Bank-Guthaben entscheiden"), solange Guthaben > 0
+  ist, statt hart auf "Quartal bereits verbraucht" zu sperren. Getestet gegen
+  echte DB: Bank füllt sich bei verpasstem Quartal, zweite Entscheidung im
+  selben Quartal verbraucht Guthaben statt zu blocken, dritte ohne Guthaben
+  blockt korrekt, Erweiterungs-Deckel bei 8 greift, Insolvenzverfahren-Firma
+  sammelt ohne Wirtschafts-Tick, Testdaten vollständig entfernt.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -545,7 +571,8 @@
       <div class="tab-page active" id="tabPage-entscheidungen">
         <div class="panel">
           <h3>Quartals-Entscheidung <span class="tag">— eine pro Quartal, Quartale enden zur vollen Stunde</span></h3>
-          <p id="quarterCountdown" style="font-family:var(--mono); font-size:12px; color:var(--fg-dim); margin:-6px 0 14px;"></p>
+          <p id="quarterCountdown" style="font-family:var(--mono); font-size:12px; color:var(--fg-dim); margin:-6px 0 6px;"></p>
+          <p id="bankStatus" style="font-family:var(--mono); font-size:12px; color:var(--accent); margin:0 0 14px;"></p>
           <div class="decision-grid" id="decisionGrid"></div>
           <div class="panel" style="margin-top:14px; margin-bottom:0; background:var(--bg-alt);">
             <h3 style="margin-bottom:10px;">Kapital einzahlen</h3>
@@ -758,6 +785,7 @@ const DECISIONS = [
   { kind:'marketing', base:80, title:'Marketing-Kampagne', desc:'+25% Umsatz — nur dieses Quartal.', downside:'Wirkt nur im nächsten Quartal, danach verpufft der Effekt vollständig — Kosten pro Quartal neu.' },
   { kind:'pr', base:90, title:'PR-Kampagne', desc:'+8 Reputation dauerhaft (bis 100).', downside:'Reine Kosten ohne direkten Umsatzeffekt — wirkt nur indirekt über Reputation auf den Umsatz.' },
   { kind:'rnd', base:200, title:'Forschung & Entwicklung', desc:'+0,1 Effizienz dauerhaft.', downside:'Höchste Einzelkosten der vier Optionen — Rücklage vorher prüfen.' },
+  { kind:'expand_bank', base:250, title:'Entscheidungsspeicher erweitern', desc:'+1 maximales Bank-Guthaben für verpasste Quartale (dauerhaft, bis maximal 8).', downside:'Teuerste Karte im Katalog — lohnt sich nur, wenn du regelmäßig mehrere Quartale am Stück verpasst.', minCheck:(c)=>Number(c.max_banked_decisions||0) < 8 },
 ];
 
 // Spiegelt foundry.sector_production / foundry.sector_inputs (statische Spieldaten).
@@ -1321,7 +1349,16 @@ function renderDecisions(company){
   const grid = document.getElementById('decisionGrid');
   grid.innerHTML = '';
   const active = ['aufbau','boersenreif','ipo'].includes(company.stage);
-  const usedUp = decidedThisQuarter(company.id);
+  const slotUsed = decidedThisQuarter(company.id);
+  const banked = Number(company.banked_decisions || 0);
+  const usedUp = slotUsed && banked <= 0; // wirklich blockiert nur, wenn kein Bank-Guthaben mehr da ist
+  const willUseBank = slotUsed && banked > 0;
+  const bankEl = document.getElementById('bankStatus');
+  if (bankEl) {
+    const maxBanked = Number(company.max_banked_decisions || 0);
+    bankEl.textContent = '🕓 Entscheidungsspeicher: ' + banked + ' / ' + maxBanked + ' verpasste Quartale auf Vorrat' +
+      (willUseBank ? ' — wird bei der nächsten Entscheidung verbraucht.' : (banked >= maxBanked && maxBanked > 0 ? ' — voll, läuft nicht über.' : '.'));
+  }
   DECISIONS.forEach(d => {
     const cost = Math.round(d.base * galaxyIndex);
     const affordable = Number(company.cash_reserve) >= cost;
@@ -1329,6 +1366,7 @@ function renderDecisions(company){
     const canClick = active && affordable && eligible && !usedUp;
     let label = 'Entscheiden';
     if (usedUp) label = 'Quartal bereits verbraucht';
+    else if (willUseBank) label = 'Aus Bank-Guthaben entscheiden';
     else if (active && !eligible) label = 'Nicht möglich';
     else if (active && !affordable) label = 'Rücklage reicht nicht';
     const card = document.createElement('div');
@@ -1364,13 +1402,13 @@ function renderDecisions(company){
     card.innerHTML = '<h4>' + inp.resource + ' verwenden</h4><p>' + effectText + suffix + ' — verbraucht ' + inp.units +
       ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' +
       '<div class="dc-cost" style="color:' + (enough ? 'var(--up)' : 'var(--down)') + '">Im Lager: ' + fmt2(have) + ' / ' + inp.units + '</div>' +
-      '<button type="button"' + (active && enough && !usedUp ? '' : ' disabled') + '>' + (usedUp ? 'Quartal bereits verbraucht' : 'Entscheiden') + '</button>';
+      '<button type="button"' + (active && enough && !usedUp ? '' : ' disabled') + '>' + (usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben entscheiden' : 'Entscheiden')) + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, 'use_input', null, inp.resource));
     grid.appendChild(card);
   });
   const reserveBtn = document.getElementById('reserveBtn');
   reserveBtn.disabled = !active || usedUp;
-  reserveBtn.textContent = usedUp ? 'Quartal bereits verbraucht' : 'Einzahlen';
+  reserveBtn.textContent = usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben einzahlen' : 'Einzahlen');
   reserveBtn.onclick = () => {
     const amt = Number(document.getElementById('reserveAmount').value);
     if (!amt || amt <= 0) { showMsg('decisionMsg', 'Bitte einen gültigen Betrag eingeben.', false); return; }
