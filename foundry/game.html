@@ -590,6 +590,12 @@
       </div>
       <label style="margin-top:10px;">Sektor (bestimmt Basis-Gründungskosten)</label>
       <div class="sector-grid" id="sectorGrid"></div>
+      <div id="corpFundingRow" class="hidden" style="margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg-alt);">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
+          <input type="checkbox" id="corpFundCheck" style="width:auto;">
+          <span id="corpFundLabel"></span>
+        </label>
+      </div>
       <button type="button" class="btn-block" id="foundBtn" style="margin-top:16px;">Firma gründen</button>
       <div id="foundMsg"></div>
     </div>
@@ -598,6 +604,7 @@
 
       <div class="panel" id="overviewPanel">
         <h3 id="companyTitle"></h3>
+        <div id="viewOnlyBanner" class="hidden" style="font-size:13.5px; color:var(--fg-dim); background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; padding:8px 12px; margin:0 0 12px;"></div>
         <div class="top-row" id="statCards"></div>
       </div>
 
@@ -613,7 +620,7 @@
 
       <div class="tab-page active" id="tabPage-entscheidungen">
         <div class="panel">
-          <h3>Quartals-Entscheidung <span class="tag">— eine pro Quartal, Quartale enden zur vollen Stunde</span></h3>
+          <h3>Quartals-Entscheidung <span class="tag">— eine pro Quartal, Quartale enden zur vollen Stunde. Bei Gewinn: 75% bleiben in der Rücklage, 25% gehen als Lohn direkt an dich (private Wallet).</span></h3>
           <p id="quarterCountdown" style="font-family:var(--mono); font-size:13.5px; color:var(--fg-dim); margin:-6px 0 6px;"></p>
           <p id="bankStatus" style="font-family:var(--mono); font-size:13.5px; color:var(--accent); margin:0 0 14px;"></p>
           <div class="sub-tab-row" id="decisionSubTabs">
@@ -750,6 +757,12 @@
           </div>
           <label style="margin-top:10px;">Sektor</label>
           <div class="sector-grid" id="sectorGrid2"></div>
+          <div id="corpFundingRow2" class="hidden" style="margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg-alt);">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
+              <input type="checkbox" id="corpFundCheck2" style="width:auto;">
+              <span id="corpFundLabel2"></span>
+            </label>
+          </div>
           <button type="button" class="btn-block" id="foundBtn2" style="margin-top:16px;">Firma gründen</button>
           <div id="foundMsg2"></div>
         </div>
@@ -927,6 +940,18 @@ let myContracts = [];
 let myDeliveries = [];
 let galaxyMap = [];
 let myLastDecisions = [];
+let myGuild = null;
+
+// Firma "entscheidbar" = eigene Firma, ODER Corp-finanzierte Firma UND
+// Leiter/Offizier der Corp. Muss serverseitig exakt mit
+// foundry._can_decide_company() uebereinstimmen (dort final durchgesetzt).
+function canDecideCompany(c){
+  if (!c || !currentUser) return false;
+  if (c.player_id === currentUser.id) return true;
+  return !!(c.guild_id && myGuild && myGuild.id === c.guild_id &&
+    (myGuild.my_role === 'leader' || myGuild.my_role === 'officer'));
+}
+const ICON_CORP = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px; flex-shrink:0;"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
 
 function currentQuarterStart(){
   const d = new Date();
@@ -1095,6 +1120,17 @@ async function loadGalaxyMap(){
   } catch(e){ console.error(e); }
 }
 
+// Corp-Zugehoerigkeit liegt im 'platform'-Schema (plattformweit geteiltes
+// Corp-System, u.a. auch von NEXUS genutzt) -- get_my_guild() liefert leere
+// Liste, wenn der Spieler in keiner Corp ist.
+async function loadMyGuild(){
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_guild');
+    if (error) { console.error(error); myGuild = null; return; }
+    myGuild = (data && data.length) ? data[0] : null;
+  } catch(e){ console.error(e); myGuild = null; }
+}
+
 function showMsg(elId, text, ok){
   const el = document.getElementById(elId);
   if(!el) return;
@@ -1171,9 +1207,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -1248,7 +1284,9 @@ function render(){
 
   if (!hasCompanies) {
     renderSectorGrid('sectorGrid', () => selectedSector, (key) => { selectedSector = key; render(); });
+    renderCorpFundingBlock('corpFundingRow', 'corpFundCheck', 'corpFundLabel');
   }
+  renderCorpFundingBlock('corpFundingRow2', 'corpFundCheck2', 'corpFundLabel2');
 
   const companyTabsWrap = document.getElementById('companyTabsWrap');
   companyTabsWrap.innerHTML = '';
@@ -1256,7 +1294,9 @@ function render(){
     const chip = document.createElement('div');
     chip.className = 'company-chip' + (c.id === selectedCompanyId ? ' active' : '');
     const dotColor = c.stage === 'insolvent' ? 'var(--down)' : (c.stage === 'insolvenzverfahren' ? '#D4AF37' : (c.stage === 'ipo' ? 'var(--up)' : (c.stage === 'boersenreif' ? '#D4AF37' : 'var(--accent)')));
-    chip.innerHTML = '<span class="stage-dot" style="background:' + dotColor + '"></span>' + c.ticker;
+    chip.innerHTML = '<span class="stage-dot" style="background:' + dotColor + '"></span>' + c.ticker +
+      (c.guild_id ? ICON_CORP : '');
+    if (c.guild_id) chip.title = c.player_id === currentUser.id ? 'Eigene Corp-Firma' : (canDecideCompany(c) ? 'Corp-Firma — Entscheidungen erlaubt' : 'Corp-Firma — nur Ansicht');
     chip.addEventListener('click', () => { selectedCompanyId = c.id; render(); });
     companyTabsWrap.appendChild(chip);
   });
@@ -1278,8 +1318,18 @@ function render(){
   const company = companies.find(c => c.id === selectedCompanyId);
   if (!company) return;
 
+  const iCanDecide = canDecideCompany(company);
   document.getElementById('companyTitle').innerHTML = company.name + ' <span class="tag">' + company.ticker + '</span> ' +
-    '<span class="stage-badge ' + company.stage + '">' + stageLabel(company.stage) + '</span>';
+    '<span class="stage-badge ' + company.stage + '">' + stageLabel(company.stage) + '</span>' +
+    (company.guild_id ? ' <span class="tag">' + ICON_CORP + 'Corp-Firma' + (myGuild ? ' — ' + myGuild.name : '') + '</span>' : '');
+  const viewOnlyBanner = document.getElementById('viewOnlyBanner');
+  if (!iCanDecide && company.guild_id) {
+    viewOnlyBanner.classList.remove('hidden');
+    viewOnlyBanner.innerHTML = ICON_WARNING_SM + 'Nur Ansicht — nur Leiter/Offiziere von ' + (myGuild ? myGuild.name : 'deiner Corp') +
+      ' können bei dieser Firma Entscheidungen treffen, Handel abwickeln oder den Börsengang auslösen.';
+  } else {
+    viewOnlyBanner.classList.add('hidden');
+  }
 
   const cards = [
     { label:'Sektor', value: company.sector, mono:false },
@@ -1418,7 +1468,8 @@ function renderDecisions(company){
   gridAusbau.innerHTML = '';
   gridWachstum.innerHTML = '';
   gridRessourcen.innerHTML = '';
-  const active = ['aufbau','boersenreif','ipo'].includes(company.stage);
+  const iCanDecide = canDecideCompany(company);
+  const active = ['aufbau','boersenreif','ipo'].includes(company.stage) && iCanDecide;
   const slotUsed = decidedThisQuarter(company.id);
   const banked = Number(company.banked_decisions || 0);
   const usedUp = slotUsed && banked <= 0; // wirklich blockiert nur, wenn kein Bank-Guthaben mehr da ist
@@ -1435,7 +1486,8 @@ function renderDecisions(company){
     const eligible = d.minCheck ? d.minCheck(company) : true;
     const canClick = active && affordable && eligible && !usedUp;
     let label = 'Entscheiden';
-    if (usedUp) label = 'Quartal bereits verbraucht';
+    if (!iCanDecide) label = 'Nur Leiter/Offiziere';
+    else if (usedUp) label = 'Quartal bereits verbraucht';
     else if (willUseBank) label = 'Aus Bank-Guthaben entscheiden';
     else if (active && !eligible) label = (d.lockedText ? d.lockedText(company) : null) || 'Nicht möglich';
     else if (active && !affordable) label = 'Rücklage reicht nicht';
@@ -1472,7 +1524,7 @@ function renderDecisions(company){
     card.innerHTML = '<h4>' + inp.resource + ' verwenden</h4><p>' + effectText + suffix + ' — verbraucht ' + inp.units +
       ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' +
       '<div class="dc-cost" style="color:' + (enough ? 'var(--up)' : 'var(--down)') + '">Im Lager: ' + fmt2(have) + ' / ' + inp.units + '</div>' +
-      '<button type="button"' + (active && enough && !usedUp ? '' : ' disabled') + '>' + (usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben entscheiden' : 'Entscheiden')) + '</button>';
+      '<button type="button"' + (active && enough && !usedUp ? '' : ' disabled') + '>' + (!iCanDecide ? 'Nur Leiter/Offiziere' : usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben entscheiden' : 'Entscheiden')) + '</button>';
     card.querySelector('button').addEventListener('click', () => makeDecision(company.id, 'use_input', null, inp.resource));
     gridRessourcen.appendChild(card);
   });
@@ -1481,7 +1533,7 @@ function renderDecisions(company){
   }
   const reserveBtn = document.getElementById('reserveBtn');
   reserveBtn.disabled = !active || usedUp;
-  reserveBtn.textContent = usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben einzahlen' : 'Einzahlen');
+  reserveBtn.textContent = !iCanDecide ? 'Nur Leiter/Offiziere' : usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben einzahlen' : 'Einzahlen');
   reserveBtn.onclick = () => {
     const amt = Number(document.getElementById('reserveAmount').value);
     if (!amt || amt <= 0) { showMsg('decisionMsg', 'Bitte einen gültigen Betrag eingeben.', false); return; }
@@ -1565,6 +1617,7 @@ async function makeDecision(companyId, kind, amount, resourceName){
 /* ---------- Markt-Tab ---------- */
 function renderMarket(company){
   document.getElementById('marketCompanyTag').textContent = '— ' + company.ticker;
+  const iCanDecide = canDecideCompany(company);
 
   const invGrid = document.getElementById('inventoryGrid');
   invGrid.innerHTML = '';
@@ -1620,8 +1673,8 @@ function renderMarket(company){
       row.className = 'event-row';
       row.innerHTML = '<span class="ev-time">' + o.resource_name + '</span>' +
         fmt2(o.quantity) + ' Stk. à ' + fmt2(o.price_per_unit) + ' MOGC · ' + o.seller_ticker +
-        (isOwn ? ' (eigenes Angebot) <button type="button" class="cancel-order-btn" data-order="' + o.id + '" style="margin-left:8px;">Zurückziehen</button>'
-               : ' <button type="button" class="buy-order-btn" data-order="' + o.id + '" style="margin-left:8px;">Kaufen</button>');
+        (isOwn ? ' (eigenes Angebot) <button type="button" class="cancel-order-btn" data-order="' + o.id + '" style="margin-left:8px;"' + (iCanDecide ? '' : ' disabled') + '>Zurückziehen</button>'
+               : ' <button type="button" class="buy-order-btn" data-order="' + o.id + '" style="margin-left:8px;"' + (iCanDecide ? '' : ' disabled') + '>Kaufen</button>');
       orderList.appendChild(row);
     });
     orderList.querySelectorAll('.buy-order-btn').forEach(btn => {
@@ -1642,7 +1695,7 @@ function renderMarket(company){
     card.innerHTML = '<h4>' + r + '</h4><p>Liefert verzögert (schneller mit eigener Frachtkapazität), Preis schwankt leicht um den Basiswert.</p>' +
       '<div class="dc-cost" id="botPrice-' + r.replace(/[^a-zA-Z0-9]/g,'') + '">…</div>' +
       '<input type="number" min="1" step="1" value="10" style="margin-bottom:8px;" id="botQty-' + r.replace(/[^a-zA-Z0-9]/g,'') + '">' +
-      '<button type="button">Kaufen</button>';
+      '<button type="button"' + (iCanDecide ? '' : ' disabled') + '>' + (iCanDecide ? 'Kaufen' : 'Nur Leiter/Offiziere') + '</button>';
     card.querySelector('button').addEventListener('click', () => buyFromBot(company.id, r));
     botGrid.appendChild(card);
     sb.schema('foundry').rpc('get_bot_price', { p_resource_name: r }).then(({ data, error }) => {
@@ -1657,6 +1710,7 @@ document.getElementById('sellBtn').addEventListener('click', async () => {
   const company = companies.find(c => c.id === selectedCompanyId);
   if (!company) return;
   if (isGuest()) { showMsg('sellMsg', 'Als Gast kein Handel möglich.', false); return; }
+  if (!canDecideCompany(company)) { showMsg('sellMsg', 'Nur Leiter/Offiziere der Corp dürfen für diese Firma verkaufen.', false); return; }
   const resource = document.getElementById('sellResource').value;
   const qty = Number(document.getElementById('sellQuantity').value);
   const price = Number(document.getElementById('sellPrice').value);
@@ -1740,6 +1794,7 @@ function renderEvents(events){
 
 function renderIpoPanel(company){
   const panel = document.getElementById('ipoPanel');
+  const iCanDecide = canDecideCompany(company);
   if (company.stage === 'insolvenzverfahren') {
     const deadline = new Date(company.insolvency_deadline);
     const msLeft = deadline - new Date();
@@ -1750,10 +1805,10 @@ function renderIpoPanel(company){
       '(aktuelle Rücklage: ' + fmt(company.cash_reserve) + ' MOGC — muss auf mindestens 0 gebracht werden). ' +
       'Danach ist die Firma endgültig insolvent, das Kapital ist verloren. Bei erfolgreicher Sanierung: Kapazität/Personal -30%, Reputation -10 (Restrukturierungskosten), sonst bleibt alles erhalten.' +
       '<div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
-      '<input type="number" id="rescueAmount" placeholder="Betrag in MOGC" style="max-width:180px;" min="1" step="1">' +
-      '<button type="button" class="btn-block" id="rescueBtn" style="max-width:220px;">Kapitalspritze einzahlen</button></div>' +
+      '<input type="number" id="rescueAmount" placeholder="Betrag in MOGC" style="max-width:180px;" min="1" step="1"' + (iCanDecide ? '' : ' disabled') + '>' +
+      '<button type="button" class="btn-block" id="rescueBtn" style="max-width:220px;"' + (iCanDecide ? '' : ' disabled') + '>' + (iCanDecide ? 'Kapitalspritze einzahlen' : 'Nur Leiter/Offiziere') + '</button></div>' +
       '<p id="rescueMsg" style="margin-top:8px; font-size:14.5px;"></p></div>';
-    document.getElementById('rescueBtn').onclick = () => attemptRescue(company.id);
+    if (iCanDecide) document.getElementById('rescueBtn').onclick = () => attemptRescue(company.id);
     return;
   }
   if (company.stage === 'insolvent') {
@@ -1780,9 +1835,9 @@ function renderIpoPanel(company){
       '<div style="font-family:var(--mono); font-size:25.5px; color:#D4AF37; margin-bottom:6px;">≈ ' + fmt(marketCap) + ' MOGC</div>' +
       '<div style="font-size:14.5px; color:var(--fg-dim); line-height:1.6;">Erstnotiz ≈ ' + fmt2(ipoPrice) + ' MOGC je Aktie · 10.000 Aktien gesamt · ' +
       'du behältst 2.500 (25%, 14 Tage gesperrt) · der Rest geht sofort in den freien Markt-Float. Die tatsächliche Bewertung wird beim Börsengang final aus deinen Fundamentaldaten berechnet.</div></div>' +
-      '<button type="button" class="btn-block" id="ipoBtn" style="max-width:260px; margin-top:14px;">Jetzt an die Börse gehen</button>' +
+      '<button type="button" class="btn-block" id="ipoBtn" style="max-width:260px; margin-top:14px;"' + (iCanDecide ? '' : ' disabled') + '>' + (iCanDecide ? 'Jetzt an die Börse gehen' : 'Nur Leiter/Offiziere') + '</button>' +
       '<div id="ipoMsg"></div>';
-    document.getElementById('ipoBtn').addEventListener('click', () => doIpo(company.id));
+    if (iCanDecide) document.getElementById('ipoBtn').addEventListener('click', () => doIpo(company.id));
   } else {
     panel.innerHTML = '<h3>Noch nicht börsenreif</h3><p style="color:var(--fg-dim); font-size:15.5px; line-height:1.6;">' +
       'Voraussetzung: 6 profitable Quartale in Folge, Umsatz ≥ 200 MOGC und Reputation ≥ 55. ' +
@@ -1806,22 +1861,39 @@ async function doIpo(companyId){
 }
 
 /* ---------- Gründungsformulare ---------- */
-async function doFound(tickerId, nameId, sectorGetter, msgId){
+// Corp-finanzierte Gruendung: nur sichtbar/nutzbar fuer Leiter/Offiziere der
+// eigenen Corp (foundry.found_corp_company() setzt das serverseitig final durch).
+function canFoundForCorp(){
+  return !!(myGuild && (myGuild.my_role === 'leader' || myGuild.my_role === 'officer'));
+}
+function renderCorpFundingBlock(rowId, checkId, labelId){
+  const row = document.getElementById(rowId);
+  if (!canFoundForCorp()) { row.classList.add('hidden'); return; }
+  row.classList.remove('hidden');
+  document.getElementById(labelId).innerHTML = ICON_CORP + 'Mit Corp-Kasse finanzieren — ' + myGuild.name +
+    ' (' + myGuild.tag + '), Kasse: ' + fmt2(myGuild.treasury_balance) + ' MOGC. Firma gehört dann der Corp: ' +
+    'alle Mitglieder können sie einsehen, Entscheidungen treffen nur Leiter/Offiziere.';
+}
+
+async function doFound(tickerId, nameId, sectorGetter, msgId, corpCheckId){
   if (isGuest()) { showMsg(msgId, 'Als Gast keine Firmengründung möglich — bitte mit E-Mail-Code einloggen.', false); return; }
   const ticker = document.getElementById(tickerId).value.trim().toUpperCase();
   const name = document.getElementById(nameId).value.trim();
   const sector = sectorGetter();
+  const useCorp = corpCheckId && canFoundForCorp() && document.getElementById(corpCheckId).checked;
   clearMsg(msgId);
   if (!/^[A-Z0-9]{2,6}$/.test(ticker)) { showMsg(msgId, 'Ticker muss 2–6 Grossbuchstaben/Ziffern sein.', false); return; }
   if (name.length < 2 || name.length > 60) { showMsg(msgId, 'Firmenname muss 2–60 Zeichen lang sein.', false); return; }
   if (!sector) { showMsg(msgId, 'Bitte einen Sektor auswählen.', false); return; }
   showMsg(msgId, 'Firma wird gegründet …', true);
   try {
-    const { data, error } = await sb.schema('foundry').rpc('found_company', { p_ticker: ticker, p_name: name, p_sector: sector });
+    const { data, error } = useCorp
+      ? await sb.schema('foundry').rpc('found_corp_company', { p_guild_id: myGuild.id, p_ticker: ticker, p_name: name, p_sector: sector })
+      : await sb.schema('foundry').rpc('found_company', { p_ticker: ticker, p_name: name, p_sector: sector });
     if (error) { showMsg(msgId, error.message, false); return; }
-    showMsg(msgId, data.name + ' (' + data.ticker + ') wurde gegründet!', true);
+    showMsg(msgId, data.name + ' (' + data.ticker + ') wurde gegründet' + (useCorp ? ' — finanziert aus der Corp-Kasse.' : '!'), true);
     selectedCompanyId = data.id;
-    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadGalaxyMap()]);
+    await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadGalaxyMap(), loadMyGuild()]);
     render();
     document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'entscheidungen'));
     document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-entscheidungen'));
@@ -1829,9 +1901,9 @@ async function doFound(tickerId, nameId, sectorGetter, msgId){
     showMsg(msgId, 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
   }
 }
-document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg'));
-document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings()]); render(); });
+document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg', 'corpFundCheck'));
+document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2', 'corpFundCheck2'));
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){

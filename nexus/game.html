@@ -5,39 +5,39 @@
   - v3.36: Bugfix -- an 9 Stellen wurde HTML-Icon-Markup (nx-icon-Spans) per
     .textContent statt .innerHTML in Elemente geschrieben, wodurch der rohe
     SVG/HTML-Code als sichtbarer Text erschien statt als Icon gerendert zu
-    werden (u.a. Gilde-Tab: guildMineTitle/guildMineMeta; Prestige-Button;
+    werden (u.a. Corp-Tab: guildMineTitle/guildMineMeta; Prestige-Button;
     Soundeffekte-Stumm-Button; Willkommenspaket-Button; Pulse-Boost-Anzeige;
     Saisonale-Event-Header x2). Alle 9 auf .innerHTML umgestellt.
-  - v3.35: Gilden-Wirtschaft umgebaut (auf Jens' Wunsch). Drei Teile:
-    (1) Gildensteuer: guilds.tax_percent (0-5%, Standard 0), vom Leiter per
+  - v3.35: Corp-Wirtschaft umgebaut (auf Jens' Wunsch). Drei Teile:
+    (1) Corp-Steuer: guilds.tax_percent (0-5%, Standard 0), vom Leiter per
     neuer RPC platform.set_guild_tax() einstellbar (#guildTaxRow, nur Leiter
     sichtbar). Wird automatisch in platform.wallet_credit() abgezogen, wenn
-    MOGC gutgeschrieben wird UND der Spieler in einer Gilde ist -- zentral an
+    MOGC gutgeschrieben wird UND der Spieler in einer Corp ist -- zentral an
     einer Stelle statt an jeder einzelnen MOGC-Einnahmequelle (Quests, Prestige,
     Markt-Verkaeufe, Boersen-Trades etc.), da die alle ohnehin ueber
     wallet_credit(...,'MOGC',...) laufen. Neuer 4. Parameter
     p_apply_guild_tax (default true), von tick_guild_dividends() bewusst auf
-    false gesetzt, sonst wuerde die Gilde ihre eigene Dividende nochmal
+    false gesetzt, sonst wuerde die Corp ihre eigene Dividende nochmal
     besteuern. Steuerbetrag geht direkt in guilds.treasury_balance, geloggt in
     guild_treasury_log mit neuer direction 'tax_income'.
-    (2) Gilden-Upgrades: bisher "Gilden-Sparbuch I-IV" (dividend_rate_bp,
+    (2) Corp-Upgrades: bisher "Corp-Sparbuch I-IV" (dividend_rate_bp,
     schaltete/erhoehte eine stuendliche Dividende frei) -- fuehlte sich laut
     Jens bei der Dividenden-Mathematik komisch an. Umbenannt in
     "Foerdermengen-Boost I-IV", neue Spalte production_boost_bp statt
     dividend_rate_bp (Werte 200/400/700/1000 Basispunkte = kumulativ +23%
     Foerdermenge bei Vollausbau). crypto_farm.get_production_rate() multipliziert
-    jetzt zusaetzlich mit (1 + Summe der gekauften Gilden-Upgrades des
+    jetzt zusaetzlich mit (1 + Summe der gekauften Corp-Upgrades des
     Spielers), analog zum bestehenden Skill-Bonus-Faktor. dividend_rate_bp-
     Spalte bewusst NICHT geloescht (Altdaten, keine Breaking-Change-Notwendigkeit),
     wird aber von keiner Funktion mehr gelesen.
     (3) Dividende: statt automatisch ab Kauf irgendeines Upgrades zahlt
-    tick_guild_dividends() jetzt nur noch, wenn die Gilde ALLE Upgrades besitzt
+    tick_guild_dividends() jetzt nur noch, wenn die Corp ALLE Upgrades besitzt
     (Vollausbau) -- dann taeglich (Cron von stuendlich auf 03:00 UTC umgestellt)
     1% der Kassenwert gleichmaessig auf alle Mitglieder verteilt (nicht mehr
     anteilig nach Einzahlung, das war explizit Jens' Entscheidung). Neue
     direction 'daily_dividend' im Treasury-Log. get_my_guild() liefert dafuer
     zusaetzlich dividend_unlocked (bool) und tax_percent zurueck -- beides in
-    der "Meine Gilde"-Metazeile fuer alle Mitglieder sichtbar, nicht nur Leiter.
+    der "Meine Corp"-Metazeile fuer alle Mitglieder sichtbar, nicht nur Leiter.
     Migrationen: guild_tax_and_production_upgrades, wallet_credit_guild_tax,
     guild_daily_dividend_after_full_upgrade, guild_tax_rpc_and_catalog_updates_v2.
   - v3.34: COMET in platform.snapshot_currency_balances() ergaenzt (letzte
@@ -51,15 +51,15 @@
     Punkts, daher nur als Fund notiert statt ungefragt mitgefixt.
   - v3.33: Fehlendes update_join_mode() nachgezogen (letzte bekannte offene
     Kleinigkeit aus dem Governance-Nachtrag). Vorher konnte der Beitrittsmodus
-    (open/request/invite) nur bei Gildengruendung gesetzt werden -- der Hinweis
+    (open/request/invite) nur bei Corp-Gruendung gesetzt werden -- der Hinweis
     "kannst du spaeter nicht mehr aendern" auf der Gruendungs-Karte war
     tatsaechlich zutreffend, da schlicht keine RPC dafuer existierte. Neue
     Funktion platform.update_join_mode(p_join_mode text), analog zum Muster von
-    kick_member()/promote_member() -- Gilde wird ueber die eigene
-    guild_members-Zeile des Aufrufers bestimmt (kein Gilden-Id-Parameter noetig),
+    kick_member()/promote_member() -- Corp wird ueber die eigene
+    guild_members-Zeile des Aufrufers bestimmt (kein Corp-Id-Parameter noetig),
     erlaubt fuer Leiter UND Offiziere (gleiche Berechtigungsstufe wie Einladen/
     Kick, nicht auf Leiter beschraenkt wie Auflösen/Leitung-uebertragen). Neues
-    Select+Button in der "Meine Gilde"-Karte (#guildJoinModeRow), nur fuer
+    Select+Button in der "Meine Corp"-Karte (#guildJoinModeRow), nur fuer
     Leiter/Offiziere sichtbar, vorbelegt mit dem aktuellen Modus. Veralteten
     Hinweistext auf der Gruendungs-Karte entsprechend korrigiert.
   - v3.32: Mehr Prestige-Tiefe (offener Punkt aus dem Saisonale-Events-Handoff)
@@ -730,7 +730,7 @@
   .mf-bar .bb-payout-name{ color:var(--fg-faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mf-bar .bb-payout-amount{ color:var(--fg); }
 
-  /* ---------- Gilden-Tab ---------- */
+  /* ---------- Corp-Tab ---------- */
   .guild-form-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
   .guild-form-row input[type="text"], .guild-form-row input[type="number"]{
     flex:1; min-width:140px; background:var(--panel); border:1px solid var(--line); color:var(--fg);
@@ -1361,7 +1361,7 @@
       <button type="button" class="main-tab-btn" data-tab="markt" title="Markt" aria-label="Markt"><span class="mt-icon" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="3.5" y1="1.5" x2="3.5" y2="12.5" stroke="currentColor" stroke-width="1"/><line x1="10.5" y1="1.5" x2="10.5" y2="12.5" stroke="currentColor" stroke-width="1"/><line x1="7" y1="1.5" x2="7" y2="12.5" stroke="currentColor" stroke-width="1"/><rect x="2.4" y="4.5" width="2.2" height="4" fill="currentColor"/><rect x="5.9" y="3" width="2.2" height="6.5" fill="currentColor"/><rect x="9.4" y="6" width="2.2" height="3" fill="currentColor"/></svg></span></button>
       <button type="button" class="main-tab-btn" data-tab="handelsplatz" title="Handelsplatz" aria-label="Handelsplatz"><span class="mt-icon-emoji"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M1 7L4 4L6.5 6L5 7.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M13 7L10 4L7.5 6L9 7.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M5 7.5L6.3 8.8C6.7 9.2 7.3 9.2 7.7 8.8L9 7.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span></span></button>
       <button type="button" class="main-tab-btn" data-tab="quests" title="Tagesaufgaben" aria-label="Tagesaufgaben"><span class="mt-icon-emoji"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="2.5" width="8" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><rect x="5" y="1.5" width="4" height="2" rx="0.6" fill="none" stroke="currentColor" stroke-width="1"/><line x1="5" y1="6.5" x2="9" y2="6.5" stroke="currentColor" stroke-width="0.9" stroke-linecap="round"/><line x1="5" y1="9" x2="9" y2="9" stroke="currentColor" stroke-width="0.9" stroke-linecap="round"/></svg></span></span></button>
-      <button type="button" class="main-tab-btn" data-tab="gilde" title="Gilde" aria-label="Gilde"><span class="mt-icon-emoji"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span></span></button>
+      <button type="button" class="main-tab-btn" data-tab="gilde" title="Corp" aria-label="Corp"><span class="mt-icon-emoji"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span></span></button>
       <button type="button" class="main-tab-btn" data-tab="bank" title="Bank" aria-label="Bank"><span class="mt-icon-emoji"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M1 5L7 1L13 5M2 5V11M5 5V11M9 5V11M12 5V11M1 11H13" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span></button>
       <button type="button" class="main-tab-btn" data-tab="prestige" title="Prestige" aria-label="Prestige"><span class="mt-icon" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2 10.5L1.3 4.8L4.5 7L7 3L9.5 7L12.7 4.8L12 10.5H2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="2.3" y1="12" x2="11.7" y2="12" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span></button>
       <button type="button" class="main-tab-btn" data-tab="shop" title="Shop" aria-label="Shop"><span class="mt-icon" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M3 5H11L10.4 12H3.6L3 5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M5 5V3.5C5 2.4 5.9 1.5 7 1.5C8.1 1.5 9 2.4 9 3.5V5" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span></button>
@@ -2485,12 +2485,12 @@
     <div class="tab-page" id="tabPage-gilde">
       <div id="guildStatusMsg"></div>
 
-      <!-- Kein Gilden-Mitglied: Gilde gruenden / beitreten -->
+      <!-- Kein Corp-Mitglied: Corp gruenden / beitreten -->
       <div id="guildNoGuildWrap">
         <div class="panel">
-          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Gilde gründen <span class="tag">— Gebühr: 300 MOGC</span></h3>
+          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Corp gründen <span class="tag">— Gebühr: 300 MOGC</span></h3>
           <div class="guild-form-row">
-            <input type="text" id="guildCreateNameInput" maxlength="24" placeholder="Gildenname (min. 3 Zeichen)">
+            <input type="text" id="guildCreateNameInput" maxlength="24" placeholder="Corp-Name (min. 3 Zeichen)">
             <input type="text" id="guildCreateTagInput" maxlength="5" placeholder="Tag (2-5 Zeichen)">
             <select id="guildCreateJoinModeSelect">
               <option value="open">Offen — jeder tritt sofort bei</option>
@@ -2499,7 +2499,7 @@
             </select>
             <button type="button" class="btn btn-primary" id="guildCreateBtn">Gründen</button>
           </div>
-          <div class="sm-hint">Leiter und Offiziere können den Beitrittsmodus später jederzeit in der Gilden-Ansicht ändern.</div>
+          <div class="sm-hint">Leiter und Offiziere können den Beitrittsmodus später jederzeit in der Corp-Ansicht ändern.</div>
         </div>
 
         <div class="panel" id="guildInvitesPanel" style="display:none;">
@@ -2508,19 +2508,19 @@
         </div>
 
         <div class="panel">
-          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="9" y1="9" x2="12.5" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Gilden durchsuchen</h3>
+          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="9" y1="9" x2="12.5" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Corps durchsuchen</h3>
           <div class="guild-form-row">
             <input type="text" id="guildSearchInput" placeholder="Name oder Tag suchen…">
             <button type="button" class="btn btn-ghost" id="guildSearchBtn">Suchen</button>
           </div>
-          <div id="guildBrowseList"><div class="sm-hint">Lade Gilden…</div></div>
+          <div id="guildBrowseList"><div class="sm-hint">Lade Corps…</div></div>
         </div>
       </div>
 
-      <!-- In einer Gilde -->
+      <!-- In einer Corp -->
       <div id="guildMineWrap" style="display:none;">
         <div class="panel">
-          <h3><span id="guildMineTitle"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Meine Gilde</span> <span class="tag" id="guildMineJoinMode"></span></h3>
+          <h3><span id="guildMineTitle"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Meine Corp</span> <span class="tag" id="guildMineJoinMode"></span></h3>
           <div id="guildMineMeta" class="sm-hint"></div>
           <div class="guild-form-row" id="guildJoinModeRow" style="display:none;">
             <select id="guildJoinModeSelect">
@@ -2532,12 +2532,12 @@
           </div>
           <div class="guild-form-row" id="guildTaxRow" style="display:none;">
             <select id="guildTaxSelect">
-              <option value="0">0% Gildensteuer</option>
-              <option value="1">1% Gildensteuer</option>
-              <option value="2">2% Gildensteuer</option>
-              <option value="3">3% Gildensteuer</option>
-              <option value="4">4% Gildensteuer</option>
-              <option value="5">5% Gildensteuer</option>
+              <option value="0">0% Corp-Steuer</option>
+              <option value="1">1% Corp-Steuer</option>
+              <option value="2">2% Corp-Steuer</option>
+              <option value="3">3% Corp-Steuer</option>
+              <option value="4">4% Corp-Steuer</option>
+              <option value="5">5% Corp-Steuer</option>
             </select>
             <button type="button" class="btn btn-ghost" id="guildTaxSaveBtn">Steuersatz ändern</button>
           </div>
@@ -2559,7 +2559,7 @@
         </div>
 
         <div class="panel">
-          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M5 3L9 3L11 6C12 8 11 12 7 12C3 12 2 8 3 6Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="5" y1="3" x2="4" y2="1.5" stroke="currentColor" stroke-width="1"/><line x1="9" y1="3" x2="10" y2="1.5" stroke="currentColor" stroke-width="1"/></svg></span> Gildenkasse <span class="tag">— gefüllt durch Gildensteuer + freiwillige Einzahlungen</span></h3>
+          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M5 3L9 3L11 6C12 8 11 12 7 12C3 12 2 8 3 6Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="5" y1="3" x2="4" y2="1.5" stroke="currentColor" stroke-width="1"/><line x1="9" y1="3" x2="10" y2="1.5" stroke="currentColor" stroke-width="1"/></svg></span> Corp-Kasse <span class="tag">— gefüllt durch Corp-Steuer + freiwillige Einzahlungen</span></h3>
           <div class="guild-treasury-box">
             <div class="guild-treasury-balance" id="guildTreasuryBalance">–</div>
             <div class="guild-form-row">
@@ -2573,13 +2573,13 @@
         </div>
 
         <div class="panel">
-          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5L7 2L11.5 6.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="2.5" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Gilden-Upgrades <span class="tag">— aus der Kasse finanziert, boostet die Fördermenge aller Mitglieder dauerhaft; nach Vollausbau gibt's zusätzlich eine tägliche Dividende</span></h3>
+          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5L7 2L11.5 6.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="2.5" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Corp-Upgrades <span class="tag">— aus der Kasse finanziert, boostet die Fördermenge aller Mitglieder dauerhaft; nach Vollausbau gibt's zusätzlich eine tägliche Dividende</span></h3>
           <div class="guild-upgrade-grid" id="guildUpgradesList"><div class="sm-hint">Lade Upgrades…</div></div>
         </div>
       </div>
 
       <div class="panel">
-        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2H10V5.5C10 7.5 8.5 9 7 9C5.5 9 4 7.5 4 5.5V2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M4 3H2.5C2.5 5 3.5 6 4.5 6" fill="none" stroke="currentColor" stroke-width="1"/><path d="M10 3H11.5C11.5 5 10.5 6 9.5 6" fill="none" stroke="currentColor" stroke-width="1"/><line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="12.5" x2="9.5" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="7" y1="11" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1"/></svg></span> Gilden-Rangliste <span class="tag">— nach Summe der Nexus-Punkte aller Mitglieder</span></h3>
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2H10V5.5C10 7.5 8.5 9 7 9C5.5 9 4 7.5 4 5.5V2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M4 3H2.5C2.5 5 3.5 6 4.5 6" fill="none" stroke="currentColor" stroke-width="1"/><path d="M10 3H11.5C11.5 5 10.5 6 9.5 6" fill="none" stroke="currentColor" stroke-width="1"/><line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="12.5" x2="9.5" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="7" y1="11" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1"/></svg></span> Corp-Rangliste <span class="tag">— nach Summe der Nexus-Punkte aller Mitglieder</span></h3>
         <div id="guildLeaderboardList"><div class="sm-hint">Lade Rangliste…</div></div>
       </div>
     </div>
@@ -5433,7 +5433,7 @@ async function loadDailyQuests(){
   });
 }
 
-/* ---------- Gilden/Teams ---------- */
+/* ---------- Corps/Teams ---------- */
 let guildLoading = false;
 
 async function loadGuildTab(){
@@ -5442,7 +5442,7 @@ async function loadGuildTab(){
   clearMsg('guildStatusMsg');
   try {
     const { data: mine, error } = await sb.schema('platform').rpc('get_my_guild');
-    if (error) { showMsg('guildStatusMsg', 'Konnte Gilde nicht laden.', false); return; }
+    if (error) { showMsg('guildStatusMsg', 'Konnte Corp nicht laden.', false); return; }
     const guild = (mine && mine[0]) || null;
 
     document.getElementById('guildNoGuildWrap').style.display = guild ? 'none' : '';
@@ -5488,7 +5488,7 @@ async function renderGuildInvites(){
     btn.disabled = true;
     const { error } = await sb.schema('platform').rpc('resolve_invite', { p_invite_id: btn.dataset.inviteAccept, p_accept: true });
     if (error) { showMsg('guildStatusMsg', error.message, false); btn.disabled = false; return; }
-    showMsg('guildStatusMsg', 'Willkommen in der Gilde!', true, 'success');
+    showMsg('guildStatusMsg', 'Willkommen in der Corp!', true, 'success');
     await loadGuildTab();
   }));
   wrap.querySelectorAll('[data-invite-decline]').forEach(btn => btn.addEventListener('click', async () => {
@@ -5501,9 +5501,9 @@ async function renderGuildInvites(){
 async function renderGuildBrowse(p_search){
   const wrap = document.getElementById('guildBrowseList');
   const { data, error } = await sb.schema('platform').rpc('list_guilds', { p_search: p_search || null });
-  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Gilden nicht laden.</div>'; return; }
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Corps nicht laden.</div>'; return; }
   const rows = data || [];
-  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Keine Gilden gefunden.</div>'; return; }
+  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Keine Corps gefunden.</div>'; return; }
 
   wrap.innerHTML = rows.map(g => {
     const full = g.member_count >= g.member_cap;
@@ -5525,7 +5525,7 @@ async function renderGuildBrowse(p_search){
     btn.disabled = true;
     const { data, error } = await sb.schema('platform').rpc('join_guild', { p_guild_id: btn.dataset.joinGuild });
     if (error) { showMsg('guildStatusMsg', error.message, false); btn.disabled = false; return; }
-    showMsg('guildStatusMsg', data === 'joined' ? 'Gilde beigetreten!' : 'Beitrittsanfrage gesendet.', true, 'success');
+    showMsg('guildStatusMsg', data === 'joined' ? 'Corp beigetreten!' : 'Beitrittsanfrage gesendet.', true, 'success');
     await loadGuildTab();
   }));
 }
@@ -5545,7 +5545,7 @@ document.getElementById('guildCreateBtn').addEventListener('click', async () => 
   const { error } = await sb.schema('platform').rpc('create_guild', { p_name: name, p_tag: tag, p_join_mode: joinMode });
   btn.disabled = false;
   if (error) { showMsg('guildStatusMsg', error.message, false); return; }
-  showMsg('guildStatusMsg', 'Gilde gegründet!', true, 'coin');
+  showMsg('guildStatusMsg', 'Corp gegründet!', true, 'coin');
   await loadEverything({ light: true });
   await loadGuildTab();
 });
@@ -5554,33 +5554,33 @@ async function renderGuildMine(guild){
   document.getElementById('guildMineTitle').innerHTML = `<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> [${guild.tag}] ${guild.name}`;
   document.getElementById('guildMineJoinMode').textContent = GUILD_JOIN_MODE_LABEL[guild.join_mode] || guild.join_mode;
   document.getElementById('guildMineMeta').innerHTML =
-    `${guild.member_count}/${guild.member_cap} Mitglieder · deine Rolle: ${guild.my_role === 'leader' ? 'Leiter' : guild.my_role === 'officer' ? 'Offizier' : 'Mitglied'} · gegründet ${new Date(guild.created_at).toLocaleDateString('de-DE')} · Gildensteuer: ${guild.tax_percent}% · ${guild.dividend_unlocked ? 'tägliche Dividende aktiv <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.3 7.2L6.2 9.1L9.8 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' : 'Dividende ab Vollausbau <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 6V4a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span>'}`;
+    `${guild.member_count}/${guild.member_cap} Mitglieder · deine Rolle: ${guild.my_role === 'leader' ? 'Leiter' : guild.my_role === 'officer' ? 'Offizier' : 'Mitglied'} · gegründet ${new Date(guild.created_at).toLocaleDateString('de-DE')} · Corp-Steuer: ${guild.tax_percent}% · ${guild.dividend_unlocked ? 'tägliche Dividende aktiv <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.3 7.2L6.2 9.1L9.8 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' : 'Dividende ab Vollausbau <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 6V4a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span>'}`;
 
   const isLeader = guild.my_role === 'leader';
   const isOfficer = guild.my_role === 'officer' || isLeader;
 
   const actions = [];
   if (isLeader) {
-    actions.push(`<button type="button" class="btn btn-ghost" id="guildDisbandBtn">Gilde auflösen</button>`);
+    actions.push(`<button type="button" class="btn btn-ghost" id="guildDisbandBtn">Corp auflösen</button>`);
   } else {
-    actions.push(`<button type="button" class="btn btn-ghost" id="guildLeaveBtn">Gilde verlassen</button>`);
+    actions.push(`<button type="button" class="btn btn-ghost" id="guildLeaveBtn">Corp verlassen</button>`);
   }
   document.getElementById('guildMineActions').innerHTML = actions.join('');
 
   const disbandBtn = document.getElementById('guildDisbandBtn');
   if (disbandBtn) disbandBtn.addEventListener('click', async () => {
-    if (!confirm('Wirklich auflösen? Die Gildenkasse geht dabei an die Zentralbank-Reserve.')) return;
+    if (!confirm('Wirklich auflösen? Die Corp-Kasse geht dabei an die Zentralbank-Reserve.')) return;
     const { error } = await sb.schema('platform').rpc('disband_guild');
     if (error) { showMsg('guildStatusMsg', error.message, false); return; }
-    showMsg('guildStatusMsg', 'Gilde aufgelöst.', true);
+    showMsg('guildStatusMsg', 'Corp aufgelöst.', true);
     await loadGuildTab();
   });
   const leaveBtn = document.getElementById('guildLeaveBtn');
   if (leaveBtn) leaveBtn.addEventListener('click', async () => {
-    if (!confirm('Gilde wirklich verlassen?')) return;
+    if (!confirm('Corp wirklich verlassen?')) return;
     const { error } = await sb.schema('platform').rpc('leave_guild');
     if (error) { showMsg('guildStatusMsg', error.message, false); return; }
-    showMsg('guildStatusMsg', 'Gilde verlassen.', true);
+    showMsg('guildStatusMsg', 'Corp verlassen.', true);
     await loadGuildTab();
   });
 
@@ -5715,7 +5715,7 @@ async function renderGuildMembers(guildId, isOfficer){
     await loadGuildTab();
   }));
   wrap.querySelectorAll('[data-kick]').forEach(btn => btn.addEventListener('click', async () => {
-    if (!confirm('Mitglied wirklich aus der Gilde entfernen?')) return;
+    if (!confirm('Mitglied wirklich aus der Corp entfernen?')) return;
     const { error } = await sb.schema('platform').rpc('kick_member', { p_player_id: btn.dataset.kick });
     if (error) { showMsg('guildStatusMsg', error.message, false); return; }
     await loadGuildTab();
@@ -5788,7 +5788,7 @@ async function renderGuildLeaderboard(){
   const { data, error } = await sb.schema('platform').rpc('get_guild_leaderboard', { p_limit: 20 });
   if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Rangliste nicht laden.</div>'; return; }
   const rows = data || [];
-  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Noch keine Gilden gegründet.</div>'; return; }
+  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Noch keine Corps gegründet.</div>'; return; }
 
   wrap.innerHTML = rows.map((g, i) => `
     <div class="guild-row">
