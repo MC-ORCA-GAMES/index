@@ -90,6 +90,65 @@
   Testfirma (Ablehnung bei zu wenig Rücklage, korrekter Abzug bei Erfolg),
   danach entfernt — echte MOG-Firma nicht betroffen (Kontrolle: unverändert,
   Rücklage sogar organisch auf 289,71 MOGC gewachsen).
+
+  v1.6: Kredit-Höhe/-Laufzeit jetzt kapazitätsabhängig statt für jede Firma
+  pauschal 600 MOGC/6 Quartale (Migration foundry_capacity_dependent_loans).
+  Auslöser: HANDOFF-Balancing-Punkt — die feste Rate von 120 MOGC/Quartal
+  konnte kleine/neue Firmen (Start-Kapazität 10) schnell in Richtung
+  Insolvenz drücken. Neue Formel in make_decision(): Kredit-Kapital =
+  400 MOGC × (Kapazität / 10), gedeckelt bei 1400 MOGC — bei Start-Kapazität
+  10 also 400 statt 600 MOGC. Laufzeit 8 Quartale statt 6 für Firmen mit
+  Kapazität < 15 (senkt die Rate pro Quartal zusätzlich), ab Kapazität 15
+  bleibt es bei 6 Quartalen. Zinssatz unverändert 20%. `sector_inputs`-
+  Basiswert für „Kapitalzugang"/cash von 600 auf 400 angepasst (= Wert bei
+  Kapazität 10). Schutzverträge (Risiko-Kredit-Gegenstück) unverändert, da
+  sie keine laufenden Kosten verursachen und damit nicht zum Insolvenz-
+  Risiko beitragen. Frontend (game.html): Kredit-Kartentext zeigt jetzt live
+  den tatsächlichen Betrag/Laufzeit/Rate je nach aktueller Kapazität der
+  Firma statt eines fixen Textes (Formel 1:1 an make_decision() angeglichen).
+  Getestet mit zwei Wegwerf-Testfirmen (Kapazität 10 → 400/480/8×60 korrekt;
+  Kapazität 40 → auf 1400 gedeckelt, 1680/6×280 korrekt), danach vollständig
+  aus der DB entfernt — echte MOG-Firma nicht betroffen (Kontrolle:
+  unverändert bei 125,07 MOGC Rücklage, Kapazität 10).
+
+  v1.7: Start-Rücklage bei Gründung von 40% auf 60% des Gründungskapitals
+  angehoben (Migration foundry_increase_starting_reserve_pct, found_company()).
+  Auslöser: offener Balancing-Punkt aus v1.5 — 40% reichte im günstigsten
+  Sektor (Konsum & Unterhaltung, Basiskosten 500) kaum für mehr als eine
+  einzelne frühe Entscheidung. Mit 60% kann eine frische Firma auch dort
+  zwei typische frühe Entscheidungen kombinieren (z.B. Kapazität + Personal),
+  ohne sich vor dem ersten Quartalsgewinn komplett leerzuräumen. Reine
+  Rücklagen-Formel-Änderung, keine Frontend-Änderung nötig (Betrag wird
+  ohnehin dynamisch aus company.cash_reserve angezeigt). Getestet mit
+  Wegwerf-Test-Account (echter auth.users-Eintrag + Wallet, danach entfernt):
+  Gründung im Konsum-Sektor ergab korrekt 298 MOGC Rücklage (60% von 496),
+  zwei Entscheidungen (Kapazität 149 + Personal 99 = 248) erfolgreich daraus
+  bezahlt, 50 MOGC verblieben. Alle Testdaten (Firma, Decisions-Log, Wallet,
+  Auth-User) danach entfernt — echte MOG-Firma nicht betroffen (Kontrolle:
+  unverändert bei 125,07 MOGC Rücklage, Kapazität 10).
+
+  v1.8: Frachtkapazität ist jetzt eine echte Transport-Mechanik statt nur ein
+  generischer Effizienz-/Reputationsbonus-Input (Migration
+  foundry_freight_delivery_delay, letzter offener Punkt der HANDOFF-
+  Checkliste). Käufe (Bot-Markt UND Firma-zu-Firma-Orderbuch) werden nicht
+  mehr sofort ins Lager gebucht, sondern laufen als Lieferung mit Verzögerung
+  (neue Tabelle foundry.pending_deliveries, Auflösung in _resolve_deliveries()
+  am Anfang jedes tick_foundry()-Laufs, also alle 10 Minuten). Basis-
+  Lieferzeit 24 Minuten; eigene Frachtkapazität im Lager wird beim Kauf
+  automatisch verbraucht und senkt die Lieferzeit um 2 Minuten pro Einheit,
+  bis maximal 10 Einheiten (Boden bei 4 Minuten) — eine Firma ohne eigene
+  Frachtkapazität zahlt die vollen 24 Minuten, eine gut ausgestattete liefert
+  fast sofort. Neue RPC get_my_pending_deliveries() für das Frontend-Panel.
+  Frontend: neues Panel „Unterwegs" im Markt-Tab (zwischen „Eigenes Lager"
+  und „Angebot einstellen") zeigt offene Lieferungen mit Menge, Quelle
+  (Bot-Markt/Firma-zu-Firma) und Countdown bis Ankunft; wird beim Login, im
+  60-Sekunden-Refresh und nach jedem Kauf neu geladen (loadDeliveries()).
+  Kauf-Bestätigungen und Bot-Markt-Kartentext angepasst, um die Verzögerung
+  statt Sofort-Verfügbarkeit zu kommunizieren. Backend Ende-zu-Ende gegen die
+  echte DB getestet (Bot-Kauf ohne/mit Frachtkapazität → 24/14 Min. Verzug
+  korrekt, P2P-Kauf identisch, künstlich fällig gemachte Lieferungen lösten
+  korrekt ins Lager auf, eingesetzte Frachtkapazität korrekt verbraucht),
+  danach vollständig aus der DB entfernt — echte MOG-Firma nicht betroffen.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -434,6 +493,10 @@
           <div class="decision-grid" id="inventoryGrid"></div>
         </div>
         <div class="panel">
+          <h3>Unterwegs <span class="tag">— Käufe treffen verzögert ein, je nach eigener Frachtkapazität</span></h3>
+          <div class="event-list" id="deliveriesList"></div>
+        </div>
+        <div class="panel">
           <h3>Angebot einstellen</h3>
           <div class="field-row">
             <div>
@@ -566,42 +629,42 @@ const SECTOR_INPUTS = {
   'Technologie & Halbleiter': [
     { resource:'Rohstoffe', units:15, effect:'+0,15 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: kapazitätsabhängig' },
     { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Bergbau & Rohstoffe': [
     { resource:'Energieeinheiten', units:15, effect:'+0,12 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: kapazitätsabhängig' },
     { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Biotech & Terraforming': [
     { resource:'Energieeinheiten', units:15, effect:'+0,12 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: kapazitätsabhängig' },
     { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Raumfahrt & Logistik': [
     { resource:'Bauteile', units:10, effect:'+0,15 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: kapazitätsabhängig' },
     { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Verteidigung & Sicherheit': [
     { resource:'Bauteile', units:10, effect:'+0,15 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: kapazitätsabhängig' },
   ],
   'Energie': [
     { resource:'Bio-Einheiten', units:10, effect:'+0,12 Effizienz' },
     { resource:'Frachtkapazität', units:10, effect:'+0,08 Effizienz' },
-    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: kapazitätsabhängig' },
     { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Konsum & Unterhaltung': [
     { resource:'Bauteile', units:10, effect:'+6 Reputation' },
     { resource:'Bio-Einheiten', units:10, effect:'+6 Reputation' },
     { resource:'Frachtkapazität', units:10, effect:'+4 Reputation' },
-    { resource:'Kapitalzugang', units:5, effect:'Kredit: 600 sofort, 720 in 6 Q.-Raten' },
+    { resource:'Kapitalzugang', units:5, effect:'Kredit: kapazitätsabhängig' },
     { resource:'Schutzverträge', units:5, effect:'-25 Risiko für 6 Quartale' },
   ],
   'Finanzen': [
@@ -621,6 +684,7 @@ let myInventory = [];
 let marketOrders = [];
 let myLoans = [];
 let myContracts = [];
+let myDeliveries = [];
 
 async function loadInventory(){
   try {
@@ -651,6 +715,14 @@ async function loadContracts(){
     const { data, error } = await sb.schema('foundry').rpc('get_my_protection_contracts');
     if (error) { console.error(error); return; }
     myContracts = data || [];
+  } catch(e){ console.error(e); }
+}
+
+async function loadDeliveries(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_my_pending_deliveries');
+    if (error) { console.error(error); return; }
+    myDeliveries = data || [];
   } catch(e){ console.error(e); }
 }
 
@@ -730,9 +802,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -894,9 +966,19 @@ function renderDecisions(company){
     const suffix = isFinance ? ' — echter Kredit mit Rückzahlungsplan, siehe unten'
       : isDefense ? ' — befristeter Schutzvertrag, siehe unten'
       : ' dauerhaft';
+    // Kredithöhe/-laufzeit skaliert mit der Kapazität (v1.6) — Formel muss
+    // 1:1 mit foundry.make_decision() übereinstimmen, damit die Vorschau stimmt.
+    let effectText = inp.effect;
+    if (isFinance) {
+      const principal = Math.min(1400, Math.round(400 * (Number(company.capacity) / 10)));
+      const term = Number(company.capacity) < 15 ? 8 : 6;
+      const total = Math.round(principal * 1.2 * 100) / 100;
+      const installment = Math.round((total / term) * 100) / 100;
+      effectText = 'Kredit: ' + fmt(principal) + ' sofort, ' + fmt2(total) + ' in ' + term + ' Q.-Raten à ' + fmt2(installment);
+    }
     const card = document.createElement('div');
     card.className = 'decision-card';
-    card.innerHTML = '<h4>' + inp.resource + ' verwenden</h4><p>' + inp.effect + suffix + ' — verbraucht ' + inp.units +
+    card.innerHTML = '<h4>' + inp.resource + ' verwenden</h4><p>' + effectText + suffix + ' — verbraucht ' + inp.units +
       ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' +
       '<div class="dc-cost" style="color:' + (enough ? 'var(--up)' : 'var(--down)') + '">Im Lager: ' + fmt2(have) + ' / ' + inp.units + '</div>' +
       '<button type="button"' + (active && enough ? '' : ' disabled') + '>Entscheiden</button>';
@@ -984,6 +1066,25 @@ function renderMarket(company){
     });
   }
 
+  const deliveryList = document.getElementById('deliveriesList');
+  deliveryList.innerHTML = '';
+  const ownDeliveries = myDeliveries.filter(d => d.company_id === company.id);
+  if (!ownDeliveries.length) {
+    deliveryList.innerHTML = '<div class="event-empty">Nichts unterwegs — Käufe im Orderbuch oder am Bot-Markt lösen eine Lieferung aus.</div>';
+  } else {
+    ownDeliveries.forEach(d => {
+      const row = document.createElement('div');
+      row.className = 'event-row';
+      const arrives = new Date(d.arrives_at);
+      const msLeft = arrives.getTime() - Date.now();
+      const minsLeft = Math.max(0, Math.ceil(msLeft / 60000));
+      const sourceLabel = d.source === 'bot' ? 'Bot-Markt' : 'Firma-zu-Firma';
+      row.innerHTML = '<span class="ev-time">' + fmt2(d.quantity) + '× ' + d.resource_name + '</span>' +
+        sourceLabel + ' · trifft in ' + minsLeft + ' Min. ein (≈ ' + arrives.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }) + ' Uhr)';
+      deliveryList.appendChild(row);
+    });
+  }
+
   const sel = document.getElementById('sellResource');
   const prevVal = sel.value;
   sel.innerHTML = '';
@@ -1024,7 +1125,7 @@ function renderMarket(company){
   botResources.forEach(r => {
     const card = document.createElement('div');
     card.className = 'decision-card';
-    card.innerHTML = '<h4>' + r + '</h4><p>Sofort verfügbar, Preis schwankt leicht um den Basiswert.</p>' +
+    card.innerHTML = '<h4>' + r + '</h4><p>Liefert verzögert (schneller mit eigener Frachtkapazität), Preis schwankt leicht um den Basiswert.</p>' +
       '<div class="dc-cost" id="botPrice-' + r.replace(/[^a-zA-Z0-9]/g,'') + '">…</div>' +
       '<input type="number" min="1" step="1" value="10" style="margin-bottom:8px;" id="botQty-' + r.replace(/[^a-zA-Z0-9]/g,'') + '">' +
       '<button type="button">Kaufen</button>';
@@ -1071,8 +1172,8 @@ async function buyOrder(orderId, buyerCompanyId){
   try {
     const { error } = await sb.schema('foundry').rpc('buy_market_order', { p_order_id: orderId, p_buyer_company_id: buyerCompanyId });
     if (error) { showMsg('buyMsg', error.message, false); return; }
-    showMsg('buyMsg', 'Kauf erfolgreich.', true);
-    await Promise.all([loadWallet(), loadInventory(), loadMarketOrders()]);
+    showMsg('buyMsg', 'Kauf erfolgreich — Ware ist unterwegs, siehe Panel „Unterwegs" oben.', true);
+    await Promise.all([loadWallet(), loadInventory(), loadMarketOrders(), loadDeliveries()]);
     render();
   } catch (err) {
     showMsg('buyMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
@@ -1102,8 +1203,8 @@ async function buyFromBot(companyId, resource){
   try {
     const { error } = await sb.schema('foundry').rpc('buy_from_bot_market', { p_buyer_company_id: companyId, p_resource_name: resource, p_quantity: qty });
     if (error) { showMsg('botMsg', error.message, false); return; }
-    showMsg('botMsg', 'Eingekauft.', true);
-    await Promise.all([loadWallet(), loadInventory()]);
+    showMsg('botMsg', 'Eingekauft — Ware ist unterwegs, siehe Panel „Unterwegs" oben.', true);
+    await Promise.all([loadWallet(), loadInventory(), loadDeliveries()]);
     render();
   } catch (err) {
     showMsg('botMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
@@ -1200,7 +1301,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId){
 }
 document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg'));
 document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders()]); render(); });
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadContracts(), loadDeliveries()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){
