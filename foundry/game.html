@@ -515,6 +515,8 @@
   .stat-card .sub{ font-family:var(--mono); font-size:12.5px; color:var(--fg-dim); margin-top:3px; }
 
   .main-tabs{ display:flex; gap:8px; margin:4px 0 18px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .main-tabs.guest-limited .main-tab-btn:not([data-tab="galaxie"]):not([data-tab="einstellungen"]){ display:none; }
+  #guestSpectatorBanner{ font-size:13.5px; color:var(--fg-dim); background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:0 0 14px; }
   .main-tabs::-webkit-scrollbar{ display:none; }
   .main-tab-btn{ font-family:'Space Grotesk'; font-weight:600; font-size:15px; white-space:nowrap; padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim); cursor:pointer; flex:0 0 auto; }
   .main-tab-btn:hover{ border-color:var(--fg-faint); color:var(--fg); }
@@ -747,6 +749,8 @@
     </div>
 
     <div id="dashboardArea" class="hidden">
+
+      <div id="guestSpectatorBanner" class="hidden">Gast-Beobachtermodus — du siehst die Galaxie live mit allen Firmen aller Spieler, kannst aber nichts aktiv tun. Mit E-Mail-Code einloggen, um selbst eine Firma zu gründen.</div>
 
       <div class="panel" id="overviewPanel">
         <h3 id="companyTitle"></h3>
@@ -1465,12 +1469,24 @@ function renderSectorGrid(gridId, selectedKeyGetter, onSelect){
   });
 }
 
+let guestSpectatorTabSet = false;
+
 function render(){
   const hasCompanies = companies.length > 0;
+  const guestSpectator = isGuest() && !hasCompanies;
   document.getElementById('companyTabsWrap').classList.toggle('hidden', !hasCompanies);
-  document.getElementById('noCompanyState').classList.toggle('hidden', hasCompanies);
-  document.getElementById('foundingPanel').classList.toggle('hidden', hasCompanies);
-  document.getElementById('dashboardArea').classList.toggle('hidden', !hasCompanies);
+  document.getElementById('noCompanyState').classList.toggle('hidden', hasCompanies || guestSpectator);
+  document.getElementById('foundingPanel').classList.toggle('hidden', hasCompanies || guestSpectator);
+  document.getElementById('dashboardArea').classList.toggle('hidden', !hasCompanies && !guestSpectator);
+  document.getElementById('guestSpectatorBanner').classList.toggle('hidden', !guestSpectator);
+  document.getElementById('overviewPanel').classList.toggle('hidden', guestSpectator);
+  document.getElementById('mainTabs').classList.toggle('guest-limited', guestSpectator);
+
+  if (guestSpectator && !guestSpectatorTabSet) {
+    guestSpectatorTabSet = true;
+    document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'galaxie'));
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-galaxie'));
+  }
 
   if (hasCompanies) renderSleepWindow();
 
