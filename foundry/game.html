@@ -443,6 +443,15 @@
   .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
   .burger-group{ padding:6px 4px 10px; }
   .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-group .mp-title{ font-size:12px; font-weight:600; color:var(--fg-dim); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .burger-group .mp-title span.mp-state{ color:var(--accent); font-weight:700; }
+  .burger-group .mp-track{ font-size:11.5px; color:var(--fg-faint); margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 4px; }
+  .burger-group .mp-row{ display:flex; align-items:center; gap:10px; padding:0 4px; }
+  .burger-group input[type=range]{ flex:1; accent-color:var(--accent); }
+  .burger-group .mp-val{ font-family:var(--mono); font-size:11.5px; color:var(--fg-dim); min-width:32px; text-align:right; }
+  .burger-group .mp-actions{ display:flex; gap:8px; margin-top:12px; padding:0 4px; }
+  .burger-group .mp-actions button{ flex:1; padding:6px 0; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-size:12px; cursor:pointer; }
+  .burger-group .mp-actions button:hover{ border-color:var(--accent); }
   .burger-label{ font-size:12.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
   .burger-panel a{ display:block; font-size:15.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; transition:background .15s, color .15s; }
   .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
@@ -622,6 +631,28 @@
           <a href="../pathofthestars/impressum.html">Path of the Stars</a>
           <a href="../nexus/impressum.html">NEXUS</a>
           <a href="impressum.html">FOUNDRY</a>
+        </div>
+        <div class="burger-group">
+          <div class="mp-title">Musik <span class="mp-state" id="musicToggleState">an</span></div>
+          <div class="mp-track" id="musicTrackName">–</div>
+          <div class="mp-row">
+            <input type="range" id="musicVolume" min="0" max="100" step="1" value="5">
+            <span class="mp-val" id="musicVolumeVal">5%</span>
+          </div>
+          <div class="mp-actions">
+            <button type="button" id="musicPlayPause">Pause</button>
+            <button type="button" id="musicNext">Weiter</button>
+          </div>
+        </div>
+        <div class="burger-group">
+          <div class="mp-title">Soundeffekte <span class="mp-state" id="sfxToggleState">an</span></div>
+          <div class="mp-row">
+            <input type="range" id="sfxVolume" min="0" max="100" step="1" value="40">
+            <span class="mp-val" id="sfxVolumeVal">40%</span>
+          </div>
+          <div class="mp-actions">
+            <button type="button" id="sfxMuteBtn">Stumm</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1281,10 +1312,16 @@ async function loadMyGuild(){
   } catch(e){ console.error(e); myGuild = null; }
 }
 
-function showMsg(elId, text, ok){
+function showMsg(elId, text, ok, kind){
   const el = document.getElementById(elId);
   if(!el) return;
   el.innerHTML = '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + text + '</div>';
+  if (window.foundrySfx) {
+    if (!ok) window.foundrySfx.error();
+    else if (kind === 'coin') window.foundrySfx.coin();
+    else if (kind === 'levelup') window.foundrySfx.levelup();
+    else window.foundrySfx.success();
+  }
 }
 function clearMsg(elId){ const el = document.getElementById(elId); if(el) el.innerHTML=''; }
 function fmt(n){
@@ -2213,6 +2250,7 @@ document.getElementById('refreshBtn').addEventListener('click', async () => { aw
   const nav = document.getElementById('mainTabs');
   nav.querySelectorAll('.main-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (window.foundrySfx) window.foundrySfx.click();
       nav.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
       document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-' + btn.dataset.tab));
     });
@@ -2224,10 +2262,252 @@ document.getElementById('refreshBtn').addEventListener('click', async () => { aw
   const nav = document.getElementById('decisionSubTabs');
   nav.querySelectorAll('.sub-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (window.foundrySfx) window.foundrySfx.click();
       nav.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
       document.querySelectorAll('.decision-subpage').forEach(p => p.classList.toggle('active', p.id === 'decisionSub-' + btn.dataset.subtab));
     });
   });
+})();
+</script>
+
+<!-- ---------- Musik (Steuerung im Bürgermenü) ---------- -->
+<audio id="bgMusic" preload="none"></audio>
+<script>
+(function(){
+  'use strict';
+
+  // Playlist: alle FOUNDRY-Score-Tracks aus art/music/ ("Opening Bell.ogg" ist
+  // reserviert fuer foundry/index.html, laeuft hier nicht mit).
+  var TRACKS = [
+    "Ledger Lights.ogg",
+    "Quiet Capital.ogg",
+    "Market Momentum.ogg",
+    "Cold Numbers.ogg"
+  ];
+  var VOL_KEY = 'foundryMusicVolume';
+  var MUTE_KEY = 'foundryMusicMuted';
+  var DEFAULT_VOL = 5;
+
+  var audio = document.getElementById('bgMusic');
+  var volSlider = document.getElementById('musicVolume');
+  var volVal = document.getElementById('musicVolumeVal');
+  var trackNameEl = document.getElementById('musicTrackName');
+  var playPauseBtn = document.getElementById('musicPlayPause');
+  var nextBtn = document.getElementById('musicNext');
+  var stateEl = document.getElementById('musicToggleState');
+  if (!audio) return;
+
+  // Zufaellige Wiedergabe-Reihenfolge, damit nicht jede Session identisch startet.
+  var order = TRACKS.map(function(_, i){ return i; });
+  for (var i = order.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+  }
+  var pos = 0;
+
+  function trackTitle(filename){
+    return filename.replace(/\.ogg$/i, '');
+  }
+
+  function loadTrack(idx){
+    var filename = TRACKS[order[idx]];
+    audio.src = 'art/music/' + encodeURIComponent(filename);
+    if (trackNameEl) trackNameEl.textContent = trackTitle(filename);
+  }
+
+  function playCurrent(){
+    var p = audio.play();
+    if (p && typeof p.catch === 'function') p.catch(function(){});
+  }
+
+  audio.addEventListener('ended', function(){
+    pos = (pos + 1) % order.length;
+    loadTrack(pos);
+    playCurrent();
+  });
+
+  // Lautstaerke wiederherstellen -- Default 5%, gemeinsam mit index.html.
+  var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
+  if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
+  var savedMuted = localStorage.getItem(MUTE_KEY) === '1';
+  audio.volume = savedVol / 100;
+  audio.muted = savedMuted;
+  if (volSlider) volSlider.value = savedVol;
+  if (volVal) volVal.textContent = Math.round(savedVol) + '%';
+
+  function updatePlayIcon(){
+    if (playPauseBtn) playPauseBtn.textContent = audio.paused ? 'Play' : 'Pause';
+    if (stateEl) stateEl.textContent = audio.paused ? 'aus' : 'an';
+  }
+
+  loadTrack(pos);
+
+  // Autoplay-Policies: erst versuchen, sonst beim ersten Klick/Touch/Tastendruck nachholen.
+  (function tryAutoplay(){
+    var p = audio.play();
+    if (p && typeof p.then === 'function') {
+      p.then(updatePlayIcon).catch(function(){
+        var startOnce = function(){
+          audio.play().then(updatePlayIcon).catch(function(){});
+        };
+        document.addEventListener('click', startOnce, { once:true });
+        document.addEventListener('keydown', startOnce, { once:true });
+        document.addEventListener('touchstart', startOnce, { once:true });
+      });
+    }
+  })();
+
+  if (volSlider) {
+    volSlider.addEventListener('input', function(){
+      var v = Number(volSlider.value);
+      audio.volume = v / 100;
+      audio.muted = false;
+      if (volVal) volVal.textContent = v + '%';
+      localStorage.setItem(VOL_KEY, String(v));
+      localStorage.setItem(MUTE_KEY, '0');
+    });
+  }
+
+  if (playPauseBtn) {
+    playPauseBtn.addEventListener('click', function(){
+      if (audio.paused) { audio.play().then(updatePlayIcon).catch(function(){}); }
+      else { audio.pause(); updatePlayIcon(); }
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', function(){
+      pos = (pos + 1) % order.length;
+      loadTrack(pos);
+      playCurrent();
+      updatePlayIcon();
+    });
+  }
+
+  audio.addEventListener('play', updatePlayIcon);
+  audio.addEventListener('pause', updatePlayIcon);
+  updatePlayIcon();
+})();
+</script>
+
+<!-- ---------- SFX: kurze UI-Sounds, komplett per Web Audio API synthetisiert (keine Audiodateien noetig) ---------- -->
+<script>
+(function(){
+  'use strict';
+
+  var VOL_KEY = 'foundrySfxVolume';
+  var MUTE_KEY = 'foundrySfxMuted';
+  var DEFAULT_VOL = 40;
+
+  var volSlider = document.getElementById('sfxVolume');
+  var volVal = document.getElementById('sfxVolumeVal');
+  var muteBtn = document.getElementById('sfxMuteBtn');
+  var stateEl = document.getElementById('sfxToggleState');
+
+  var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
+  if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
+  var muted = localStorage.getItem(MUTE_KEY) === '1';
+  var volume = savedVol / 100;
+
+  if (volSlider) volSlider.value = savedVol;
+  if (volVal) volVal.textContent = Math.round(savedVol) + '%';
+
+  function updateMuteUI(){
+    if (muteBtn) muteBtn.textContent = muted ? 'An' : 'Stumm';
+    if (stateEl) stateEl.textContent = muted ? 'aus' : 'an';
+  }
+  updateMuteUI();
+
+  // AudioContext erst beim ersten Klick/Touch anlegen (Autoplay-Policy der Browser).
+  var ctx = null;
+  function getCtx(){
+    if (!ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  ['click','touchstart','keydown'].forEach(function(evt){
+    document.addEventListener(evt, function(){ getCtx(); }, { once:true, passive:true });
+  });
+
+  // Spielt einen einzelnen Ton: Frequenz in Hz, Dauer in Sekunden, Startverzoegerung in Sekunden.
+  function tone(freq, dur, opts){
+    if (muted || volume <= 0) return;
+    var c = getCtx();
+    if (!c) return;
+    opts = opts || {};
+    var start = c.currentTime + (opts.delay || 0);
+    var osc = c.createOscillator();
+    var gain = c.createGain();
+    osc.type = opts.type || 'sine';
+    osc.frequency.setValueAtTime(freq, start);
+    if (opts.slideTo) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(1, opts.slideTo), start + dur);
+    }
+    var peak = volume * (opts.peak != null ? opts.peak : 0.25);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, peak), start + Math.min(0.02, dur / 4));
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    osc.connect(gain);
+    gain.connect(c.destination);
+    osc.start(start);
+    osc.stop(start + dur + 0.02);
+  }
+
+  var sfx = {
+    // Kurzer, softer Klick fuer Tab-Wechsel und generelle Navigation.
+    click: function(){
+      tone(720, 0.05, { type:'square', peak:0.12 });
+    },
+    // Zwei aufsteigende Toene fuer erfolgreiche Aktionen (Entscheidung getroffen, Firma gegruendet, etc.).
+    success: function(){
+      tone(520, 0.09, { type:'sine', peak:0.22 });
+      tone(780, 0.12, { type:'sine', peak:0.22, delay:0.07 });
+    },
+    // Tiefer, absteigender Ton fuer Fehler/Ablehnungen.
+    error: function(){
+      tone(300, 0.16, { type:'sawtooth', peak:0.16, slideTo:150 });
+    },
+    // Helles Muenz-Klimpern fuer Waehrungs-Gutschriften (Dividenden, Verkaufserloese, IPO-Kapitalspritze).
+    coin: function(){
+      tone(880, 0.07, { type:'triangle', peak:0.22 });
+      tone(1180, 0.09, { type:'triangle', peak:0.2, delay:0.05 });
+      tone(1560, 0.12, { type:'triangle', peak:0.18, delay:0.1 });
+    },
+    // Kleine Fanfare fuer Meilensteine (Boersengang, Level-Aufstieg).
+    levelup: function(){
+      [523, 659, 784, 1047].forEach(function(freq, i){
+        tone(freq, 0.16, { type:'triangle', peak:0.24, delay:i * 0.09 });
+      });
+    }
+  };
+
+  window.foundrySfx = sfx;
+
+  if (volSlider) {
+    volSlider.addEventListener('input', function(){
+      var v = Number(volSlider.value);
+      volume = v / 100;
+      muted = false;
+      updateMuteUI();
+      if (volVal) volVal.textContent = v + '%';
+      localStorage.setItem(VOL_KEY, String(v));
+      localStorage.setItem(MUTE_KEY, '0');
+    });
+    volSlider.addEventListener('change', function(){ sfx.click(); });
+  }
+
+  if (muteBtn) {
+    muteBtn.addEventListener('click', function(){
+      muted = !muted;
+      updateMuteUI();
+      localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+      if (!muted) sfx.click();
+    });
+  }
 })();
 </script>
 </body>
