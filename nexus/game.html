@@ -2037,6 +2037,7 @@
         <h3><span class="live-dot"></span>QNTM-Kurs <span class="tag">— springt alle 15 Min. zwischen 12 Zuständen</span></h3>
         <div class="market-price-big" id="qntmPriceDisplay">Kurs: –</div>
         <div class="sm-hint" id="qntmStateDisplay">Zustand: –</div>
+        <div class="sm-hint" id="qntmLimitDisplay">Tageslimit: –</div>
         <div class="sm-hint" id="qntmNegativeWarning" style="display:none; color:var(--down); font-weight:600;"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L13 12.5H1L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="7" y1="5.5" x2="7" y2="8.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="7" cy="10.7" r="0.7" fill="currentColor"/></svg></span> Markt im Kollaps — Käufe gesperrt, bis der Kurs sich wieder erholt. Verkaufen bleibt möglich.</div>
         <div class="chart-box compact market-chart"><canvas id="qntmChart"></canvas></div>
         <div class="sm-trade-box">
@@ -2905,6 +2906,7 @@ let cycleBalance = 0;
 let voltLatestPrice = 100;
 let qntmLatestPrice = 100;
 let qntmLatestState = null;
+let qntmTradeStatus = { bought_today: 0, sold_today: 0, daily_limit: 0 };
 let driftLatestPrice = 100;
 let govUnclaimedPoints = 0;
 let voltChart = null;
@@ -4673,6 +4675,14 @@ function applySprungmaerkteState(gs){
   qntmLatestState = qntmStatus ? qntmStatus.state_index : null;
   document.getElementById('qntmStateDisplay').textContent =
     qntmStatus ? `Zustand: ${qntmStatus.state_label} (${qntmStatus.state_index + 7}/12)` : 'Zustand: –';
+  if (gs.qntm_trade_status) qntmTradeStatus = gs.qntm_trade_status;
+  {
+    const limit = Number(qntmTradeStatus.daily_limit) || 0;
+    const restBuy = Math.max(0, limit - (Number(qntmTradeStatus.bought_today) || 0));
+    const restSell = Math.max(0, limit - (Number(qntmTradeStatus.sold_today) || 0));
+    document.getElementById('qntmLimitDisplay').textContent =
+      `Tageslimit: noch ${fmtCoin(restBuy)} MOGC kaufbar · noch ${fmtCoin(restSell)} MOGC-Gegenwert verkaufbar (von ${fmtCoin(limit)} MOGC/Tag)`;
+  }
   const qntmNegative = qntmLatestState != null && qntmLatestState < 0;
   document.getElementById('qntmNegativeWarning').style.display = qntmNegative ? 'block' : 'none';
   document.getElementById('qntmBuyBtn').disabled = qntmNegative;
@@ -6211,10 +6221,23 @@ document.getElementById('voltSellBtn').addEventListener('click', async () => {
 
 /* ---------- QNTM: Kauf/Verkauf ---------- */
 document.getElementById('qntmBuyMaxBtn').addEventListener('click', () => {
-  document.getElementById('qntmBuyInput').value = storeBalance > 0 ? storeBalance : '';
+  // "Alles" darf nie mehr eintragen, als heute noch innerhalb des Tageslimits
+  // gekauft werden kann -- sonst lehnt der Server den Kauf komplett ab, auch
+  // wenn nur ein kleiner Teil ueber dem Limit liegt.
+  const restBuy = Math.max(0, (Number(qntmTradeStatus.daily_limit) || 0) - (Number(qntmTradeStatus.bought_today) || 0));
+  const amount = Math.min(storeBalance, restBuy);
+  document.getElementById('qntmBuyInput').value = amount > 0 ? amount : '';
 });
 document.getElementById('qntmSellMaxBtn').addEventListener('click', () => {
-  document.getElementById('qntmSellInput').value = qntmBalance > 0 ? qntmBalance : '';
+  // Tageslimit gilt fuer den Premium-GEGENWERT des Trades, nicht fuer die
+  // QNTM-Menge -- bei hohem Kurs kann schon ein Teil des Bestands das Limit
+  // sprengen. "Alles" rechnet den Gegenwert deshalb mit dem aktuellen Kurs
+  // in eine maximal verkaufbare QNTM-Menge um.
+  const restSellPremium = Math.max(0, (Number(qntmTradeStatus.daily_limit) || 0) - (Number(qntmTradeStatus.sold_today) || 0));
+  const price = Number(qntmLatestPrice) || 100;
+  const restSellQntm = (restSellPremium / (price / 100)) * 0.999; // Sicherheitsmarge gegen Rundungsdifferenzen
+  const amount = Math.min(qntmBalance, restSellQntm);
+  document.getElementById('qntmSellInput').value = amount > 0 ? amount : '';
 });
 
 document.getElementById('qntmBuyBtn').addEventListener('click', async () => {
