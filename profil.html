@@ -503,6 +503,30 @@
     { path: '/astrion/art/sets/cards/galaxie_chaos/188.png', label: 'Sternenkern: Solen-Schlangenzündung' },
   ];
 
+  /* Aetheris: die 8 Offiziers-Portraits (aetheris/bilder/offiziere/<name>/<name>_1.png) —
+     feste Charakterbilder, keine zufällig generierten Spielstände, daher als
+     Avatar geeignet. Absolute Pfade aus demselben Grund wie oben. */
+  var AETHERIS_AVATARS = [
+    { path: '/aetheris/bilder/offiziere/admiral/admiral_1.png', label: 'Admiral' },
+    { path: '/aetheris/bilder/offiziere/kommodore/kommodore_1.png', label: 'Kommodore' },
+    { path: '/aetheris/bilder/offiziere/kanzlerin/kanzlerin_1.png', label: 'Kanzlerin' },
+    { path: '/aetheris/bilder/offiziere/stratege/stratege_1.png', label: 'Stratege' },
+    { path: '/aetheris/bilder/offiziere/ingenieur/ingenieur_1.png', label: 'Ingenieur' },
+    { path: '/aetheris/bilder/offiziere/techniker/techniker_1.png', label: 'Techniker' },
+    { path: '/aetheris/bilder/offiziere/geologe/geologe_1.png', label: 'Geologe' },
+    { path: '/aetheris/bilder/offiziere/schmuggler/schmuggler_1.png', label: 'Schmuggler' },
+  ];
+
+  /* Path of the Stars: 18 Schiffs-Artworks (pathofthestars/bilder/ship/ship_NN.png).
+     Im Spiel selbst werden Schiffe aktuell als Vektor-Icons gezeichnet, diese
+     Bilder sind bislang ungenutzte Kunst — daher hier als Avatar zweitverwertet.
+     Dateien wurden von den ursprünglichen "ChatGPT Image ..."-Namen auf
+     ship_01..ship_18 umbenannt (Reihenfolge = alte Dateireihenfolge). */
+  var POTS_AVATARS = Array.from({length: 18}, function(_, i){
+    var n = String(i + 1).padStart(2, '0');
+    return { path: '/pathofthestars/bilder/ship/ship_' + n + '.png', label: 'Schiff ' + (i + 1) };
+  });
+
   function isImageAvatar(a){
     return typeof a === 'string' && /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(a);
   }
@@ -545,6 +569,44 @@
   avatarGrid.appendChild(astrionDivider);
 
   IMAGE_AVATARS.forEach(function(entry){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'avatar-opt';
+    btn.title = entry.label;
+    btn.dataset.avatarValue = entry.path;
+    renderAvatarInto(btn, entry.path);
+    btn.addEventListener('click', function(){
+      selectAvatarInGrid(entry.path);
+      updatePreview();
+    });
+    avatarGrid.appendChild(btn);
+  });
+
+  var aetherisDivider = document.createElement('div');
+  aetherisDivider.className = 'avatar-divider';
+  aetherisDivider.textContent = 'Aetheris';
+  avatarGrid.appendChild(aetherisDivider);
+
+  AETHERIS_AVATARS.forEach(function(entry){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'avatar-opt';
+    btn.title = entry.label;
+    btn.dataset.avatarValue = entry.path;
+    renderAvatarInto(btn, entry.path);
+    btn.addEventListener('click', function(){
+      selectAvatarInGrid(entry.path);
+      updatePreview();
+    });
+    avatarGrid.appendChild(btn);
+  });
+
+  var potsDivider = document.createElement('div');
+  potsDivider.className = 'avatar-divider';
+  potsDivider.textContent = 'Path of the Stars';
+  avatarGrid.appendChild(potsDivider);
+
+  POTS_AVATARS.forEach(function(entry){
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'avatar-opt';
