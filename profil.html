@@ -218,7 +218,7 @@
               <button class="acct-btn" id="cloudVerifyCodeBtn" type="button">Bestätigen</button>
             </div>
             <div id="cloudStepIn" style="display:none;">
-              <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar">🚀</span><span id="cloudUserName">—</span></div>
+              <div class="lbl acct-whoami"><span class="acct-avatar" id="cloudUserAvatar"><img src="/assets/avatars/rocket.svg" alt=""></span><span id="cloudUserName">—</span></div>
               <button class="acct-btn" id="cloudSignOutBtn" type="button">Ausloggen</button>
             </div>
             <span class="acct-status" id="cloudStatusMsg"></span>
@@ -303,7 +303,7 @@
     <div class="card" id="profileForm" style="display:none">
 
       <div class="preview">
-        <div class="pv-avatar" id="previewAvatar">🚀</div>
+        <div class="pv-avatar" id="previewAvatar"><img src="/assets/avatars/rocket.svg" alt=""></div>
         <div class="pv-text">
           <div class="pv-title" id="previewTitle" style="display:none;"></div>
           <div class="pv-name" id="previewName">Spieler</div>
@@ -454,9 +454,36 @@
   var previewName = document.getElementById('previewName');
   var previewBio = document.getElementById('previewBio');
   var previewTitle = document.getElementById('previewTitle');
-  var selectedAvatar = '🚀';
+  var DEFAULT_AVATAR = '/assets/avatars/rocket.svg';
+  var selectedAvatar = DEFAULT_AVATAR;
 
-  var AVATARS = ['🚀','🛰️','👨‍🚀','👽','🪐','🌌','⭐','🌠','🌍','🔭','🛸','⚡','🔥','💫','🌟','🧭','🛡️','⚙️','🎯','☄️','🐋','🦾','🧬','🌙'];
+  /* Eigene SVG-Avatare (kein Emoji mehr — feste Vektor-Icons, damit sie auf
+     jedem Gerät/Font identisch aussehen). Dateien liegen unter
+     /assets/avatars/<name>.svg. WICHTIG: absolute (domain-root-relative)
+     Pfade, da derselbe Avatar-Wert auch auf den anderen MC-ORCA-Spielseiten
+     (in eigenen Unterordnern) angezeigt wird — ein relativer Pfad würde
+     dort brechen. */
+  var AVATARS = [
+    { path: '/assets/avatars/rocket.svg', label: 'Rakete' },
+    { path: '/assets/avatars/helmet.svg', label: 'Raumhelm' },
+    { path: '/assets/avatars/alien.svg', label: 'Alien' },
+    { path: '/assets/avatars/planet.svg', label: 'Ringplanet' },
+    { path: '/assets/avatars/comet.svg', label: 'Komet' },
+    { path: '/assets/avatars/blackhole.svg', label: 'Schwarzes Loch' },
+    { path: '/assets/avatars/satellite.svg', label: 'Satellit' },
+    { path: '/assets/avatars/shield.svg', label: 'Schild' },
+    { path: '/assets/avatars/lightning.svg', label: 'Blitz' },
+    { path: '/assets/avatars/compass.svg', label: 'Kompass' },
+    { path: '/assets/avatars/dna.svg', label: 'DNA' },
+    { path: '/assets/avatars/wolf.svg', label: 'Wolf' },
+    { path: '/assets/avatars/phoenix.svg', label: 'Phönix' },
+    { path: '/assets/avatars/robot.svg', label: 'Roboter' },
+    { path: '/assets/avatars/crystal.svg', label: 'Kristall' },
+    { path: '/assets/avatars/hexcore.svg', label: 'Hex-Kern' },
+    { path: '/assets/avatars/meteor.svg', label: 'Supernova' },
+    { path: '/assets/avatars/starcluster.svg', label: 'Sternhaufen' },
+    { path: '/assets/avatars/portal.svg', label: 'Portal' },
+  ];
 
   /* Bild-Avatare: kuratierte Auswahl aus Astrion, NUR aus den ersten beiden
      Sets ("erwachen" + "galaxie_chaos") — die "Sternenkern"-Verschmelzungs-
@@ -477,7 +504,7 @@
   ];
 
   function isImageAvatar(a){
-    return typeof a === 'string' && /\.(png|jpg|jpeg|webp|gif)$/i.test(a);
+    return typeof a === 'string' && /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(a);
   }
   // Füllt ein Avatar-Element (Grid-Button, Vorschau-Kreis, Status-Icon)
   // korrekt: Bildpfad -> <img>, Emoji -> Text.
@@ -489,18 +516,24 @@
       img.alt = '';
       el.appendChild(img);
     } else {
-      el.textContent = a || '🚀';
+      el.textContent = a || '';
     }
   }
 
-  AVATARS.forEach(function(a){
+  var iconDivider = document.createElement('div');
+  iconDivider.className = 'avatar-divider';
+  iconDivider.textContent = 'Icons';
+  avatarGrid.appendChild(iconDivider);
+
+  AVATARS.forEach(function(entry){
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'avatar-opt';
-    btn.textContent = a;
-    btn.dataset.avatarValue = a;
+    btn.title = entry.label;
+    btn.dataset.avatarValue = entry.path;
+    renderAvatarInto(btn, entry.path);
     btn.addEventListener('click', function(){
-      selectAvatarInGrid(a);
+      selectAvatarInGrid(entry.path);
       updatePreview();
     });
     avatarGrid.appendChild(btn);
@@ -845,12 +878,12 @@
         usernameInput.value = res.data.username || '';
         bioInput.value = res.data.bio || '';
         bioCount.textContent = bioInput.value.length;
-        selectAvatarInGrid(res.data.avatar || '🚀');
+        selectAvatarInGrid(res.data.avatar || DEFAULT_AVATAR);
       } else {
         usernameInput.value = '';
         bioInput.value = '';
         bioCount.textContent = '0';
-        selectAvatarInGrid('🚀');
+        selectAvatarInGrid(DEFAULT_AVATAR);
       }
       // Gast-Account: Name ist serverseitig per Trigger gesperrt (siehe Migration
       // create_nexus_shared_guest_account) -- Feld hier zusaetzlich sichtbar
