@@ -2834,6 +2834,10 @@ let skillNodes = [];       // statischer Katalog, wird einmal geladen
 let ownedSkillIds = new Set();
 let prestigePoints = 0;
 let prestigeLevel = 0;
+let seasonalEventLoading = false;
+let seasonalEventData = null;
+let seasonalEventEndsAt = null;
+let seasonalEventCountdownTimer = null;
 const PRESTIGE_THRESHOLD = 100000;
 let refreshTimer = null;
 // NEU (Egress-Fix): Poll-Intervall deutlich hochgesetzt (5s -> 20s) und im
@@ -5833,11 +5837,6 @@ async function renderGuildLeaderboard(){
 }
 
 /* ---------- Kometen-Event (Saisonales Event) ---------- */
-let seasonalEventLoading = false;
-let seasonalEventData = null;
-let seasonalEventEndsAt = null;
-let seasonalEventCountdownTimer = null;
-
 async function loadSeasonalEvent(){
   if (seasonalEventLoading) return;
   seasonalEventLoading = true;
