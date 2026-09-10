@@ -524,32 +524,52 @@
         return; // nicht eingeloggt (bzw. noch nicht erkannt) -> Panel bleibt versteckt
       }
       mvLoaded = true;
+      // Panel jetzt schon sichtbar machen, sobald wir wissen, dass eine
+      // Session existiert -- danach füllen wir die Werte nach und nach.
+      // So bleibt das Panel nicht unsichtbar, falls einer der RPC-Calls
+      // unten fehlschlägt.
+      document.getElementById('myValuesPanel').style.display = '';
+      document.getElementById('nexusValues').innerHTML = '<div class="mv-empty">Lade …</div>';
+      document.getElementById('foundryValues').innerHTML = '<div class="mv-empty">Lade …</div>';
 
       var nexusHtml = '';
-      var foundryHtml = '';
-
-      const { data: balances, error: balErr } = await mvSb.schema('platform').rpc('get_my_wallet_balances');
-      if (!balErr && balances) {
-        ['NOVA', 'MOGC'].forEach(function(sym){
-          var row = balances.find(function(r){ return r.symbol === sym; });
-          if (row) nexusHtml += mvRow(MV_CURRENCY_LABELS[sym], mvFmt(row.balance), sym === 'NOVA' ? 'blue' : 'gold');
-        });
+      try {
+        const { data: balances, error: balErr } = await mvSb.schema('platform').rpc('get_my_wallet_balances');
+        if (balErr) {
+          console.error('[Meine Werte] platform.get_my_wallet_balances Fehler:', balErr.message || balErr, balErr);
+          nexusHtml = '<div class="mv-empty">Fehler: ' + (balErr.message || 'RPC fehlgeschlagen') + '</div>';
+        } else if (balances) {
+          ['NOVA', 'MOGC'].forEach(function(sym){
+            var row = balances.find(function(r){ return r.symbol === sym; });
+            if (row) nexusHtml += mvRow(MV_CURRENCY_LABELS[sym], mvFmt(row.balance), sym === 'NOVA' ? 'blue' : 'gold');
+          });
+        }
+      } catch (nexusErr) {
+        console.error('[Meine Werte] Nexus-Werte konnten nicht geladen werden:', nexusErr);
+        nexusHtml = '<div class="mv-empty">Fehler: ' + nexusErr.message + '</div>';
       }
       document.getElementById('nexusValues').innerHTML = nexusHtml || '<div class="mv-empty">Keine Nexus-Werte gefunden</div>';
 
-      const { data: companies, error: coErr } = await mvSb.schema('foundry').rpc('get_my_companies');
-      if (!coErr && companies && companies.length) {
-        companies.forEach(function(c){
-          foundryHtml += mvRow(c.name + ' (' + c.ticker + ')', mvFmt(c.cash_reserve) + ' MOGC', 'teal');
-        });
-      } else {
-        foundryHtml = '<div class="mv-empty">Keine Firma gegründet</div>';
+      var foundryHtml = '';
+      try {
+        const { data: companies, error: coErr } = await mvSb.schema('foundry').rpc('get_my_companies');
+        if (coErr) {
+          console.error('[Meine Werte] foundry.get_my_companies Fehler:', coErr.message || coErr, coErr);
+          foundryHtml = '<div class="mv-empty">Fehler: ' + (coErr.message || 'RPC fehlgeschlagen') + '</div>';
+        } else if (companies && companies.length) {
+          companies.forEach(function(c){
+            foundryHtml += mvRow(c.name + ' (' + c.ticker + ')', mvFmt(c.cash_reserve) + ' MOGC', 'teal');
+          });
+        } else {
+          foundryHtml = '<div class="mv-empty">Keine Firma gegründet</div>';
+        }
+      } catch (foundryErr) {
+        console.error('[Meine Werte] Foundry-Werte konnten nicht geladen werden:', foundryErr);
+        foundryHtml = '<div class="mv-empty">Fehler: ' + foundryErr.message + '</div>';
       }
       document.getElementById('foundryValues').innerHTML = foundryHtml;
-
-      document.getElementById('myValuesPanel').style.display = '';
     } catch (err) {
-      console.error('Meine Werte konnten nicht geladen werden:', err);
+      console.error('[Meine Werte] konnten nicht geladen werden:', err);
     }
   }
 
