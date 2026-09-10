@@ -619,6 +619,7 @@
           <a href="../index.html">Hub</a>
           <a href="../profil.html">Profil</a>
           <a href="../raenge.html">Ränge</a>
+          <a href="../uhr.html">Sternzeit</a>
         </div>
         <div class="burger-group">
           <div class="burger-label">Spiele</div>
@@ -2108,14 +2109,30 @@ async function buyOrder(orderId, buyerCompanyId){
   clearMsg('buyMsg');
   showMsg('buyMsg', 'Kauf wird verarbeitet …', true);
   try {
-    const { error } = await sb.schema('foundry').rpc('buy_market_order', { p_order_id: orderId, p_buyer_company_id: buyerCompanyId });
+    const { data, error } = await sb.schema('foundry').rpc('buy_market_order', { p_order_id: orderId, p_buyer_company_id: buyerCompanyId });
     if (error) { showMsg('buyMsg', error.message, false); return; }
-    showMsg('buyMsg', 'Kauf erfolgreich — Ware ist unterwegs, siehe Panel „Unterwegs" oben.', true);
+    showMsg('buyMsg', 'Kauf erfolgreich — ' + paymentBreakdownText(data) + '. Ware ist unterwegs, siehe Panel „Unterwegs" oben.', true);
     await Promise.all([loadWallet(), loadInventory(), loadMarketOrders(), loadDeliveries()]);
     render();
   } catch (err) {
     showMsg('buyMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
   }
+}
+
+// Baut aus der {total, from_reserve, from_wallet}-Antwort der Kauf-RPCs einen
+// kurzen Satz, der zeigt woher das Geld kam (erst Firmen-Ruecklage, dann privat).
+function paymentBreakdownText(data){
+  if (!data || typeof data.total !== 'number' && typeof data.total !== 'string') return 'bezahlt';
+  const total = Number(data.total || 0);
+  const fromReserve = Number(data.from_reserve || 0);
+  const fromWallet = Number(data.from_wallet || 0);
+  if (fromWallet <= 0.004) {
+    return fmt2(total) + ' MOGC komplett aus der Firmen-Rücklage bezahlt';
+  }
+  if (fromReserve <= 0.004) {
+    return fmt2(total) + ' MOGC komplett aus deinem privaten Wallet bezahlt (Firmen-Rücklage war leer)';
+  }
+  return fmt2(total) + ' MOGC bezahlt — ' + fmt2(fromReserve) + ' MOGC aus der Firmen-Rücklage, ' + fmt2(fromWallet) + ' MOGC zusätzlich aus deinem privaten Wallet';
 }
 
 async function cancelOrder(orderId){
@@ -2139,9 +2156,9 @@ async function buyFromBot(companyId, resource){
   clearMsg('botMsg');
   showMsg('botMsg', 'Kauf wird verarbeitet …', true);
   try {
-    const { error } = await sb.schema('foundry').rpc('buy_from_bot_market', { p_buyer_company_id: companyId, p_resource_name: resource, p_quantity: qty });
+    const { data, error } = await sb.schema('foundry').rpc('buy_from_bot_market', { p_buyer_company_id: companyId, p_resource_name: resource, p_quantity: qty });
     if (error) { showMsg('botMsg', error.message, false); return; }
-    showMsg('botMsg', 'Eingekauft — Ware ist unterwegs, siehe Panel „Unterwegs" oben.', true);
+    showMsg('botMsg', 'Eingekauft — ' + paymentBreakdownText(data) + '. Ware ist unterwegs, siehe Panel „Unterwegs" oben.', true);
     await Promise.all([loadWallet(), loadInventory(), loadDeliveries()]);
     render();
   } catch (err) {

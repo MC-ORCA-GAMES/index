@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sternzeit — MC ORCA GAMES</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+    --gold:#D4AF37; --gold-dim:rgba(212,175,55,0.14);
+    --red:#D6303F; --red-dim:rgba(214,48,63,0.14);
+    --violet:#B23AFF; --violet-dim:rgba(178,58,255,0.14);
+    --orange:#FF6A2B; --orange-dim:rgba(255,106,43,0.14);
+    --blue:#2F8CFF; --blue-dim:rgba(47,140,255,0.14);
+    --teal:#21C7B8; --teal-dim:rgba(33,199,184,0.14);
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3,.display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--gold); color:#0a0b12; }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; } }
+
+  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
+  .wrap{ position:relative; z-index:2; max-width:1200px; margin:0 auto; padding:0 24px; }
+
+  .nav{ position:sticky; top:0; z-index:10; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1200px; margin:0 auto; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; }
+  .brand .dot{ width:22px; height:22px; border-radius:50%; flex-shrink:0; background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--blue), var(--gold)); }
+  .brand .sub{ color:var(--fg-faint); font-weight:500; font-size:12px; margin-left:8px; }
+  .back-link{ font-size:13.5px; font-weight:600; color:var(--fg-dim); padding:8px 14px; border:1px solid var(--line); border-radius:9px; transition:border-color .15s, color .15s, background .15s; }
+  .back-link:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  .hero{ padding:44px 0 8px; text-align:center; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--fg-dim); margin-bottom:6px; }
+  .eyebrow .pulse{ width:7px; height:7px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); animation:pulse 2s ease-in-out infinite; }
+  .eyebrow .pulse.err{ background:var(--red); box-shadow:0 0 8px var(--red); animation:none; }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.35; } }
+  .hint{ font-size:13px; color:var(--fg-faint); margin-bottom:26px; }
+
+  .map-panel{ position:relative; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:14px; margin-bottom:28px; overflow:hidden; transition:opacity .25s, max-height .25s, margin .25s, padding .25s; }
+  .map-panel.hidden{ opacity:0; max-height:0; padding:0; margin:0; border:0; pointer-events:none; }
+  .map-panel::before{ content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(circle at 30% 20%, rgba(47,140,255,0.10), transparent 55%), radial-gradient(circle at 75% 80%, rgba(212,175,55,0.08), transparent 55%); }
+  #worldMap{ display:block; width:100%; height:auto; position:relative; z-index:1; }
+  .grat{ stroke:var(--line); stroke-width:1; fill:none; }
+  .landmass{ fill:rgba(232,230,227,0.055); stroke:rgba(232,230,227,0.16); stroke-width:1; }
+  .marker-dot{ fill:var(--fg-faint); stroke:var(--bg); stroke-width:1.5; transition:fill .15s, r .15s; }
+  .marker-label{ font-family:'Space Grotesk'; font-size:10.5px; font-weight:600; fill:var(--fg-faint); transition:fill .15s; pointer-events:none; }
+  .marker{ cursor:pointer; }
+  .marker:hover .marker-dot{ fill:var(--fg); r:6; }
+  .marker:hover .marker-label{ fill:var(--fg); }
+  .marker.active .marker-dot{ fill:var(--m-color); r:7; }
+  .marker.active .marker-label{ fill:var(--m-color); font-weight:700; }
+  .marker-ring{ fill:none; stroke:var(--m-color); stroke-width:1.5; opacity:0; }
+  .marker.active .marker-ring{ opacity:0.85; animation:ring 1.8s ease-out infinite; }
+  @keyframes ring{ 0%{ r:7; opacity:0.85; stroke-width:2; } 100%{ r:20; opacity:0; stroke-width:0.5; } }
+
+  .selected-panel{ background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:36px 24px; text-align:center; margin-bottom:24px; }
+  .sel-city{ font-family:'Space Grotesk'; font-weight:700; font-size:19px; margin-bottom:2px; }
+  .sel-region{ font-size:12.5px; color:var(--fg-faint); margin-bottom:18px; }
+  .clock-display{ font-family:'Space Grotesk'; font-weight:700; letter-spacing:0.01em; font-size:clamp(52px, 11vw, 118px); line-height:1; margin:4px 0; background:linear-gradient(100deg, var(--gold), var(--red) 34%, var(--violet) 66%, var(--orange)); -webkit-background-clip:text; background-clip:text; color:transparent; font-variant-numeric:tabular-nums; }
+  .clock-ms{ font-size:0.32em; color:var(--fg-faint); -webkit-text-fill-color:var(--fg-faint); margin-left:6px; }
+  .clock-date{ font-size:15px; color:var(--fg-dim); font-weight:500; margin-bottom:4px; }
+  .clock-tz{ font-size:12.5px; color:var(--fg-faint); }
+  .sync-note{ font-size:12px; color:var(--fg-faint); margin-top:20px; }
+  .sync-note b{ color:var(--fg-dim); font-weight:600; }
+  .empty-hint{ color:var(--fg-dim); font-size:14.5px; padding:20px 0; }
+  .change-btn{ margin-top:18px; font-size:12.5px; font-weight:600; color:var(--fg-dim); padding:8px 14px; border:1px solid var(--line); border-radius:9px; cursor:pointer; background:transparent; transition:border-color .15s, color .15s, background .15s; font-family:'Inter'; }
+  .change-btn:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- Meine Werte (privat, nur bei bestehender Anmeldung) ---------- */
+  .my-values{ background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px 24px; margin-bottom:28px; display:none; }
+  .my-values-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+  .mv-title{ font-family:'Space Grotesk'; font-weight:700; font-size:15px; }
+  .mv-meta{ font-size:11.5px; color:var(--fg-faint); }
+  .mv-groups{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:22px; }
+  .mv-group-label{ font-family:'Space Grotesk'; font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-dim); margin-bottom:10px; }
+  .mv-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .mv-row:last-child{ border-bottom:none; }
+  .mv-dot{ width:7px; height:7px; border-radius:50%; background:var(--mv-color); box-shadow:0 0 7px var(--mv-color); flex-shrink:0; }
+  .mv-label{ font-size:13px; color:var(--fg); flex:1; }
+  .mv-value{ font-family:'Space Grotesk'; font-size:13.5px; font-weight:700; color:var(--mv-color); font-variant-numeric:tabular-nums; text-align:right; }
+  .mv-empty{ font-size:12.5px; color:var(--fg-faint); }
+
+  /* ---------- Tick-Infotafel ---------- */
+  .tick-board{ background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px 24px; margin-bottom:40px; }
+  .tick-board-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+  .tick-board-title{ font-family:'Space Grotesk'; font-weight:700; font-size:15px; }
+  .tick-board-meta{ font-size:11.5px; color:var(--fg-faint); }
+  .tick-groups{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:22px; }
+  .tick-group-label{ font-family:'Space Grotesk'; font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-dim); margin-bottom:10px; }
+  .tick-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .tick-row:last-child{ border-bottom:none; }
+  .tick-dot{ width:7px; height:7px; border-radius:50%; background:var(--t-color); box-shadow:0 0 7px var(--t-color); flex-shrink:0; }
+  .tick-label{ font-size:13px; color:var(--fg); flex:1; }
+  .tick-interval{ font-size:11px; color:var(--fg-faint); margin-right:4px; }
+  .tick-countdown{ font-family:'Space Grotesk'; font-size:13.5px; font-weight:700; color:var(--t-color); font-variant-numeric:tabular-nums; min-width:48px; text-align:right; }
+
+  footer{ border-top:1px solid var(--line); padding:28px 0 40px; margin-top:20px; }
+  .foot-inner{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .foot-brand{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; color:var(--fg-dim); }
+  .foot-meta{ font-size:12px; color:var(--fg-faint); }
+
+  html{ scrollbar-color:#3a3d4d var(--bg); scrollbar-width:thin; }
+  ::-webkit-scrollbar{ width:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:#2a2d3d; border-radius:8px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:#3a3d4d; }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html"><span class="dot"></span> MC ORCA GAMES <span class="sub">Sternzeit</span></a>
+    <a class="back-link" href="index.html">← Zurück zum Hub</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow"><span class="pulse" id="syncDot"></span><span id="syncLabel">Live-Synchronisation</span></div>
+    <div class="hint" id="heroHint">Klicke auf einen Ort auf der Karte, um nur dessen Uhrzeit zu sehen.</div>
+  </section>
+
+  <div class="map-panel" id="mapPanel">
+    <svg id="worldMap" viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Weltkarte mit Zeitzonen-Orten"></svg>
+  </div>
+
+  <section class="selected-panel" id="selectedPanel">
+    <div class="empty-hint">Wähle einen Ort auf der Karte …</div>
+  </section>
+
+  <section class="my-values" id="myValuesPanel">
+    <div class="my-values-head">
+      <div class="mv-title">Meine Werte</div>
+      <div class="mv-meta">Nur für dich sichtbar, wenn du bereits in einem Spiel angemeldet bist</div>
+    </div>
+    <div class="mv-groups">
+      <div>
+        <div class="mv-group-label">Nexus</div>
+        <div id="nexusValues"></div>
+      </div>
+      <div>
+        <div class="mv-group-label">Foundry</div>
+        <div id="foundryValues"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tick-board">
+    <div class="tick-board-head">
+      <div class="tick-board-title">Tick-Infotafel</div>
+      <div class="tick-board-meta" id="tickMeta">Intervalle aus der Supabase-Cron-Konfiguration</div>
+    </div>
+    <div class="tick-groups">
+      <div>
+        <div class="tick-group-label">Nexus</div>
+        <div id="nexusTicks"></div>
+      </div>
+      <div>
+        <div class="tick-group-label">Foundry</div>
+        <div id="foundryTicks"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="foot-inner">
+      <div class="foot-brand">MC ORCA GAMES</div>
+      <div class="foot-meta">Uhrzeit via timeapi.io / worldtimeapi.org · Tick-Intervalle aus Supabase-Cron · „Meine Werte" nur bei bestehender Anmeldung, sonst keine Datenbank-Anbindung</div>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  // ---------- starfield ----------
+  (function(){
+    var canvas = document.getElementById('stars');
+    var ctx = canvas.getContext('2d');
+    var stars = [];
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function resize(){
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      var count = Math.floor((canvas.width * canvas.height) / 9000);
+      stars = [];
+      for(var i=0;i<count;i++){
+        stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*1.3+0.2, a: Math.random()*0.6+0.15, tw: Math.random()*0.015+0.003, dir: Math.random()>0.5?1:-1 });
+      }
+    }
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(var i=0;i<stars.length;i++){
+        var s = stars[i];
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle = 'rgba(232,230,227,'+s.a.toFixed(3)+')'; ctx.fill();
+        if(!reduceMotion){ s.a += s.tw*s.dir; if(s.a>0.75||s.a<0.1) s.dir*=-1; }
+      }
+      if(!reduceMotion) requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize); resize(); draw();
+  })();
+
+  // ---------- Projektion (Lat/Lon -> 1000x500) ----------
+  function project(lat, lon){ return { x: (lon+180)/360*1000, y: (90-lat)/180*500 }; }
+  function pointsAttr(coords){
+    return coords.map(function(c){ var p = project(c[0], c[1]); return p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ');
+  }
+
+  var CONTINENTS = [
+    [[71,-156],[71,-125],[60,-95],[49,-123],[40,-124],[32,-117],[20,-105],[9,-79],[18,-88],[25,-97],[30,-81],[35,-76],[45,-67],[47,-52],[60,-65],[68,-80],[71,-156]],
+    [[60,-45],[70,-54],[80,-35],[83,-25],[75,-20],[65,-40],[60,-45]],
+    [[12,-72],[10,-61],[5,-52],[-5,-35],[-15,-39],[-23,-43],[-34,-58],[-52,-68],[-55,-70],[-45,-74],[-30,-71],[-18,-70],[-4,-81],[3,-78],[12,-72]],
+    [[36,-9],[43,-9],[48,-5],[51,2],[55,8],[58,10],[63,10],[69,20],[66,30],[60,30],[52,40],[45,38],[42,28],[37,23],[38,15],[44,13],[43,7],[41,2],[36,-9]],
+    [[37,-6],[35,10],[33,20],[32,32],[22,38],[12,43],[2,42],[-5,40],[-15,40],[-26,33],[-34,20],[-30,17],[-22,14],[-17,12],[-5,10],[5,9],[10,-8],[15,-17],[25,-16],[32,-9],[37,-6]],
+    [[45,35],[55,37],[60,55],[66,60],[70,75],[77,95],[73,130],[66,170],[60,163],[52,158],[45,140],[35,129],[31,121],[23,121],[10,109],[1,104],[6,95],[13,80],[8,77],[20,73],[24,68],[30,48],[29,34],[33,35],[37,29],[41,29],[45,35]],
+    [[-11,131],[-12,142],[-17,146],[-27,153],[-33,151],[-38,145],[-35,138],[-32,115],[-25,113],[-20,116],[-15,124],[-11,131]]
+  ];
+
+  var ACCENTS = ['gold','red','violet','orange','blue','teal'];
+
+  var RAW_CITIES = [
+    { tz:'Europe/Berlin',        city:'Berlin',       region:'Heimat-Basis · DE',       lat:52.5,  lon:13.4 },
+    { tz:'Europe/London',        city:'London',       region:'Vereinigtes Königreich',  lat:51.5,  lon:-0.1 },
+    { tz:'Europe/Moscow',        city:'Moskau',       region:'Russland',                lat:55.8,  lon:37.6 },
+    { tz:'America/New_York',     city:'New York',     region:'USA · Ostküste',          lat:40.7,  lon:-74.0 },
+    { tz:'America/Los_Angeles',  city:'Los Angeles',  region:'USA · Westküste',         lat:34.0,  lon:-118.2 },
+    { tz:'America/Sao_Paulo',    city:'São Paulo',    region:'Brasilien',               lat:-23.5, lon:-46.6 },
+    { tz:'Africa/Johannesburg',  city:'Kapstadt',     region:'Südafrika',               lat:-33.9, lon:18.4 },
+    { tz:'Asia/Dubai',           city:'Dubai',        region:'Vereinigte Arab. Emirate',lat:25.2,  lon:55.3 },
+    { tz:'Asia/Kolkata',         city:'Mumbai',       region:'Indien',                  lat:19.1,  lon:72.9 },
+    { tz:'Asia/Shanghai',        city:'Peking',       region:'China',                   lat:39.9,  lon:116.4 },
+    { tz:'Asia/Tokyo',           city:'Tokio',        region:'Japan',                   lat:35.7,  lon:139.7 },
+    { tz:'Australia/Sydney',     city:'Sydney',       region:'Australien',              lat:-33.9, lon:151.2 }
+  ];
+
+  var CITIES = RAW_CITIES.map(function(c, i){
+    var p = project(c.lat, c.lon);
+    return Object.assign({}, c, { x:p.x, y:p.y, accent: ACCENTS[i % ACCENTS.length] });
+  });
+
+  function buildMap(){
+    var svg = document.getElementById('worldMap');
+    var ns = 'http://www.w3.org/2000/svg';
+    var frag = document.createDocumentFragment();
+
+    for(var lon=-180; lon<=180; lon+=30){
+      var x = (lon+180)/360*1000;
+      var l = document.createElementNS(ns,'line');
+      l.setAttribute('class','grat'); l.setAttribute('x1',x); l.setAttribute('y1',0); l.setAttribute('x2',x); l.setAttribute('y2',500);
+      frag.appendChild(l);
+    }
+    for(var lat=-90; lat<=90; lat+=30){
+      var y = (90-lat)/180*500;
+      var l2 = document.createElementNS(ns,'line');
+      l2.setAttribute('class','grat'); l2.setAttribute('x1',0); l2.setAttribute('y1',y); l2.setAttribute('x2',1000); l2.setAttribute('y2',y);
+      frag.appendChild(l2);
+    }
+
+    CONTINENTS.forEach(function(coords){
+      var poly = document.createElementNS(ns,'polygon');
+      poly.setAttribute('class','landmass');
+      poly.setAttribute('points', pointsAttr(coords));
+      frag.appendChild(poly);
+    });
+
+    CITIES.forEach(function(c){
+      var g = document.createElementNS(ns,'g');
+      g.setAttribute('class','marker'); g.setAttribute('tabindex','0'); g.setAttribute('role','button');
+      g.setAttribute('aria-label', c.city + ' auswählen');
+      g.style.setProperty('--m-color', 'var(--'+c.accent+')');
+      g.dataset.tz = c.tz;
+
+      var ring = document.createElementNS(ns,'circle');
+      ring.setAttribute('class','marker-ring'); ring.setAttribute('cx',c.x); ring.setAttribute('cy',c.y); ring.setAttribute('r',7);
+      g.appendChild(ring);
+
+      var dot = document.createElementNS(ns,'circle');
+      dot.setAttribute('class','marker-dot'); dot.setAttribute('cx',c.x); dot.setAttribute('cy',c.y); dot.setAttribute('r',5);
+      g.appendChild(dot);
+
+      var label = document.createElementNS(ns,'text');
+      label.setAttribute('class','marker-label'); label.setAttribute('x', c.x+9); label.setAttribute('y', c.y+4);
+      label.textContent = c.city;
+      g.appendChild(label);
+
+      function activate(){ selectCity(c); }
+      g.addEventListener('click', activate);
+      g.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); activate(); } });
+
+      frag.appendChild(g);
+    });
+
+    svg.appendChild(frag);
+  }
+
+  // ---------- Zeit-Engine (Anzeige-Uhr für den gewählten Ort) ----------
+  var selected = null, record = null, usingFallback = false, rafId = null;
+
+  async function fetchTimeApiIo(tz){
+    var res = await fetch('https://timeapi.io/api/time/current/zone?timeZone=' + encodeURIComponent(tz));
+    if(!res.ok) throw new Error('timeapi.io ' + res.status);
+    var data = await res.json();
+    var parts = data.dateTime.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.(\d+))?/);
+    if(!parts) throw new Error('timeapi.io parse');
+    return { localMs: Date.UTC(+parts[1], +parts[2]-1, +parts[3], +parts[4], +parts[5], +parts[6], parts[8] ? +((parts[8]+'000').slice(0,3)) : 0), source:'timeapi.io' };
+  }
+  async function fetchWorldTimeApi(tz){
+    var res = await fetch('https://worldtimeapi.org/api/timezone/' + tz);
+    if(!res.ok) throw new Error('worldtimeapi ' + res.status);
+    var data = await res.json();
+    var utcMs = Date.parse(data.utc_datetime);
+    var offsetSec = data.raw_offset + (data.dst ? data.dst_offset : 0);
+    return { localMs: utcMs + offsetSec*1000, source:'worldtimeapi.org' };
+  }
+  async function fetchZoneTime(tz){
+    try{ return await fetchTimeApiIo(tz); }
+    catch(e){ try{ return await fetchWorldTimeApi(tz); } catch(e2){ return null; } }
+  }
+  function nowLocalMs(){ if(!record) return Date.now(); return record.localMs + (performance.now() - record.perfBase); }
+  function formatFromLocalMs(localMs){
+    var d = new Date(localMs);
+    var hh = String(d.getUTCHours()).padStart(2,'0'), mm = String(d.getUTCMinutes()).padStart(2,'0'), ss = String(d.getUTCSeconds()).padStart(2,'0');
+    var ms = String(d.getUTCMilliseconds()).padStart(3,'0').slice(0,2);
+    var days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+    var months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    return { hh:hh, mm:mm, ss:ss, ms:ms, dateStr: days[d.getUTCDay()]+', '+d.getUTCDate()+'. '+months[d.getUTCMonth()]+' '+d.getUTCFullYear() };
+  }
+
+  function showMap(show){
+    document.getElementById('mapPanel').classList.toggle('hidden', !show);
+    document.getElementById('heroHint').textContent = show
+      ? 'Klicke auf einen Ort auf der Karte, um nur dessen Uhrzeit zu sehen.'
+      : 'Nur die gewählte Zeit wird angezeigt.';
+  }
+
+  function renderSelectedPanel(){
+    var panel = document.getElementById('selectedPanel');
+    panel.innerHTML =
+      '<div class="sel-city" id="selCity"></div>' +
+      '<div class="sel-region" id="selRegion"></div>' +
+      '<div class="clock-display" id="clockMain">--:--:--<span class="clock-ms" id="clockMs">.00</span></div>' +
+      '<div class="clock-date" id="clockDate">—</div>' +
+      '<div class="clock-tz" id="clockTzLabel">—</div>' +
+      '<div class="sync-note" id="syncNote">Verbinde mit externer Zeit-API …</div>' +
+      '<button class="change-btn" id="changeBtn" type="button">← Anderen Ort wählen</button>';
+    document.getElementById('changeBtn').addEventListener('click', function(){ showMap(true); });
+  }
+
+  async function selectCity(city){
+    selected = city;
+    document.querySelectorAll('.marker').forEach(function(m){ m.classList.toggle('active', m.dataset.tz === city.tz); });
+    renderSelectedPanel();
+    document.getElementById('selCity').textContent = city.city;
+    document.getElementById('selRegion').textContent = city.region + ' · ' + city.tz;
+    showMap(false);
+    if(rafId) cancelAnimationFrame(rafId);
+    await syncSelected();
+    tickLoop();
+  }
+
+  async function syncSelected(){
+    if(!selected) return;
+    var syncDot = document.getElementById('syncDot'), syncLabel = document.getElementById('syncLabel'), syncNote = document.getElementById('syncNote');
+    var result = await fetchZoneTime(selected.tz);
+    if(result){
+      record = { localMs: result.localMs, perfBase: performance.now() }; usingFallback = false;
+      if(syncDot) syncDot.classList.remove('err');
+      if(syncLabel) syncLabel.textContent = 'Live-Synchronisation';
+      if(syncNote) syncNote.innerHTML = 'Quelle: <b>' + result.source + '</b> · zuletzt synchronisiert um ' + new Date().toLocaleTimeString('de-DE');
+    } else {
+      usingFallback = true;
+      if(syncDot) syncDot.classList.add('err');
+      if(syncLabel) syncLabel.textContent = 'Keine Verbindung zur Zeit-API';
+      if(syncNote) syncNote.innerHTML = 'Zeige stattdessen die <b>Geräteuhr</b> — externe Quelle nicht erreichbar.';
+    }
+  }
+
+  function tickLoop(){
+    var clockMain = document.getElementById('clockMain');
+    if(!clockMain) return;
+    var clockMs = document.getElementById('clockMs'), clockDate = document.getElementById('clockDate'), clockTzLabel = document.getElementById('clockTzLabel');
+    var localMs = usingFallback ? Date.now() : nowLocalMs();
+    var f = formatFromLocalMs(localMs);
+    clockMain.firstChild.textContent = f.hh + ':' + f.mm + ':' + f.ss;
+    if(clockMs) clockMs.textContent = '.' + f.ms;
+    if(clockDate) clockDate.textContent = f.dateStr;
+    if(clockTzLabel) clockTzLabel.textContent = selected.tz + (usingFallback ? ' (Geräteuhr, ungefähr)' : '');
+    rafId = requestAnimationFrame(tickLoop);
+  }
+
+  buildMap();
+  selectCity(CITIES[0]);
+  setInterval(function(){ if(selected) syncSelected(); }, 60000);
+
+  // ---------- Tick-Infotafel: echte Cron-Intervalle aus der Supabase-Konfiguration ----------
+  // (Werte 1:1 aus cron.job übernommen — crypto_farm = Nexus, foundry = Foundry)
+  var TICKS = {
+    nexus: [
+      { label:'Kryptomarkt-Tick',              type:'every', minutes:5,  accent:'blue' },
+      { label:'Farm-Sammlung (NRC/RELAY/PULSE)', type:'every', minutes:5, accent:'teal' },
+      { label:'Erfolge-Check',                  type:'every', minutes:15, accent:'violet' },
+      { label:'Tages-/Saison-/Feiertags-Quests', type:'every', minutes:15, accent:'orange' },
+      { label:'Aktienmarkt-Tick',               type:'every', minutes:5,  accent:'red' },
+      { label:'Zins-Tick (Anchor/Stable/Nova-Vault)', type:'hourly', accent:'blue' }
+    ],
+    foundry: [
+      { label:'Firmen-Tick (Quartalslogik, Umsatz, Forderungen)', type:'every', minutes:10, accent:'gold' }
+    ]
+  };
+
+  var utcRecord = null, utcFallback = false;
+
+  function nowUtcMs(){
+    if(!utcRecord || utcFallback) return Date.now();
+    return utcRecord.localMs + (performance.now() - utcRecord.perfBase);
+  }
+
+  async function syncUtc(){
+    var result = await fetchZoneTime('UTC');
+    var meta = document.getElementById('tickMeta');
+    if(result){
+      utcRecord = { localMs: result.localMs, perfBase: performance.now() };
+      utcFallback = false;
+      if(meta) meta.textContent = 'Intervalle aus der Supabase-Cron-Konfiguration · Referenzzeit UTC live synchronisiert';
+    } else {
+      utcFallback = true;
+      if(meta) meta.textContent = 'Intervalle aus der Supabase-Cron-Konfiguration · Referenzzeit: Geräteuhr (ungefähr)';
+    }
+  }
+
+  function nextRunMs(spec, nowMs){
+    if(spec.type === 'hourly'){
+      var H = 3600000;
+      return Math.ceil((nowMs + 1) / H) * H;
+    }
+    var N = spec.minutes * 60000;
+    return Math.ceil((nowMs + 1) / N) * N;
+  }
+
+  function formatCountdown(ms){
+    var totalSec = Math.max(0, Math.floor(ms / 1000));
+    var mm = Math.floor(totalSec / 60);
+    var ss = totalSec % 60;
+    return String(mm).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+  }
+
+  function renderTickGroup(containerId, list){
+    var container = document.getElementById(containerId);
+    container.innerHTML = list.map(function(t, i){
+      var intervalText = t.type === 'hourly' ? 'stündlich' : ('alle ' + t.minutes + ' Min');
+      return '<div class="tick-row" style="--t-color:var(--' + t.accent + ')" data-idx="' + i + '">' +
+        '<span class="tick-dot"></span>' +
+        '<span class="tick-label">' + t.label + '</span>' +
+        '<span class="tick-interval">' + intervalText + '</span>' +
+        '<span class="tick-countdown" id="' + containerId + '-cd-' + i + '">--:--</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function tickBoardLoop(){
+    var now = nowUtcMs();
+    ['nexus','foundry'].forEach(function(group){
+      var containerId = group + 'Ticks';
+      TICKS[group].forEach(function(t, i){
+        var el = document.getElementById(containerId + '-cd-' + i);
+        if(!el) return;
+        el.textContent = formatCountdown(nextRunMs(t, now) - now);
+      });
+    });
+    requestAnimationFrame(tickBoardLoop);
+  }
+
+  renderTickGroup('nexusTicks', TICKS.nexus);
+  renderTickGroup('foundryTicks', TICKS.foundry);
+  syncUtc().then(tickBoardLoop);
+  setInterval(syncUtc, 60000);
+
+  // ---------- Meine Werte (privat, gleicher Account wie andere Spiele) ----------
+  // Nutzt dieselbe Supabase-Session wie nexus/game.html und foundry/game.html
+  // (gleicher Origin + Standard-Storage-Key von supabase-js -> Session wird
+  // automatisch geteilt, wenn man dort schon eingeloggt ist. Kein eigenes
+  // Login hier, rein lesend, nur eigene RLS-geschuetzte Daten.)
+  const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  const mvSb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true }
+  });
+
+  const MV_CURRENCY_LABELS = { NOVA: 'Nova-Rift (NRC)', MOGC: 'MOGC' };
+
+  function mvFmt(n){
+    var v = Number(n) || 0;
+    return v.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+  }
+
+  function mvRow(label, value, accent){
+    return '<div class="mv-row" style="--mv-color:var(--' + accent + ')">' +
+      '<span class="mv-dot"></span>' +
+      '<span class="mv-label">' + label + '</span>' +
+      '<span class="mv-value">' + value + '</span>' +
+      '</div>';
+  }
+
+  async function loadMyValues(){
+    try {
+      const { data: sessionData } = await mvSb.auth.getSession();
+      if (!sessionData || !sessionData.session) return; // nicht eingeloggt -> Panel bleibt versteckt
+
+      var nexusHtml = '';
+      var foundryHtml = '';
+
+      const { data: balances, error: balErr } = await mvSb.schema('platform').rpc('get_my_wallet_balances');
+      if (!balErr && balances) {
+        ['NOVA', 'MOGC'].forEach(function(sym){
+          var row = balances.find(function(r){ return r.symbol === sym; });
+          if (row) nexusHtml += mvRow(MV_CURRENCY_LABELS[sym], mvFmt(row.balance), sym === 'NOVA' ? 'blue' : 'gold');
+        });
+      }
+      document.getElementById('nexusValues').innerHTML = nexusHtml || '<div class="mv-empty">Keine Nexus-Werte gefunden</div>';
+
+      const { data: companies, error: coErr } = await mvSb.schema('foundry').rpc('get_my_companies');
+      if (!coErr && companies && companies.length) {
+        companies.forEach(function(c){
+          foundryHtml += mvRow(c.name + ' (' + c.ticker + ')', mvFmt(c.cash_reserve) + ' MOGC', 'teal');
+        });
+      } else {
+        foundryHtml = '<div class="mv-empty">Keine Firma gegründet</div>';
+      }
+      document.getElementById('foundryValues').innerHTML = foundryHtml;
+
+      document.getElementById('myValuesPanel').style.display = '';
+    } catch (err) {
+      console.error('Meine Werte konnten nicht geladen werden:', err);
+    }
+  }
+
+  loadMyValues();
+</script>
+
+</body>
+</html>
