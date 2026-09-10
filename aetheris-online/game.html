@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aetheris Online — Beta</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0b12; --panel:#151726; --panel2:#1b1e30; --line:rgba(232,230,227,0.09);
+  --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+  --accent:#D4AF37; --accent-dim:rgba(212,175,55,0.14);
+  --metal:#9fb0c3; --crystal:#e05b5b; --deut:#5bc9e0; --energy:#e0c85b;
+  --ok:#3ecf8e; --warn:#e0a13e; --bad:#e05b5b;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',sans-serif; min-height:100vh;}
+.wrap{max-width:820px; margin:0 auto; padding:32px 20px 80px;}
+h1{font-family:'Space Grotesk'; font-size:22px; margin:0 0 4px;}
+.sub{color:var(--fg-dim); font-size:13.5px; margin-bottom:28px;}
+.badge{display:inline-block; font-size:11px; font-family:'Space Grotesk'; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); background:var(--accent-dim); padding:3px 9px; border-radius:99px; margin-left:8px; vertical-align:middle;}
+
+/* ---------- Login ---------- */
+.login-box{max-width:360px; margin:80px auto; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px;}
+.login-box h2{font-family:'Space Grotesk'; font-size:17px; margin:0 0 6px;}
+.login-box p{color:var(--fg-dim); font-size:13px; margin:0 0 18px;}
+input[type=email], input[type=text]{
+  width:100%; padding:11px 13px; border-radius:10px; border:1px solid var(--line); background:var(--panel2);
+  color:var(--fg); font-family:'Inter'; font-size:14px; margin-bottom:10px;
+}
+button{
+  font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; border:none; border-radius:10px;
+  padding:10px 16px; cursor:pointer; background:var(--accent); color:#0a0b12; transition:filter .15s;
+}
+button:hover{filter:brightness(1.1);}
+button:disabled{opacity:.4; cursor:not-allowed; filter:none;}
+button.ghost{background:transparent; border:1px solid var(--line); color:var(--fg);}
+.status-msg{font-size:12.5px; margin-top:10px; min-height:16px;}
+.status-msg.err{color:var(--bad);}
+.status-msg.ok{color:var(--ok);}
+
+/* ---------- Resource bar ---------- */
+.res-row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:22px;}
+.res-card{flex:1; min-width:140px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px;}
+.res-card .lbl{font-size:11px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:.04em; font-family:'Space Grotesk'; font-weight:600;}
+.res-card .val{font-family:'Space Grotesk'; font-size:18px; font-weight:700; margin-top:2px;}
+.res-card .cap{font-size:11px; color:var(--fg-faint); margin-top:2px;}
+.res-card.metal .val{color:var(--metal);}
+.res-card.crystal .val{color:var(--crystal);}
+.res-card.deut .val{color:var(--deut);}
+.res-bar{height:4px; border-radius:99px; background:var(--line); margin-top:8px; overflow:hidden;}
+.res-bar-fill{height:100%; border-radius:99px;}
+.metal .res-bar-fill{background:var(--metal);}
+.crystal .res-bar-fill{background:var(--crystal);}
+.deut .res-bar-fill{background:var(--deut);}
+
+.energy-row{display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:22px;}
+.energy-row .lbl{font-family:'Space Grotesk'; font-size:12.5px; font-weight:600; color:var(--energy);}
+.energy-row .fig{margin-left:auto; font-family:'Space Grotesk'; font-size:13px;}
+.energy-row .fig.bad{color:var(--bad);}
+.energy-row .fig.ok{color:var(--ok);}
+
+.queue-banner{background:var(--accent-dim); border:1px solid rgba(212,175,55,.35); border-radius:12px; padding:12px 14px; margin-bottom:22px; font-size:13.5px; display:flex; justify-content:space-between; align-items:center;}
+.queue-banner b{color:var(--accent);}
+.queue-banner .countdown{font-family:'Space Grotesk'; font-weight:700;}
+
+/* ---------- Buildings ---------- */
+.building{display:flex; align-items:center; gap:14px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:8px;}
+.building .name{font-family:'Space Grotesk'; font-weight:600; font-size:14px;}
+.building .lvl{font-size:12px; color:var(--fg-dim); margin-top:2px;}
+.building .info{flex:1; min-width:0;}
+.building .cost{font-size:12px; color:var(--fg-faint); margin-top:4px;}
+.building .cost span{margin-right:10px;}
+.building button{flex-shrink:0;}
+.building.locked{opacity:.45;}
+.building .req{font-size:11.5px; color:var(--warn); margin-top:4px;}
+
+.hidden{display:none !important;}
+a.back{color:var(--fg-dim); font-size:13px; text-decoration:none;}
+a.back:hover{color:var(--fg);}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <a class="back" href="index.html">&larr; Aetheris Online</a>
+
+  <div id="loginView" class="login-box">
+    <h2>Anmelden</h2>
+    <p>Gleicher Account wie bei allen MC ORCA Games.</p>
+    <div id="emailStep">
+      <input type="email" id="emailInput" placeholder="deine@email.de" autocomplete="email">
+      <button id="sendCodeBtn" style="width:100%;">Code senden</button>
+    </div>
+    <div id="codeStep" class="hidden">
+      <input type="text" id="codeInput" placeholder="6-stelliger Code" autocomplete="one-time-code">
+      <button id="verifyCodeBtn" style="width:100%;">Bestätigen</button>
+    </div>
+    <div id="loginStatus" class="status-msg"></div>
+  </div>
+
+  <div id="gameView" class="hidden">
+    <h1>Aetheris Online <span class="badge">Beta — Kern-Loop</span></h1>
+    <p class="sub" id="colonyName">Heimatwelt</p>
+
+    <div id="queueBanner" class="queue-banner hidden">
+      <span>Baut: <b id="queueLabel">—</b></span>
+      <span class="countdown" id="queueCountdown">—</span>
+    </div>
+
+    <div class="res-row">
+      <div class="res-card metal">
+        <div class="lbl">Metall</div>
+        <div class="val" id="metalVal">0</div>
+        <div class="cap" id="metalCap">von 0</div>
+        <div class="res-bar"><div class="res-bar-fill" id="metalBar" style="width:0%"></div></div>
+      </div>
+      <div class="res-card crystal">
+        <div class="lbl">Kristall</div>
+        <div class="val" id="crystalVal">0</div>
+        <div class="cap" id="crystalCap">von 0</div>
+        <div class="res-bar"><div class="res-bar-fill" id="crystalBar" style="width:0%"></div></div>
+      </div>
+      <div class="res-card deut">
+        <div class="lbl">Deuterium</div>
+        <div class="val" id="deutVal">0</div>
+        <div class="cap" id="deutCap">von 0</div>
+        <div class="res-bar"><div class="res-bar-fill" id="deutBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="energy-row">
+      <span class="lbl">⚡ Energie</span>
+      <span class="fig" id="energyFig">0 / 0</span>
+    </div>
+
+    <div id="buildingList"></div>
+    <div id="gameStatus" class="status-msg"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Gebaeude-Katalog rein fuers Frontend-Label/Icon -- Kosten/Formeln kommen
+  // ausschliesslich vom Server (aetheris_online.get_my_colony / start_building_upgrade),
+  // der Client rechnet hier bewusst NICHTS Autoritatives selbst.
+  var BUILDING_META = {
+    metalMine:       { name:'Metallmine', icon:'⛏' },
+    crystalMine:     { name:'Kristallmine', icon:'◆' },
+    deutSynth:       { name:'Deuterium Synt', icon:'⬡' },
+    solarPlant:      { name:'Solarkraftwerk', icon:'⚡' },
+    metalStorage:    { name:'Metallspeicher', icon:'▣' },
+    crystalStorage:  { name:'Kristallspeicher', icon:'▣' },
+    deutTank:        { name:'Deuteriumtank', icon:'▣' },
+    researchLab:     { name:'Forschungslabor', icon:'🔬' },
+    roboticsFactory: { name:'Robotikfabrik', icon:'🤖' },
+    shipyard:        { name:'Werft', icon:'🏗' },
+    solarSatellite:  { name:'Solarsatellit', icon:'🛰' }
+  };
+  var BUILD_ORDER = ['metalMine','crystalMine','deutSynth','solarPlant','solarSatellite','metalStorage','crystalStorage','deutTank','researchLab','roboticsFactory','shipyard'];
+  var REQ_LABEL = { roboticsFactory: 'Robotikfabrik' };
+
+  // Nur fuer die Kosten-Vorschau im UI -- 1:1 dieselbe Formel wie im Server
+  // (aetheris_online._upgrade_cost). Die tatsaechliche Pruefung/Buchung passiert
+  // ausschliesslich serverseitig in start_building_upgrade().
+  var COST_DEFS = {
+    metalMine:       { metal:60,   crystal:15,   deuterium:0,   factor:1.5 },
+    crystalMine:     { metal:48,   crystal:24,   deuterium:0,   factor:1.6 },
+    deutSynth:       { metal:225,  crystal:75,   deuterium:0,   factor:1.5 },
+    solarPlant:      { metal:75,   crystal:30,   deuterium:0,   factor:1.5 },
+    metalStorage:    { metal:1000, crystal:0,    deuterium:0,   factor:2 },
+    crystalStorage:  { metal:1000, crystal:500,  deuterium:0,   factor:2 },
+    deutTank:        { metal:1000, crystal:1000, deuterium:0,   factor:2 },
+    researchLab:     { metal:200,  crystal:400,  deuterium:0,   factor:2 },
+    roboticsFactory: { metal:400,  crystal:120,  deuterium:0,   factor:2 },
+    shipyard:        { metal:400,  crystal:200,  deuterium:0,   factor:2 },
+    solarSatellite:  { metal:0,    crystal:2000, deuterium:500, factor:1 }
+  };
+  function costAtLevel(key, lvl){
+    var d = COST_DEFS[key];
+    var f = Math.pow(d.factor, lvl);
+    return { metal: Math.floor(d.metal*f), crystal: Math.floor(d.crystal*f), deuterium: Math.floor(d.deuterium*f) };
+  }
+
+  var currentUser = null;
+  var pendingEmail = null;
+  var pollTimer = null;
+  var lastColony = null;
+
+  function setStatus(id, msg, isErr){
+    var el = document.getElementById(id);
+    el.textContent = msg || '';
+    el.className = 'status-msg' + (msg ? (isErr ? ' err' : ' ok') : '');
+  }
+  function fmt(n){ n = Number(n)||0; return n.toLocaleString('de-DE', { maximumFractionDigits: 0 }); }
+
+  document.getElementById('sendCodeBtn').addEventListener('click', async function(){
+    var email = document.getElementById('emailInput').value.trim();
+    if(!email){ setStatus('loginStatus', 'Bitte E-Mail eingeben.', true); return; }
+    setStatus('loginStatus', 'Sende Code …', false);
+    try{
+      var res = await sb.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error) throw res.error;
+      pendingEmail = email;
+      document.getElementById('emailStep').classList.add('hidden');
+      document.getElementById('codeStep').classList.remove('hidden');
+      setStatus('loginStatus', 'Code gesendet — check dein Postfach.', false);
+    }catch(err){ setStatus('loginStatus', err.message || String(err), true); }
+  });
+
+  document.getElementById('verifyCodeBtn').addEventListener('click', async function(){
+    var code = document.getElementById('codeInput').value.trim();
+    if(!code){ setStatus('loginStatus', 'Bitte Code eingeben.', true); return; }
+    setStatus('loginStatus', 'Prüfe …', false);
+    try{
+      var res = await sb.auth.verifyOtp({ email: pendingEmail, token: code, type:'email' });
+      if(res.error) throw res.error;
+      currentUser = res.data.user;
+      await enterGame();
+    }catch(err){ setStatus('loginStatus', err.message || String(err), true); }
+  });
+
+  async function enterGame(){
+    document.getElementById('loginView').classList.add('hidden');
+    document.getElementById('gameView').classList.remove('hidden');
+    setStatus('gameStatus', 'Lade Kolonie …', false);
+    try{
+      // Legt beim allerersten Login eine Heimatwelt an; ruft man es erneut auf,
+      // gibt die Funktion einfach die bestehende Kolonie zurueck (kein Fehler).
+      await sb.schema('aetheris_online').rpc('found_colony', { p_name: 'Heimatwelt' });
+    }catch(e){
+      setStatus('gameStatus', 'Fehler beim Anlegen der Kolonie: ' + (e.message||e), true);
+      return;
+    }
+    setStatus('gameStatus', '', false);
+    await refresh();
+    if(pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(refresh, 3000);
+  }
+
+  async function refresh(){
+    try{
+      var res = await sb.schema('aetheris_online').rpc('get_my_colony');
+      if(res.error) throw res.error;
+      lastColony = res.data;
+      render(res.data);
+    }catch(err){
+      setStatus('gameStatus', 'Fehler beim Laden: ' + (err.message||err), true);
+    }
+  }
+
+  function render(c){
+    document.getElementById('colonyName').textContent = c.name;
+
+    setRes('metal', c.metal, c.storage.metal);
+    setRes('crystal', c.crystal, c.storage.crystal);
+    setRes('deut', c.deuterium, c.storage.deuterium);
+
+    var eFig = document.getElementById('energyFig');
+    var ok = c.energy.production >= c.energy.consumption;
+    eFig.textContent = fmt(c.energy.production) + ' / ' + fmt(c.energy.consumption);
+    eFig.className = 'fig ' + (ok ? 'ok' : 'bad');
+
+    var banner = document.getElementById('queueBanner');
+    if(c.queue){
+      banner.classList.remove('hidden');
+      document.getElementById('queueLabel').textContent =
+        (BUILDING_META[c.queue.building_key]||{}).name + ' → Stufe ' + c.queue.target_level;
+      updateCountdown(c.queue.finishes_at);
+    } else {
+      banner.classList.add('hidden');
+    }
+
+    renderBuildings(c);
+  }
+
+  function setRes(prefix, val, cap){
+    document.getElementById(prefix+'Val').textContent = fmt(val);
+    document.getElementById(prefix+'Cap').textContent = 'von ' + fmt(cap);
+    var pct = cap > 0 ? Math.min(100, (val/cap)*100) : 0;
+    document.getElementById(prefix+'Bar').style.width = pct + '%';
+  }
+
+  var countdownTimer = null;
+  function updateCountdown(finishesAt){
+    if(countdownTimer) clearInterval(countdownTimer);
+    var target = new Date(finishesAt).getTime();
+    function tick(){
+      var diff = Math.max(0, Math.round((target - Date.now())/1000));
+      var m = Math.floor(diff/60), s = diff%60;
+      var el = document.getElementById('queueCountdown');
+      if(el) el.textContent = m + ':' + (s<10?'0':'') + s;
+      if(diff <= 0){ clearInterval(countdownTimer); refresh(); }
+    }
+    tick();
+    countdownTimer = setInterval(tick, 1000);
+  }
+
+  function renderBuildings(c){
+    var list = document.getElementById('buildingList');
+    list.innerHTML = '';
+    var hasQueue = !!c.queue;
+    BUILD_ORDER.forEach(function(key){
+      var meta = BUILDING_META[key];
+      var lvl = c.levels[key] || 0;
+      var row = document.createElement('div');
+      row.className = 'building';
+
+      var lockedInfo = buildingLockInfo(key, c);
+      var cost = costAtLevel(key, lvl);
+      var costLine =
+        '<div class="cost">' +
+          (cost.metal    ? '<span>⛏ ' + fmt(cost.metal) + '</span>' : '') +
+          (cost.crystal  ? '<span>◆ ' + fmt(cost.crystal) + '</span>' : '') +
+          (cost.deuterium? '<span>⬡ ' + fmt(cost.deuterium) + '</span>' : '') +
+        '</div>';
+
+      row.innerHTML =
+        '<div style="font-size:22px;">' + meta.icon + '</div>' +
+        '<div class="info">' +
+          '<div class="name">' + meta.name + '</div>' +
+          '<div class="lvl">Stufe ' + lvl + '</div>' +
+          (lockedInfo ? '<div class="req">' + lockedInfo + '</div>' : costLine) +
+        '</div>';
+
+      var btn = document.createElement('button');
+      btn.textContent = 'Ausbauen';
+      btn.disabled = hasQueue || !!lockedInfo;
+      btn.addEventListener('click', function(){ upgrade(key); });
+      row.appendChild(btn);
+
+      if(lockedInfo) row.classList.add('locked');
+      list.appendChild(row);
+    });
+  }
+
+  // Voraussetzungen werden serverseitig durchgesetzt (start_building_upgrade); hier nur
+  // fuer eine bessere Anzeige dupliziert (Solarsatellit braucht Robotikfabrik Stufe 2).
+  function buildingLockInfo(key, c){
+    if(key === 'solarSatellite'){
+      var rob = c.levels.roboticsFactory || 0;
+      if(rob < 2) return 'Benötigt Robotikfabrik Stufe 2 (aktuell ' + rob + ')';
+    }
+    return null;
+  }
+
+  async function upgrade(key){
+    setStatus('gameStatus', 'Baue aus …', false);
+    try{
+      var res = await sb.schema('aetheris_online').rpc('start_building_upgrade', { p_building_key: key });
+      if(res.error) throw res.error;
+      setStatus('gameStatus', '', false);
+      render(res.data);
+    }catch(err){
+      setStatus('gameStatus', err.message || String(err), true);
+    }
+  }
+
+  sb.auth.getSession().then(function(res){
+    if(res.data && res.data.session){
+      currentUser = res.data.session.user;
+      enterGame();
+    }
+  });
+})();
+</script>
+</body>
+</html>
