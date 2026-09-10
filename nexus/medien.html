@@ -125,6 +125,38 @@
   .foot-links{ display:flex; gap:16px; flex-wrap:wrap; }
   .foot-links a{ transition:color .15s; }
   .foot-links a:hover{ color:var(--fg); }
+
+  /* ---------- Soundtrack-Player ---------- */
+  .sound-player{ border:1px solid var(--line); border-radius:16px; background:var(--panel); padding:20px 22px; }
+  .sp-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .sp-tab{ font-family:'Space Grotesk'; font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); cursor:pointer; background:transparent; transition:border-color .15s, background .15s, color .15s; }
+  .sp-tab:hover{ border-color:var(--accent-soft); color:var(--fg); }
+  .sp-tab.active{ background:var(--accent); border-color:var(--accent); color:#0a0b12; }
+  .sp-top{ display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .sp-btn{ width:40px; height:40px; border-radius:50%; border:1px solid var(--line); background:transparent; color:var(--fg); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:border-color .15s, background .15s; }
+  .sp-btn:hover{ border-color:var(--accent); background:var(--accent-dim); }
+  .sp-btn.play{ width:46px; height:46px; background:var(--accent); color:#0a0b12; border:none; }
+  .sp-btn.play:hover{ filter:brightness(1.1); background:var(--accent); }
+  .sp-btn svg{ width:16px; height:16px; }
+  .sp-btn.play svg{ width:18px; height:18px; }
+  .sp-now{ flex:1; min-width:0; }
+  .sp-now-title{ font-family:'Space Grotesk'; font-size:14px; font-weight:600; color:var(--fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sp-progress{ display:flex; align-items:center; gap:8px; margin-top:6px; }
+  .sp-time{ font-family:'Space Grotesk'; font-size:11px; color:var(--fg-faint); width:32px; flex-shrink:0; }
+  .sp-time.end{ text-align:right; }
+  .sp-bar{ flex:1; height:4px; border-radius:99px; background:var(--line); position:relative; cursor:pointer; }
+  .sp-bar-fill{ position:absolute; inset:0; width:0%; border-radius:99px; background:var(--accent); }
+  .sp-bar-fill::after{ content:''; position:absolute; right:-5px; top:50%; transform:translateY(-50%); width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent-dim); opacity:0; transition:opacity .15s; }
+  .sp-bar:hover .sp-bar-fill::after{ opacity:1; }
+  .sp-list{ display:flex; flex-direction:column; gap:2px; max-height:400px; overflow-y:auto; padding-top:10px; margin-top:6px; border-top:1px solid var(--line); }
+  .sp-item{ display:flex; align-items:center; gap:12px; padding:10px 10px; border-radius:10px; font-size:13.5px; color:var(--fg-dim); cursor:pointer; transition:background .15s, color .15s; }
+  .sp-item:hover{ background:rgba(255,255,255,0.05); color:var(--fg); }
+  .sp-item.active{ color:var(--accent); font-weight:600; background:var(--accent-dim); }
+  .sp-item .num{ width:24px; font-family:'Space Grotesk'; font-size:11.5px; color:var(--fg-faint); flex-shrink:0; text-align:right; }
+  .sp-item.active .num{ color:var(--accent); }
+  .sp-item .picon{ width:16px; height:16px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--accent); opacity:0; }
+  .sp-item.active .picon{ opacity:1; }
+  .sp-item .ttl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -237,6 +269,15 @@
       <span class="sub">Hier wird später ein YouTube-Video eingebettet.</span>
     </div>
   </section>
+
+  <section class="sec" id="soundtrack">
+    <div class="sec-head">
+      <h2>Soundtrack</h2>
+      <span class="kicker">14 Tracks</span>
+    </div>
+    <div class="sound-player" data-groups='[{"label": "NEXUS", "tracks": [{"title": "01 - Idle Core", "src": "art/music/01 NEXUS Idle Core.ogg"}, {"title": "02 - Silent Mining", "src": "art/music/02 NEXUS Silent Mining.ogg"}, {"title": "03 - Data Flow", "src": "art/music/03 NEXUS Data Flow.ogg"}, {"title": "04 - Market Drift", "src": "art/music/04 NEXUS Market Drift.ogg"}, {"title": "05 - Nova-Rift", "src": "art/music/05 NEXUS Nova-Rift.ogg"}, {"title": "06 - Deep Reserve", "src": "art/music/06 NEXUS Deep Reserve.ogg"}, {"title": "07 - Network Pulse", "src": "art/music/07 NEXUS Network Pulse.ogg"}, {"title": "08 - Eclipse Protocol", "src": "art/music/08 NEXUS Eclipse Protocol.ogg"}, {"title": "09 - Ascension", "src": "art/music/09 NEXUS Ascension.ogg"}, {"title": "10 - Rebirth", "src": "art/music/10 NEXUS Rebirth.ogg"}, {"title": "Gateway", "src": "art/music/NEXUS Gateway.ogg"}]}, {"label": "NEXUS Singularität", "tracks": [{"title": "Before Awakening", "src": "nexus_singularity/art/music/ogg/Before_Awakening.ogg"}, {"title": "Awakened Threat", "src": "nexus_singularity/art/music/ogg/Awakened_Threat.ogg"}, {"title": "Awakened Dominance", "src": "nexus_singularity/art/music/ogg/Awakened_Dominance.ogg"}]}]'></div>
+  </section>
+
 </div>
 
 <footer>
@@ -293,5 +334,139 @@
   })();
 </script>
 
+
+<script>
+(function(){
+  'use strict';
+  function fmt(s){ if(!isFinite(s)) return '0:00'; var m=Math.floor(s/60), sec=Math.floor(s%60); return m+':'+(sec<10?'0':'')+sec; }
+
+  function buildPlayer(root){
+    var groups = [];
+    try{ groups = JSON.parse(root.dataset.groups || '[]'); }catch(e){ groups = []; }
+    if(!groups.length){ root.innerHTML = '<div class="sp-now-title">Noch keine Tracks hinterlegt</div>'; return; }
+
+    var activeGroup = 0;
+    var current = 0;
+
+    var showTabs = groups.length > 1;
+    root.innerHTML =
+      (showTabs ? '<div class="sp-tabs" data-role="tabs"></div>' : '') +
+      '<div class="sp-top">' +
+        '<button class="sp-btn" data-role="prev" aria-label="Vorheriger Titel"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>' +
+        '<button class="sp-btn play" data-role="play" aria-label="Abspielen"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
+        '<button class="sp-btn" data-role="next" aria-label="Naechster Titel"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg></button>' +
+        '<div class="sp-now">' +
+          '<div class="sp-now-title" data-role="title">-</div>' +
+          '<div class="sp-progress">' +
+            '<span class="sp-time" data-role="cur">0:00</span>' +
+            '<div class="sp-bar" data-role="bar"><div class="sp-bar-fill" data-role="fill"></div></div>' +
+            '<span class="sp-time end" data-role="dur">0:00</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="sp-list" data-role="list"></div>';
+
+    var audio = new Audio();
+    audio.preload = 'none';
+    var tabsEl = root.querySelector('[data-role="tabs"]');
+    var playBtn = root.querySelector('[data-role="play"]');
+    var prevBtn = root.querySelector('[data-role="prev"]');
+    var nextBtn = root.querySelector('[data-role="next"]');
+    var titleEl = root.querySelector('[data-role="title"]');
+    var curEl = root.querySelector('[data-role="cur"]');
+    var durEl = root.querySelector('[data-role="dur"]');
+    var bar = root.querySelector('[data-role="bar"]');
+    var fill = root.querySelector('[data-role="fill"]');
+    var listEl = root.querySelector('[data-role="list"]');
+
+    if(showTabs){
+      groups.forEach(function(g, gi){
+        var tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'sp-tab' + (gi === 0 ? ' active' : '');
+        tab.textContent = g.label;
+        tab.addEventListener('click', function(){
+          activeGroup = gi;
+          Array.prototype.forEach.call(tabsEl.children, function(el, i){ el.classList.toggle('active', i === gi); });
+          renderList();
+          load(0, false);
+        });
+        tabsEl.appendChild(tab);
+      });
+    }
+
+    function renderList(){
+      listEl.innerHTML = '';
+      var tracks = groups[activeGroup].tracks;
+      tracks.forEach(function(t, i){
+        var item = document.createElement('div');
+        item.className = 'sp-item';
+        item.innerHTML =
+          '<span class="num">' + (i + 1) + '</span>' +
+          '<span class="picon"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M8 5v14l11-7z"/></svg></span>' +
+          '<span class="ttl">' + t.title + '</span>';
+        item.addEventListener('click', function(){ load(i, true); });
+        listEl.appendChild(item);
+      });
+      highlightActive();
+    }
+
+    function setPlayIcon(isPlaying){
+      var svg = playBtn.querySelector('svg');
+      svg.innerHTML = isPlaying ? '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+      playBtn.setAttribute('aria-label', isPlaying ? 'Pausieren' : 'Abspielen');
+    }
+    function highlightActive(){
+      var items = listEl.querySelectorAll('.sp-item');
+      items.forEach(function(it, i){ it.classList.toggle('active', i === current); });
+    }
+    function load(i, autoplay){
+      var tracks = groups[activeGroup].tracks;
+      if(!tracks.length) return;
+      current = ((i % tracks.length) + tracks.length) % tracks.length;
+      var t = tracks[current];
+      audio.src = encodeURI(t.src);
+      titleEl.textContent = t.title;
+      highlightActive();
+      fill.style.width = '0%';
+      curEl.textContent = '0:00';
+      durEl.textContent = '';
+      if(autoplay){ audio.play().catch(function(){}); }
+    }
+    playBtn.addEventListener('click', function(){
+      var tracks = groups[activeGroup].tracks;
+      if(!tracks.length) return;
+      if(!audio.src) load(0, true);
+      else if(audio.paused) audio.play().catch(function(){});
+      else audio.pause();
+    });
+    prevBtn.addEventListener('click', function(){ load(current - 1, true); });
+    nextBtn.addEventListener('click', function(){ load(current + 1, true); });
+    audio.addEventListener('play', function(){
+      setPlayIcon(true);
+      document.querySelectorAll('audio').forEach(function(a){ if(a !== audio) a.pause(); });
+    });
+    audio.addEventListener('pause', function(){ setPlayIcon(false); });
+    audio.addEventListener('ended', function(){ load(current + 1, true); });
+    audio.addEventListener('timeupdate', function(){
+      if(!isFinite(audio.duration)) return;
+      fill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+      curEl.textContent = fmt(audio.currentTime);
+    });
+    audio.addEventListener('loadedmetadata', function(){ durEl.textContent = fmt(audio.duration); });
+    bar.addEventListener('click', function(e){
+      if(!isFinite(audio.duration)) return;
+      var rect = bar.getBoundingClientRect();
+      var pct = (e.clientX - rect.left) / rect.width;
+      audio.currentTime = pct * audio.duration;
+    });
+
+    renderList();
+    titleEl.textContent = groups[0].tracks[0].title;
+  }
+
+  document.querySelectorAll('.sound-player').forEach(buildPlayer);
+})();
+</script>
 </body>
 </html>
