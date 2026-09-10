@@ -27,10 +27,10 @@
   @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; } }
 
   #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
-  .wrap{ position:relative; z-index:2; max-width:1200px; margin:0 auto; padding:0 24px; }
+  .wrap{ position:relative; z-index:2; max-width:1600px; margin:0 auto; padding:0 24px; }
 
   .nav{ position:sticky; top:0; z-index:10; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
-  .nav-inner{ max-width:1200px; margin:0 auto; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .nav-inner{ max-width:1600px; margin:0 auto; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
   .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:0.02em; }
   .brand .dot{ width:22px; height:22px; border-radius:50%; flex-shrink:0; background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--blue), var(--gold)); }
   .brand .sub{ color:var(--fg-faint); font-weight:500; font-size:12px; margin-left:8px; }
@@ -511,10 +511,19 @@
       '</div>';
   }
 
+  var mvLoaded = false;
+
   async function loadMyValues(){
     try {
-      const { data: sessionData } = await mvSb.auth.getSession();
-      if (!sessionData || !sessionData.session) return; // nicht eingeloggt -> Panel bleibt versteckt
+      const { data: sessionData, error: sessErr } = await mvSb.auth.getSession();
+      if (sessErr) console.warn('[Meine Werte] getSession-Fehler:', sessErr.message);
+      if (!sessionData || !sessionData.session) {
+        console.info('[Meine Werte] Keine Session gefunden (noch) – Panel bleibt versteckt. ' +
+          'Prüfe im DevTools > Application > Local Storage, ob ein Key "sb-iuvckfoikhifywayuwkj-auth-token" ' +
+          'vorhanden ist und ob diese Seite auf derselben Domain/Origin läuft wie die Spielseiten.');
+        return; // nicht eingeloggt (bzw. noch nicht erkannt) -> Panel bleibt versteckt
+      }
+      mvLoaded = true;
 
       var nexusHtml = '';
       var foundryHtml = '';
@@ -545,6 +554,22 @@
   }
 
   loadMyValues();
+
+  // Fallback: falls getSession() beim allerersten Aufruf noch keine Session
+  // findet (z.B. weil supabase-js die Session aus dem Storage noch nicht
+  // fertig geladen hatte), reagieren wir zusätzlich auf spätere Auth-Events
+  // – genau wie index.html es macht.
+  mvSb.auth.onAuthStateChange(function(event, session){
+    console.info('[Meine Werte] onAuthStateChange:', event, session ? '(Session vorhanden)' : '(keine Session)');
+    if (session && !mvLoaded) {
+      loadMyValues();
+    }
+    if (!session) {
+      mvLoaded = false;
+      var panel = document.getElementById('myValuesPanel');
+      if (panel) panel.style.display = 'none';
+    }
+  });
 </script>
 
 </body>
