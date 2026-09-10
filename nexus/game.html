@@ -2635,6 +2635,16 @@
       </div>
 
       <div class="panel">
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="9.5" cy="4.5" r="2" fill="currentColor"/><line x1="8" y1="6" x2="2" y2="12" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.65"/><line x1="9" y1="7.3" x2="4.3" y2="12" stroke="currentColor" stroke-width="0.8" stroke-linecap="round" opacity="0.4"/></svg></span> Kometen-Skin des Monats <span class="tag">— färbt die ganze Seite ein, dauerhaft im Besitz</span></h3>
+        <div id="rigSkinWrap"><div class="sm-hint">Lade Skin…</div></div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="9.5" cy="4.5" r="2" fill="currentColor"/><line x1="8" y1="6" x2="2" y2="12" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.65"/><line x1="9" y1="7.3" x2="4.3" y2="12" stroke="currentColor" stroke-width="0.8" stroke-linecap="round" opacity="0.4"/></svg></span> Meine Skins <span class="tag">— alle bisher gekauften, jederzeit wechselbar</span></h3>
+        <div id="rigSkinGalleryWrap"><div class="sm-hint">Lade Skins…</div></div>
+      </div>
+
+      <div class="panel">
         <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 1.5H11.5C12 1.5 12.5 2 12.5 2.5V6.5L6 13L1.5 8.5L7.5 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><circle cx="9.7" cy="4.3" r="1" fill="currentColor"/></svg></span> Dein Titel <span class="tag">— sichtbar auf der Rangliste (Ränge) und im Profil</span></h3>
         <div id="eventTitleWrap"><div class="sm-hint">Lade Titel…</div></div>
       </div>
@@ -3381,6 +3391,7 @@ document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
     initCharts();
     checkHolidayEventVisibility();
     await loadEverything();
+    await applyRigSkinTheme();
     startPolling();
   } catch (err) {
     console.error('verifyOtp fehlgeschlagen:', err);
@@ -3409,6 +3420,7 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
     initCharts();
     checkHolidayEventVisibility();
     await loadEverything();
+    await applyRigSkinTheme();
     startPolling();
   } catch (err) {
     console.error('Gast-Login fehlgeschlagen:', err);
@@ -3425,6 +3437,7 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
     initCharts();
     checkHolidayEventVisibility();
     await loadEverything();
+    await applyRigSkinTheme();
     startPolling();
   }
 })();
@@ -5842,8 +5855,138 @@ async function loadSeasonalEvent(){
     renderEventQuests(data.quests || []);
     renderEventAchievements(data.achievements || []);
     renderEventShop(data.shop_items || [], data.owned_titles || [], data.active_title || null);
+    await loadRigSkin();
   } finally {
     seasonalEventLoading = false;
+  }
+}
+
+function hexToRgba(hex, alpha){
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+async function applyRigSkinTheme(){
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_rig_skins');
+    if (error) return;
+    const active = (data || []).find(s => s.active);
+    const root = document.documentElement.style;
+    if (active && active.color_hex) {
+      root.setProperty('--blue', active.color_hex);
+      root.setProperty('--blue-dim', hexToRgba(active.color_hex, 0.14));
+    } else {
+      root.removeProperty('--blue');
+      root.removeProperty('--blue-dim');
+    }
+  } catch (err) {
+    console.error('Skin-Theme konnte nicht angewendet werden:', err);
+  }
+}
+
+async function loadRigSkin(){
+  const wrap = document.getElementById('rigSkinWrap');
+  if (wrap) {
+    const { data, error } = await sb.schema('platform').rpc('get_current_rig_skin');
+    if (error || !data || !data.length) {
+      wrap.innerHTML = '<div class="sm-hint">Kein Skin für diesen Monat verfügbar.</div>';
+    } else {
+      renderRigSkin(data[0]);
+    }
+  }
+  await loadRigSkinGallery();
+}
+
+async function loadRigSkinGallery(){
+  const wrap = document.getElementById('rigSkinGalleryWrap');
+  if (!wrap) return;
+  const { data, error } = await sb.schema('platform').rpc('get_my_rig_skins');
+  if (error) {
+    wrap.innerHTML = '<div class="sm-hint">Konnte Skins nicht laden.</div>';
+    return;
+  }
+  renderRigSkinGallery(data || []);
+}
+
+function renderRigSkinGallery(skins){
+  const wrap = document.getElementById('rigSkinGalleryWrap');
+  if (!wrap) return;
+  if (!skins.length) {
+    wrap.innerHTML = '<div class="sm-hint">Noch keine Skins gekauft — im Panel oben erhältlich.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="ach-grid">
+      ${skins.map(s => `
+        <div class="ach-card ${s.active ? 'unlocked' : ''}" style="opacity:1;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:22px; height:22px; border-radius:50%; background:${s.color_hex}; box-shadow:0 0 14px ${s.color_hex}66; flex-shrink:0;"></span>
+            <div class="ach-name">${s.name}</div>
+          </div>
+          <div class="ach-desc">${s.description}</div>
+          <div class="ach-meta">
+            <span></span>
+            ${s.active
+              ? `<button type="button" class="btn btn-ghost rig-skin-unequip-btn">Entfernen</button>`
+              : `<button type="button" class="btn btn-primary rig-skin-equip-btn" data-skin-id="${s.id}">Ausrüsten</button>`}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+
+  wrap.querySelectorAll('.rig-skin-equip-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('set_active_rig_skin', { p_skin_id: btn.dataset.skinId });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Skin ausgerüstet.', true, 'coin');
+      await loadRigSkinGallery();
+      await applyRigSkinTheme();
+    });
+  });
+  wrap.querySelectorAll('.rig-skin-unequip-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('clear_active_rig_skin');
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Skin entfernt.', true, 'coin');
+      await loadRigSkinGallery();
+      await applyRigSkinTheme();
+    });
+  });
+}
+
+function renderRigSkin(skin){
+  const wrap = document.getElementById('rigSkinWrap');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="ach-card ${skin.owned ? 'unlocked' : 'locked'}" style="opacity:1;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="width:22px; height:22px; border-radius:50%; background:${skin.color_hex}; box-shadow:0 0 14px ${skin.color_hex}66; flex-shrink:0;"></span>
+        <div class="ach-name">${skin.name}</div>
+      </div>
+      <div class="ach-desc">${skin.description}</div>
+      <div class="ach-meta">
+        <span class="ach-reward">${fmtCoin(skin.price_comet)} COMET</span>
+        ${skin.owned
+          ? '<span class="quest-claimed-txt">im Besitz</span>'
+          : '<button type="button" class="btn btn-primary" id="rigSkinBuyBtn">Kaufen</button>'}
+      </div>
+    </div>`;
+
+  const btn = document.getElementById('rigSkinBuyBtn');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('purchase_rig_skin');
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Skin gekauft.', true, 'coin');
+      await loadRigSkin();
+      await loadEverything({ light: true });
+    });
   }
 }
 
