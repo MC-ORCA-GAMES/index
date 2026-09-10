@@ -5886,6 +5886,37 @@ async function applyRigSkinTheme(){
   }
 }
 
+let rigSkinPreviewTimeoutId = null;
+let rigSkinPreviewIntervalId = null;
+
+function startRigSkinPreview(colorHex, btn){
+  if (rigSkinPreviewTimeoutId) clearTimeout(rigSkinPreviewTimeoutId);
+  if (rigSkinPreviewIntervalId) clearInterval(rigSkinPreviewIntervalId);
+
+  const root = document.documentElement.style;
+  root.setProperty('--blue', colorHex);
+  root.setProperty('--blue-dim', hexToRgba(colorHex, 0.14));
+
+  const originalLabel = btn.textContent;
+  let remaining = 30;
+  btn.disabled = true;
+  btn.textContent = `Vorschau … ${remaining}s`;
+
+  rigSkinPreviewIntervalId = setInterval(() => {
+    remaining -= 1;
+    if (remaining > 0) btn.textContent = `Vorschau … ${remaining}s`;
+  }, 1000);
+
+  rigSkinPreviewTimeoutId = setTimeout(async () => {
+    clearInterval(rigSkinPreviewIntervalId);
+    rigSkinPreviewIntervalId = null;
+    rigSkinPreviewTimeoutId = null;
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+    await applyRigSkinTheme();
+  }, 30000);
+}
+
 async function loadRigSkin(){
   const wrap = document.getElementById('rigSkinWrap');
   if (wrap) {
@@ -5928,14 +5959,20 @@ function renderRigSkinGallery(skins){
           <div class="ach-desc">${s.description}</div>
           <div class="ach-meta">
             <span></span>
-            ${s.active
-              ? `<button type="button" class="btn btn-ghost rig-skin-unequip-btn">Entfernen</button>`
-              : `<button type="button" class="btn btn-primary rig-skin-equip-btn" data-skin-id="${s.id}">Ausrüsten</button>`}
+            <div style="display:flex; gap:8px;">
+              ${!s.active ? `<button type="button" class="btn btn-ghost rig-skin-preview-btn" data-color="${s.color_hex}">30s Vorschau</button>` : ''}
+              ${s.active
+                ? `<button type="button" class="btn btn-ghost rig-skin-unequip-btn">Entfernen</button>`
+                : `<button type="button" class="btn btn-primary rig-skin-equip-btn" data-skin-id="${s.id}">Ausrüsten</button>`}
+            </div>
           </div>
         </div>
       `).join('')}
     </div>`;
 
+  wrap.querySelectorAll('.rig-skin-preview-btn').forEach(btn => {
+    btn.addEventListener('click', () => startRigSkinPreview(btn.dataset.color, btn));
+  });
   wrap.querySelectorAll('.rig-skin-equip-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       btn.disabled = true;
@@ -5970,11 +6007,18 @@ function renderRigSkin(skin){
       <div class="ach-desc">${skin.description}</div>
       <div class="ach-meta">
         <span class="ach-reward">${fmtCoin(skin.price_comet)} COMET</span>
-        ${skin.owned
-          ? '<span class="quest-claimed-txt">im Besitz</span>'
-          : '<button type="button" class="btn btn-primary" id="rigSkinBuyBtn">Kaufen</button>'}
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-ghost rig-skin-preview-btn" data-color="${skin.color_hex}">30s Vorschau</button>
+          ${skin.owned
+            ? '<span class="quest-claimed-txt">im Besitz</span>'
+            : '<button type="button" class="btn btn-primary" id="rigSkinBuyBtn">Kaufen</button>'}
+        </div>
       </div>
     </div>`;
+
+  wrap.querySelector('.rig-skin-preview-btn').addEventListener('click', (e) => {
+    startRigSkinPreview(e.currentTarget.dataset.color, e.currentTarget);
+  });
 
   const btn = document.getElementById('rigSkinBuyBtn');
   if (btn) {
