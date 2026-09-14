@@ -204,7 +204,7 @@
     <!-- ---------- ÜBERSICHT ---------- -->
     <div class="tab-page active" id="tabPage-uebersicht">
       <div class="colony-scene-wrap">
-        <svg id="colonyScene" viewBox="0 0 640 340" xmlns="http://www.w3.org/2000/svg"></svg>
+        <svg id="colonyScene" viewBox="0 0 640 380" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="colony-scene-hint">Tippe auf ein Gebäude, um es im Gebäude-Tab zu öffnen.</div>
       </div>
       <div class="panel">
@@ -429,34 +429,113 @@ function render(){
 }
 
 /* ---------- Isometrische Kolonie-Szene ---------- */
-const CS_CX = 320, CS_CY = 180;
-const CS_STAGE_COLOR = { 0: '#5F5E5A', 1: '#0F6E56', 2: '#993C1D', 3: '#0F6E56' };
-const CS_STAGE_FILL  = { 0: '#3A3A38', 1: '#123527', 2: '#4A1B0C', 3: '#123527' };
+const CS_CX = 320, CS_CY = 195;
+const CS_STAGE_STROKE = { 0: '#8b8a82', 1: '#5DCAA5', 2: '#F0997B', 3: '#7EEBB8' };
+const CS_PALETTE = {
+  0: ['#8a8a80', '#68685f', '#4c4c44'],
+  1: ['#3FA684', '#237a5d', '#154f3d'],
+  2: ['#d9714b', '#a9502e', '#7a371f'],
+  3: ['#5fe6a8', '#2fae7b', '#1c7a58']
+};
 
 function csPoint(radius, angleDeg){
   const a = (angleDeg - 90) * Math.PI / 180;
   return { x: CS_CX + radius * Math.cos(a), y: CS_CY + radius * 0.52 * Math.sin(a) };
 }
 
-function csBlock(fd, st, radius, angleDeg){
+function csBuildingType(fd){
+  const key = fd.factory_key;
+  if (key === 'raw_depot') return 'depot';
+  if (key === 'wohnkuppel') return 'dome';
+  if (key === 'bauwerk') return 'forge';
+  if (key === 'gewaechshaus') return 'greenhouse';
+  if (key === 'kraftwerk') return 'reactor';
+  if (key === 'datenzentrum') return 'datacenter';
+  const n = (fd.name || '').toLowerCase();
+  if (n.includes('mediz')) return 'medlab';
+  if (n.includes('werkzeug') || n.includes('präzis') || n.includes('praez')) return 'workshop';
+  if (n.includes('verbund') || n.includes('platten')) return 'platewerk';
+  return 'factory';
+}
+
+function csIsoBox(cx, gy, halfW, height, top, right, left, stroke, opacity){
+  const halfD = halfW * 0.55;
+  const Ng = { x: cx, y: gy - halfD }, Eg = { x: cx + halfW, y: gy }, Sg = { x: cx, y: gy + halfD }, Wg = { x: cx - halfW, y: gy };
+  const up = p => ({ x: p.x, y: p.y - height });
+  const Nt = up(Ng), Et = up(Eg), St = up(Sg), Wt = up(Wg);
+  const poly = pts => pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const op = opacity != null ? opacity : 1;
+  return `<g stroke="${stroke}" stroke-width="0.9" opacity="${op}">
+    <polygon points="${poly([Eg,Sg,St,Et])}" fill="${right}"></polygon>
+    <polygon points="${poly([Sg,Wg,Wt,St])}" fill="${left}"></polygon>
+    <polygon points="${poly([Nt,Et,St,Wt])}" fill="${top}"></polygon>
+  </g>`;
+}
+
+function csAccessory(type, tc, halfW, accent, dark){
+  const { x, y } = tc;
+  switch (type) {
+    case 'depot':
+      return `<rect x="${x - halfW * 0.75}" y="${y - 1.5}" width="${halfW * 1.5}" height="2" fill="${accent}" opacity="0.55"></rect>`;
+    case 'dome':
+      return `<path d="M ${x - halfW * 0.8} ${y} A ${halfW * 0.8} ${halfW * 0.5} 0 0 1 ${x + halfW * 0.8} ${y}" fill="none" stroke="${accent}" stroke-width="1"></path>
+        <path d="M ${x - halfW * 0.5} ${y + 2} A ${halfW * 0.5} ${halfW * 0.3} 0 0 1 ${x + halfW * 0.5} ${y + 2}" fill="none" stroke="${accent}" stroke-width="0.7" opacity="0.7"></path>`;
+    case 'forge':
+      return `<rect x="${x + halfW * 0.2}" y="${y - 15}" width="3.5" height="15" fill="${dark}"></rect>
+        <circle cx="${x + halfW * 0.2 + 1.8}" cy="${y - 18}" r="2.2" fill="#fff" opacity="0.3"></circle>
+        <circle cx="${x + halfW * 0.2 + 3.5}" cy="${y - 23}" r="1.8" fill="#fff" opacity="0.18"></circle>`;
+    case 'greenhouse':
+      return `<path d="M ${x - halfW * 0.85} ${y} L ${x} ${y - 9} L ${x + halfW * 0.85} ${y}" fill="none" stroke="${accent}" stroke-width="1"></path>
+        <line x1="${x - halfW * 0.42}" y1="${y - 4.5}" x2="${x}" y2="${y - 9}" stroke="${accent}" stroke-width="0.6" opacity="0.6"></line>
+        <line x1="${x + halfW * 0.42}" y1="${y - 4.5}" x2="${x}" y2="${y - 9}" stroke="${accent}" stroke-width="0.6" opacity="0.6"></line>`;
+    case 'reactor':
+      return `<circle cx="${x}" cy="${y - 4}" r="9" fill="${accent}" opacity="0.2"></circle>
+        <circle cx="${x}" cy="${y - 4}" r="5" fill="${accent}" opacity="0.9"></circle>`;
+    case 'datacenter':
+      return `<line x1="${x}" y1="${y}" x2="${x}" y2="${y - 13}" stroke="${dark}" stroke-width="1.3"></line>
+        <circle cx="${x}" cy="${y - 15}" r="2.1" fill="${accent}"></circle>`;
+    case 'medlab':
+      return `<rect x="${x - 1.2}" y="${y - 10.5}" width="2.4" height="8" fill="${accent}"></rect>
+        <rect x="${x - 4}" y="${y - 7.5}" width="8" height="2.4" fill="${accent}"></rect>`;
+    case 'workshop':
+      return `<circle cx="${x}" cy="${y - 7}" r="3.6" fill="none" stroke="${accent}" stroke-width="1.2"></circle>
+        <circle cx="${x}" cy="${y - 7}" r="1.1" fill="${accent}"></circle>`;
+    case 'platewerk':
+      return `<rect x="${x - 5.5}" y="${y - 4.5}" width="11" height="1.8" fill="${accent}"></rect>
+        <rect x="${x - 5.5}" y="${y - 7.5}" width="11" height="1.8" fill="${accent}" opacity="0.8"></rect>
+        <rect x="${x - 5.5}" y="${y - 10.5}" width="11" height="1.8" fill="${accent}" opacity="0.6"></rect>`;
+    default:
+      return `<rect x="${x + halfW * 0.15}" y="${y - 12}" width="3" height="12" fill="${dark}"></rect>`;
+  }
+}
+
+function csBuilding(fd, st, radius, angleDeg){
   const p = csPoint(radius, angleDeg);
   const level = st.level || 0;
-  const size = Math.min(20 + level * 1.6, 40);
+  const halfW = Math.min(13 + level * 0.9, 26);
+  const halfD = halfW * 0.55;
+  const height = Math.min(18 + level * 1.6, 42);
   const locked = fd.requires_research && !isResearched(fd.requires_research);
-  const color = CS_STAGE_COLOR[fd.stage] || '#5F5E5A';
-  const fill = CS_STAGE_FILL[fd.stage] || '#2C2C2A';
-  const w = size, h = size * 0.62;
-  const x = p.x - w / 2, y = p.y - h;
-  const lx = p.x, ly = p.y - h - 12;
+  const [top, right, left] = CS_PALETTE[fd.stage] || CS_PALETTE[0];
+  const stroke = CS_STAGE_STROKE[fd.stage] || CS_STAGE_STROKE[0];
+  const type = csBuildingType(fd);
+  const tc = { x: p.x, y: p.y - height };
+  const shadowY = p.y + halfD * 0.5;
+
+  const lockG = locked ? `<g class="cs-lock">
+      <rect x="${p.x - 5}" y="${tc.y - 2}" width="10" height="8" rx="1.4" fill="none" stroke="${stroke}" stroke-width="1.1"></rect>
+      <path d="M${p.x - 3} ${tc.y - 2} v-2.4 a3 3 0 0 1 6 0 v2.4" fill="none" stroke="${stroke}" stroke-width="1.1"></path>
+    </g>` : '';
+
   return `<g class="cs-building ${locked ? 'locked' : ''}" data-factory="${fd.factory_key}">
-    <ellipse cx="${p.x}" cy="${p.y + 3}" rx="${w * 0.62}" ry="${w * 0.22}" fill="#000" opacity="0.28"></ellipse>
-    <rect class="cs-block" x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${fill}" stroke="${color}" stroke-width="1.2" stroke-dasharray="${locked ? '3,3' : 'none'}"></rect>
-    <g class="cs-lock">
-      <rect x="${lx - 5}" y="${ly - 2}" width="10" height="8" rx="1.5" fill="none" stroke="${color}" stroke-width="1.2"></rect>
-      <path d="M${lx - 3} ${ly - 2} v-2.5 a3 3 0 0 1 6 0 v2.5" fill="none" stroke="${color}" stroke-width="1.2"></path>
+    <ellipse cx="${p.x}" cy="${shadowY}" rx="${halfW * 0.85}" ry="${halfD * 0.55}" fill="#000" opacity="0.25"></ellipse>
+    <g class="cs-block" opacity="${locked ? 0.32 : 1}">
+      ${csIsoBox(p.x, p.y, halfW, height, top, right, left, stroke)}
+      ${!locked ? csAccessory(type, tc, halfW, stroke, left) : ''}
     </g>
-    <text class="cs-label" x="${p.x}" y="${p.y + 16}">${fd.name}</text>
-    ${!locked ? `<text class="cs-lvl" x="${p.x}" y="${p.y + 27}">Lv.${level}</text>` : ''}
+    ${lockG}
+    <text class="cs-label" x="${p.x}" y="${p.y + halfD + 14}">${fd.name}</text>
+    ${!locked ? `<text class="cs-lvl" x="${p.x}" y="${p.y + halfD + 25}">Lv.${level}</text>` : ''}
   </g>`;
 }
 
@@ -475,15 +554,15 @@ function renderColonyScene(){
 
   foundation.forEach((fd, i) => {
     const st = STATE.factories?.[fd.factory_key] || { level: 0 };
-    html += csBlock(fd, st, 40, foundation.length > 1 ? (i === 0 ? 200 : 20) : 0);
+    html += csBuilding(fd, st, 40, foundation.length > 1 ? (i === 0 ? 200 : 20) : 0);
   });
   stage1.forEach((fd, i) => {
     const st = STATE.factories?.[fd.factory_key] || { level: 0 };
-    html += csBlock(fd, st, 115, (360 / stage1.length) * i);
+    html += csBuilding(fd, st, 115, (360 / stage1.length) * i);
   });
   stage2.forEach((fd, i) => {
     const st = STATE.factories?.[fd.factory_key] || { level: 0 };
-    html += csBlock(fd, st, 190, (360 / stage2.length) * i + 40);
+    html += csBuilding(fd, st, 190, (360 / stage2.length) * i + 40);
   });
 
   svg.innerHTML = html;
