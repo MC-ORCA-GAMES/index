@@ -783,11 +783,21 @@
      unabhaengig vom Kometen-Skin-des-Monats (--blue). Ring-Farbe kommt aus
      --cosmetic-rig-color (per JS gesetzt aus dem aktiven Kosmetik-Item). */
   body.cosmetic-skin-active .rig-icon-tile{ box-shadow:0 0 0 2px var(--cosmetic-rig-color, var(--gold)); }
-  body.cosmetic-particles-active .rig-icon-tile{ animation: cosmeticPulse 1.8s ease-in-out infinite; }
-  @keyframes cosmeticPulse{
-    0%,100%{ box-shadow:0 0 0 2px var(--cosmetic-rig-color, var(--gold)), 0 0 6px var(--cosmetic-rig-color, var(--gold)); }
-    50%{ box-shadow:0 0 0 2px var(--cosmetic-rig-color, var(--gold)), 0 0 16px 4px var(--cosmetic-rig-color, var(--gold)); }
+  /* Holo-Foil-Schimmer: diagonaler Glanzstreifen läuft wiederkehrend übers Icon,
+     wie bei glitzernden Trading-Cards. mix-blend-mode:overlay sorgt dafür, dass der
+     Effekt sich der jeweiligen Icon-Farbe anpasst statt sie zu uebermalen. */
+  body.cosmetic-particles-active .rig-icon-tile::after{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.9) 45%, rgba(255,255,255,0.9) 55%, transparent 80%);
+    background-size:250% 250%;
+    mix-blend-mode:overlay;
+    animation: cosmeticShimmer 2.6s linear infinite;
   }
+  @keyframes cosmeticShimmer{
+    0%{ background-position:-150% -150%; }
+    100%{ background-position:150% 150%; }
+  }
+  body.cosmetic-particles-active .rig-icon-tile{ box-shadow:0 0 0 2px var(--cosmetic-rig-color, var(--gold)), 0 0 10px var(--cosmetic-rig-color, var(--gold)); }
   .rig-row{ align-items:flex-start; }
   .rig-row-main{ display:flex; align-items:flex-start; gap:12px; }
 
@@ -5954,9 +5964,17 @@ async function applyCosmeticTheme(){
     document.body.classList.toggle('cosmetic-skin-active', !!skin);
     document.body.classList.toggle('cosmetic-particles-active', !!particles);
     if (skin && skin.color_hex) {
+      // Prestige-Skin ist die "hoeherwertige" Optik (SIGIL = Achievements) -- faerbt
+      // wie der Kometen-Skin die ganze Seite ueber --blue (Buttons, Tabs, Akzente),
+      // nicht nur die Rig-Icons. Laeuft nach applyRigSkinTheme() und gewinnt daher,
+      // falls beide gleichzeitig aktiv sind.
       root.setProperty('--cosmetic-rig-color', skin.color_hex);
+      root.setProperty('--blue', skin.color_hex);
+      root.setProperty('--blue-dim', hexToRgba(skin.color_hex, 0.14));
     } else {
       root.removeProperty('--cosmetic-rig-color');
+      // Kein Prestige-Skin aktiv -> zurueck zum evtl. aktiven Kometen-Skin (oder Default).
+      await applyRigSkinTheme();
     }
   } catch (err) {
     console.error('Kosmetik-Theme konnte nicht angewendet werden:', err);
