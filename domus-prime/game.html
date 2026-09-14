@@ -114,6 +114,18 @@
   .res-item .ramt{ font-family:var(--mono); font-size:16px; color:var(--fg); margin-top:4px; }
   .res-item .rcap{ font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-top:2px; }
 
+  .colony-scene-wrap{ background:radial-gradient(ellipse at 50% 40%, rgba(62,207,142,0.10), transparent 70%), var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:6px 6px 0; margin-bottom:16px; overflow:hidden; }
+  .colony-scene-wrap svg{ display:block; width:100%; height:auto; }
+  .colony-scene-hint{ font-size:11.5px; color:var(--fg-faint); text-align:center; padding:8px 10px 12px; }
+  .cs-building{ cursor:pointer; }
+  .cs-building:hover .cs-block{ filter:brightness(1.25); }
+  .cs-building.locked{ cursor:default; }
+  .cs-building.locked .cs-block{ opacity:0.28; }
+  .cs-building.locked .cs-lock{ opacity:0.75; }
+  .cs-building:not(.locked) .cs-lock{ display:none; }
+  .cs-label{ font-family:'Space Grotesk',sans-serif; font-size:10.5px; fill:var(--fg-dim); text-anchor:middle; }
+  .cs-lvl{ font-family:var(--mono); font-size:9.5px; fill:var(--accent); text-anchor:middle; }
+
   .stage-group{ margin-bottom:22px; }
   .stage-group h4{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); margin:0 0 10px; }
   .fac-row{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:12px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
@@ -191,6 +203,10 @@
 
     <!-- ---------- ÜBERSICHT ---------- -->
     <div class="tab-page active" id="tabPage-uebersicht">
+      <div class="colony-scene-wrap">
+        <svg id="colonyScene" viewBox="0 0 640 340" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="colony-scene-hint">Tippe auf ein Gebäude, um es im Gebäude-Tab zu öffnen.</div>
+      </div>
       <div class="panel">
         <h3>Kolonie <span class="tag">— Domus Prime: Verdantis</span></h3>
         <div class="top-row">
@@ -407,8 +423,76 @@ document.getElementById('refreshBtn').addEventListener('click', () => loadEveryt
 /* ---------- Rendering ---------- */
 function render(){
   renderOverview();
+  renderColonyScene();
   renderBuildings();
   renderResearch();
+}
+
+/* ---------- Isometrische Kolonie-Szene ---------- */
+const CS_CX = 320, CS_CY = 180;
+const CS_STAGE_COLOR = { 0: '#5F5E5A', 1: '#0F6E56', 2: '#993C1D', 3: '#0F6E56' };
+const CS_STAGE_FILL  = { 0: '#3A3A38', 1: '#123527', 2: '#4A1B0C', 3: '#123527' };
+
+function csPoint(radius, angleDeg){
+  const a = (angleDeg - 90) * Math.PI / 180;
+  return { x: CS_CX + radius * Math.cos(a), y: CS_CY + radius * 0.52 * Math.sin(a) };
+}
+
+function csBlock(fd, st, radius, angleDeg){
+  const p = csPoint(radius, angleDeg);
+  const level = st.level || 0;
+  const size = Math.min(20 + level * 1.6, 40);
+  const locked = fd.requires_research && !isResearched(fd.requires_research);
+  const color = CS_STAGE_COLOR[fd.stage] || '#5F5E5A';
+  const fill = CS_STAGE_FILL[fd.stage] || '#2C2C2A';
+  const w = size, h = size * 0.62;
+  const x = p.x - w / 2, y = p.y - h;
+  const lx = p.x, ly = p.y - h - 12;
+  return `<g class="cs-building ${locked ? 'locked' : ''}" data-factory="${fd.factory_key}">
+    <ellipse cx="${p.x}" cy="${p.y + 3}" rx="${w * 0.62}" ry="${w * 0.22}" fill="#000" opacity="0.28"></ellipse>
+    <rect class="cs-block" x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${fill}" stroke="${color}" stroke-width="1.2" stroke-dasharray="${locked ? '3,3' : 'none'}"></rect>
+    <g class="cs-lock">
+      <rect x="${lx - 5}" y="${ly - 2}" width="10" height="8" rx="1.5" fill="none" stroke="${color}" stroke-width="1.2"></rect>
+      <path d="M${lx - 3} ${ly - 2} v-2.5 a3 3 0 0 1 6 0 v2.5" fill="none" stroke="${color}" stroke-width="1.2"></path>
+    </g>
+    <text class="cs-label" x="${p.x}" y="${p.y + 16}">${fd.name}</text>
+    ${!locked ? `<text class="cs-lvl" x="${p.x}" y="${p.y + 27}">Lv.${level}</text>` : ''}
+  </g>`;
+}
+
+function renderColonyScene(){
+  const svg = document.getElementById('colonyScene');
+  if (!svg || !STATIC.factoryDefs || !Object.keys(STATIC.factoryDefs).length) return;
+
+  const foundation = ['raw_depot', 'wohnkuppel'].map(k => STATIC.factoryDefs[k]).filter(Boolean);
+  const stage1 = Object.values(STATIC.factoryDefs).filter(fd => fd.stage === 1).sort((a,b) => a.sort_order - b.sort_order);
+  const stage2 = Object.values(STATIC.factoryDefs).filter(fd => fd.stage === 2).sort((a,b) => a.sort_order - b.sort_order);
+
+  let html = '';
+  html += `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="230" ry="120" fill="none" stroke="var(--line)" stroke-width="1"></ellipse>`;
+  html += `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="150" ry="78" fill="none" stroke="var(--line)" stroke-width="1"></ellipse>`;
+  html += `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="55" ry="29" fill="none" stroke="var(--line)" stroke-width="1"></ellipse>`;
+
+  foundation.forEach((fd, i) => {
+    const st = STATE.factories?.[fd.factory_key] || { level: 0 };
+    html += csBlock(fd, st, 40, foundation.length > 1 ? (i === 0 ? 200 : 20) : 0);
+  });
+  stage1.forEach((fd, i) => {
+    const st = STATE.factories?.[fd.factory_key] || { level: 0 };
+    html += csBlock(fd, st, 115, (360 / stage1.length) * i);
+  });
+  stage2.forEach((fd, i) => {
+    const st = STATE.factories?.[fd.factory_key] || { level: 0 };
+    html += csBlock(fd, st, 190, (360 / stage2.length) * i + 40);
+  });
+
+  svg.innerHTML = html;
+  svg.querySelectorAll('[data-factory]').forEach(g => {
+    g.addEventListener('click', () => {
+      if (g.classList.contains('locked')) return;
+      document.querySelector('[data-tab="gebaeude"]').click();
+    });
+  });
 }
 
 function renderOverview(){
