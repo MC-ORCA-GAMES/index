@@ -778,6 +778,7 @@
         <button type="button" class="main-tab-btn" data-tab="markt">Markt</button>
         <button type="button" class="main-tab-btn" data-tab="galaxie">Galaxie</button>
         <button type="button" class="main-tab-btn" data-tab="uebernahme">Übernahmen</button>
+        <button type="button" class="main-tab-btn" data-tab="verkauf">Firmenbörse</button>
         <button type="button" class="main-tab-btn" data-tab="boersengang">Börsengang</button>
         <button type="button" class="main-tab-btn" data-tab="gruenden2">Neue Firma</button>
         <button type="button" class="main-tab-btn" data-tab="einstellungen"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px; flex-shrink:0;"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="1.8" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="1.8" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="1.8" fill="currentColor" stroke="none"/></svg>Einstellungen</button>
@@ -925,6 +926,22 @@
           </p>
           <div class="event-list" id="acquisitionList"></div>
           <div id="acquireMsg"></div>
+        </div>
+      </div>
+
+      <div class="tab-page" id="tabPage-verkauf">
+        <div class="panel" id="sellPanel"></div>
+        <div class="panel" style="margin-top:16px;">
+          <h3>Marktplatz <span class="tag">— Firmen anderer Spieler zum Kauf</span></h3>
+          <p style="font-size:13.5px; color:var(--fg-dim); margin:0 0 12px; line-height:1.6;">
+            Hier bieten Spieler ihre Firmen (Status Aufbau oder börsenreif, nicht börsennotiert) direkt
+            zum Kauf an. Jeder Kauf durchläuft die Kartellamt-Prüfung: Käufer/Corp dürfen danach nicht
+            über 40% (Solo) bzw. 50% (Corp) des im Sektor investierten Kapitals kontrollieren — die
+            Grenze greift erst ab 3 aktiven Firmen im Sektor. Erfolgreiche Käufe werden öffentlich
+            gemeldet.
+          </p>
+          <div class="event-list" id="saleListingsList"></div>
+          <div id="buyMsg"></div>
         </div>
       </div>
 
@@ -1140,6 +1157,7 @@ let marketOrders = [];
 let myLoans = [];
 let myContracts = [];
 let acquisitionTargets = [];
+let companySaleListings = [];
 let myDeliveries = [];
 let galaxyMap = [];
 let myLastDecisions = [];
@@ -1219,6 +1237,14 @@ async function loadAcquisitionTargets(){
     const { data, error } = await sb.schema('foundry').rpc('get_acquisition_targets');
     if (error) { console.error(error); return; }
     acquisitionTargets = data || [];
+  } catch(e){ console.error(e); }
+}
+
+async function loadCompanySaleListings(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_company_sale_listings');
+    if (error) { console.error(error); return; }
+    companySaleListings = data || [];
   } catch(e){ console.error(e); }
 }
 
@@ -1424,9 +1450,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -1617,6 +1643,8 @@ function render(){
   renderIpoPanel(company);
   renderGalaxyMap();
   renderAcquisitionMarket();
+  renderSellPanel(company);
+  renderSaleMarket();
   loadEvents(company.id).then(renderEvents);
 }
 
@@ -2223,6 +2251,160 @@ async function acquireCompany(targetId){
   }
 }
 
+/* ---------- Firmenbörse (Direktverkauf) ---------- */
+function renderSellPanel(company){
+  const panel = document.getElementById('sellPanel');
+  if (!panel) return;
+  const iCanDecide = canDecideCompany(company);
+  if (company.stage === 'ipo') {
+    panel.innerHTML = '<h3>Zum Verkauf anbieten</h3><p style="color:var(--fg-dim); font-size:15.5px; line-height:1.6;">' +
+      company.name + ' ist börsennotiert — dafür gilt dieses Direktverkauf-System nicht. Mehrheiten an ' +
+      'börsennotierten Firmen wechseln über ein Übernahmeangebot im ' +
+      '<a href="../nexus/index.html" style="color:var(--accent); text-decoration:underline;">NEXUS-Aktienmarkt</a>.</p>';
+    return;
+  }
+  if (company.stage === 'insolvenzverfahren' || company.stage === 'insolvent') {
+    panel.innerHTML = '<h3>Zum Verkauf anbieten</h3><p style="color:var(--fg-dim); font-size:15.5px; line-height:1.6;">' +
+      'Firmen in oder nach der Insolvenz können nicht direkt verkauft werden.</p>';
+    return;
+  }
+  const myListing = companySaleListings.find(l => l.company_id === company.id);
+  if (myListing) {
+    panel.innerHTML = '<h3>Zum Verkauf anbieten</h3>' +
+      '<div class="ipo-callout"><h4>Angebot aktiv</h4>' +
+      '<div style="font-family:var(--mono); font-size:22px; color:#D4AF37; margin-bottom:6px;">' + fmt2(myListing.asking_price) + ' MOGC</div>' +
+      '<div style="font-size:14.5px; color:var(--fg-dim); line-height:1.6;">' + company.name + ' (' + company.ticker + ') steht seit ' +
+      new Date(myListing.created_at).toLocaleString('de-DE') + ' im Marktplatz. Jeder andere Spieler (oder deren Corp) kann sie zu diesem Preis kaufen.</div></div>' +
+      '<button type="button" class="btn-block down" id="cancelListingBtn" style="max-width:240px; margin-top:14px;"' + (iCanDecide ? '' : ' disabled') + '>' + (iCanDecide ? 'Angebot zurückziehen' : 'Nur Leiter/Offiziere') + '</button>' +
+      '<div id="sellMsg"></div>';
+    if (iCanDecide) document.getElementById('cancelListingBtn').addEventListener('click', () => doCancelListing(myListing.listing_id));
+    return;
+  }
+  panel.innerHTML = '<h3>Zum Verkauf anbieten</h3><p style="color:var(--fg-dim); font-size:15.5px; line-height:1.6;">' +
+    company.name + ' (' + company.ticker + ') kann direkt an andere Spieler oder Corps verkauft werden. ' +
+    'Lege einen Angebotspreis fest — bis ein Käufer zuschlägt oder du das Angebot zurückziehst, läuft die ' +
+    'Firma normal weiter.</p>' +
+    '<div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
+    '<input type="number" id="sellPrice" placeholder="Preis in MOGC" style="max-width:180px;" min="1" step="1"' + (iCanDecide ? '' : ' disabled') + '>' +
+    '<button type="button" class="btn-block" id="listForSaleBtn" style="max-width:240px;"' + (iCanDecide ? '' : ' disabled') + '>' + (iCanDecide ? 'Zum Verkauf anbieten' : 'Nur Leiter/Offiziere') + '</button></div>' +
+    '<div id="sellMsg"></div>';
+  if (iCanDecide) document.getElementById('listForSaleBtn').addEventListener('click', () => doListForSale(company.id));
+}
+
+async function doListForSale(companyId){
+  if (isGuest()) { showMsg('sellMsg', 'Als Gast kein Verkauf möglich.', false); return; }
+  const priceInput = document.getElementById('sellPrice');
+  const price = Number(priceInput ? priceInput.value : NaN);
+  clearMsg('sellMsg');
+  if (!price || price <= 0) { showMsg('sellMsg', 'Bitte einen gültigen Preis eingeben.', false); return; }
+  showMsg('sellMsg', 'Angebot wird erstellt …', true);
+  try {
+    const { error } = await sb.schema('foundry').rpc('list_company_for_sale', { p_company_id: companyId, p_asking_price: price });
+    if (error) { showMsg('sellMsg', error.message, false); return; }
+    showMsg('sellMsg', 'Angebot erstellt — die Firma ist jetzt im Marktplatz sichtbar.', true);
+    await Promise.all([loadCompanies(), loadCompanySaleListings()]);
+    render();
+  } catch (err) {
+    showMsg('sellMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+
+async function doCancelListing(listingId){
+  clearMsg('sellMsg');
+  showMsg('sellMsg', 'Angebot wird zurückgezogen …', true);
+  try {
+    const { error } = await sb.schema('foundry').rpc('cancel_company_sale_listing', { p_listing_id: listingId });
+    if (error) { showMsg('sellMsg', error.message, false); return; }
+    showMsg('sellMsg', 'Angebot zurückgezogen.', true);
+    await Promise.all([loadCompanies(), loadCompanySaleListings()]);
+    render();
+  } catch (err) {
+    showMsg('sellMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+
+function renderSaleMarket(){
+  const list = document.getElementById('saleListingsList');
+  if (!list) return;
+  list.innerHTML = '';
+  const others = companySaleListings.filter(l => !currentUser || l.seller_player_id !== currentUser.id);
+  if (!others.length) {
+    list.innerHTML = '<div class="event-empty">Aktuell bietet niemand eine Firma zum Kauf an.</div>';
+    return;
+  }
+  const guest = isGuest();
+  const canUseCorp = canFoundForCorp();
+  others.forEach(l => {
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    row.style.display = 'flex';
+    row.style.flexWrap = 'wrap';
+    row.style.alignItems = 'center';
+    row.style.gap = '10px';
+    row.style.justifyContent = 'space-between';
+    const info = document.createElement('div');
+    const sellerLabel = l.seller_guild_name ? (ICON_CORP + l.seller_guild_name) : l.seller_username;
+    info.innerHTML = '<b>' + l.name + '</b> <span class="tag">' + l.ticker + '</span> ' +
+      '<span class="stage-badge ' + l.stage + '">' + stageLabel(l.stage) + '</span> — ' + l.sector + '<br>' +
+      '<span style="color:var(--fg-dim); font-size:13px;">Kapazität ' + fmt(l.capacity) + ' · Mitarbeiter ' + fmt(l.employees) + ' · Reputation ' + Math.round(l.reputation) + '/100 · Risiko ' + Math.round(l.risk_score) + '/100<br>' +
+      'Rücklage ' + fmt2(l.cash_reserve) + ' MOGC · Anbieter: ' + sellerLabel + '<br>' +
+      'Preis: <b>' + fmt2(l.asking_price) + ' MOGC</b></span>';
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.flexDirection = 'column';
+    actions.style.gap = '6px';
+    actions.style.alignItems = 'flex-end';
+    if (canUseCorp) {
+      const label = document.createElement('label');
+      label.style.display = 'flex';
+      label.style.alignItems = 'center';
+      label.style.gap = '6px';
+      label.style.fontSize = '12.5px';
+      label.style.color = 'var(--fg-dim)';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.style.width = 'auto';
+      cb.id = 'corpBuy-' + l.listing_id;
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode('mit Corp-Kasse (' + myGuild.name + ')'));
+      actions.appendChild(label);
+    }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-block';
+    btn.style.maxWidth = '200px';
+    btn.style.flex = '0 0 auto';
+    btn.textContent = 'Kaufen (' + fmt2(l.asking_price) + ' MOGC)';
+    btn.disabled = guest;
+    btn.addEventListener('click', () => {
+      const cb = document.getElementById('corpBuy-' + l.listing_id);
+      doBuyCompany(l.listing_id, !!(cb && cb.checked));
+    });
+    actions.appendChild(btn);
+    row.appendChild(info);
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+}
+
+async function doBuyCompany(listingId, useCorp){
+  if (isGuest()) { showMsg('buyMsg', 'Als Gast kein Kauf möglich.', false); return; }
+  clearMsg('buyMsg');
+  showMsg('buyMsg', 'Kauf wird verarbeitet …', true);
+  try {
+    const { error } = await sb.schema('foundry').rpc('buy_company', {
+      p_listing_id: listingId,
+      p_as_guild_id: (useCorp && canFoundForCorp()) ? myGuild.id : null,
+    });
+    if (error) { showMsg('buyMsg', error.message, false); return; }
+    showMsg('buyMsg', 'Kauf erfolgreich — die Firma läuft jetzt unter deiner Leitung.', true);
+    await Promise.all([loadWallet(), loadCompanies(), loadCompanySaleListings(), loadGalaxyMap(), loadMyGuild()]);
+    render();
+  } catch (err) {
+    showMsg('buyMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+}
+
 function renderEvents(events){
   const list = document.getElementById('eventList');
   list.innerHTML = '';
@@ -2348,7 +2530,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId, corpCheckId){
 }
 document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg', 'corpFundCheck'));
 document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2', 'corpFundCheck2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets()]); render(); });
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){

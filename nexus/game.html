@@ -2776,6 +2776,24 @@
       </div>
       <div class="am-modal-desc" id="amMyOrdersHint" style="margin-top:10px;"></div>
     </div>
+
+    <details class="am-modal-desc" id="amTakeoverBox" style="margin-top:18px; border:1px solid var(--line); border-radius:10px; padding:10px 12px;">
+      <summary style="cursor:pointer; font-weight:600; color:var(--fg);">Mehrheitsübernahme</summary>
+      <div style="margin-top:10px; font-size:13px; color:var(--fg-dim); line-height:1.6;">
+        Ein Übernahmeangebot muss mindestens 20% über dem aktuellen Kurs liegen. Bei Auslösung werden
+        alle frei handelbaren Aktien der übrigen Aktionäre automatisch zu diesem Preis aufgekauft
+        (gesperrte Gründeranteile bleiben geschützt). Der Kurs wird danach auf den Angebotspreis
+        gesetzt, der Handel pausiert anschließend 15 Minuten. Eine Kartellamt-Prüfung (Marktkapitalisierung
+        im Sektor) kann das Angebot blockieren.
+      </div>
+      <button type="button" class="btn btn-ghost" id="amShowShareholdersBtn" style="margin-top:10px;">Großaktionäre anzeigen (ab 5%)</button>
+      <div id="amShareholdersList" style="margin-top:8px;"></div>
+      <div class="sm-trade-box" style="margin-top:10px;">
+        <input type="number" id="amTakeoverPriceInput" min="0" step="any" placeholder="Preis je Aktie (MOGC)">
+        <button type="button" class="btn btn-primary" id="amTakeoverSubmitBtn">Übernahmeangebot starten</button>
+      </div>
+      <div class="am-modal-desc" id="amTakeoverMsg"></div>
+    </details>
   </div>
 </div>
 
@@ -7611,6 +7629,11 @@ async function openAmDetail(companyId){
   document.getElementById('amMarketPreview').textContent = '';
   document.getElementById('amOrderAmountInput').value = '';
   document.getElementById('amOrderPriceInput').value = '';
+  document.getElementById('amTakeoverPriceInput').value = '';
+  document.getElementById('amTakeoverMsg').innerHTML = '';
+  document.getElementById('amShareholdersList').innerHTML = '';
+  const takeoverDetails = document.getElementById('amTakeoverBox');
+  if (takeoverDetails) takeoverDetails.open = false;
   renderAmCompanyNews(companyId);
   renderAmMarketStatus();
   renderAmDetailHaltState(c);
@@ -7710,6 +7733,41 @@ document.getElementById('amOrderSubmitBtn').addEventListener('click', async () =
   await amRefreshOrderBook();
   await loadAktienmarkt(true);
   await loadEverything({ light: true });
+});
+
+document.getElementById('amShowShareholdersBtn').addEventListener('click', async () => {
+  const box = document.getElementById('amShareholdersList');
+  box.innerHTML = '<div class="am-loading">Lädt…</div>';
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_major_shareholders', { p_company_id: amDetailCompanyId, p_min_pct: 5 });
+    if (error) { box.innerHTML = '<div class="am-loading">Fehler: ' + error.message + '</div>'; return; }
+    const rows = data || [];
+    box.innerHTML = rows.length
+      ? rows.map(r => `<div class="am-ob-row"><span>${r.username}${r.has_locked_shares ? ' 🔒' : ''}</span><span>${fmtCoin(r.shares)} (${Number(r.percent_owned).toFixed(1)}%)</span></div>`).join('')
+      : '<div class="am-loading">Kein Aktionär hält ≥ 5%.</div>';
+  } catch (err) {
+    box.innerHTML = '<div class="am-loading">Unerwarteter Fehler: ' + (err && err.message ? err.message : err) + '</div>';
+  }
+});
+
+document.getElementById('amTakeoverSubmitBtn').addEventListener('click', async () => {
+  const price = parseFloat(document.getElementById('amTakeoverPriceInput').value);
+  clearMsg('amTakeoverMsg');
+  if (!price || price <= 0) { showMsg('amTakeoverMsg', 'Bitte einen gültigen Preis je Aktie eingeben.', false); return; }
+  showMsg('amTakeoverMsg', 'Übernahmeangebot wird verarbeitet …', true);
+  try {
+    const { data, error } = await sb.schema('platform').rpc('launch_takeover_bid', { p_company_id: amDetailCompanyId, p_price_per_share: price });
+    if (error) { showMsg('amTakeoverMsg', error.message, false); return; }
+    const row = Array.isArray(data) ? data[0] : data;
+    showMsg('amTakeoverMsg', 'Übernahme erfolgreich — ' +
+      fmtCoin(row?.shares_acquired ?? 0) + ' Aktien für ' + fmtCoin(row?.total_cost ?? 0) + ' MOGC aufgekauft. ' +
+      'Neuer Anteil: ' + Number(row?.ownership_pct_after ?? 0).toFixed(1) + '%.', true);
+    await loadAktienmarkt(true);
+    await loadEverything({ light: true });
+    openAmDetail(amDetailCompanyId);
+  } catch (err) {
+    showMsg('amTakeoverMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
 });
 
 document.getElementById('amSearchInput').addEventListener('input', (e) => {

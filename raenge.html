@@ -127,7 +127,16 @@
   .hero h1{ font-size:clamp(30px,5vw,44px); line-height:1.08; font-weight:700; letter-spacing:-0.01em; margin:0 0 16px; }
   .hero p{ font-size:15.5px; line-height:1.65; color:var(--fg-dim); max-width:560px; margin:0; }
 
-  .chips{ display:flex; gap:9px; flex-wrap:wrap; margin:30px 0 26px; }
+  .chips{ display:flex; gap:9px; flex-wrap:wrap; margin:0 0 26px; }
+  .cat-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:30px 0 16px; }
+  .cat-tab{
+    font-family:'Space Grotesk'; font-size:14px; font-weight:700;
+    padding:10px 18px; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel); color:var(--fg-dim); cursor:pointer;
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  .cat-tab:hover{ color:var(--fg); border-color:var(--fg-faint); }
+  .cat-tab.active{ color:#0a0b12; background:var(--gold); border-color:var(--gold); }
   .chip{
     font-family:'Space Grotesk'; font-size:13px; font-weight:600;
     padding:9px 16px; border-radius:999px; border:1px solid var(--line);
@@ -331,6 +340,7 @@
        Auf Wunsch lässt sich nach einzelnem Spiel filtern.</p>
   </section>
 
+  <div class="cat-tabs" id="catTabs"></div>
   <div class="chips" id="chips"></div>
 
   <div class="board">
@@ -436,39 +446,93 @@
     { id:'maxcycle', metric:'max_cycle', label:'Max. CYCLE (Nexus)', boardTitle:'Denkmal — höchster je gehaltener CYCLE-Bestand', accent:'#3ddc84', unit:'CYCLE' }
   ];
 
+  /* ---------- Foundry: Gründer-Ranglisten (Solo & Corp), eigene RPCs
+     foundry.get_founder_leaderboard(limit) / foundry.get_corp_founder_leaderboard(limit).
+     Andere Zeilenform als CURRENCY_BOARDS/MONUMENT_BOARDS (kein rank_no/balance,
+     sondern player_id/username bzw. guild_id/guild_name + company_count + total_value),
+     deshalb eigene Lade-/Render-Funktion statt renderCurrencyBoard. */
+  var FOUNDER_BOARDS = [
+    { id:'founder', label:'Gründer (Solo)', boardTitle:'Foundry — Gründer-Rangliste (Solo)', accent:'#3ddc84', corp:false },
+    { id:'corpfounder', label:'Gründer (Corps)', boardTitle:'Foundry — Gründer-Rangliste (Corps)', accent:'#8A63F5', corp:true }
+  ];
+
   function fmt(n){ try{ return Math.round(n).toLocaleString('de-DE'); }catch(e){ return String(Math.round(n)); } }
 
-  /* ---------- Chips (Filter) ---------- */
+  /* ---------- Kategorien (Haupt-Tabs) & Chips (Filter innerhalb der Kategorie) ---------- */
+  var CATEGORIES = [
+    { id:'games', label:'Gesamt & Spiele' },
+    { id:'nexus', label:'Nexus' },
+    { id:'foundry', label:'Foundry' }
+  ];
   var activeFilter = 'total';
+  var activeCategory = 'games';
   var chipsEl = document.getElementById('chips');
-  var chipDefs = [{ id:'total', label:'Gesamt (alle Spiele)', accent:'var(--fg)', boardTitle:'Gesamtwertung' }]
-    .concat(GAMES.map(function(g){ return { id:g.id, label:g.label, accent:g.accent, boardTitle:g.label }; }))
-    .concat(CURRENCY_BOARDS.map(function(c){ return { id:c.id, label:c.label, accent:c.accent, boardTitle:c.boardTitle }; }))
-    .concat(MONUMENT_BOARDS.map(function(m){ return { id:m.id, label:m.label, accent:m.accent, boardTitle:m.boardTitle }; }));
+  var catTabsEl = document.getElementById('catTabs');
+  var chipDefs = [{ id:'total', label:'Gesamt (alle Spiele)', accent:'var(--fg)', boardTitle:'Gesamtwertung', cat:'games' }]
+    .concat(GAMES.map(function(g){ return { id:g.id, label:g.label, accent:g.accent, boardTitle:g.label, cat:'games' }; }))
+    .concat(CURRENCY_BOARDS.map(function(c){ return { id:c.id, label:c.label, accent:c.accent, boardTitle:c.boardTitle, cat:'nexus' }; }))
+    .concat(MONUMENT_BOARDS.map(function(m){ return { id:m.id, label:m.label, accent:m.accent, boardTitle:m.boardTitle, cat:'nexus' }; }))
+    .concat(FOUNDER_BOARDS.map(function(f){ return { id:f.id, label:f.label, accent:f.accent, boardTitle:f.boardTitle, cat:'foundry' }; }));
+
+  CATEGORIES.forEach(function(cat){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cat-tab' + (cat.id === activeCategory ? ' active' : '');
+    btn.textContent = cat.label;
+    btn.addEventListener('click', function(){
+      if (activeCategory === cat.id) return;
+      activeCategory = cat.id;
+      Array.prototype.forEach.call(catTabsEl.children, function(el){ el.classList.remove('active'); });
+      btn.classList.add('active');
+      renderChipVisibility();
+      var firstInCat = chipDefs.filter(function(c){ return c.cat === cat.id; })[0];
+      if (firstInCat) selectChip(firstInCat.id);
+    });
+    catTabsEl.appendChild(btn);
+  });
+
+  function renderChipVisibility(){
+    Array.prototype.forEach.call(chipsEl.children, function(el){
+      el.style.display = (el.dataset.cat === activeCategory) ? '' : 'none';
+    });
+  }
+
+  function selectChip(id){
+    var c = chipDefs.filter(function(cd){ return cd.id === id; })[0];
+    if (!c) return;
+    activeFilter = c.id;
+    Array.prototype.forEach.call(chipsEl.children, function(el){ el.classList.remove('active'); });
+    var btnEl = chipsEl.querySelector('[data-chip-id="' + id + '"]');
+    if (btnEl) btnEl.classList.add('active');
+    document.getElementById('boardTitle').textContent = c.boardTitle;
+    var sub = document.getElementById('boardSub');
+    var isCurrency = CURRENCY_BOARDS.some(function(cb){ return cb.id === c.id; });
+    var isMonument = MONUMENT_BOARDS.some(function(mb){ return mb.id === c.id; });
+    var isFounder = FOUNDER_BOARDS.some(function(fb){ return fb.id === c.id; });
+    if(isCurrency){
+      sub.innerHTML = 'Ingame-Währung aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — wer das Spiel nicht kennt, findet hier rein.';
+      sub.style.display = 'block';
+    } else if(isMonument){
+      sub.innerHTML = 'Denkmal-Statistik aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — Prestige-Vermächtnis, kein aktueller Kontostand.';
+      sub.style.display = 'block';
+    } else if(isFounder){
+      sub.innerHTML = 'Firmenwert (Kapital + Rücklage) aus <a href="foundry/index.html" style="color:inherit; text-decoration:underline;">Foundry</a>.';
+      sub.style.display = 'block';
+    } else {
+      sub.style.display = 'none';
+    }
+    renderBoard();
+  }
+
   chipDefs.forEach(function(c){
     var btn = document.createElement('button');
-    btn.className = 'chip' + (c.id === 'total' ? ' active' : '');
+    btn.className = 'chip' + (c.id === activeFilter ? ' active' : '');
     btn.type = 'button';
+    btn.dataset.cat = c.cat;
+    btn.dataset.chipId = c.id;
+    btn.style.display = (c.cat === activeCategory) ? '' : 'none';
     btn.innerHTML = '<span class="sw" style="background:' + c.accent + '"></span>' + c.label;
-    btn.addEventListener('click', function(){
-      activeFilter = c.id;
-      Array.prototype.forEach.call(chipsEl.children, function(el){ el.classList.remove('active'); });
-      btn.classList.add('active');
-      document.getElementById('boardTitle').textContent = c.boardTitle;
-      var sub = document.getElementById('boardSub');
-      var isCurrency = CURRENCY_BOARDS.some(function(cb){ return cb.id === c.id; });
-      var isMonument = MONUMENT_BOARDS.some(function(mb){ return mb.id === c.id; });
-      if(isCurrency){
-        sub.innerHTML = 'Ingame-Währung aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — wer das Spiel nicht kennt, findet hier rein.';
-        sub.style.display = 'block';
-      } else if(isMonument){
-        sub.innerHTML = 'Denkmal-Statistik aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — Prestige-Vermächtnis, kein aktueller Kontostand.';
-        sub.style.display = 'block';
-      } else {
-        sub.style.display = 'none';
-      }
-      renderBoard();
-    });
+    btn.addEventListener('click', function(){ selectChip(c.id); });
     chipsEl.appendChild(btn);
   });
 
@@ -476,6 +540,7 @@
   var players = {}; // user_id -> {name, avatar, perGame:{gameId:points}, total}
   var currentUserId = null;
   var currencyBoards = {}; // id -> array of {rank_no, id, name, avatar, balance} | null (Fehler) | undefined (noch nicht geladen)
+  var founderBoards = {}; // id -> array of {id, name, avatar, company_count, total_value} | null (Fehler) | undefined (noch nicht geladen)
 
   function avatarHtml(avatar){
     if(avatar && /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(avatar)){
@@ -502,6 +567,8 @@
     if(currencyBoard){ renderCurrencyBoard(currencyBoard, currencyBoard.symbol); return; }
     var monumentBoard = MONUMENT_BOARDS.filter(function(m){ return m.id === activeFilter; })[0];
     if(monumentBoard){ renderCurrencyBoard(monumentBoard, monumentBoard.unit); return; }
+    var founderBoard = FOUNDER_BOARDS.filter(function(f){ return f.id === activeFilter; })[0];
+    if(founderBoard){ renderFounderBoard(founderBoard); return; }
 
     var body = document.getElementById('boardBody');
     var list = Object.keys(players).map(function(id){ return players[id]; });
@@ -565,6 +632,42 @@
         + '</div>';
     }).join('');
     bindRowClicks();
+  }
+
+  var ICON_CORP_SM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+
+  function renderFounderBoard(f){
+    var body = document.getElementById('boardBody');
+    var list = founderBoards[f.id];
+    if(list === undefined){
+      body.innerHTML = '<div class="loading">Rangliste wird geladen …</div>';
+      return;
+    }
+    if(list === null){
+      body.innerHTML = '<div class="err">' + f.label + '-Rangliste konnte nicht geladen werden.</div>';
+      return;
+    }
+    if(list.length === 0){
+      body.innerHTML = '<div class="empty">Noch keine ' + (f.corp ? 'Corp-' : '') + 'Firmen gegründet.</div>';
+      return;
+    }
+    body.innerHTML = list.map(function(row, i){
+      var title = !f.corp && players[row.id] ? players[row.id].title : null;
+      var avatarCell = f.corp
+        ? '<div class="r-avatar" style="display:flex; align-items:center; justify-content:center; color:var(--fg-dim);">' + ICON_CORP_SM + '</div>'
+        : '<div class="r-avatar">' + avatarHtml(row.avatar) + '</div>';
+      return '<div class="row' + (row.id === currentUserId ? ' me' : '') + '" data-player-id="' + (f.corp ? '' : row.id) + '">'
+        + '<div class="r-rank">' + (i+1) + '</div>'
+        + avatarCell
+        + '<div class="r-main">'
+        + (title ? '<div class="r-title">' + escapeHtml(title) + '</div>' : '')
+        + '<div class="r-name">' + escapeHtml(row.name) + (row.id === currentUserId ? ' (du)' : '') + '</div>'
+        + '<div class="r-badges"><span class="r-badge" style="border-color:' + f.accent + '55">' + row.company_count + ' Firma' + (row.company_count === 1 ? '' : 'en') + '</span></div>'
+        + '</div>'
+        + '<div class="r-points">' + fmt(row.total_value) + '<span class="u">MOGC</span></div>'
+        + '</div>';
+    }).join('');
+    if(!f.corp) bindRowClicks();
   }
 
   function bindRowClicks(){
@@ -735,6 +838,23 @@
           return { rank_no: row.rank_no, id: row.user_id, name: row.username, avatar: row.avatar, balance: Number(row.balance) || 0 };
         });
       }catch(e){ currencyBoards[m.id] = null; }
+    }));
+
+    // Foundry-Gründer-Ranglisten (Solo & Corp) -- eigene RPCs mit eigener
+    // Zeilenform (player_id/username bzw. guild_id/guild_name + company_count
+    // + total_value), unabhaengig von den uebrigen Ranglisten geladen.
+    await Promise.all(FOUNDER_BOARDS.map(async function(f){
+      try{
+        var res = f.corp
+          ? await supabaseClient.schema('foundry').rpc('get_corp_founder_leaderboard', { p_limit: 10 })
+          : await supabaseClient.schema('foundry').rpc('get_founder_leaderboard', { p_limit: 10 });
+        if(res.error){ founderBoards[f.id] = null; return; }
+        founderBoards[f.id] = (res.data || []).map(function(row){
+          return f.corp
+            ? { id: row.guild_id, name: row.guild_tag ? (row.guild_tag + ' — ' + row.guild_name) : row.guild_name, company_count: row.company_count, total_value: Number(row.total_value) || 0 }
+            : { id: row.player_id, name: row.username, avatar: players[row.player_id] ? players[row.player_id].avatar : null, company_count: row.company_count, total_value: Number(row.total_value) || 0 };
+        });
+      }catch(e){ founderBoards[f.id] = null; }
     }));
 
     Object.keys(players).forEach(function(id){
