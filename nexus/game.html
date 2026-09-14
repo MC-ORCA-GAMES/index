@@ -4112,8 +4112,37 @@ function renderForgeStorageModal(){
     slider.addEventListener('input', () => {
       const sym = slider.dataset.forgeresource, tid = slider.dataset.target;
       forgeAllocTouched[sym + ':' + tid] = true;
-      const label = body.querySelector('.forge-alloc-label[data-forgeresource="' + sym + '"][data-target="' + tid + '"]');
-      if (label) label.textContent = slider.value + ' %';
+
+      // Regler sind gekoppelt: zusammen dürfen die Ziele eines Rohstoffs nie über
+      // 100% kommen. Reicht der Rest nicht, werden die ANDEREN Ziel-Regler anteilig
+      // (proportional zu ihrem aktuellen Wert) automatisch verringert.
+      const siblings = Array.from(body.querySelectorAll('.forge-alloc-slider[data-forgeresource="' + sym + '"]'))
+        .filter(s => s.dataset.target !== tid);
+      const myVal = Number(slider.value);
+      const othersSum = siblings.reduce((s, el) => s + Number(el.value), 0);
+      let excess = myVal + othersSum - 100;
+      if (excess > 0 && othersSum > 0) {
+        let remaining = excess;
+        siblings.forEach(s => {
+          const cur = Number(s.value);
+          const share = Math.min(cur, Math.round(excess * (cur / othersSum)));
+          s.value = cur - share;
+          remaining -= share;
+        });
+        // Rundungsrest ggf. von Reglern mit noch Spielraum abziehen.
+        let i = 0;
+        while (remaining > 0 && i < siblings.length) {
+          const cur = Number(siblings[i].value);
+          if (cur > 0) { siblings[i].value = cur - 1; remaining--; } else { i++; }
+        }
+      }
+
+      body.querySelectorAll('.forge-alloc-slider[data-forgeresource="' + sym + '"]').forEach(s => {
+        const l = body.querySelector('.forge-alloc-label[data-forgeresource="' + sym + '"][data-target="' + s.dataset.target + '"]');
+        if (l) l.textContent = s.value + ' %';
+        if (s !== slider) forgeAllocTouched[sym + ':' + s.dataset.target] = true;
+      });
+
       const totalEl = body.querySelector('.forge-alloc-total[data-forgeresource="' + sym + '"]');
       if (totalEl) {
         let total = 0;
@@ -4127,9 +4156,17 @@ function renderForgeStorageModal(){
     btn.addEventListener('click', async () => {
       const sym = btn.dataset.forgeresource;
       const sliders = Array.from(body.querySelectorAll('.forge-alloc-slider[data-forgeresource="' + sym + '"]'));
+      // Erst Verringerungen speichern, dann Erhöhungen -- sonst kann eine Erhöhung
+      // serverseitig abgelehnt werden, weil die zugehörige Verringerung eines
+      // anderen Ziels noch nicht committed ist (Summe im Zwischenstand > 100).
+      const prevAllocs = forgeExportAllocations[sym] || {};
+      const orderedSliders = [
+        ...sliders.filter(s => Number(s.value) <= Number(prevAllocs[s.dataset.target] || 0)),
+        ...sliders.filter(s => Number(s.value) > Number(prevAllocs[s.dataset.target] || 0))
+      ];
       btn.disabled = true;
       try {
-        for (const s of sliders) {
+        for (const s of orderedSliders) {
           const { error } = await sb.schema('forge').rpc('set_export_allocation', {
             p_resource_symbol: sym, p_target_id: s.dataset.target, p_pct: Number(s.value)
           });
