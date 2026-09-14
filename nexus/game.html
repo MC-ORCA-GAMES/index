@@ -960,6 +960,10 @@
   .am-market-status.closed .am-status-dot{ background:var(--down); }
   .am-market-status.open #amMarketStatusText{ color:var(--up); }
   .am-market-status.closed #amMarketStatusText{ color:var(--down); }
+  .am-pstatus{ display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600; white-space:nowrap; }
+  .am-pstatus.active{ background:var(--up-dim,rgba(46,204,113,0.14)); color:var(--up); }
+  .am-pstatus.delisted{ background:var(--down-dim,rgba(235,87,87,0.14)); color:var(--down); }
+  .am-own-tag{ font-size:10px; color:var(--blue); margin-left:6px; }
   .am-trade-disabled{ opacity:0.5; pointer-events:none; }
   .am-heatmap{ display:grid; grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:8px; }
   .am-heat-tile{ border-radius:10px; padding:12px 10px; cursor:pointer; border:1px solid rgba(255,255,255,0.06); transition:transform .15s ease; }
@@ -2097,6 +2101,7 @@
           <button type="button" class="am-innernav-btn active" data-amview="uebersicht">Markt-Übersicht</button>
           <button type="button" class="am-innernav-btn" data-amview="watchlist">Watchlist</button>
           <button type="button" class="am-innernav-btn" data-amview="portfolio">Portfolio</button>
+          <button type="button" class="am-innernav-btn" data-amview="spielerfirmen">Spieler-Firmen</button>
         </div>
       </div>
 
@@ -2186,6 +2191,33 @@
                 <tr><th>Datum</th><th>Ticker</th><th>Name</th><th>Aktien</th><th>Betrag</th></tr>
               </thead>
               <tbody id="amDividendsTableBody"><tr><td colspan="5" class="am-loading">Lädt…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="amView-spielerfirmen" style="display:none">
+        <div class="panel">
+          <h3>Spieler-Firmen <span class="tag">— eigenständige FOUNDRY-Börsengänge, unbegrenzt viele, unabhängig von den 32 festen Firmen oben</span></h3>
+          <div class="sm-hint">Jede Firma, die ein Spieler in <a href="../foundry/game.html" target="_blank" rel="noopener">FOUNDRY</a> an die Börse gebracht hat, taucht hier auf — auch wenn sie inzwischen insolvent gegangen und vom Handel ausgesetzt wurde. Aktive Firmen sind zusätzlich ganz normal in der Markt-Übersicht oben mit gelistet und dort auch handelbar.</div>
+          <div class="am-table-toolbar">
+            <input type="text" id="amPlayerSearchInput" placeholder="Firma oder Ticker suchen…">
+          </div>
+          <div class="am-table-wrap">
+            <table class="am-table" id="amPlayerTable">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Ticker</th>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Kurs</th>
+                  <th>24h %</th>
+                  <th>Verlauf</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="amPlayerTableBody"><tr><td colspan="8" class="am-loading">Lädt…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -7171,6 +7203,10 @@ let amCompanyNews = [];
 let amMarketOpen = null;
 let amMarketNextChange = null;
 let amOrderSide = 'buy';
+let amPlayerCompanies = [];
+let amPlayerLoaded = false;
+let amPlayerSearchQuery = '';
+let amPlayerSparklines = {};
 
 function amSectorColor(pct){
   const p = Math.max(-15, Math.min(15, Number(pct) || 0));
@@ -7409,6 +7445,66 @@ function renderAmWatchlistTable(){
   }));
 }
 
+async function loadAmPlayerCompanies(force){
+  if (amPlayerLoaded && !force) return;
+  const { data, error } = await sb.schema('platform').rpc('get_player_stock_companies');
+  const body = document.getElementById('amPlayerTableBody');
+  if (error) { console.error(error); body.innerHTML = '<tr><td colspan="8" class="am-loading">Fehler beim Laden.</td></tr>'; return; }
+  amPlayerCompanies = data || [];
+  amPlayerLoaded = true;
+  renderAmPlayerTable();
+
+  const histResults = await Promise.all(amPlayerCompanies.map(c =>
+    sb.schema('platform').rpc('get_stock_price_history', { p_company_id: c.company_id, p_since: '7 days' })
+  ));
+  histResults.forEach((r, i) => { amPlayerSparklines[amPlayerCompanies[i].company_id] = r.data || []; });
+  renderAmPlayerTable();
+}
+
+function renderAmPlayerTable(){
+  let rows = [...amPlayerCompanies];
+  if (amPlayerSearchQuery) {
+    const q = amPlayerSearchQuery.toLowerCase();
+    rows = rows.filter(c => c.ticker.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+  }
+  const body = document.getElementById('amPlayerTableBody');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="8" class="am-loading">Noch keine Spieler-Firma an die Börse gebracht.</td></tr>'; return; }
+  body.innerHTML = rows.map(c => {
+    const statusHtml = c.active
+      ? '<span class="am-pstatus active">Aktiv</span>'
+      : `<span class="am-pstatus delisted" title="Insolvent seit ${new Date(c.delisted_at).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })}">Insolvent</span>`;
+    return `
+    <tr class="am-row${c.active ? '' : ' am-row-delisted'}" data-id="${c.company_id}" data-active="${c.active}">
+      <td>${c.active ? `<span class="am-star${c.in_watchlist ? ' active' : ''}" data-id="${c.company_id}">★</span>` : ''}</td>
+      <td>${c.ticker}${c.is_own ? '<span class="am-own-tag">DU</span>' : ''}</td>
+      <td>${c.name}</td>
+      <td>${statusHtml}</td>
+      <td>${Number(c.current_price).toFixed(2)}</td>
+      <td style="color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.active ? `${c.change_24h_pct >= 0 ? '+' : ''}${Number(c.change_24h_pct).toFixed(1)}%` : '–'}</td>
+      <td>${amSparkSvg(amPlayerSparklines[c.company_id])}</td>
+      <td>${c.active ? `<button type="button" class="am-buy-mini" data-id="${c.company_id}">Kaufen</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+
+  body.querySelectorAll('.am-row[data-active="true"]').forEach(r => r.addEventListener('click', (e) => {
+    if (e.target.closest('.am-star') || e.target.closest('.am-buy-mini')) return;
+    openAmDetail(r.dataset.id);
+  }));
+  body.querySelectorAll('.am-star').forEach(s => s.addEventListener('click', (e) => {
+    e.stopPropagation();
+    amToggleWatchlist(s.dataset.id);
+  }));
+  body.querySelectorAll('.am-buy-mini').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAmDetail(b.dataset.id);
+  }));
+}
+
+document.getElementById('amPlayerSearchInput').addEventListener('input', (e) => {
+  amPlayerSearchQuery = e.target.value;
+  renderAmPlayerTable();
+});
+
 async function loadAmPortfolio(){
   const { data, error } = await sb.schema('platform').rpc('get_my_stock_portfolio');
   const body = document.getElementById('amPortfolioTableBody');
@@ -7641,8 +7737,10 @@ document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListene
   document.getElementById('amView-uebersicht').style.display = view === 'uebersicht' ? '' : 'none';
   document.getElementById('amView-watchlist').style.display = view === 'watchlist' ? '' : 'none';
   document.getElementById('amView-portfolio').style.display = view === 'portfolio' ? '' : 'none';
+  document.getElementById('amView-spielerfirmen').style.display = view === 'spielerfirmen' ? '' : 'none';
   if (view === 'watchlist') renderAmWatchlistTable();
   if (view === 'portfolio') { loadAmPortfolio(); loadAmTrades(); loadAmDividends(); }
+  if (view === 'spielerfirmen') loadAmPlayerCompanies();
 }));
 </script>
 
