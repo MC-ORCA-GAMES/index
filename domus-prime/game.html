@@ -204,7 +204,7 @@
     <!-- ---------- ÜBERSICHT ---------- -->
     <div class="tab-page active" id="tabPage-uebersicht">
       <div class="colony-scene-wrap">
-        <svg id="colonyScene" viewBox="0 0 640 380" xmlns="http://www.w3.org/2000/svg"></svg>
+        <svg id="colonyScene" viewBox="0 0 640 400" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="colony-scene-hint">Tippe auf ein Gebäude, um es im Gebäude-Tab zu öffnen.</div>
       </div>
       <div class="panel">
@@ -539,6 +539,78 @@ function csBuilding(fd, st, radius, angleDeg){
   </g>`;
 }
 
+function csSmoothClosedPath(points){
+  const n = points.length;
+  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} `;
+  for (let i = 0; i < n; i++){
+    const p0 = points[(i - 1 + n) % n], p1 = points[i], p2 = points[(i + 1) % n], p3 = points[(i + 2) % n];
+    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+    d += `C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)} `;
+  }
+  return d + 'Z';
+}
+
+function csIslandOutline(rx, ry, count){
+  const pts = [];
+  for (let i = 0; i < count; i++){
+    const t = (i / count) * Math.PI * 2;
+    const wob = 1 + 0.1 * Math.sin(3 * t + 0.6) + 0.05 * Math.cos(5 * t + 1.9);
+    pts.push({ x: CS_CX + rx * wob * Math.cos(t), y: CS_CY + ry * wob * Math.sin(t) });
+  }
+  return pts;
+}
+
+function csTerrain(){
+  const outline = csIslandOutline(255, 133, 28);
+  const cliffOutline = outline.map(p => ({ x: p.x, y: p.y + 20 }));
+  const topPath = csSmoothClosedPath(outline);
+  const cliffPath = csSmoothClosedPath(cliffOutline);
+  let s = `<path d="${cliffPath}" fill="#241a12"></path>`;
+  s += `<path d="${topPath}" fill="#20492f" stroke="#173a24" stroke-width="1"></path>`;
+  const patches = [
+    [70, 60, 34, 16], [-120, 20, 28, 13], [40, -95, 26, 12],
+    [160, -40, 24, 11], [-60, 100, 30, 14], [-170, -60, 22, 10]
+  ];
+  patches.forEach(([dx, dy, rx, ry]) => {
+    s += `<ellipse cx="${CS_CX + dx}" cy="${CS_CY + dy}" rx="${rx}" ry="${ry}" fill="#28573a" opacity="0.55"></ellipse>`;
+  });
+  const decor = [
+    [95, -70, 'rock'], [-95, -75, 'bush'], [200, 15, 'bush'], [-200, 40, 'rock'],
+    [0, 125, 'bush'], [130, 95, 'rock'], [-140, -110, 'bush']
+  ];
+  decor.forEach(([dx, dy, kind]) => {
+    const x = CS_CX + dx, y = CS_CY + dy;
+    if (kind === 'rock') s += `<ellipse cx="${x}" cy="${y}" rx="6" ry="3.4" fill="#5a544a"></ellipse><ellipse cx="${x - 1.5}" cy="${y - 2.5}" rx="4" ry="2.6" fill="#726b5e"></ellipse>`;
+    else s += `<ellipse cx="${x}" cy="${y}" rx="5" ry="3" fill="#173a24"></ellipse><ellipse cx="${x}" cy="${y - 3}" rx="3.6" ry="3.6" fill="#2c6b41"></ellipse>`;
+  });
+  return s;
+}
+
+function csRoadRing(radius){
+  return `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="${radius}" ry="${radius * 0.52}" fill="none" stroke="#4a4136" stroke-width="7"></ellipse>
+    <ellipse cx="${CS_CX}" cy="${CS_CY}" rx="${radius}" ry="${radius * 0.52}" fill="none" stroke="#8a7a5e" stroke-width="1" stroke-dasharray="3,5" opacity="0.6"></ellipse>`;
+}
+
+function csSpoke(r1, a1, r2, a2){
+  const p1 = csPoint(r1, a1), p2 = csPoint(r2, a2);
+  return `<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" stroke="#4a4136" stroke-width="6"></line>
+    <line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" stroke="#8a7a5e" stroke-width="1" stroke-dasharray="3,5" opacity="0.6"></line>`;
+}
+
+function csRoads(stage1, stage2){
+  let s = '';
+  s += `<circle cx="${CS_CX}" cy="${CS_CY}" r="30" fill="none" stroke="#4a4136" stroke-width="7"></circle>`;
+  stage1.forEach((fd, i) => { s += csSpoke(0, 0, 115, (360 / stage1.length) * i); });
+  s += csRoadRing(115);
+  stage2.forEach((fd, i) => {
+    const a = (360 / stage2.length) * i + 40;
+    s += csSpoke(115, a, 190, a);
+  });
+  s += csRoadRing(190);
+  return s;
+}
+
 function renderColonyScene(){
   const svg = document.getElementById('colonyScene');
   if (!svg || !STATIC.factoryDefs || !Object.keys(STATIC.factoryDefs).length) return;
@@ -547,22 +619,25 @@ function renderColonyScene(){
   const stage1 = Object.values(STATIC.factoryDefs).filter(fd => fd.stage === 1).sort((a,b) => a.sort_order - b.sort_order);
   const stage2 = Object.values(STATIC.factoryDefs).filter(fd => fd.stage === 2).sort((a,b) => a.sort_order - b.sort_order);
 
-  let html = '';
-  html += `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="230" ry="120" fill="none" stroke="var(--line)" stroke-width="1"></ellipse>`;
-  html += `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="150" ry="78" fill="none" stroke="var(--line)" stroke-width="1"></ellipse>`;
-  html += `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="55" ry="29" fill="none" stroke="var(--line)" stroke-width="1"></ellipse>`;
+  let html = csTerrain();
+  html += csRoads(stage1, stage2);
 
+  const jobs = [];
   foundation.forEach((fd, i) => {
-    const st = STATE.factories?.[fd.factory_key] || { level: 0 };
-    html += csBuilding(fd, st, 40, foundation.length > 1 ? (i === 0 ? 200 : 20) : 0);
+    jobs.push({ fd, radius: 40, angle: foundation.length > 1 ? (i === 0 ? 200 : 20) : 0 });
   });
   stage1.forEach((fd, i) => {
-    const st = STATE.factories?.[fd.factory_key] || { level: 0 };
-    html += csBuilding(fd, st, 115, (360 / stage1.length) * i);
+    jobs.push({ fd, radius: 115, angle: (360 / stage1.length) * i });
   });
   stage2.forEach((fd, i) => {
-    const st = STATE.factories?.[fd.factory_key] || { level: 0 };
-    html += csBuilding(fd, st, 190, (360 / stage2.length) * i + 40);
+    jobs.push({ fd, radius: 190, angle: (360 / stage2.length) * i + 40 });
+  });
+  jobs.forEach(j => { j.y = csPoint(j.radius, j.angle).y; });
+  jobs.sort((a, b) => a.y - b.y);
+
+  jobs.forEach(j => {
+    const st = STATE.factories?.[j.fd.factory_key] || { level: 0 };
+    html += csBuilding(j.fd, st, j.radius, j.angle);
   });
 
   svg.innerHTML = html;
