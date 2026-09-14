@@ -778,7 +778,16 @@
   .farm-tile .ft-swarm .ft-more{ font-family:var(--mono); font-size:9.5px; color:var(--blue); }
   .farm-empty{ font-size:12.5px; color:var(--fg-faint); padding:6px 0 14px; }
 
-  .rig-icon-tile{ width:38px; height:38px; border-radius:10px; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; overflow:hidden; }
+  .rig-icon-tile{ width:38px; height:38px; border-radius:10px; background:var(--blue-dim); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; overflow:hidden; position:relative; }
+  /* Prestige-Kosmetik (SIGIL/CYCLE-Rig-Skins + Partikel-Effekte) -- rein optisch,
+     unabhaengig vom Kometen-Skin-des-Monats (--blue). Ring-Farbe kommt aus
+     --cosmetic-rig-color (per JS gesetzt aus dem aktiven Kosmetik-Item). */
+  body.cosmetic-skin-active .rig-icon-tile{ box-shadow:0 0 0 2px var(--cosmetic-rig-color, var(--gold)); }
+  body.cosmetic-particles-active .rig-icon-tile{ animation: cosmeticPulse 1.8s ease-in-out infinite; }
+  @keyframes cosmeticPulse{
+    0%,100%{ box-shadow:0 0 0 2px var(--cosmetic-rig-color, var(--gold)), 0 0 6px var(--cosmetic-rig-color, var(--gold)); }
+    50%{ box-shadow:0 0 0 2px var(--cosmetic-rig-color, var(--gold)), 0 0 16px 4px var(--cosmetic-rig-color, var(--gold)); }
+  }
   .rig-row{ align-items:flex-start; }
   .rig-row-main{ display:flex; align-items:flex-start; gap:12px; }
 
@@ -2593,6 +2602,21 @@
       </div>
 
       <div class="panel">
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L8.7 5L12.5 5.6L9.8 8.1L10.4 12L7 10.2L3.6 12L4.2 8.1L1.5 5.6L5.3 5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Prestige-Kosmetik <span class="tag">— bezahlt mit SIGIL (Achievements) oder CYCLE (Season), reiner Skin ohne Spielvorteil</span></h3>
+        <div class="ach-grid" id="cosmeticShopWrap"><div class="sm-hint">Lade Kosmetik-Shop…</div></div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L8.7 5L12.5 5.6L9.8 8.1L10.4 12L7 10.2L3.6 12L4.2 8.1L1.5 5.6L5.3 5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Meine Kosmetik <span class="tag">— gekaufte Items, jederzeit wechselbar</span></h3>
+        <div class="ach-grid" id="cosmeticOwnedWrap"><div class="sm-hint">Lade…</div></div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2 10.5L1.3 4.8L4.5 7L7 3L9.5 7L12.7 4.8L12 10.5H2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Denkmal <span class="tag">— dein Prestige-Vermächtnis</span></h3>
+        <div id="monumentWrap"><div class="sm-hint">Lade…</div></div>
+      </div>
+
+      <div class="panel">
         <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 1.5H11.5C12 1.5 12.5 2 12.5 2.5V6.5L6 13L1.5 8.5L7.5 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><circle cx="9.7" cy="4.3" r="1" fill="currentColor"/></svg></span> Dein Titel <span class="tag">— sichtbar auf der Rangliste (Ränge) und im Profil</span></h3>
         <div id="eventTitleWrap"><div class="sm-hint">Lade Titel…</div></div>
       </div>
@@ -3362,6 +3386,7 @@ document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
     checkHolidayEventVisibility();
     await loadEverything();
     await applyRigSkinTheme();
+    await applyCosmeticTheme();
     startPolling();
   } catch (err) {
     console.error('verifyOtp fehlgeschlagen:', err);
@@ -3391,6 +3416,7 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
     checkHolidayEventVisibility();
     await loadEverything();
     await applyRigSkinTheme();
+    await applyCosmeticTheme();
     startPolling();
   } catch (err) {
     console.error('Gast-Login fehlgeschlagen:', err);
@@ -3408,6 +3434,7 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
     checkHolidayEventVisibility();
     await loadEverything();
     await applyRigSkinTheme();
+    await applyCosmeticTheme();
     startPolling();
   }
 })();
@@ -5876,6 +5903,9 @@ async function loadSeasonalEvent(){
     renderEventAchievements(data.achievements || []);
     renderEventShop(data.shop_items || [], data.owned_titles || [], data.active_title || null);
     await loadRigSkin();
+    await loadCosmeticShop();
+    await loadMyCosmetics();
+    await loadMonumentPanel();
   } finally {
     seasonalEventLoading = false;
   }
@@ -5905,6 +5935,130 @@ async function applyRigSkinTheme(){
   } catch (err) {
     console.error('Skin-Theme konnte nicht angewendet werden:', err);
   }
+}
+
+let rigSkinPreviewTimeoutId = null;
+let rigSkinPreviewIntervalId = null;
+
+/* ---------- Prestige-Kosmetik (SIGIL/CYCLE-Rig-Skins & Partikel-Effekte) ----------
+   Eigenstaendiges System, unabhaengig vom Kometen-Skin-des-Monats: platform.cosmetic_items /
+   player_owned_cosmetics / player_active_cosmetic. Wirkt auf --cosmetic-rig-color + zwei
+   Body-Klassen (siehe CSS), nicht auf --blue, damit sich beide Systeme nicht in die Quere kommen. */
+async function applyCosmeticTheme(){
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_cosmetics');
+    if (error) return;
+    const skin = (data || []).find(c => c.slot === 'rig_skin' && c.active);
+    const particles = (data || []).find(c => c.slot === 'particle_effect' && c.active);
+    const root = document.documentElement.style;
+    document.body.classList.toggle('cosmetic-skin-active', !!skin);
+    document.body.classList.toggle('cosmetic-particles-active', !!particles);
+    if (skin && skin.color_hex) {
+      root.setProperty('--cosmetic-rig-color', skin.color_hex);
+    } else {
+      root.removeProperty('--cosmetic-rig-color');
+    }
+  } catch (err) {
+    console.error('Kosmetik-Theme konnte nicht angewendet werden:', err);
+  }
+}
+
+async function loadCosmeticShop(){
+  const wrap = document.getElementById('cosmeticShopWrap');
+  if (!wrap) return;
+  const { data, error } = await sb.schema('platform').rpc('get_cosmetic_shop');
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Shop nicht laden.</div>'; return; }
+  const items = data || [];
+  if (!items.length) { wrap.innerHTML = '<div class="sm-hint">Aktuell keine Items im Shop.</div>'; return; }
+  wrap.innerHTML = items.map(it => `
+    <div class="ach-card ${it.owned ? 'unlocked' : ''}" style="opacity:1;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="width:22px; height:22px; border-radius:50%; background:${it.color_hex || 'var(--gold)'}; box-shadow:0 0 14px ${it.color_hex || 'var(--gold)'}66; flex-shrink:0;"></span>
+        <div class="ach-name">${it.name}${it.season_key ? ' ⏳' : ''}</div>
+      </div>
+      <div class="ach-desc">${it.description || (it.slot === 'rig_skin' ? 'Rig-Skin' : 'Partikel-Effekt')}</div>
+      <div class="ach-meta">
+        <span class="ach-reward">${fmtCoin(it.price)} ${it.symbol}</span>
+        ${it.owned
+          ? '<span class="quest-claimed-txt">im Besitz</span>'
+          : `<button type="button" class="btn btn-primary cosmetic-buy-btn" data-item-id="${it.id}">Kaufen</button>`}
+      </div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.cosmetic-buy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('purchase_cosmetic', { p_item_id: btn.dataset.itemId });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Item gekauft.', true, 'coin');
+      await loadCosmeticShop();
+      await loadMyCosmetics();
+      await loadEverything({ light: true });
+    });
+  });
+}
+
+async function loadMyCosmetics(){
+  const wrap = document.getElementById('cosmeticOwnedWrap');
+  if (!wrap) return;
+  const { data, error } = await sb.schema('platform').rpc('get_my_cosmetics');
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte eigene Items nicht laden.</div>'; return; }
+  const items = data || [];
+  if (!items.length) { wrap.innerHTML = '<div class="sm-hint">Noch keine Kosmetik-Items gekauft.</div>'; return; }
+  wrap.innerHTML = items.map(it => `
+    <div class="ach-card ${it.active ? 'unlocked' : ''}" style="opacity:1;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="width:22px; height:22px; border-radius:50%; background:${it.color_hex || 'var(--gold)'}; box-shadow:0 0 14px ${it.color_hex || 'var(--gold)'}66; flex-shrink:0;"></span>
+        <div class="ach-name">${it.name}</div>
+      </div>
+      <div class="ach-desc">${it.description || (it.slot === 'rig_skin' ? 'Rig-Skin' : 'Partikel-Effekt')}</div>
+      <div class="ach-meta">
+        <span></span>
+        ${it.active
+          ? `<button type="button" class="btn btn-ghost cosmetic-unequip-btn" data-slot="${it.slot}">Entfernen</button>`
+          : `<button type="button" class="btn btn-primary cosmetic-equip-btn" data-item-id="${it.id}">Ausrüsten</button>`}
+      </div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.cosmetic-equip-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('set_active_cosmetic', { p_item_id: btn.dataset.itemId });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Ausgerüstet.', true, 'coin');
+      await loadMyCosmetics();
+      await applyCosmeticTheme();
+    });
+  });
+  wrap.querySelectorAll('.cosmetic-unequip-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await sb.schema('platform').rpc('clear_active_cosmetic', { p_slot: btn.dataset.slot });
+      if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+      showMsg('statusMsg', 'Entfernt.', true, 'coin');
+      await loadMyCosmetics();
+      await applyCosmeticTheme();
+    });
+  });
+}
+
+async function loadMonumentPanel(){
+  const wrap = document.getElementById('monumentWrap');
+  if (!wrap) return;
+  const { data, error } = await sb.schema('platform').rpc('get_my_monument');
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Denkmal nicht laden.</div>'; return; }
+  const row = (data && data[0]) || {};
+  const count = Number(row.prestige_count) || 0;
+  if (!count) { wrap.innerHTML = '<div class="sm-hint">Noch kein Prestige durchgeführt.</div>'; return; }
+  const first = row.first_prestige_at ? new Date(row.first_prestige_at).toLocaleDateString('de-DE') : '–';
+  wrap.innerHTML = `
+    <div class="stats-row">
+      <div class="stat-card"><div class="label">Prestiges</div><div class="value">${count}</div></div>
+      <div class="stat-card"><div class="label">Erstes Prestige</div><div class="value">${first}</div></div>
+      <div class="stat-card"><div class="label">Bester Run</div><div class="value">${fmtCoin(row.highest_total_mined_before)}</div></div>
+      <div class="stat-card"><div class="label">Max. SIGIL je gehalten</div><div class="value">${fmtCoin(row.max_sigil_ever_held)}</div></div>
+      <div class="stat-card"><div class="label">Max. CYCLE je gehalten</div><div class="value">${fmtCoin(row.max_cycle_ever_held)}</div></div>
+    </div>`;
 }
 
 let rigSkinPreviewTimeoutId = null;

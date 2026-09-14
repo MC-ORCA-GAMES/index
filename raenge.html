@@ -371,6 +371,16 @@
     { id:'relay', symbol:'RELAY', label:'RELAY (Nexus)', boardTitle:'RELAY — Top-Halter (Netzwerk-Dividenden-Reserve)', accent:'#8A63F5' }
   ];
 
+  /* ---------- Denkmal: Prestige-Ranglisten (Nexus), eigener RPC
+     platform.get_monument_leaderboard(metric, limit) -- gleiche Zeilenform wie
+     get_currency_leaderboard (rank_no/user_id/username/avatar/balance), daher
+     laesst sich renderCurrencyBoard 1:1 mitbenutzen. */
+  var MONUMENT_BOARDS = [
+    { id:'prestige', metric:'prestige_count', label:'Prestiges (Nexus)', boardTitle:'Denkmal — meiste Prestiges', accent:'#B23AFF', unit:'×' },
+    { id:'maxsigil', metric:'max_sigil', label:'Max. SIGIL (Nexus)', boardTitle:'Denkmal — höchster je gehaltener SIGIL-Bestand', accent:'#F0B93A', unit:'SIGIL' },
+    { id:'maxcycle', metric:'max_cycle', label:'Max. CYCLE (Nexus)', boardTitle:'Denkmal — höchster je gehaltener CYCLE-Bestand', accent:'#3ddc84', unit:'CYCLE' }
+  ];
+
   function fmt(n){ try{ return Math.round(n).toLocaleString('de-DE'); }catch(e){ return String(Math.round(n)); } }
 
   /* ---------- Chips (Filter) ---------- */
@@ -378,7 +388,8 @@
   var chipsEl = document.getElementById('chips');
   var chipDefs = [{ id:'total', label:'Gesamt (alle Spiele)', accent:'var(--fg)', boardTitle:'Gesamtwertung' }]
     .concat(GAMES.map(function(g){ return { id:g.id, label:g.label, accent:g.accent, boardTitle:g.label }; }))
-    .concat(CURRENCY_BOARDS.map(function(c){ return { id:c.id, label:c.label, accent:c.accent, boardTitle:c.boardTitle }; }));
+    .concat(CURRENCY_BOARDS.map(function(c){ return { id:c.id, label:c.label, accent:c.accent, boardTitle:c.boardTitle }; }))
+    .concat(MONUMENT_BOARDS.map(function(m){ return { id:m.id, label:m.label, accent:m.accent, boardTitle:m.boardTitle }; }));
   chipDefs.forEach(function(c){
     var btn = document.createElement('button');
     btn.className = 'chip' + (c.id === 'total' ? ' active' : '');
@@ -391,8 +402,12 @@
       document.getElementById('boardTitle').textContent = c.boardTitle;
       var sub = document.getElementById('boardSub');
       var isCurrency = CURRENCY_BOARDS.some(function(cb){ return cb.id === c.id; });
+      var isMonument = MONUMENT_BOARDS.some(function(mb){ return mb.id === c.id; });
       if(isCurrency){
         sub.innerHTML = 'Ingame-Währung aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — wer das Spiel nicht kennt, findet hier rein.';
+        sub.style.display = 'block';
+      } else if(isMonument){
+        sub.innerHTML = 'Denkmal-Statistik aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — Prestige-Vermächtnis, kein aktueller Kontostand.';
         sub.style.display = 'block';
       } else {
         sub.style.display = 'none';
@@ -416,7 +431,9 @@
 
   function renderBoard(){
     var currencyBoard = CURRENCY_BOARDS.filter(function(c){ return c.id === activeFilter; })[0];
-    if(currencyBoard){ renderCurrencyBoard(currencyBoard); return; }
+    if(currencyBoard){ renderCurrencyBoard(currencyBoard, currencyBoard.symbol); return; }
+    var monumentBoard = MONUMENT_BOARDS.filter(function(m){ return m.id === activeFilter; })[0];
+    if(monumentBoard){ renderCurrencyBoard(monumentBoard, monumentBoard.unit); return; }
 
     var body = document.getElementById('boardBody');
     var list = Object.keys(players).map(function(id){ return players[id]; });
@@ -450,19 +467,20 @@
     }).join('');
   }
 
-  function renderCurrencyBoard(c){
+  function renderCurrencyBoard(c, unitLabel){
     var body = document.getElementById('boardBody');
     var list = currencyBoards[c.id];
+    var unit = unitLabel || c.symbol;
     if(list === undefined){
       body.innerHTML = '<div class="loading">Rangliste wird geladen …</div>';
       return;
     }
     if(list === null){
-      body.innerHTML = '<div class="err">' + c.symbol + '-Rangliste konnte nicht geladen werden.</div>';
+      body.innerHTML = '<div class="err">' + c.label + '-Rangliste konnte nicht geladen werden.</div>';
       return;
     }
     if(list.length === 0){
-      body.innerHTML = '<div class="empty">Noch niemand hält ' + c.symbol + '.</div>';
+      body.innerHTML = '<div class="empty">Noch keine Werte für ' + c.label + ' vorhanden.</div>';
       return;
     }
     body.innerHTML = list.map(function(pl){
@@ -473,7 +491,7 @@
         + '<div class="r-main">'
         + (title ? '<div class="r-title">' + escapeHtml(title) + '</div>' : '')
         + '<div class="r-name">' + (pl.name || 'Unbenannt') + (pl.id === currentUserId ? ' (du)' : '') + '</div></div>'
-        + '<div class="r-points">' + fmt(pl.balance) + '<span class="u">' + c.symbol + '</span></div>'
+        + '<div class="r-points">' + fmt(pl.balance) + '<span class="u">' + unit + '</span></div>'
         + '</div>';
     }).join('');
   }
@@ -574,6 +592,19 @@
           return { rank_no: row.rank_no, id: row.user_id, name: row.username, avatar: row.avatar, balance: Number(row.balance) || 0 };
         });
       }catch(e){ currencyBoards[c.id] = null; }
+    }));
+
+    // Denkmal-Ranglisten (Prestige-Anzahl, Max. SIGIL/CYCLE je gehalten) --
+    // eigener RPC platform.get_monument_leaderboard(metric, limit), gleiche
+    // Zeilenform wie get_currency_leaderboard, daher gleiche Verarbeitung.
+    await Promise.all(MONUMENT_BOARDS.map(async function(m){
+      try{
+        var res = await supabaseClient.schema('platform').rpc('get_monument_leaderboard', { p_metric: m.metric, p_limit: 10 });
+        if(res.error){ currencyBoards[m.id] = null; return; }
+        currencyBoards[m.id] = (res.data || []).map(function(row){
+          return { rank_no: row.rank_no, id: row.user_id, name: row.username, avatar: row.avatar, balance: Number(row.balance) || 0 };
+        });
+      }catch(e){ currencyBoards[m.id] = null; }
     }));
 
     Object.keys(players).forEach(function(id){

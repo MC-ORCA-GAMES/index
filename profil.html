@@ -139,6 +139,29 @@
   .stat-tile .lbl2{ font-size:11.5px; color:var(--fg-faint); margin-top:2px; }
   .stats-empty{ font-size:13px; color:var(--fg-faint); }
 
+  /* ---------- Denkmal (Prestige-Statistik) ---------- */
+  .monument-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:12px; }
+  .monument-empty{ font-size:13px; color:var(--fg-faint); }
+
+  /* ---------- Kosmetik-Shop ---------- */
+  .cosmetic-tabs{ display:flex; gap:8px; margin-bottom:14px; }
+  .cosmetic-tab{ font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); background:transparent; cursor:pointer; transition:.15s; }
+  .cosmetic-tab.active{ border-color:var(--gold); color:var(--gold); background:var(--gold-dim); }
+  .cosmetic-list{ display:flex; flex-direction:column; gap:10px; }
+  .cosmetic-item{ display:flex; align-items:center; gap:12px; border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--bg-alt); }
+  .cosmetic-swatch{ width:28px; height:28px; border-radius:8px; flex-shrink:0; border:1px solid var(--line); }
+  .cosmetic-main{ flex:1; min-width:0; }
+  .cosmetic-name{ font-family:'Space Grotesk'; font-weight:600; font-size:14px; }
+  .cosmetic-desc{ font-size:12px; color:var(--fg-faint); margin-top:2px; }
+  .cosmetic-price{ font-size:12.5px; font-weight:600; white-space:nowrap; }
+  .cosmetic-price.sigil{ color:#F0B93A; }
+  .cosmetic-price.cycle{ color:#3ddc84; }
+  .cosmetic-btn{ font-size:12.5px; font-weight:600; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg); cursor:pointer; white-space:nowrap; transition:.15s; }
+  .cosmetic-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.04); }
+  .cosmetic-btn.primary{ border-color:var(--gold); color:var(--gold); }
+  .cosmetic-btn.active-state{ border-color:#3ddc84; color:#3ddc84; }
+  .cosmetic-btn:disabled{ opacity:0.5; cursor:default; }
+
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; font-family:'Space Grotesk'; font-weight:600; font-size:14px; padding:12px 22px; border-radius:10px; transition:.15s; border:none; cursor:pointer; width:100%; }
   .btn-primary{ background:var(--gold); color:#0a0b12; }
   .btn-danger-outline{ background:transparent; border:1px solid rgba(214,48,63,0.5); color:#e37b7b; }
@@ -338,6 +361,23 @@
       <div class="stats-games" id="statsGames"></div>
     </div>
 
+    <div class="card" id="monumentSection" style="display:none; margin-top:20px;">
+      <div class="flabel" style="margin-bottom:14px;">Denkmal <span style="color:var(--fg-faint); font-weight:400;">— dein Prestige-Vermächtnis (Nexus)</span></div>
+      <div class="monument-grid" id="monumentGrid"><div class="monument-empty">Lade …</div></div>
+    </div>
+
+    <div class="card" id="cosmeticSection" style="display:none; margin-top:20px;">
+      <div class="flabel" style="margin-bottom:6px;">Kosmetik-Shop <span style="color:var(--fg-faint); font-weight:400;">— Nexus</span></div>
+      <p class="fhint" style="margin-bottom:14px;">Reine Optik, kein Spielvorteil. SIGIL-Items sind dein Achievement-Prestige — CYCLE-Items sind zeitlich befristete Season-Skins.</p>
+      <div class="cosmetic-tabs">
+        <button type="button" class="cosmetic-tab active" data-tab="shop">Shop</button>
+        <button type="button" class="cosmetic-tab" data-tab="owned">Meine Items</button>
+      </div>
+      <div class="cosmetic-list" id="cosmeticShopList"><div class="monument-empty">Lade …</div></div>
+      <div class="cosmetic-list" id="cosmeticOwnedList" style="display:none;"></div>
+      <div class="fstatus" id="cosmeticStatus"></div>
+    </div>
+
     <div class="card danger-card" id="dangerSection" style="display:none; margin-top:20px;">
       <div class="flabel" style="margin-bottom:10px;">Konto löschen</div>
       <p class="danger-text">Löscht deinen Login und alle Cloud-Daten unwiderruflich: Spielername/Avatar/Bio
@@ -440,6 +480,8 @@
   var loadingEl = document.getElementById('loadingNotice');
   var formEl = document.getElementById('profileForm');
   var statsSection = document.getElementById('statsSection');
+  var monumentSection = document.getElementById('monumentSection');
+  var cosmeticSection = document.getElementById('cosmeticSection');
   var statsGames = document.getElementById('statsGames');
   var dangerSection = document.getElementById('dangerSection');
   var deleteStep1 = document.getElementById('deleteStep1');
@@ -932,6 +974,157 @@
     cards.forEach(function(c){ statsGames.appendChild(c); });
   }
 
+  // Denkmal: reine Statistik-Anzeige aus platform.get_my_monument() (Nexus) --
+  // nichts Kaufbares, nur Prestige-Historie + hoechste je gehaltene SIGIL/CYCLE-Bestaende.
+  async function loadMonument(user){
+    var grid = document.getElementById('monumentGrid');
+    try{
+      var res = await supabaseClient.schema('platform').rpc('get_my_monument');
+      if(res.error) throw res.error;
+      var row = (res.data && res.data[0]) || {};
+      var count = Number(row.prestige_count) || 0;
+      grid.innerHTML = '';
+      if(count === 0){
+        grid.appendChild((function(){ var d=document.createElement('div'); d.className='monument-empty'; d.textContent='Noch kein Prestige durchgeführt.'; return d; })());
+        return;
+      }
+      var first = row.first_prestige_at ? new Date(row.first_prestige_at).toLocaleDateString('de-DE') : '—';
+      grid.appendChild(statTile(count, 'Prestiges'));
+      grid.appendChild(statTile(first, 'Erstes Prestige'));
+      grid.appendChild(statTile(Math.round(Number(row.highest_total_mined_before)||0).toLocaleString('de-DE'), 'Bester Run (Coins)'));
+      grid.appendChild(statTile(Math.round(Number(row.max_sigil_ever_held)||0).toLocaleString('de-DE'), 'Max. SIGIL je gehalten'));
+      grid.appendChild(statTile(Math.round(Number(row.max_cycle_ever_held)||0).toLocaleString('de-DE'), 'Max. CYCLE je gehalten'));
+    }catch(e){
+      grid.innerHTML = '';
+      grid.appendChild((function(){ var d=document.createElement('div'); d.className='monument-empty'; d.textContent='Denkmal konnte nicht geladen werden.'; return d; })());
+      console.warn('Denkmal konnte nicht geladen werden', e);
+    }
+  }
+
+  // Kosmetik-Shop: platform.cosmetic_items / player_owned_cosmetics (Nexus) --
+  // reine Optik (Rig-Skins, Partikel-Effekte), bezahlt in SIGIL oder CYCLE.
+  var cosmeticShopEl = document.getElementById('cosmeticShopList');
+  var cosmeticOwnedEl = document.getElementById('cosmeticOwnedList');
+  var cosmeticStatusEl = document.getElementById('cosmeticStatus');
+
+  function setCosmeticStatus(msg, isErr){
+    cosmeticStatusEl.textContent = msg || '';
+    cosmeticStatusEl.className = 'fstatus' + (isErr ? ' err' : (msg ? ' ok' : ''));
+  }
+
+  function cosmeticRowEl(item, mode){
+    // mode: 'shop' (Kauf-Button) oder 'owned' (Ausruesten-Button)
+    var row = document.createElement('div');
+    row.className = 'cosmetic-item';
+
+    var swatch = document.createElement('div');
+    swatch.className = 'cosmetic-swatch';
+    swatch.style.background = item.color_hex || 'var(--panel)';
+    row.appendChild(swatch);
+
+    var main = document.createElement('div');
+    main.className = 'cosmetic-main';
+    var name = document.createElement('div');
+    name.className = 'cosmetic-name';
+    name.textContent = item.name + (item.season_key ? ' ⏳' : '');
+    var desc = document.createElement('div');
+    desc.className = 'cosmetic-desc';
+    desc.textContent = item.description || (item.slot === 'rig_skin' ? 'Rig-Skin' : 'Partikel-Effekt');
+    main.appendChild(name); main.appendChild(desc);
+    row.appendChild(main);
+
+    if(mode === 'shop'){
+      var price = document.createElement('div');
+      price.className = 'cosmetic-price ' + item.symbol.toLowerCase();
+      price.textContent = Math.round(item.price).toLocaleString('de-DE') + ' ' + item.symbol;
+      row.appendChild(price);
+
+      var btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'cosmetic-btn';
+      if(item.owned){ btn.textContent = 'Besessen'; btn.disabled = true; }
+      else { btn.textContent = 'Kaufen'; }
+      btn.addEventListener('click', async function(){
+        if(item.owned) return;
+        btn.disabled = true; btn.textContent = '…';
+        try{
+          var res = await supabaseClient.schema('platform').rpc('purchase_cosmetic', { p_item_id: item.id });
+          if(res.error) throw res.error;
+          setCosmeticStatus('"' + item.name + '" gekauft!', false);
+          loadCosmetics(window.__cloudUser);
+        }catch(e){
+          setCosmeticStatus('Fehler: ' + (e && e.message ? e.message : 'Kauf fehlgeschlagen.'), true);
+          btn.disabled = false; btn.textContent = 'Kaufen';
+        }
+      });
+      row.appendChild(btn);
+    } else {
+      var btn2 = document.createElement('button');
+      btn2.type = 'button';
+      btn2.className = 'cosmetic-btn' + (item.active ? ' active-state' : '');
+      btn2.textContent = item.active ? 'Aktiv ✓' : 'Ausrüsten';
+      btn2.addEventListener('click', async function(){
+        btn2.disabled = true;
+        try{
+          if(item.active){
+            var res2 = await supabaseClient.schema('platform').rpc('clear_active_cosmetic', { p_slot: item.slot });
+            if(res2.error) throw res2.error;
+          } else {
+            var res = await supabaseClient.schema('platform').rpc('set_active_cosmetic', { p_item_id: item.id });
+            if(res.error) throw res.error;
+          }
+          loadCosmetics(window.__cloudUser);
+        }catch(e){
+          setCosmeticStatus('Fehler: ' + (e && e.message ? e.message : 'Aktion fehlgeschlagen.'), true);
+          btn2.disabled = false;
+        }
+      });
+      row.appendChild(btn2);
+    }
+    return row;
+  }
+
+  async function loadCosmetics(user){
+    try{
+      var shopRes = await supabaseClient.schema('platform').rpc('get_cosmetic_shop');
+      if(shopRes.error) throw shopRes.error;
+      cosmeticShopEl.innerHTML = '';
+      var items = shopRes.data || [];
+      if(items.length === 0){
+        cosmeticShopEl.appendChild((function(){ var d=document.createElement('div'); d.className='monument-empty'; d.textContent='Aktuell keine Items im Shop.'; return d; })());
+      } else {
+        items.forEach(function(it){ cosmeticShopEl.appendChild(cosmeticRowEl(it, 'shop')); });
+      }
+    }catch(e){
+      cosmeticShopEl.innerHTML = '';
+      cosmeticShopEl.appendChild((function(){ var d=document.createElement('div'); d.className='monument-empty'; d.textContent='Shop konnte nicht geladen werden.'; return d; })());
+      console.warn('Kosmetik-Shop konnte nicht geladen werden', e);
+    }
+    try{
+      var ownedRes = await supabaseClient.schema('platform').rpc('get_my_cosmetics');
+      if(ownedRes.error) throw ownedRes.error;
+      cosmeticOwnedEl.innerHTML = '';
+      var owned = ownedRes.data || [];
+      if(owned.length === 0){
+        cosmeticOwnedEl.appendChild((function(){ var d=document.createElement('div'); d.className='monument-empty'; d.textContent='Noch keine Kosmetik-Items gekauft.'; return d; })());
+      } else {
+        owned.forEach(function(it){ cosmeticOwnedEl.appendChild(cosmeticRowEl(it, 'owned')); });
+      }
+    }catch(e){
+      cosmeticOwnedEl.innerHTML = '';
+      console.warn('Eigene Kosmetik-Items konnten nicht geladen werden', e);
+    }
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.cosmetic-tab'), function(tab){
+    tab.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('.cosmetic-tab'), function(t){ t.classList.remove('active'); });
+      tab.classList.add('active');
+      var isShop = tab.dataset.tab === 'shop';
+      cosmeticShopEl.style.display = isShop ? '' : 'none';
+      cosmeticOwnedEl.style.display = isShop ? 'none' : '';
+    });
+  });
+
   var GUEST_USER_ID = 'c0ffee00-0000-4000-8000-000000000001';
 
   async function loadProfile(user){
@@ -1000,6 +1193,8 @@
       loggedOutEl.querySelector('p').textContent = 'Cloud-Konto noch nicht eingerichtet.';
       formEl.style.display = 'none';
       statsSection.style.display = 'none';
+      monumentSection.style.display = 'none';
+      cosmeticSection.style.display = 'none';
       dangerSection.style.display = 'none';
       return;
     }
@@ -1012,13 +1207,19 @@
       loggedOutEl.style.display = 'none';
       formEl.style.display = '';
       statsSection.style.display = '';
+      monumentSection.style.display = '';
+      cosmeticSection.style.display = '';
       dangerSection.style.display = '';
       await loadProfile(user);
       loadStats(user);
+      loadMonument(user);
+      loadCosmetics(user);
     } else {
       loggedOutEl.style.display = '';
       formEl.style.display = 'none';
       statsSection.style.display = 'none';
+      monumentSection.style.display = 'none';
+      cosmeticSection.style.display = 'none';
       dangerSection.style.display = 'none';
       renderAcct();
     }
