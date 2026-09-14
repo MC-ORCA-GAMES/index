@@ -1,0 +1,555 @@
+<!--
+  DOMUS PRIME: VERDANTIS — game.html (v0.1)
+  Zweites Nexus-Rohstoff-Abnehmerspiel (neben Nexus Singularity), idle
+  Kolonie-Aufbauspiel. Backend: Schema `colony`, Supabase-Projekt
+  iuvckfoikhifywayuwkj. Rohstoffe (METAL/KRISTALL/DEUT/ENERGIE) kommen
+  ausschließlich als Import aus dem NEXUS-Lager (forge.export_ledger, Ziel
+  COLONY) -- kein eigener Abbau. Kernschleife: Rohstoff-Import -> Grundgüter
+  (Stufe 1) -> Manufaktur-Handelsgüter (Stufe 2, per Forschung freigeschaltet,
+  landen direkt als handelbare Währung in der Wallet -- Spieler-Markt läuft
+  über den bestehenden NEXUS-Barter-Markt, kein eigener Marktcode nötig).
+  Bevölkerung hat echten Unterhalt (Nährpaste/Fusionszellen pro Kopf), kein
+  Prestige/Reset -- die Kolonie wächst unbegrenzt weiter. Login-Flow 1:1 wie
+  bei FOUNDRY/NEXUS (E-Mail-Code, gleicher Account, geteilter Gast-Login).
+
+  Backend vollständig End-zu-Ende getestet (Rohstoff-Import -> Produktions-
+  kette -> Unterhalt -> Manufaktur -> Wallet-Gutschrift, inkl. Forschung und
+  Kapazitätsgrenzen) gegen einen Wegwerf-Testaccount, danach nicht
+  zurückgesetzt (reiner Test-Account, keine echten Spielerdaten betroffen).
+
+  Offen für v0.2: Logo (aktuell Text-Fallback "DOMUS PRIME"), Balance-Zahlen
+  sind ein erster Entwurf und noch nicht mit echtem Spielverhalten getestet.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Domus Prime: Verdantis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#080b09; --bg-alt:#0e130f; --panel:#131a15; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b9a8f; --fg-faint:#57685c; --radius:10px;
+    --accent:#3ECF8E; --accent-dim:rgba(62,207,142,0.14);
+    --up:#0ECB81; --up-dim:rgba(14,203,129,0.14);
+    --down:#F6465D; --down-dim:rgba(246,70,93,0.14);
+    --warn:#e3c17b; --warn-dim:rgba(227,193,123,0.14); --mono:'JetBrains Mono', monospace;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--accent); color:#06231a; }
+  .hidden{ display:none !important; }
+  .wrap{ position:relative; z-index:2; max-width:1200px; margin:0 auto; padding:0 20px; }
+
+  /* ---------- nav ---------- */
+  .nav{ position:sticky; top:0; z-index:30; background:linear-gradient(to bottom, rgba(8,11,9,0.92), rgba(8,11,9,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1200px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15.5px; letter-spacing:0.02em; }
+  .brand .mark{ width:24px; height:24px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px var(--accent-dim); flex-shrink:0; }
+  .brand .sub{ color:var(--accent); font-weight:700; }
+  .back-link{ font-size:12.5px; color:var(--fg-dim); display:inline-flex; align-items:center; gap:6px; transition:color .15s; }
+  .back-link:hover{ color:var(--fg); }
+
+  /* ---------- login ---------- */
+  .login-splash{ text-align:center; padding:44px 0 4px; }
+  .login-splash img{ max-width:min(380px,86vw); width:100%; height:auto; filter:drop-shadow(0 0 30px var(--accent-dim)); }
+  .login-splash .ls-fallback{ font-family:var(--mono); font-weight:700; font-size:clamp(24px,6.5vw,38px); color:var(--accent); letter-spacing:2px; line-height:1.3; }
+  .login-splash .ls-sub{ font-family:var(--mono); font-weight:600; font-size:clamp(12px,3vw,15px); color:var(--fg-dim); letter-spacing:4px; }
+  .login-splash .ls-tag{ font-size:13px; color:var(--fg-dim); letter-spacing:1.2px; text-transform:uppercase; margin-top:12px; }
+  .login-section{ padding:16px 0 90px; display:flex; justify-content:center; }
+  .login-box{ width:100%; max-width:380px; border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); padding:26px 24px; }
+  .login-box h2{ font-size:17.5px; font-weight:600; margin:0 0 4px; }
+  .login-box .lb-sub{ font-size:14px; color:var(--fg-dim); margin:0 0 18px; line-height:1.55; }
+  input{ width:100%; box-sizing:border-box; padding:11px 12px; margin:6px 0; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-family:'Inter'; font-size:15px; }
+  input:focus{ outline:none; border-color:var(--accent); }
+  input#otpInput{ font-family:var(--mono); letter-spacing:3px; text-align:center; }
+  button{ font-family:'Space Grotesk'; font-size:14.5px; font-weight:600; padding:10px 15px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--fg); cursor:pointer; transition:border-color .15s, background .15s; }
+  button:hover:not(:disabled){ border-color:var(--accent); background:var(--accent-dim); }
+  button:disabled{ opacity:0.4; cursor:default; }
+  .btn-block{ width:100%; margin-top:8px; background:var(--accent); border-color:var(--accent); color:#06231a; }
+  .btn-block:hover{ filter:brightness(1.08); background:var(--accent); }
+  .lb-divider{ display:flex; align-items:center; gap:10px; margin:16px 0 10px; font-size:12.5px; color:var(--fg-faint); }
+  .lb-divider::before, .lb-divider::after{ content:''; flex:1; height:1px; background:var(--line); }
+  .btn-block-ghost{ width:100%; background:transparent; border-color:var(--line); color:var(--fg-dim); }
+  .btn-block-ghost:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); color:var(--fg); }
+  .lb-guest-hint{ font-size:12px; color:var(--fg-faint); line-height:1.5; margin:8px 0 0; text-align:center; }
+  .msg{ font-size:14px; padding:9px 12px; border-radius:9px; margin-top:10px; line-height:1.5; }
+  .msg.ok{ background:var(--up-dim); color:var(--up); }
+  .msg.err{ background:var(--down-dim); color:var(--down); }
+
+  /* ---------- dashboard shell ---------- */
+  .dash{ padding:22px 0 90px; }
+  .wallet-bar{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; border:1px solid var(--line); background:var(--panel); border-radius:var(--radius); padding:13px 18px; margin-bottom:18px; }
+  .wallet-bar .wb-label{ font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); }
+  .wallet-bar .wb-value{ font-family:var(--mono); font-size:21px; font-weight:600; color:var(--accent); }
+  .wallet-bar .wb-guest{ font-size:12.5px; color:var(--warn); }
+
+  .main-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .main-tab-btn{ font-family:'Space Grotesk'; font-size:13.5px; font-weight:600; padding:9px 15px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim); cursor:pointer; }
+  .main-tab-btn:hover{ border-color:var(--fg-faint); color:var(--fg); }
+  .main-tab-btn.active{ background:var(--accent); border-color:var(--accent); color:#06231a; }
+  .tab-page{ display:none; }
+  .tab-page.active{ display:block; }
+
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; margin-bottom:16px; }
+  .panel h3{ font-family:'Space Grotesk'; font-size:14px; font-weight:600; margin:0 0 14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .panel h3 .tag{ font-weight:400; color:var(--fg-faint); font-size:12px; }
+
+  .top-row{ display:flex; gap:14px; flex-wrap:wrap; }
+  .stat-card{ flex:1; min-width:170px; border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; background:transparent; }
+  .stat-card .label{ font-size:10.5px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:0.08em; }
+  .stat-card .value{ font-family:var(--mono); font-size:23px; font-weight:600; color:var(--fg); margin-top:6px; }
+  .stat-card .value.warn{ color:var(--warn); }
+  .stat-card .sub{ font-family:var(--mono); font-size:11px; color:var(--fg-dim); margin-top:4px; }
+
+  .res-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+  .res-item{ border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .res-item .rname{ font-size:11px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:0.06em; }
+  .res-item .ramt{ font-family:var(--mono); font-size:16px; color:var(--fg); margin-top:4px; }
+  .res-item .rcap{ font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-top:2px; }
+
+  .stage-group{ margin-bottom:22px; }
+  .stage-group h4{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); margin:0 0 10px; }
+  .fac-row{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:12px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .fac-row:first-child{ border-top:none; }
+  .fac-name{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; }
+  .fac-meta{ font-size:11.5px; color:var(--fg-dim); margin-top:3px; }
+  .fac-lock{ font-size:11.5px; color:var(--warn); margin-top:3px; }
+  .fac-buy{ display:flex; align-items:center; gap:8px; }
+  .fac-buy button{ min-width:150px; }
+  .qty-badge{ font-family:var(--mono); font-size:11px; color:var(--accent); background:var(--accent-dim); padding:2px 7px; border-radius:999px; margin-left:6px; }
+
+  .research-row{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:12px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .research-row:first-child{ border-top:none; }
+  .research-row.done .r-name{ color:var(--up); }
+  .r-name{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; }
+  .r-meta{ font-size:11.5px; color:var(--fg-dim); margin-top:3px; }
+
+  .sm-hint{ font-size:12.5px; color:var(--fg-faint); line-height:1.5; }
+  #statusMsg .msg{ margin:0 0 14px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand"><span class="mark"></span>DOMUS PRIME <span class="sub">: VERDANTIS</span></div>
+    <a href="../index.html" class="back-link">← Hub</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ---------- LOGIN ---------- -->
+  <div id="loginView">
+    <div class="login-splash">
+      <img src="art/logo.png" alt="Domus Prime: Verdantis" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ls-fallback',innerHTML:'DOMUS PRIME<br><span class=&quot;ls-sub&quot;>VERDANTIS</span>'}))">
+      <div class="ls-tag">Begrüne die Welt. Baue auf. Handle.</div>
+    </div>
+    <section class="login-section">
+      <div class="login-box">
+        <h2>Per E-Mail-Code anmelden</h2>
+        <p class="lb-sub">Gleicher Account wie in allen MC ORCA Games. Kein Passwort — nur ein
+           6-stelliger Code per E-Mail. Kostenlos, kein Echtgeld erforderlich.</p>
+        <input type="email" id="emailInput" placeholder="deine@email.de">
+        <button class="btn-block" id="sendOtpBtn" type="button">Code anfordern</button>
+        <input type="text" id="otpInput" placeholder="6-stelliger Code" class="hidden">
+        <button class="btn-block hidden" id="verifyOtpBtn" type="button">Einloggen</button>
+        <div id="loginMsg"></div>
+        <div class="lb-divider"><span>oder</span></div>
+        <button class="btn-block-ghost" id="guestLoginBtn" type="button">Erstmal als Gast reinschauen</button>
+        <p class="lb-guest-hint">Ein Account für alle Besucher, kein eigener Fortschritt — perfekt zum Ausprobieren.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ---------- GAME / DASHBOARD ---------- -->
+  <div id="gameView" class="hidden dash">
+    <div id="statusMsg"></div>
+
+    <div class="wallet-bar">
+      <div>
+        <div class="wb-label">MOGC-Wallet</div>
+        <div class="wb-value" id="walletDisplay">–</div>
+      </div>
+      <div id="guestNotice" class="wb-guest hidden">Gast-Modus — Fortschritt wird nicht gespeichert.</div>
+      <button type="button" id="refreshBtn" style="margin:0;">Aktualisieren</button>
+    </div>
+
+    <nav class="main-tabs" id="mainTabs">
+      <button type="button" class="main-tab-btn active" data-tab="uebersicht">Übersicht</button>
+      <button type="button" class="main-tab-btn" data-tab="gebaeude">Gebäude</button>
+      <button type="button" class="main-tab-btn" data-tab="forschung">Forschung</button>
+      <button type="button" class="main-tab-btn" data-tab="markt">Markt</button>
+    </nav>
+
+    <!-- ---------- ÜBERSICHT ---------- -->
+    <div class="tab-page active" id="tabPage-uebersicht">
+      <div class="panel">
+        <h3>Kolonie <span class="tag">— Domus Prime: Verdantis</span></h3>
+        <div class="top-row">
+          <div class="stat-card">
+            <div class="label">Bevölkerung</div>
+            <div class="value" id="statPopulation">–</div>
+            <div class="sub" id="statHousing">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Unterhalt gedeckt</div>
+            <div class="value" id="statUpkeep">–</div>
+            <div class="sub">Nährpaste + Fusionszellen pro Kopf</div>
+          </div>
+        </div>
+        <div class="sm-hint" style="margin-top:12px;">Wächst nur weiter, solange Nährpaste und Fusionszellen den Unterhalt voll decken — reicht es nicht, stagniert die Bevölkerung (kein Rückgang). Kein Prestige: die Kolonie wächst unbegrenzt weiter.</div>
+      </div>
+
+      <div class="panel">
+        <h3>Rohstoff-Lager <span class="tag">— Import aus dem NEXUS-Lager</span></h3>
+        <div class="res-grid" id="rawResGrid"></div>
+        <div class="sm-hint" style="margin-top:10px;">Verteile in NEXUS (Lager-Modal im Außenposten-Tab) einen Prozentanteil deiner Förderung an „Domus Prime: Verdantis" — nur was reinkommt, kann hier verarbeitet werden.</div>
+      </div>
+
+      <div class="panel">
+        <h3>Grundgüter <span class="tag">— intern, nicht handelbar</span></h3>
+        <div class="res-grid" id="goodsResGrid"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Handelsgüter <span class="tag">— in deiner Wallet, handelbar im NEXUS-Spieler-Markt</span></h3>
+        <div class="res-grid" id="tradeResGrid"></div>
+      </div>
+    </div>
+
+    <!-- ---------- GEBÄUDE ---------- -->
+    <div class="tab-page" id="tabPage-gebaeude">
+      <div class="panel">
+        <h3>Fundament</h3>
+        <div id="facGroup-0-3"></div>
+      </div>
+      <div class="panel">
+        <h3>Grundgüter-Werke <span class="tag">— Rohstoff → einfaches Gut</span></h3>
+        <div id="facGroup-1"></div>
+      </div>
+      <div class="panel">
+        <h3>Manufakturen <span class="tag">— Grundgüter → Handelsgut, per Forschung freigeschaltet</span></h3>
+        <div id="facGroup-2"></div>
+      </div>
+    </div>
+
+    <!-- ---------- FORSCHUNG ---------- -->
+    <div class="tab-page" id="tabPage-forschung">
+      <div class="panel">
+        <h3>Forschungsbaum <span class="tag">— bezahlt mit Datenkernen</span></h3>
+        <div id="researchList"></div>
+      </div>
+    </div>
+
+    <!-- ---------- MARKT ---------- -->
+    <div class="tab-page" id="tabPage-markt">
+      <div class="panel">
+        <h3>Spieler-Markt</h3>
+        <p class="sm-hint">Verbundplatten, Medizin und Präzisionswerkzeug sind ganz normale handelbare Währungen — sie tauchen automatisch im bestehenden NEXUS-Spieler-Markt (Handelsplatz-Tab) auf, gegen MOGC oder jede andere handelbare Währung.</p>
+        <a href="../nexus/game.html" class="btn-block" style="display:block; text-align:center; text-decoration:none; margin-top:12px;">Zum NEXUS-Spieler-Markt →</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+const GUEST_USER_ID = 'c0ffee00-0000-4000-8000-000000000001';
+
+let currentUser = null;
+let mogcBalance = 0;
+let STATIC = { factoryDefs: {}, recipesByFactory: {}, researchDefs: [] };
+let STATE = { population: 0, housing_capacity: 0, upkeep_ratio: 1, factories: {}, item_stock: {}, researched: [] };
+let refreshTimer = null;
+const POLL_MS_ACTIVE = 20000;
+const POLL_MS_HIDDEN = 90000;
+
+const RAW_LABELS = { METAL: 'Metall', KRISTALL: 'Kristall', DEUT: 'Deuterium', ENERGIE: 'Energie' };
+const GOOD_LABELS = { BAUSTAHL: 'Baustahl', NAEHRPASTE: 'Nährpaste', FUSIONSZELLEN: 'Fusionszellen', DATENKERNE: 'Datenkerne' };
+const TRADE_LABELS = { VERBUNDPLATTEN: 'Verbundplatten', MEDIZIN: 'Medizin', PRAEZISIONSWERKZEUG: 'Präzisionswerkzeug' };
+
+function isGuest(){ return !!(currentUser && currentUser.id === GUEST_USER_ID); }
+function showMsg(elId, text, ok){
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + text + '</div>';
+}
+function clearMsg(elId){ const el = document.getElementById(elId); if (el) el.innerHTML=''; }
+function fmt(n){ n = Number(n) || 0; return n.toLocaleString('de-DE', { maximumFractionDigits: 0 }); }
+function fmt2(n){ n = Number(n) || 0; return n.toLocaleString('de-DE', { maximumFractionDigits: 2 }); }
+
+function enterGame(){
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('gameView').classList.remove('hidden');
+  document.getElementById('guestNotice').classList.toggle('hidden', !isGuest());
+}
+
+/* ---------- Login-Flow (1:1 wie FOUNDRY/NEXUS) ---------- */
+document.getElementById('sendOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) return;
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Sende Code …', true);
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    document.getElementById('otpInput').classList.remove('hidden');
+    document.getElementById('verifyOtpBtn').classList.remove('hidden');
+    showMsg('loginMsg', 'Code wurde an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', true);
+  } catch (err) {
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const token = document.getElementById('otpInput').value.trim();
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Prüfe Code …', true);
+  try {
+    const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    await afterLogin();
+  } catch (err) {
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('guestLoginBtn').addEventListener('click', async () => {
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Melde als Gast an …', true);
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email: 'gast@mc-orca-games.local', password: 'nexus-gast-2026' });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    await afterLogin();
+  } catch (err) {
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    currentUser = data.session.user;
+    await afterLogin();
+  }
+})();
+
+/* ---------- Nach dem Login ---------- */
+async function afterLogin(){
+  enterGame();
+  try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
+  await loadStatic();
+  await loadEverything();
+  startPolling();
+}
+
+function startPolling(){
+  if (refreshTimer) clearInterval(refreshTimer);
+  const ms = document.hidden ? POLL_MS_HIDDEN : POLL_MS_ACTIVE;
+  refreshTimer = setInterval(() => loadEverything(), ms);
+}
+document.addEventListener('visibilitychange', () => { if (currentUser) startPolling(); });
+
+async function loadStatic(){
+  try {
+    const { data, error } = await sb.schema('colony').rpc('get_static_defs');
+    if (error) { console.error(error); return; }
+    STATIC.factoryDefs = {};
+    (data.factory_defs || []).forEach(fd => { STATIC.factoryDefs[fd.factory_key] = fd; });
+    STATIC.recipesByFactory = {};
+    (data.recipe_defs || []).forEach(rd => {
+      if (!STATIC.recipesByFactory[rd.factory_key]) STATIC.recipesByFactory[rd.factory_key] = [];
+      STATIC.recipesByFactory[rd.factory_key].push(rd);
+    });
+    STATIC.researchDefs = data.research_defs || [];
+  } catch(e){ console.error(e); }
+}
+
+async function loadWallet(){
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_wallet_balances');
+    if (error) { console.error(error); return; }
+    const row = (data || []).find(r => r.symbol === 'MOGC');
+    mogcBalance = row ? Number(row.balance) : 0;
+    document.getElementById('walletDisplay').textContent = fmt2(mogcBalance) + ' MOGC';
+    const tradeBalances = {};
+    (data || []).forEach(r => { if (TRADE_LABELS[r.symbol]) tradeBalances[r.symbol] = Number(r.balance); });
+    renderTradeGoods(tradeBalances);
+  } catch(e){ console.error(e); }
+}
+
+async function loadEverything(){
+  try {
+    const { data, error } = await sb.schema('colony').rpc('production_tick');
+    if (error) { showMsg('statusMsg', error.message, false); return; }
+    STATE = data;
+    await loadWallet();
+    render();
+  } catch(e){ console.error(e); }
+}
+
+document.getElementById('refreshBtn').addEventListener('click', () => loadEverything());
+
+/* ---------- Rendering ---------- */
+function render(){
+  renderOverview();
+  renderBuildings();
+  renderResearch();
+}
+
+function renderOverview(){
+  document.getElementById('statPopulation').textContent = fmt2(STATE.population);
+  document.getElementById('statHousing').textContent = 'Wohnkapazität: ' + fmt2(STATE.housing_capacity);
+  const upkeepEl = document.getElementById('statUpkeep');
+  const pct = Math.round((STATE.upkeep_ratio ?? 1) * 100);
+  upkeepEl.textContent = pct + ' %';
+  upkeepEl.classList.toggle('warn', pct < 100);
+
+  const stock = STATE.item_stock || {};
+  const rawEl = document.getElementById('rawResGrid');
+  const rawCap = STATE.factories?.raw_depot?.capacity ?? 0;
+  rawEl.innerHTML = Object.keys(RAW_LABELS).map(sym => `
+    <div class="res-item">
+      <div class="rname">${RAW_LABELS[sym]}</div>
+      <div class="ramt">${fmt2(stock[sym] || 0)}</div>
+      <div class="rcap">Lagerkapazität: ${fmt(rawCap)}</div>
+    </div>`).join('');
+
+  const goodsEl = document.getElementById('goodsResGrid');
+  goodsEl.innerHTML = Object.keys(GOOD_LABELS).map(key => {
+    const factoryKey = { BAUSTAHL: 'bauwerk', NAEHRPASTE: 'gewaechshaus', FUSIONSZELLEN: 'kraftwerk', DATENKERNE: 'datenzentrum' }[key];
+    const cap = STATE.factories?.[factoryKey]?.capacity ?? 0;
+    return `<div class="res-item">
+      <div class="rname">${GOOD_LABELS[key]}</div>
+      <div class="ramt">${fmt2(stock[key] || 0)}</div>
+      <div class="rcap">Lagerkapazität: ${fmt(cap)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTradeGoods(balances){
+  const el = document.getElementById('tradeResGrid');
+  if (!el) return;
+  el.innerHTML = Object.keys(TRADE_LABELS).map(sym => `
+    <div class="res-item">
+      <div class="rname">${TRADE_LABELS[sym]}</div>
+      <div class="ramt">${fmt2(balances[sym] || 0)}</div>
+    </div>`).join('');
+}
+
+function isResearched(key){ return (STATE.researched || []).includes(key); }
+
+function facRow(fd){
+  const st = STATE.factories?.[fd.factory_key] || { level: 0, capacity: fd.base_capacity, next_cost_mogc: fd.base_cost_mogc };
+  const locked = fd.requires_research && !isResearched(fd.requires_research);
+  const recipes = STATIC.recipesByFactory[fd.factory_key] || [];
+  let metaText = '';
+  if (fd.stage === 0) metaText = `Importkapazität: ${fmt(st.capacity)} je Rohstoff`;
+  else if (fd.stage === 3) metaText = `Wohnkapazität: ${fmt(st.capacity)} Kolonisten`;
+  else metaText = recipes.map(r => `${r.base_rate}× ${GOOD_LABELS[r.item_key] || TRADE_LABELS[r.item_key] || r.item_key}/Level/min`).join(', ') + ` · Kapazität ${fmt(st.capacity)}`;
+
+  const btnHtml = locked
+    ? `<div class="fac-lock">Erfordert Forschung: ${STATIC.researchDefs.find(r => r.key === fd.requires_research)?.name || fd.requires_research}</div>`
+    : `<button type="button" data-factory="${fd.factory_key}" ${mogcBalance < st.next_cost_mogc ? 'disabled' : ''}>+1 (${fmt2(st.next_cost_mogc)} MOGC)</button>`;
+
+  return `<div class="fac-row">
+    <div>
+      <div class="fac-name">${fd.name} <span class="qty-badge">Lv.${st.level}</span></div>
+      <div class="fac-meta">${metaText}</div>
+    </div>
+    <div class="fac-buy">${btnHtml}</div>
+  </div>`;
+}
+
+function renderBuildings(){
+  const foundation = ['raw_depot', 'wohnkuppel'].map(k => STATIC.factoryDefs[k]).filter(Boolean);
+  const stage1 = Object.values(STATIC.factoryDefs).filter(fd => fd.stage === 1).sort((a,b) => a.sort_order - b.sort_order);
+  const stage2 = Object.values(STATIC.factoryDefs).filter(fd => fd.stage === 2).sort((a,b) => a.sort_order - b.sort_order);
+
+  document.getElementById('facGroup-0-3').innerHTML = foundation.map(facRow).join('');
+  document.getElementById('facGroup-1').innerHTML = stage1.map(facRow).join('');
+  document.getElementById('facGroup-2').innerHTML = stage2.map(facRow).join('');
+
+  document.querySelectorAll('[data-factory]').forEach(btn => {
+    btn.addEventListener('click', () => buyFactory(btn.dataset.factory, btn));
+  });
+}
+
+async function buyFactory(factoryKey, btnEl){
+  btnEl.disabled = true;
+  try {
+    const { data, error } = await sb.schema('colony').rpc('buy_factory', { p_factory_key: factoryKey, p_levels: 1 });
+    if (error) { showMsg('statusMsg', error.message, false); return; }
+    const row = Array.isArray(data) ? data[0] : data;
+    showMsg('statusMsg', `Gebaut: ${STATIC.factoryDefs[factoryKey]?.name || factoryKey} → Level ${row.new_level} (${fmt2(row.total_cost_mogc)} MOGC).`, true);
+    await loadEverything();
+  } catch(e){
+    showMsg('statusMsg', 'Unerwarteter Fehler: ' + (e && e.message ? e.message : e), false);
+  } finally {
+    btnEl.disabled = false;
+  }
+}
+
+function renderResearch(){
+  const el = document.getElementById('researchList');
+  el.innerHTML = STATIC.researchDefs.map(rd => {
+    const done = isResearched(rd.key);
+    const prereqOk = !rd.prerequisite_key || isResearched(rd.prerequisite_key);
+    const stock = STATE.item_stock?.DATENKERNE || 0;
+    const affordable = stock >= rd.cost_datenkerne;
+    let btnHtml;
+    if (done) btnHtml = `<span class="qty-badge">Erforscht</span>`;
+    else if (!prereqOk) btnHtml = `<div class="fac-lock">Erfordert: ${STATIC.researchDefs.find(r => r.key === rd.prerequisite_key)?.name || rd.prerequisite_key}</div>`;
+    else btnHtml = `<button type="button" data-research="${rd.key}" ${affordable ? '' : 'disabled'}>Erforschen (${fmt2(rd.cost_datenkerne)} Datenkerne)</button>`;
+    return `<div class="research-row ${done ? 'done' : ''}">
+      <div>
+        <div class="r-name">${rd.name}</div>
+        <div class="r-meta">${done ? 'Abgeschlossen' : `Kosten: ${fmt2(rd.cost_datenkerne)} Datenkerne · schaltet ${STATIC.factoryDefs[rd.unlocks_factory_key]?.name || rd.unlocks_factory_key} frei`}</div>
+      </div>
+      <div>${btnHtml}</div>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('[data-research]').forEach(btn => {
+    btn.addEventListener('click', () => doResearch(btn.dataset.research, btn));
+  });
+}
+
+async function doResearch(key, btnEl){
+  btnEl.disabled = true;
+  try {
+    const { error } = await sb.schema('colony').rpc('research', { p_research_key: key });
+    if (error) { showMsg('statusMsg', error.message, false); return; }
+    showMsg('statusMsg', `Erforscht: ${STATIC.researchDefs.find(r => r.key === key)?.name || key}.`, true);
+    await loadEverything();
+  } catch(e){
+    showMsg('statusMsg', 'Unerwarteter Fehler: ' + (e && e.message ? e.message : e), false);
+  } finally {
+    btnEl.disabled = false;
+  }
+}
+
+/* ---------- Tab-Umschaltung ---------- */
+document.getElementById('mainTabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('.main-tab-btn');
+  if (!btn) return;
+  document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-' + btn.dataset.tab));
+});
+</script>
+</body>
+</html>
