@@ -123,8 +123,8 @@
   .cs-building.locked .cs-block{ opacity:0.28; }
   .cs-building.locked .cs-lock{ opacity:0.75; }
   .cs-building:not(.locked) .cs-lock{ display:none; }
-  .cs-label{ font-family:'Space Grotesk',sans-serif; font-size:10.5px; fill:var(--fg-dim); text-anchor:middle; }
-  .cs-lvl{ font-family:var(--mono); font-size:9.5px; fill:var(--accent); text-anchor:middle; }
+  .cs-label{ font-family:'Space Grotesk',sans-serif; font-size:10.5px; fill:var(--fg-dim); text-anchor:middle; paint-order:stroke; stroke:rgba(8,12,10,0.85); stroke-width:3px; stroke-linejoin:round; }
+  .cs-lvl{ font-family:var(--mono); font-size:9.5px; fill:var(--accent); text-anchor:middle; paint-order:stroke; stroke:rgba(8,12,10,0.85); stroke-width:3px; stroke-linejoin:round; }
 
   .stage-group{ margin-bottom:22px; }
   .stage-group h4{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); margin:0 0 10px; }
@@ -431,12 +431,6 @@ function render(){
 /* ---------- Isometrische Kolonie-Szene ---------- */
 const CS_CX = 320, CS_CY = 195;
 const CS_STAGE_STROKE = { 0: '#8b8a82', 1: '#5DCAA5', 2: '#F0997B', 3: '#7EEBB8' };
-const CS_PALETTE = {
-  0: ['#8a8a80', '#68685f', '#4c4c44'],
-  1: ['#3FA684', '#237a5d', '#154f3d'],
-  2: ['#d9714b', '#a9502e', '#7a371f'],
-  3: ['#5fe6a8', '#2fae7b', '#1c7a58']
-};
 
 function csPoint(radius, angleDeg){
   const a = (angleDeg - 90) * Math.PI / 180;
@@ -458,81 +452,164 @@ function csBuildingType(fd){
   return 'factory';
 }
 
-function csIsoBox(cx, gy, halfW, height, top, right, left, stroke, opacity){
+const CS_PALETTE = {
+  0: { wallR: '#8a8a80', wallL: '#68685f', roofR: '#5f5f57', roofL: '#47473f' },
+  1: { wallR: '#3FA684', wallL: '#237a5d', roofR: '#2f8a6d', roofL: '#1c6249' },
+  2: { wallR: '#d9714b', wallL: '#a9502e', roofR: '#c2603d', roofL: '#8f4225' },
+  3: { wallR: '#5fe6a8', wallL: '#2fae7b', roofR: '#49c98d', roofL: '#238f65' }
+};
+
+function csTopPts(cx, gy, halfW, height){
   const halfD = halfW * 0.55;
-  const Ng = { x: cx, y: gy - halfD }, Eg = { x: cx + halfW, y: gy }, Sg = { x: cx, y: gy + halfD }, Wg = { x: cx - halfW, y: gy };
-  const up = p => ({ x: p.x, y: p.y - height });
-  const Nt = up(Ng), Et = up(Eg), St = up(Sg), Wt = up(Wg);
-  const poly = pts => pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const op = opacity != null ? opacity : 1;
-  return `<g stroke="${stroke}" stroke-width="0.9" opacity="${op}">
-    <polygon points="${poly([Eg,Sg,St,Et])}" fill="${right}"></polygon>
-    <polygon points="${poly([Sg,Wg,Wt,St])}" fill="${left}"></polygon>
-    <polygon points="${poly([Nt,Et,St,Wt])}" fill="${top}"></polygon>
+  return {
+    N: { x: cx, y: gy - halfD - height }, E: { x: cx + halfW, y: gy - height },
+    S: { x: cx, y: gy + halfD - height }, W: { x: cx - halfW, y: gy - height }
+  };
+}
+function csPoly(pts){ return pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '); }
+
+function csIsoBox(cx, gy, halfW, height, top, right, left, stroke){
+  const halfD = halfW * 0.55;
+  const Eg = { x: cx + halfW, y: gy }, Sg = { x: cx, y: gy + halfD }, Wg = { x: cx - halfW, y: gy };
+  const { N: Nt, E: Et, S: St, W: Wt } = csTopPts(cx, gy, halfW, height);
+  return `<g stroke="${stroke}" stroke-width="0.9">
+    <polygon points="${csPoly([Eg,Sg,St,Et])}" fill="${right}"></polygon>
+    <polygon points="${csPoly([Sg,Wg,Wt,St])}" fill="${left}"></polygon>
+    <polygon points="${csPoly([Nt,Et,St,Wt])}" fill="${top}"></polygon>
   </g>`;
 }
 
-function csAccessory(type, tc, halfW, accent, dark){
-  const { x, y } = tc;
-  switch (type) {
-    case 'depot':
-      return `<rect x="${x - halfW * 0.75}" y="${y - 1.5}" width="${halfW * 1.5}" height="2" fill="${accent}" opacity="0.55"></rect>`;
-    case 'dome':
-      return `<path d="M ${x - halfW * 0.8} ${y} A ${halfW * 0.8} ${halfW * 0.5} 0 0 1 ${x + halfW * 0.8} ${y}" fill="none" stroke="${accent}" stroke-width="1"></path>
-        <path d="M ${x - halfW * 0.5} ${y + 2} A ${halfW * 0.5} ${halfW * 0.3} 0 0 1 ${x + halfW * 0.5} ${y + 2}" fill="none" stroke="${accent}" stroke-width="0.7" opacity="0.7"></path>`;
-    case 'forge':
-      return `<rect x="${x + halfW * 0.2}" y="${y - 15}" width="3.5" height="15" fill="${dark}"></rect>
-        <circle cx="${x + halfW * 0.2 + 1.8}" cy="${y - 18}" r="2.2" fill="#fff" opacity="0.3"></circle>
-        <circle cx="${x + halfW * 0.2 + 3.5}" cy="${y - 23}" r="1.8" fill="#fff" opacity="0.18"></circle>`;
-    case 'greenhouse':
-      return `<path d="M ${x - halfW * 0.85} ${y} L ${x} ${y - 9} L ${x + halfW * 0.85} ${y}" fill="none" stroke="${accent}" stroke-width="1"></path>
-        <line x1="${x - halfW * 0.42}" y1="${y - 4.5}" x2="${x}" y2="${y - 9}" stroke="${accent}" stroke-width="0.6" opacity="0.6"></line>
-        <line x1="${x + halfW * 0.42}" y1="${y - 4.5}" x2="${x}" y2="${y - 9}" stroke="${accent}" stroke-width="0.6" opacity="0.6"></line>`;
-    case 'reactor':
-      return `<circle cx="${x}" cy="${y - 4}" r="9" fill="${accent}" opacity="0.2"></circle>
-        <circle cx="${x}" cy="${y - 4}" r="5" fill="${accent}" opacity="0.9"></circle>`;
-    case 'datacenter':
-      return `<line x1="${x}" y1="${y}" x2="${x}" y2="${y - 13}" stroke="${dark}" stroke-width="1.3"></line>
-        <circle cx="${x}" cy="${y - 15}" r="2.1" fill="${accent}"></circle>`;
-    case 'medlab':
-      return `<rect x="${x - 1.2}" y="${y - 10.5}" width="2.4" height="8" fill="${accent}"></rect>
-        <rect x="${x - 4}" y="${y - 7.5}" width="8" height="2.4" fill="${accent}"></rect>`;
-    case 'workshop':
-      return `<circle cx="${x}" cy="${y - 7}" r="3.6" fill="none" stroke="${accent}" stroke-width="1.2"></circle>
-        <circle cx="${x}" cy="${y - 7}" r="1.1" fill="${accent}"></circle>`;
-    case 'platewerk':
-      return `<rect x="${x - 5.5}" y="${y - 4.5}" width="11" height="1.8" fill="${accent}"></rect>
-        <rect x="${x - 5.5}" y="${y - 7.5}" width="11" height="1.8" fill="${accent}" opacity="0.8"></rect>
-        <rect x="${x - 5.5}" y="${y - 10.5}" width="11" height="1.8" fill="${accent}" opacity="0.6"></rect>`;
-    default:
-      return `<rect x="${x + halfW * 0.15}" y="${y - 12}" width="3" height="12" fill="${dark}"></rect>`;
+function csWalls(cx, gy, halfW, height, right, left, stroke){
+  const halfD = halfW * 0.55;
+  const Eg = { x: cx + halfW, y: gy }, Sg = { x: cx, y: gy + halfD }, Wg = { x: cx - halfW, y: gy };
+  const { E: Et, S: St, W: Wt } = csTopPts(cx, gy, halfW, height);
+  return `<g stroke="${stroke}" stroke-width="0.9">
+    <polygon points="${csPoly([Eg,Sg,St,Et])}" fill="${right}"></polygon>
+    <polygon points="${csPoly([Sg,Wg,Wt,St])}" fill="${left}"></polygon>
+  </g>`;
+}
+
+function csHipRoof(cx, gy, halfW, height, roofH, right, left, stroke, glass){
+  const { E, S, W } = csTopPts(cx, gy, halfW, height);
+  const apex = { x: cx, y: ((E.y + W.y) / 2) - roofH };
+  const op = glass ? 0.72 : 1;
+  let s = `<g stroke="${stroke}" stroke-width="0.9" opacity="${op}">
+    <polygon points="${csPoly([E,S,apex])}" fill="${right}"></polygon>
+    <polygon points="${csPoly([S,W,apex])}" fill="${left}"></polygon>
+  </g>`;
+  if (glass) {
+    const midES = { x: (E.x + S.x) / 2, y: (E.y + S.y) / 2 }, midSW = { x: (S.x + W.x) / 2, y: (S.y + W.y) / 2 };
+    s += `<g stroke="${stroke}" stroke-width="0.5" opacity="0.55">
+      <line x1="${apex.x.toFixed(1)}" y1="${apex.y.toFixed(1)}" x2="${midES.x.toFixed(1)}" y2="${midES.y.toFixed(1)}"></line>
+      <line x1="${apex.x.toFixed(1)}" y1="${apex.y.toFixed(1)}" x2="${midSW.x.toFixed(1)}" y2="${midSW.y.toFixed(1)}"></line>
+    </g>`;
   }
+  return { html: s, apexY: apex.y };
+}
+
+function csCylinder(cx, gy, rx, height, bodyColor, capColor, stroke){
+  const ry = rx * 0.55, topY = gy - height;
+  return `<g stroke="${stroke}" stroke-width="0.8">
+    <path d="M ${(cx-rx).toFixed(1)} ${gy.toFixed(1)} L ${(cx-rx).toFixed(1)} ${topY.toFixed(1)} A ${rx.toFixed(1)} ${ry.toFixed(1)} 0 0 1 ${(cx+rx).toFixed(1)} ${topY.toFixed(1)} L ${(cx+rx).toFixed(1)} ${gy.toFixed(1)} A ${rx.toFixed(1)} ${ry.toFixed(1)} 0 0 1 ${(cx-rx).toFixed(1)} ${gy.toFixed(1)} Z" fill="${bodyColor}"></path>
+    <ellipse cx="${cx.toFixed(1)}" cy="${topY.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${capColor}"></ellipse>
+  </g>`;
+}
+
+function csDome(cx, topY, halfW, domeH, colorTop, stroke){
+  const rx = halfW * 0.9, ry = rx * 0.55;
+  const d = `M ${(cx-rx).toFixed(1)} ${topY.toFixed(1)} A ${rx.toFixed(1)} ${domeH.toFixed(1)} 0 0 1 ${(cx+rx).toFixed(1)} ${topY.toFixed(1)} A ${rx.toFixed(1)} ${ry.toFixed(1)} 0 0 1 ${(cx-rx).toFixed(1)} ${topY.toFixed(1)} Z`;
+  return `<path d="${d}" fill="${colorTop}" stroke="${stroke}" stroke-width="0.8"></path>
+    <ellipse cx="${(cx-rx*0.3).toFixed(1)}" cy="${(topY-domeH*0.5).toFixed(1)}" rx="${(rx*0.35).toFixed(1)}" ry="${(domeH*0.3).toFixed(1)}" fill="#fff" opacity="0.15"></ellipse>
+    <circle cx="${cx.toFixed(1)}" cy="${(topY+ry*0.2).toFixed(1)}" r="1.6" fill="${stroke}" opacity="0.7"></circle>`;
+}
+
+function csRoofIcon(type, cx, y, accent){
+  switch (type) {
+    case 'forge': case 'factory':
+      return `<rect x="${(cx+2).toFixed(1)}" y="${(y-14).toFixed(1)}" width="3.2" height="14" fill="${accent}"></rect>
+        <circle cx="${(cx+3.6).toFixed(1)}" cy="${(y-17).toFixed(1)}" r="2" fill="#fff" opacity="0.28"></circle>
+        <circle cx="${(cx+5).toFixed(1)}" cy="${(y-21).toFixed(1)}" r="1.6" fill="#fff" opacity="0.16"></circle>`;
+    case 'medlab':
+      return `<rect x="${(cx-1.1).toFixed(1)}" y="${(y-8).toFixed(1)}" width="2.2" height="7" fill="${accent}"></rect>
+        <rect x="${(cx-3.5).toFixed(1)}" y="${(y-5.5).toFixed(1)}" width="7" height="2.2" fill="${accent}"></rect>`;
+    case 'workshop':
+      return `<circle cx="${cx.toFixed(1)}" cy="${(y-5).toFixed(1)}" r="3.2" fill="none" stroke="${accent}" stroke-width="1.1"></circle>
+        <circle cx="${cx.toFixed(1)}" cy="${(y-5).toFixed(1)}" r="1" fill="${accent}"></circle>`;
+    case 'platewerk':
+      return `<rect x="${(cx-5).toFixed(1)}" y="${(y-3.5).toFixed(1)}" width="10" height="1.6" fill="${accent}"></rect>
+        <rect x="${(cx-5).toFixed(1)}" y="${(y-6).toFixed(1)}" width="10" height="1.6" fill="${accent}" opacity="0.8"></rect>`;
+    default: return '';
+  }
+}
+
+const CS_TYPE_PALETTE = {
+  dome:  { wallR: '#c9c3b4', wallL: '#a29b8c', roofR: '#7fd8c0', roofL: '#4fae95' },
+  depot: { wallR: '#9aa0a6', wallL: '#71767b', roofR: '#b6bcc2', roofL: '#878d93' }
+};
+
+function csBuildingBody(type, cx, gy, halfW, level, pal, stroke){
+  pal = CS_TYPE_PALETTE[type] || pal;
+  const scale = 1 + Math.min(level, 12) * 0.06;
+  const hw = halfW * scale;
+  if (type === 'dome') {
+    const wallH = 11 * scale, domeH = 21 * scale;
+    return { html: csWalls(cx, gy, hw, wallH, pal.wallR, pal.wallL, stroke) + csDome(cx, gy - wallH, hw, domeH, pal.roofR, stroke), topY: gy - wallH - domeH };
+  }
+  if (type === 'depot') {
+    const r = 6 * scale;
+    const cols = [-hw * 0.55, 0, hw * 0.55], heights = [17 * scale, 22 * scale, 17 * scale];
+    let s = '';
+    cols.forEach((dx, i) => { s += csCylinder(cx + dx, gy, r, heights[i], pal.wallR, pal.roofR, stroke); });
+    s += `<rect x="${(cx - hw * 0.55 + r * 0.4).toFixed(1)}" y="${(gy - heights[1] * 0.78).toFixed(1)}" width="${(hw * 1.1 - r * 0.8).toFixed(1)}" height="2.2" fill="${pal.wallL}"></rect>`;
+    return { html: s, topY: gy - heights[1] };
+  }
+  if (type === 'reactor') {
+    const wallH = 11 * scale, towerH = 20 * scale, tr = hw * 0.42;
+    const base = csWalls(cx, gy, hw * 0.85, wallH, pal.wallR, pal.wallL, stroke);
+    const tower = csCylinder(cx, gy - wallH, tr, towerH, pal.roofR, pal.roofL, stroke);
+    const glowY = gy - wallH - towerH;
+    const glow = `<circle cx="${cx.toFixed(1)}" cy="${glowY.toFixed(1)}" r="8" fill="${stroke}" opacity="0.22"></circle>
+      <circle cx="${cx.toFixed(1)}" cy="${glowY.toFixed(1)}" r="4.2" fill="${stroke}" opacity="0.9"></circle>`;
+    return { html: base + tower + glow, topY: glowY - 8 };
+  }
+  if (type === 'datacenter') {
+    const wallH = 22 * scale, capH = 9 * scale, capW = hw * 0.6;
+    const lower = csWalls(cx, gy, hw, wallH, pal.wallR, pal.wallL, stroke);
+    const cap = csIsoBox(cx, gy - wallH, capW, capH, pal.roofR, pal.roofR, pal.roofL, stroke);
+    const mastTopY = gy - wallH - capH - 13;
+    const mast = `<line x1="${cx.toFixed(1)}" y1="${(gy - wallH - capH).toFixed(1)}" x2="${cx.toFixed(1)}" y2="${mastTopY.toFixed(1)}" stroke="${pal.wallL}" stroke-width="1.3"></line>
+      <circle cx="${cx.toFixed(1)}" cy="${(mastTopY - 2).toFixed(1)}" r="2" fill="${stroke}"></circle>`;
+    const lights = [0.3, 0.5, 0.7].map(f => `<rect x="${(cx + 1.5).toFixed(1)}" y="${(gy - wallH * f).toFixed(1)}" width="${(hw * 0.7).toFixed(1)}" height="1.6" fill="${stroke}" opacity="0.5"></rect>`).join('');
+    return { html: lower + cap + mast + lights, topY: mastTopY - 2 };
+  }
+  const wallH = 11 * scale, roofH = (type === 'greenhouse' ? 18 : 15) * scale;
+  const walls = csWalls(cx, gy, hw, wallH, pal.wallR, pal.wallL, stroke);
+  const roofColors = type === 'greenhouse' ? { r: '#bfe6c9', l: '#8fc9a0' } : { r: pal.roofR, l: pal.roofL };
+  const roof = csHipRoof(cx, gy, hw, wallH, roofH, roofColors.r, roofColors.l, stroke, type === 'greenhouse');
+  const icon = csRoofIcon(type, cx, roof.apexY, stroke);
+  return { html: walls + roof.html + icon, topY: roof.apexY - (type === 'forge' || type === 'factory' ? 21 : 0) };
 }
 
 function csBuilding(fd, st, radius, angleDeg){
   const p = csPoint(radius, angleDeg);
   const level = st.level || 0;
-  const halfW = Math.min(13 + level * 0.9, 26);
+  const halfW = 21;
   const halfD = halfW * 0.55;
-  const height = Math.min(18 + level * 1.6, 42);
   const locked = fd.requires_research && !isResearched(fd.requires_research);
-  const [top, right, left] = CS_PALETTE[fd.stage] || CS_PALETTE[0];
+  const pal = CS_PALETTE[fd.stage] || CS_PALETTE[0];
   const stroke = CS_STAGE_STROKE[fd.stage] || CS_STAGE_STROKE[0];
   const type = csBuildingType(fd);
-  const tc = { x: p.x, y: p.y - height };
   const shadowY = p.y + halfD * 0.5;
+  const body = csBuildingBody(type, p.x, p.y, halfW, level, pal, stroke);
 
   const lockG = locked ? `<g class="cs-lock">
-      <rect x="${p.x - 5}" y="${tc.y - 2}" width="10" height="8" rx="1.4" fill="none" stroke="${stroke}" stroke-width="1.1"></rect>
-      <path d="M${p.x - 3} ${tc.y - 2} v-2.4 a3 3 0 0 1 6 0 v2.4" fill="none" stroke="${stroke}" stroke-width="1.1"></path>
+      <rect x="${p.x - 5}" y="${body.topY - 2}" width="10" height="8" rx="1.4" fill="none" stroke="${stroke}" stroke-width="1.1"></rect>
+      <path d="M${p.x - 3} ${body.topY - 2} v-2.4 a3 3 0 0 1 6 0 v2.4" fill="none" stroke="${stroke}" stroke-width="1.1"></path>
     </g>` : '';
 
   return `<g class="cs-building ${locked ? 'locked' : ''}" data-factory="${fd.factory_key}">
-    <ellipse cx="${p.x}" cy="${shadowY}" rx="${halfW * 0.85}" ry="${halfD * 0.55}" fill="#000" opacity="0.25"></ellipse>
-    <g class="cs-block" opacity="${locked ? 0.32 : 1}">
-      ${csIsoBox(p.x, p.y, halfW, height, top, right, left, stroke)}
-      ${!locked ? csAccessory(type, tc, halfW, stroke, left) : ''}
-    </g>
+    <ellipse cx="${p.x}" cy="${shadowY}" rx="${halfW * 0.9}" ry="${halfD * 0.55}" fill="#000" opacity="0.25"></ellipse>
+    <g class="cs-block" opacity="${locked ? 0.32 : 1}">${body.html}</g>
     ${lockG}
     <text class="cs-label" x="${p.x}" y="${p.y + halfD + 14}">${fd.name}</text>
     ${!locked ? `<text class="cs-lvl" x="${p.x}" y="${p.y + halfD + 25}">Lv.${level}</text>` : ''}
@@ -562,8 +639,8 @@ function csIslandOutline(rx, ry, count){
 }
 
 function csTerrain(){
-  const outline = csIslandOutline(255, 133, 28);
-  const cliffOutline = outline.map(p => ({ x: p.x, y: p.y + 20 }));
+  const outline = csIslandOutline(232, 121, 28);
+  const cliffOutline = outline.map(p => ({ x: p.x, y: p.y + 16 }));
   const topPath = csSmoothClosedPath(outline);
   const cliffPath = csSmoothClosedPath(cliffOutline);
   let s = `<path d="${cliffPath}" fill="#241a12"></path>`;
@@ -601,13 +678,13 @@ function csSpoke(r1, a1, r2, a2){
 function csRoads(stage1, stage2){
   let s = '';
   s += `<circle cx="${CS_CX}" cy="${CS_CY}" r="30" fill="none" stroke="#4a4136" stroke-width="7"></circle>`;
-  stage1.forEach((fd, i) => { s += csSpoke(0, 0, 115, (360 / stage1.length) * i); });
-  s += csRoadRing(115);
+  stage1.forEach((fd, i) => { s += csSpoke(0, 0, 118, (360 / stage1.length) * i + 45); });
+  s += csRoadRing(118);
   stage2.forEach((fd, i) => {
-    const a = (360 / stage2.length) * i + 40;
-    s += csSpoke(115, a, 190, a);
+    const a = (360 / stage2.length) * i + 90;
+    s += csSpoke(118, a, 194, a);
   });
-  s += csRoadRing(190);
+  s += csRoadRing(194);
   return s;
 }
 
@@ -624,13 +701,13 @@ function renderColonyScene(){
 
   const jobs = [];
   foundation.forEach((fd, i) => {
-    jobs.push({ fd, radius: 40, angle: foundation.length > 1 ? (i === 0 ? 200 : 20) : 0 });
+    jobs.push({ fd, radius: 50, angle: foundation.length > 1 ? (i === 0 ? 200 : 20) : 0 });
   });
   stage1.forEach((fd, i) => {
-    jobs.push({ fd, radius: 115, angle: (360 / stage1.length) * i });
+    jobs.push({ fd, radius: 118, angle: (360 / stage1.length) * i + 45 });
   });
   stage2.forEach((fd, i) => {
-    jobs.push({ fd, radius: 190, angle: (360 / stage2.length) * i + 40 });
+    jobs.push({ fd, radius: 194, angle: (360 / stage2.length) * i + 90 });
   });
   jobs.forEach(j => { j.y = csPoint(j.radius, j.angle).y; });
   jobs.sort((a, b) => a.y - b.y);
