@@ -84,5 +84,35 @@
 </dialog>
 
 <script type="module" src="src/ui/app.js"></script>
+<script>
+  // Diagnose: file:// blockiert Modul-Skripte, dann startet app.js nie.
+  // Nach kurzer Wartezeit pruefen und im Zweifel einen klaren Hinweis zeigen.
+  setTimeout(function () {
+    if (window.c64) return;
+    var box = document.createElement('div');
+    box.setAttribute('role', 'alert');
+    box.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;'
+      + 'align-items:center;justify-content:center;padding:24px;'
+      + 'background:rgba(23,22,18,.96);color:#e9e4d8;font:15px/1.5 system-ui,sans-serif;'
+      + 'text-align:center;';
+    var isFile = location.protocol === 'file:';
+    box.innerHTML = '<div style="max-width:520px">'
+      + '<h2 style="margin:0 0 12px;font:600 20px system-ui">Der Emulator konnte nicht starten</h2>'
+      + '<p style="margin:0 0 12px">'
+      + (isFile
+        ? 'Diese Seite wurde direkt als Datei geoeffnet (file://). Browser blockieren '
+          + 'dann aus Sicherheitsgruenden die Skript-Module, von denen der Emulator abhaengt.'
+        : 'Ein Skript ist beim Start fehlgeschlagen (siehe Browser-Konsole, F12).')
+      + '</p>'
+      + (isFile
+        ? '<p style="margin:0 0 6px">Bitte einen kleinen lokalen Server starten:</p>'
+          + '<pre style="background:#0000002e;padding:10px 14px;border-radius:8px;'
+          + 'display:inline-block;text-align:left">cd c64\npython3 serve.py</pre>'
+          + '<p style="margin:12px 0 0">und danach <code>http://localhost:8000</code> im Browser oeffnen.</p>'
+        : '')
+      + '</div>';
+    document.body.appendChild(box);
+  }, 2500);
+</script>
 </body>
 </html>
