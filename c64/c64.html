@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>C64 Web Emulator</title>
+<meta name="description" content="Ein Commodore 64 im Browser: 6510-CPU, VIC-II, SID und 1541 – vollstaendig clientseitig.">
+<link rel="stylesheet" href="src/ui/styles.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#191813">
+</head>
+<body>
+<div class="machine" id="machine">
+
+  <header class="panelbar">
+    <div class="ident">
+      <span class="ident__lamp" id="powerLed" title="Power"></span>
+      <span class="ident__name">C64 Web Emulator</span>
+      <span class="ident__sub" id="romBadge">offener KERNAL</span>
+    </div>
+
+    <nav class="tools" aria-label="Steuerung">
+      <button class="btn" data-act="reset">Reset</button>
+      <button class="btn" data-act="hardreset">Kaltstart</button>
+      <button class="btn" data-act="pause" id="btnPause">Pause</button>
+      <button class="btn" data-act="disk">Diskette</button>
+      <button class="btn" data-act="library">Bibliothek</button>
+      <button class="btn" data-act="load">Datei laden</button>
+      <button class="btn" data-act="states">Speicherstand</button>
+      <button class="btn" data-act="settings">Einstellungen</button>
+      <button class="btn" data-act="fullscreen">Vollbild</button>
+    </nav>
+
+    <div class="dials">
+      <label class="dial">Tempo
+        <select id="speed">
+          <option value="1">100 %</option>
+          <option value="2">200 %</option>
+          <option value="4">400 %</option>
+        </select>
+      </label>
+      <label class="dial">Ton
+        <input type="range" id="volume" min="0" max="100" value="70">
+      </label>
+    </div>
+  </header>
+
+  <main class="bezel" id="bezel">
+    <div class="tube">
+      <canvas id="screen" width="384" height="272" aria-label="C64-Bildschirm"></canvas>
+      <div class="tube__glass" id="crtLayer"></div>
+    </div>
+    <p class="status" id="status" role="status">Bereit</p>
+  </main>
+
+  <section class="deck">
+    <div class="drive">
+      <span class="drive__led" id="driveLed"></span>
+      <span class="drive__label">1541</span>
+      <span class="drive__disk" id="diskName">keine Diskette</span>
+    </div>
+    <div class="deck__actions">
+      <button class="btn btn--ghost" data-act="keyboard">Tastatur</button>
+      <button class="btn btn--ghost" data-act="joystick">Joystick</button>
+      <button class="btn btn--ghost" data-act="screenshot">Screenshot</button>
+      <button class="btn btn--ghost" data-act="help">Hilfe</button>
+    </div>
+  </section>
+
+  <div class="keyboard" id="vkeyboard" hidden></div>
+  <div class="pad" id="joypad" hidden></div>
+</div>
+
+<div class="dropzone" id="dropzone"><span>C64-Datei hier ablegen</span></div>
+<input type="file" id="fileInput" hidden multiple
+       accept=".prg,.d64,.t64,.tap,.crt,.sid,.bin,.p00,.rom">
+
+<dialog class="sheet" id="sheet">
+  <div class="sheet__head">
+    <h2 id="sheetTitle">Titel</h2>
+    <button class="btn btn--ghost" id="sheetClose">Schliessen</button>
+  </div>
+  <div class="sheet__body" id="sheetBody"></div>
+</dialog>
+
+<script type="module" src="src/ui/app.js"></script>
+</body>
+</html>
