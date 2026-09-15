@@ -114,7 +114,7 @@
   .res-item .ramt{ font-family:var(--mono); font-size:16px; color:var(--fg); margin-top:4px; }
   .res-item .rcap{ font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-top:2px; }
 
-  .colony-scene-wrap{ background:radial-gradient(ellipse at 50% 40%, rgba(62,207,142,0.10), transparent 70%), var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:6px 6px 0; margin-bottom:16px; overflow:hidden; }
+  .colony-scene-wrap{ background:#070d18; border:1px solid var(--line); border-radius:var(--radius); padding:6px 6px 0; margin-bottom:16px; overflow:hidden; }
   .colony-scene-wrap svg{ display:block; width:100%; height:auto; }
   .colony-scene-hint{ font-size:11.5px; color:var(--fg-faint); text-align:center; padding:8px 10px 12px; }
   .cs-building{ cursor:pointer; }
@@ -125,6 +125,7 @@
   .cs-building:not(.locked) .cs-lock{ display:none; }
   .cs-label{ font-family:'Space Grotesk',sans-serif; font-size:10.5px; fill:var(--fg-dim); text-anchor:middle; paint-order:stroke; stroke:rgba(8,12,10,0.85); stroke-width:3px; stroke-linejoin:round; }
   .cs-lvl{ font-family:var(--mono); font-size:9.5px; fill:var(--accent); text-anchor:middle; paint-order:stroke; stroke:rgba(8,12,10,0.85); stroke-width:3px; stroke-linejoin:round; }
+  .cs-warn{ font-family:'Space Grotesk',sans-serif; font-size:12px; fill:#ffb37a; paint-order:stroke; stroke:rgba(8,12,10,0.9); stroke-width:3px; stroke-linejoin:round; }
 
   .stage-group{ margin-bottom:22px; }
   .stage-group h4{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); margin:0 0 10px; }
@@ -204,7 +205,7 @@
     <!-- ---------- ÜBERSICHT ---------- -->
     <div class="tab-page active" id="tabPage-uebersicht">
       <div class="colony-scene-wrap">
-        <svg id="colonyScene" viewBox="0 0 640 400" xmlns="http://www.w3.org/2000/svg"></svg>
+        <svg id="colonyScene" viewBox="0 0 640 415" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="colony-scene-hint">Tippe auf ein Gebäude, um es im Gebäude-Tab zu öffnen.</div>
       </div>
       <div class="panel">
@@ -429,13 +430,31 @@ function render(){
 }
 
 /* ---------- Isometrische Kolonie-Szene ---------- */
-const CS_CX = 320, CS_CY = 195;
+const CS_CX = 320, CS_CY = 216;
 const CS_STAGE_STROKE = { 0: '#8b8a82', 1: '#5DCAA5', 2: '#F0997B', 3: '#7EEBB8' };
+const CS_PALETTE = {
+  0: { wallR: '#8a8a80', wallL: '#68685f', roofR: '#5f5f57', roofL: '#47473f' },
+  1: { wallR: '#3FA684', wallL: '#237a5d', roofR: '#2f8a6d', roofL: '#1c6249' },
+  2: { wallR: '#d9714b', wallL: '#a9502e', roofR: '#c2603d', roofL: '#8f4225' },
+  3: { wallR: '#5fe6a8', wallL: '#2fae7b', roofR: '#49c98d', roofL: '#238f65' }
+};
+const CS_TYPE_PALETTE = {
+  dome:  { wallR: '#c9c3b4', wallL: '#a29b8c', roofR: '#7fd8c0', roofL: '#4fae95' },
+  depot: { wallR: '#9aa0a6', wallL: '#71767b', roofR: '#b6bcc2', roofL: '#878d93' }
+};
+const CS_R_FOUND = 56, CS_R_S1 = 126, CS_R_S2 = 198;
 
 function csPoint(radius, angleDeg){
   const a = (angleDeg - 90) * Math.PI / 180;
   return { x: CS_CX + radius * Math.cos(a), y: CS_CY + radius * 0.52 * Math.sin(a) };
 }
+function csPoly(pts){ return pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '); }
+function csRingPath(radius){
+  const rx = radius, ry = radius * 0.52;
+  return `M ${(CS_CX-rx).toFixed(1)} ${CS_CY.toFixed(1)} a ${rx.toFixed(1)} ${ry.toFixed(1)} 0 1 0 ${(2*rx).toFixed(1)} 0 a ${rx.toFixed(1)} ${ry.toFixed(1)} 0 1 0 ${(-2*rx).toFixed(1)} 0`;
+}
+/* deterministic pseudo-random so the scene never reshuffles between renders */
+function csRand(seed){ const x = Math.sin(seed * 12.9898) * 43758.5453; return x - Math.floor(x); }
 
 function csBuildingType(fd){
   const key = fd.factory_key;
@@ -452,13 +471,7 @@ function csBuildingType(fd){
   return 'factory';
 }
 
-const CS_PALETTE = {
-  0: { wallR: '#8a8a80', wallL: '#68685f', roofR: '#5f5f57', roofL: '#47473f' },
-  1: { wallR: '#3FA684', wallL: '#237a5d', roofR: '#2f8a6d', roofL: '#1c6249' },
-  2: { wallR: '#d9714b', wallL: '#a9502e', roofR: '#c2603d', roofL: '#8f4225' },
-  3: { wallR: '#5fe6a8', wallL: '#2fae7b', roofR: '#49c98d', roofL: '#238f65' }
-};
-
+/* ---------- Geometrie-Bausteine ---------- */
 function csTopPts(cx, gy, halfW, height){
   const halfD = halfW * 0.55;
   return {
@@ -466,8 +479,6 @@ function csTopPts(cx, gy, halfW, height){
     S: { x: cx, y: gy + halfD - height }, W: { x: cx - halfW, y: gy - height }
   };
 }
-function csPoly(pts){ return pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '); }
-
 function csIsoBox(cx, gy, halfW, height, top, right, left, stroke){
   const halfD = halfW * 0.55;
   const Eg = { x: cx + halfW, y: gy }, Sg = { x: cx, y: gy + halfD }, Wg = { x: cx - halfW, y: gy };
@@ -478,7 +489,6 @@ function csIsoBox(cx, gy, halfW, height, top, right, left, stroke){
     <polygon points="${csPoly([Nt,Et,St,Wt])}" fill="${top}"></polygon>
   </g>`;
 }
-
 function csWalls(cx, gy, halfW, height, right, left, stroke){
   const halfD = halfW * 0.55;
   const Eg = { x: cx + halfW, y: gy }, Sg = { x: cx, y: gy + halfD }, Wg = { x: cx - halfW, y: gy };
@@ -488,25 +498,22 @@ function csWalls(cx, gy, halfW, height, right, left, stroke){
     <polygon points="${csPoly([Sg,Wg,Wt,St])}" fill="${left}"></polygon>
   </g>`;
 }
-
 function csHipRoof(cx, gy, halfW, height, roofH, right, left, stroke, glass){
   const { E, S, W } = csTopPts(cx, gy, halfW, height);
   const apex = { x: cx, y: ((E.y + W.y) / 2) - roofH };
-  const op = glass ? 0.72 : 1;
-  let s = `<g stroke="${stroke}" stroke-width="0.9" opacity="${op}">
+  let s = `<g stroke="${stroke}" stroke-width="0.9" opacity="${glass ? 0.72 : 1}">
     <polygon points="${csPoly([E,S,apex])}" fill="${right}"></polygon>
     <polygon points="${csPoly([S,W,apex])}" fill="${left}"></polygon>
   </g>`;
   if (glass) {
-    const midES = { x: (E.x + S.x) / 2, y: (E.y + S.y) / 2 }, midSW = { x: (S.x + W.x) / 2, y: (S.y + W.y) / 2 };
+    const mES = { x:(E.x+S.x)/2, y:(E.y+S.y)/2 }, mSW = { x:(S.x+W.x)/2, y:(S.y+W.y)/2 };
     s += `<g stroke="${stroke}" stroke-width="0.5" opacity="0.55">
-      <line x1="${apex.x.toFixed(1)}" y1="${apex.y.toFixed(1)}" x2="${midES.x.toFixed(1)}" y2="${midES.y.toFixed(1)}"></line>
-      <line x1="${apex.x.toFixed(1)}" y1="${apex.y.toFixed(1)}" x2="${midSW.x.toFixed(1)}" y2="${midSW.y.toFixed(1)}"></line>
+      <line x1="${apex.x.toFixed(1)}" y1="${apex.y.toFixed(1)}" x2="${mES.x.toFixed(1)}" y2="${mES.y.toFixed(1)}"></line>
+      <line x1="${apex.x.toFixed(1)}" y1="${apex.y.toFixed(1)}" x2="${mSW.x.toFixed(1)}" y2="${mSW.y.toFixed(1)}"></line>
     </g>`;
   }
   return { html: s, apexY: apex.y };
 }
-
 function csCylinder(cx, gy, rx, height, bodyColor, capColor, stroke){
   const ry = rx * 0.55, topY = gy - height;
   return `<g stroke="${stroke}" stroke-width="0.8">
@@ -514,21 +521,32 @@ function csCylinder(cx, gy, rx, height, bodyColor, capColor, stroke){
     <ellipse cx="${cx.toFixed(1)}" cy="${topY.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${capColor}"></ellipse>
   </g>`;
 }
-
-function csDome(cx, topY, halfW, domeH, colorTop, stroke){
+function csDome(cx, topY, halfW, domeH, colorTop, stroke, lit){
   const rx = halfW * 0.9, ry = rx * 0.55;
   const d = `M ${(cx-rx).toFixed(1)} ${topY.toFixed(1)} A ${rx.toFixed(1)} ${domeH.toFixed(1)} 0 0 1 ${(cx+rx).toFixed(1)} ${topY.toFixed(1)} A ${rx.toFixed(1)} ${ry.toFixed(1)} 0 0 1 ${(cx-rx).toFixed(1)} ${topY.toFixed(1)} Z`;
-  return `<path d="${d}" fill="${colorTop}" stroke="${stroke}" stroke-width="0.8"></path>
-    <ellipse cx="${(cx-rx*0.3).toFixed(1)}" cy="${(topY-domeH*0.5).toFixed(1)}" rx="${(rx*0.35).toFixed(1)}" ry="${(domeH*0.3).toFixed(1)}" fill="#fff" opacity="0.15"></ellipse>
-    <circle cx="${cx.toFixed(1)}" cy="${(topY+ry*0.2).toFixed(1)}" r="1.6" fill="${stroke}" opacity="0.7"></circle>`;
+  return `<path d="${d}" fill="${colorTop}" stroke="${stroke}" stroke-width="0.8" opacity="${lit ? 1 : 0.78}"></path>
+    <ellipse cx="${(cx-rx*0.3).toFixed(1)}" cy="${(topY-domeH*0.5).toFixed(1)}" rx="${(rx*0.35).toFixed(1)}" ry="${(domeH*0.3).toFixed(1)}" fill="#fff" opacity="0.16"></ellipse>
+    <circle cx="${cx.toFixed(1)}" cy="${(topY+ry*0.2).toFixed(1)}" r="1.8" fill="${lit ? '#ffe9a8' : '#6b6b63'}">
+      ${lit ? '<animate attributeName="opacity" values="1;0.45;1" dur="3.5s" repeatCount="indefinite"/>' : ''}
+    </circle>`;
 }
-
+function csSmoke(x, y, tint){
+  let s = '';
+  for (let i = 0; i < 3; i++){
+    const delay = (i * 1.3).toFixed(1);
+    s += `<circle cx="${x.toFixed(1)}" cy="${(y-3).toFixed(1)}" r="${(2.2+i*0.5).toFixed(1)}" fill="${tint}" opacity="0">
+      <animate attributeName="cy" values="${(y-3).toFixed(1)};${(y-22).toFixed(1)}" dur="4s" begin="${delay}s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.32;0" dur="4s" begin="${delay}s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="1.6;5" dur="4s" begin="${delay}s" repeatCount="indefinite"/>
+    </circle>`;
+  }
+  return s;
+}
 function csRoofIcon(type, cx, y, accent){
   switch (type) {
     case 'forge': case 'factory':
-      return `<rect x="${(cx+2).toFixed(1)}" y="${(y-14).toFixed(1)}" width="3.2" height="14" fill="${accent}"></rect>
-        <circle cx="${(cx+3.6).toFixed(1)}" cy="${(y-17).toFixed(1)}" r="2" fill="#fff" opacity="0.28"></circle>
-        <circle cx="${(cx+5).toFixed(1)}" cy="${(y-21).toFixed(1)}" r="1.6" fill="#fff" opacity="0.16"></circle>`;
+      return `<rect x="${(cx+2).toFixed(1)}" y="${(y-14).toFixed(1)}" width="3.2" height="14" fill="${accent}"></rect>`
+        + csSmoke(cx + 3.6, y - 14, '#e8e4d8');
     case 'medlab':
       return `<rect x="${(cx-1.1).toFixed(1)}" y="${(y-8).toFixed(1)}" width="2.2" height="7" fill="${accent}"></rect>
         <rect x="${(cx-3.5).toFixed(1)}" y="${(y-5.5).toFixed(1)}" width="7" height="2.2" fill="${accent}"></rect>`;
@@ -542,180 +560,326 @@ function csRoofIcon(type, cx, y, accent){
   }
 }
 
-const CS_TYPE_PALETTE = {
-  dome:  { wallR: '#c9c3b4', wallL: '#a29b8c', roofR: '#7fd8c0', roofL: '#4fae95' },
-  depot: { wallR: '#9aa0a6', wallL: '#71767b', roofR: '#b6bcc2', roofL: '#878d93' }
-};
-
-function csBuildingBody(type, cx, gy, halfW, level, pal, stroke){
+function csBuildingBody(type, cx, gy, halfW, level, pal, stroke, ctx){
   pal = CS_TYPE_PALETTE[type] || pal;
-  const scale = 1 + Math.min(level, 12) * 0.06;
+  const scale = 1 + Math.min(level, 14) * 0.036;
   const hw = halfW * scale;
   if (type === 'dome') {
     const wallH = 11 * scale, domeH = 21 * scale;
-    return { html: csWalls(cx, gy, hw, wallH, pal.wallR, pal.wallL, stroke) + csDome(cx, gy - wallH, hw, domeH, pal.roofR, stroke), topY: gy - wallH - domeH };
+    return { html: csWalls(cx, gy, hw, wallH, pal.wallR, pal.wallL, stroke)
+      + csDome(cx, gy - wallH, hw, domeH, pal.roofR, stroke, ctx.lit), topY: gy - wallH - domeH };
   }
   if (type === 'depot') {
     const r = 6 * scale;
-    const cols = [-hw * 0.55, 0, hw * 0.55], heights = [17 * scale, 22 * scale, 17 * scale];
+    const cols = [-hw*0.55, 0, hw*0.55], heights = [17*scale, 22*scale, 17*scale];
     let s = '';
-    cols.forEach((dx, i) => { s += csCylinder(cx + dx, gy, r, heights[i], pal.wallR, pal.roofR, stroke); });
-    s += `<rect x="${(cx - hw * 0.55 + r * 0.4).toFixed(1)}" y="${(gy - heights[1] * 0.78).toFixed(1)}" width="${(hw * 1.1 - r * 0.8).toFixed(1)}" height="2.2" fill="${pal.wallL}"></rect>`;
+    cols.forEach((dx, i) => { s += csCylinder(cx+dx, gy, r, heights[i], pal.wallR, pal.roofR, stroke); });
+    s += `<rect x="${(cx-hw*0.55+r*0.4).toFixed(1)}" y="${(gy-heights[1]*0.78).toFixed(1)}" width="${(hw*1.1-r*0.8).toFixed(1)}" height="2.2" fill="${pal.wallL}"></rect>`;
     return { html: s, topY: gy - heights[1] };
   }
   if (type === 'reactor') {
-    const wallH = 11 * scale, towerH = 20 * scale, tr = hw * 0.42;
-    const base = csWalls(cx, gy, hw * 0.85, wallH, pal.wallR, pal.wallL, stroke);
-    const tower = csCylinder(cx, gy - wallH, tr, towerH, pal.roofR, pal.roofL, stroke);
+    const wallH = 11*scale, towerH = 20*scale, tr = hw*0.42;
     const glowY = gy - wallH - towerH;
-    const glow = `<circle cx="${cx.toFixed(1)}" cy="${glowY.toFixed(1)}" r="8" fill="${stroke}" opacity="0.22"></circle>
-      <circle cx="${cx.toFixed(1)}" cy="${glowY.toFixed(1)}" r="4.2" fill="${stroke}" opacity="0.9"></circle>`;
-    return { html: base + tower + glow, topY: glowY - 8 };
+    const s = csWalls(cx, gy, hw*0.85, wallH, pal.wallR, pal.wallL, stroke)
+      + csCylinder(cx, gy-wallH, tr, towerH, pal.roofR, pal.roofL, stroke)
+      + `<circle cx="${cx.toFixed(1)}" cy="${glowY.toFixed(1)}" r="9" fill="${stroke}" opacity="0.2">
+           <animate attributeName="r" values="7;11;7" dur="2.8s" repeatCount="indefinite"/>
+           <animate attributeName="opacity" values="0.28;0.1;0.28" dur="2.8s" repeatCount="indefinite"/>
+         </circle>
+         <circle cx="${cx.toFixed(1)}" cy="${glowY.toFixed(1)}" r="4.2" fill="${stroke}" opacity="0.92"></circle>`;
+    return { html: s, topY: glowY - 9 };
   }
   if (type === 'datacenter') {
-    const wallH = 22 * scale, capH = 9 * scale, capW = hw * 0.6;
-    const lower = csWalls(cx, gy, hw, wallH, pal.wallR, pal.wallL, stroke);
-    const cap = csIsoBox(cx, gy - wallH, capW, capH, pal.roofR, pal.roofR, pal.roofL, stroke);
+    const wallH = 22*scale, capH = 9*scale, capW = hw*0.6;
     const mastTopY = gy - wallH - capH - 13;
-    const mast = `<line x1="${cx.toFixed(1)}" y1="${(gy - wallH - capH).toFixed(1)}" x2="${cx.toFixed(1)}" y2="${mastTopY.toFixed(1)}" stroke="${pal.wallL}" stroke-width="1.3"></line>
-      <circle cx="${cx.toFixed(1)}" cy="${(mastTopY - 2).toFixed(1)}" r="2" fill="${stroke}"></circle>`;
-    const lights = [0.3, 0.5, 0.7].map(f => `<rect x="${(cx + 1.5).toFixed(1)}" y="${(gy - wallH * f).toFixed(1)}" width="${(hw * 0.7).toFixed(1)}" height="1.6" fill="${stroke}" opacity="0.5"></rect>`).join('');
-    return { html: lower + cap + mast + lights, topY: mastTopY - 2 };
+    const lights = [0.3,0.5,0.7].map(f =>
+      `<rect x="${(cx+1.5).toFixed(1)}" y="${(gy-wallH*f).toFixed(1)}" width="${(hw*0.7).toFixed(1)}" height="1.6" fill="${stroke}" opacity="0.5"></rect>`).join('');
+    const s = csWalls(cx, gy, hw, wallH, pal.wallR, pal.wallL, stroke)
+      + csIsoBox(cx, gy-wallH, capW, capH, pal.roofR, pal.roofR, pal.roofL, stroke)
+      + `<line x1="${cx.toFixed(1)}" y1="${(gy-wallH-capH).toFixed(1)}" x2="${cx.toFixed(1)}" y2="${mastTopY.toFixed(1)}" stroke="${pal.wallL}" stroke-width="1.3"></line>
+         <circle cx="${cx.toFixed(1)}" cy="${(mastTopY-2).toFixed(1)}" r="2" fill="#ff6b5e">
+           <animate attributeName="opacity" values="1;0.15;1" dur="1.8s" repeatCount="indefinite"/>
+         </circle>` + lights;
+    return { html: s, topY: mastTopY - 2 };
   }
-  const wallH = 11 * scale, roofH = (type === 'greenhouse' ? 18 : 15) * scale;
+  const wallH = 11*scale, roofH = (type === 'greenhouse' ? 18 : 15) * scale;
   const walls = csWalls(cx, gy, hw, wallH, pal.wallR, pal.wallL, stroke);
-  const roofColors = type === 'greenhouse' ? { r: '#bfe6c9', l: '#8fc9a0' } : { r: pal.roofR, l: pal.roofL };
-  const roof = csHipRoof(cx, gy, hw, wallH, roofH, roofColors.r, roofColors.l, stroke, type === 'greenhouse');
+  const rc = type === 'greenhouse' ? { r:'#bfe6c9', l:'#8fc9a0' } : { r: pal.roofR, l: pal.roofL };
+  const roof = csHipRoof(cx, gy, hw, wallH, roofH, rc.r, rc.l, stroke, type === 'greenhouse');
   const icon = csRoofIcon(type, cx, roof.apexY, stroke);
-  return { html: walls + roof.html + icon, topY: roof.apexY - (type === 'forge' || type === 'factory' ? 21 : 0) };
+  return { html: walls + roof.html + icon, topY: roof.apexY - (type==='forge'||type==='factory' ? 21 : 0) };
 }
 
-function csBuilding(fd, st, radius, angleDeg){
+function csShortName(name){
+  const n = String(name || '');
+  if (n.length <= 15) return n;
+  const cut = n.slice(0, 14);
+  const sp = cut.lastIndexOf('-');
+  return (sp > 7 ? cut.slice(0, sp) : cut) + '…';
+}
+
+function csBuilding(fd, st, radius, angleDeg, ctx){
   const p = csPoint(radius, angleDeg);
   const level = st.level || 0;
-  const halfW = 21;
-  const halfD = halfW * 0.55;
+  const halfW = 21, halfD = halfW * 0.55;
   const locked = fd.requires_research && !isResearched(fd.requires_research);
   const pal = CS_PALETTE[fd.stage] || CS_PALETTE[0];
   const stroke = CS_STAGE_STROKE[fd.stage] || CS_STAGE_STROKE[0];
   const type = csBuildingType(fd);
-  const shadowY = p.y + halfD * 0.5;
-  const body = csBuildingBody(type, p.x, p.y, halfW, level, pal, stroke);
-
+  const body = csBuildingBody(type, p.x, p.y, halfW, level, pal, stroke, ctx);
   const lockG = locked ? `<g class="cs-lock">
-      <rect x="${p.x - 5}" y="${body.topY - 2}" width="10" height="8" rx="1.4" fill="none" stroke="${stroke}" stroke-width="1.1"></rect>
-      <path d="M${p.x - 3} ${body.topY - 2} v-2.4 a3 3 0 0 1 6 0 v2.4" fill="none" stroke="${stroke}" stroke-width="1.1"></path>
+      <rect x="${p.x-5}" y="${body.topY-2}" width="10" height="8" rx="1.4" fill="none" stroke="${stroke}" stroke-width="1.1"></rect>
+      <path d="M${p.x-3} ${body.topY-2} v-2.4 a3 3 0 0 1 6 0 v2.4" fill="none" stroke="${stroke}" stroke-width="1.1"></path>
     </g>` : '';
-
-  return `<g class="cs-building ${locked ? 'locked' : ''}" data-factory="${fd.factory_key}">
-    <ellipse cx="${p.x}" cy="${shadowY}" rx="${halfW * 0.9}" ry="${halfD * 0.55}" fill="#000" opacity="0.25"></ellipse>
-    <g class="cs-block" opacity="${locked ? 0.32 : 1}">${body.html}</g>
+  const tip = locked ? `${fd.name} — gesperrt` : `${fd.name} — Stufe ${level}`;
+  const bodyHtml = `<g class="cs-building ${locked?'locked':''}" data-factory="${fd.factory_key}">
+    <title>${tip}</title>
+    <ellipse cx="${p.x}" cy="${(p.y+halfD*0.5).toFixed(1)}" rx="${halfW*0.9}" ry="${(halfD*0.55).toFixed(1)}" fill="#000" opacity="0.28"></ellipse>
+    <g class="cs-block" opacity="${locked?0.32:1}">${body.html}</g>
     ${lockG}
-    <text class="cs-label" x="${p.x}" y="${p.y + halfD + 14}">${fd.name}</text>
-    ${!locked ? `<text class="cs-lvl" x="${p.x}" y="${p.y + halfD + 25}">Lv.${level}</text>` : ''}
   </g>`;
+  const above = type === 'dome';
+  const nameY = above ? body.topY - 14 : p.y + halfD + 14;
+  const lvlY  = above ? body.topY - 4  : p.y + halfD + 25;
+  const labelHtml = `<g class="cs-labelgrp" pointer-events="none">
+    <text class="cs-label" x="${p.x}" y="${nameY.toFixed(1)}">${csShortName(fd.name)}</text>
+    ${!locked ? `<text class="cs-lvl" x="${p.x}" y="${lvlY.toFixed(1)}">Lv.${level}</text>` : ''}
+  </g>`;
+  return { bodyHtml, labelHtml };
 }
 
+/* ---------- Umgebung ---------- */
 function csSmoothClosedPath(points){
   const n = points.length;
   let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} `;
   for (let i = 0; i < n; i++){
-    const p0 = points[(i - 1 + n) % n], p1 = points[i], p2 = points[(i + 1) % n], p3 = points[(i + 2) % n];
-    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
-    d += `C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)} `;
+    const p0=points[(i-1+n)%n], p1=points[i], p2=points[(i+1)%n], p3=points[(i+2)%n];
+    d += `C ${(p1.x+(p2.x-p0.x)/6).toFixed(1)} ${(p1.y+(p2.y-p0.y)/6).toFixed(1)}, ${(p2.x-(p3.x-p1.x)/6).toFixed(1)} ${(p2.y-(p3.y-p1.y)/6).toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)} `;
   }
   return d + 'Z';
 }
-
 function csIslandOutline(rx, ry, count){
   const pts = [];
   for (let i = 0; i < count; i++){
-    const t = (i / count) * Math.PI * 2;
-    const wob = 1 + 0.1 * Math.sin(3 * t + 0.6) + 0.05 * Math.cos(5 * t + 1.9);
-    pts.push({ x: CS_CX + rx * wob * Math.cos(t), y: CS_CY + ry * wob * Math.sin(t) });
+    const t = (i/count)*Math.PI*2;
+    const wob = 1 + 0.1*Math.sin(3*t+0.6) + 0.05*Math.cos(5*t+1.9);
+    pts.push({ x: CS_CX + rx*wob*Math.cos(t), y: CS_CY + ry*wob*Math.sin(t) });
   }
   return pts;
 }
 
-function csTerrain(){
-  const outline = csIslandOutline(232, 121, 28);
-  const cliffOutline = outline.map(p => ({ x: p.x, y: p.y + 16 }));
-  const topPath = csSmoothClosedPath(outline);
-  const cliffPath = csSmoothClosedPath(cliffOutline);
-  let s = `<path d="${cliffPath}" fill="#241a12"></path>`;
-  s += `<path d="${topPath}" fill="#20492f" stroke="#173a24" stroke-width="1"></path>`;
-  const patches = [
-    [70, 60, 34, 16], [-120, 20, 28, 13], [40, -95, 26, 12],
-    [160, -40, 24, 11], [-60, 100, 30, 14], [-170, -60, 22, 10]
-  ];
-  patches.forEach(([dx, dy, rx, ry]) => {
-    s += `<ellipse cx="${CS_CX + dx}" cy="${CS_CY + dy}" rx="${rx}" ry="${ry}" fill="#28573a" opacity="0.55"></ellipse>`;
-  });
-  const decor = [
-    [95, -70, 'rock'], [-95, -75, 'bush'], [200, 15, 'bush'], [-200, 40, 'rock'],
-    [0, 125, 'bush'], [130, 95, 'rock'], [-140, -110, 'bush']
-  ];
-  decor.forEach(([dx, dy, kind]) => {
-    const x = CS_CX + dx, y = CS_CY + dy;
-    if (kind === 'rock') s += `<ellipse cx="${x}" cy="${y}" rx="6" ry="3.4" fill="#5a544a"></ellipse><ellipse cx="${x - 1.5}" cy="${y - 2.5}" rx="4" ry="2.6" fill="#726b5e"></ellipse>`;
-    else s += `<ellipse cx="${x}" cy="${y}" rx="5" ry="3" fill="#173a24"></ellipse><ellipse cx="${x}" cy="${y - 3}" rx="3.6" ry="3.6" fill="#2c6b41"></ellipse>`;
+function csSky(){
+  let s = `<rect x="0" y="0" width="640" height="415" fill="url(#csSky)"></rect>`;
+  for (let i = 0; i < 70; i++){
+    const x = csRand(i*1.7)*640, y = csRand(i*3.1)*250, r = 0.4 + csRand(i*5.3)*1.1;
+    const o = (0.25 + csRand(i*7.7)*0.6).toFixed(2);
+    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="#cfe3ff" opacity="${o}">`
+      + (i % 9 === 0 ? `<animate attributeName="opacity" values="${o};0.1;${o}" dur="${(2.5+csRand(i)*3).toFixed(1)}s" repeatCount="indefinite"/>` : '')
+      + `</circle>`;
+  }
+  // ferner Gasriese
+  s += `<circle cx="556" cy="74" r="34" fill="url(#csPlanet)" opacity="0.85"></circle>
+    <ellipse cx="556" cy="74" rx="50" ry="8" fill="none" stroke="#7fd8c0" stroke-width="2" opacity="0.28" transform="rotate(-18 556 74)"></ellipse>
+    <circle cx="612" cy="132" r="6" fill="#9aa0a6" opacity="0.55"></circle>`;
+  return s;
+}
+
+function csOcean(){
+  let s = `<ellipse cx="${CS_CX}" cy="${CS_CY+8}" rx="300" ry="160" fill="url(#csOcean)"></ellipse>`;
+  [[0,'6s'],[1,'7.5s'],[2,'9s']].forEach(([i,dur]) => {
+    s += `<ellipse cx="${CS_CX}" cy="${CS_CY+10}" rx="${248+i*18}" ry="${132+i*10}" fill="none" stroke="#6fd3e8" stroke-width="1" opacity="0.14">
+      <animate attributeName="opacity" values="0.05;0.2;0.05" dur="${dur}" repeatCount="indefinite"/>
+    </ellipse>`;
   });
   return s;
 }
 
-function csRoadRing(radius){
-  return `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="${radius}" ry="${radius * 0.52}" fill="none" stroke="#4a4136" stroke-width="7"></ellipse>
-    <ellipse cx="${CS_CX}" cy="${CS_CY}" rx="${radius}" ry="${radius * 0.52}" fill="none" stroke="#8a7a5e" stroke-width="1" stroke-dasharray="3,5" opacity="0.6"></ellipse>`;
+function csTerrain(){
+  const outline = csIslandOutline(232, 121, 28);
+  const beach = csIslandOutline(238, 124, 28);
+  let s = `<path d="${csSmoothClosedPath(outline.map(p=>({x:p.x,y:p.y+16})))}" fill="#241a12"></path>`;
+  s += `<path d="${csSmoothClosedPath(beach)}" fill="#c2b184" opacity="0.75"></path>`;
+  s += `<path d="${csSmoothClosedPath(outline)}" fill="url(#csGrass)" stroke="#173a24" stroke-width="1"></path>`;
+  [[70,60,34,16],[-120,20,28,13],[40,-95,26,12],[160,-40,24,11],[-60,100,30,14],[-170,-60,22,10]]
+    .forEach(([dx,dy,rx,ry]) => {
+      s += `<ellipse cx="${CS_CX+dx}" cy="${CS_CY+dy}" rx="${rx}" ry="${ry}" fill="#28573a" opacity="0.5"></ellipse>`;
+    });
+  return s;
 }
 
+function csTree(x, y, sc){
+  return `<g><ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${(5*sc).toFixed(1)}" ry="${(2.2*sc).toFixed(1)}" fill="#000" opacity="0.22"></ellipse>
+    <rect x="${(x-0.8*sc).toFixed(1)}" y="${(y-7*sc).toFixed(1)}" width="${(1.6*sc).toFixed(1)}" height="${(7*sc).toFixed(1)}" fill="#4a3a22"></rect>
+    <ellipse cx="${x.toFixed(1)}" cy="${(y-9*sc).toFixed(1)}" rx="${(5.2*sc).toFixed(1)}" ry="${(5*sc).toFixed(1)}" fill="#2c6b41"></ellipse>
+    <ellipse cx="${(x-1.5*sc).toFixed(1)}" cy="${(y-11*sc).toFixed(1)}" rx="${(3*sc).toFixed(1)}" ry="${(2.8*sc).toFixed(1)}" fill="#3a8452"></ellipse></g>`;
+}
+function csRock(x, y){
+  return `<g><ellipse cx="${x}" cy="${y}" rx="6" ry="3.4" fill="#5a544a"></ellipse>
+    <ellipse cx="${(x-1.5).toFixed(1)}" cy="${(y-2.5).toFixed(1)}" rx="4" ry="2.6" fill="#726b5e"></ellipse></g>`;
+}
+
+function csDecor(greenLvl){
+  let s = '';
+  const treeCount = Math.min(18, 4 + greenLvl * 2);
+  for (let i = 0; i < treeCount; i++){
+    const ang = csRand(i*2.3) * Math.PI * 2;
+    const rad = 140 + csRand(i*4.1) * 85;
+    const x = CS_CX + rad * Math.cos(ang), y = CS_CY + rad * 0.52 * Math.sin(ang);
+    s += csTree(x, y, 0.8 + csRand(i*6.7) * 0.5);
+  }
+  [[95,-78],[-200,40],[130,100],[-150,-95],[215,60]].forEach(([dx,dy]) => {
+    s += csRock(CS_CX+dx, CS_CY+dy);
+  });
+  return s;
+}
+
+/* Solarfeld — wächst mit dem Kraftwerk */
+function csSolarFarm(level){
+  if (level < 1) return '';
+  const rows = Math.min(3, 1 + Math.floor(level/3));
+  const baseX = CS_CX - 150, baseY = CS_CY + 78;
+  let s = '';
+  for (let r = 0; r < rows; r++){
+    for (let c = 0; c < 3; c++){
+      const x = baseX + c*17 + r*9, y = baseY + r*9 - c*4;
+      s += `<g><polygon points="${x-7},${y} ${x},${y-4} ${x+7},${y} ${x},${y+4}" fill="#2b4a7a" stroke="#4d7ab5" stroke-width="0.7"></polygon>
+        <polygon points="${x-7},${y} ${x},${y-4} ${x},${y-1} ${x-7},${y+3}" fill="#6ea0dd" opacity="0.5"></polygon></g>`;
+    }
+  }
+  return s;
+}
+
+/* Landeplattform mit Shuttle */
+function csLandingPad(){
+  const x = CS_CX + 168, y = CS_CY + 72;
+  return `<g>
+    <ellipse cx="${x}" cy="${y}" rx="26" ry="14" fill="#3a3a36" stroke="#8a7a5e" stroke-width="1"></ellipse>
+    <ellipse cx="${x}" cy="${y}" rx="15" ry="8" fill="none" stroke="#e0c86a" stroke-width="1" stroke-dasharray="3,3"></ellipse>
+    <circle cx="${x-24}" cy="${y}" r="1.6" fill="#ff6b5e"><animate attributeName="opacity" values="1;0.2;1" dur="1.4s" repeatCount="indefinite"/></circle>
+    <circle cx="${x+24}" cy="${y}" r="1.6" fill="#ff6b5e"><animate attributeName="opacity" values="0.2;1;0.2" dur="1.4s" repeatCount="indefinite"/></circle>
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="0,0; 0,-7; 0,0" dur="9s" repeatCount="indefinite"/>
+      <ellipse cx="${x}" cy="${y-9}" rx="8" ry="4" fill="#b6bcc2"></ellipse>
+      <path d="M ${x-8} ${y-9} L ${x} ${y-19} L ${x+8} ${y-9} Z" fill="#d7dce0" stroke="#8a9096" stroke-width="0.7"></path>
+      <circle cx="${x}" cy="${y-12}" r="2" fill="#7fd8c0"></circle>
+    </g>
+  </g>`;
+}
+
+/* Wohnsiedlung — Hüttenzahl folgt der Bevölkerung */
+function csHouses(pop, lit){
+  const count = Math.max(0, Math.min(12, Math.round(Math.log2(1 + pop) * 1.5)));
+  const out = [];
+  // Speichenwinkel der Stufe-1-Straßen freihalten (45/135/225/315)
+  const slots = [8, 24, 70, 86, 100, 160, 176, 190, 250, 266, 280, 340];
+  for (let i = 0; i < count; i++){
+    const ang = slots[i % slots.length];
+    const rad = 76 + (i % 3) * 9;
+    const p = csPoint(rad, ang);
+    const w = 8, wallH = 7, roofH = 6;
+    const html = `<g><title>Wohnsiedlung</title>
+      <ellipse cx="${p.x.toFixed(1)}" cy="${(p.y+2.5).toFixed(1)}" rx="${(w*0.95).toFixed(1)}" ry="2.6" fill="#000" opacity="0.28"></ellipse>
+      ${csWalls(p.x, p.y, w, wallH, '#cfc7b5', '#a39b89', '#756d60')}
+      ${csHipRoof(p.x, p.y, w, wallH, roofH, '#b0705a', '#8a5342', '#6d4032', false).html}
+      <rect x="${(p.x-1).toFixed(1)}" y="${(p.y-wallH+1.5).toFixed(1)}" width="2" height="2.4" fill="${lit ? '#ffe9a8' : '#4a4a44'}"></rect></g>`;
+    out.push({ y: p.y, html });
+  }
+  return out;
+}
+
+/* Transport-Drohnen auf den Ringstraßen */
+function csDrones(){
+  const mk = (radius, dur, color, begin) =>
+    `<g><circle r="2.6" fill="${color}"></circle><circle r="5" fill="${color}" opacity="0.18"></circle>
+      <animateMotion dur="${dur}" begin="${begin}" repeatCount="indefinite" path="${csRingPath(radius)}"/></g>`;
+  return mk(CS_R_S1, '14s', '#7fd8c0', '0s') + mk(CS_R_S1, '14s', '#7fd8c0', '-7s')
+       + mk(CS_R_S2, '20s', '#F0997B', '-3s') + mk(CS_R_S2, '20s', '#F0997B', '-13s');
+}
+
+function csRoadRing(radius){
+  return `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="${radius}" ry="${(radius*0.52).toFixed(1)}" fill="none" stroke="#4a4136" stroke-width="7"></ellipse>
+    <ellipse cx="${CS_CX}" cy="${CS_CY}" rx="${radius}" ry="${(radius*0.52).toFixed(1)}" fill="none" stroke="#8a7a5e" stroke-width="1" stroke-dasharray="3,5" opacity="0.6"></ellipse>`;
+}
 function csSpoke(r1, a1, r2, a2){
   const p1 = csPoint(r1, a1), p2 = csPoint(r2, a2);
   return `<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" stroke="#4a4136" stroke-width="6"></line>
     <line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" stroke="#8a7a5e" stroke-width="1" stroke-dasharray="3,5" opacity="0.6"></line>`;
 }
-
 function csRoads(stage1, stage2){
-  let s = '';
-  s += `<circle cx="${CS_CX}" cy="${CS_CY}" r="30" fill="none" stroke="#4a4136" stroke-width="7"></circle>`;
-  stage1.forEach((fd, i) => { s += csSpoke(0, 0, 118, (360 / stage1.length) * i + 45); });
-  s += csRoadRing(118);
-  stage2.forEach((fd, i) => {
-    const a = (360 / stage2.length) * i + 90;
-    s += csSpoke(118, a, 194, a);
-  });
-  s += csRoadRing(194);
+  let s = `<ellipse cx="${CS_CX}" cy="${CS_CY}" rx="34" ry="18" fill="#4a4136" opacity="0.55"></ellipse>`;
+  stage1.forEach((fd, i) => { s += csSpoke(0, 0, CS_R_S1, (360/stage1.length)*i + 45); });
+  s += csRoadRing(CS_R_S1);
+  stage2.forEach((fd, i) => { const a = (360/stage2.length)*i + 90; s += csSpoke(CS_R_S1, a, CS_R_S2, a); });
+  s += csRoadRing(CS_R_S2);
   return s;
 }
 
-function renderColonyScene(){
+function csDefs(){
+  return `<defs>
+    <linearGradient id="csSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#070d18"/><stop offset="55%" stop-color="#0d1a2b"/><stop offset="100%" stop-color="#102030"/>
+    </linearGradient>
+    <radialGradient id="csPlanet" cx="35%" cy="32%" r="75%">
+      <stop offset="0%" stop-color="#8fd8c4"/><stop offset="55%" stop-color="#3b8a75"/><stop offset="100%" stop-color="#1d4a3e"/>
+    </radialGradient>
+    <radialGradient id="csOcean" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#15455c"/><stop offset="70%" stop-color="#0e3247"/><stop offset="100%" stop-color="#0a2334"/>
+    </radialGradient>
+    <radialGradient id="csGrass" cx="42%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#2c603d"/><stop offset="100%" stop-color="#1b4229"/>
+    </radialGradient>
+  </defs>`;
+}
+
+/* ---------- Renderer (mit Cache, damit Animationen nicht neu starten) ---------- */
+let CS_SIG = '';
+
+function renderColonyScene(force){
   const svg = document.getElementById('colonyScene');
   if (!svg || !STATIC.factoryDefs || !Object.keys(STATIC.factoryDefs).length) return;
 
-  const foundation = ['raw_depot', 'wohnkuppel'].map(k => STATIC.factoryDefs[k]).filter(Boolean);
-  const stage1 = Object.values(STATIC.factoryDefs).filter(fd => fd.stage === 1).sort((a,b) => a.sort_order - b.sort_order);
-  const stage2 = Object.values(STATIC.factoryDefs).filter(fd => fd.stage === 2).sort((a,b) => a.sort_order - b.sort_order);
+  const defs = STATIC.factoryDefs;
+  const lit = (STATE.upkeep_ratio ?? 1) >= 1;
+  const popBucket = Math.round(Math.log2(1 + (STATE.population || 0)) * 1.7);
+  const sig = Object.keys(defs).sort().map(k =>
+      k + ':' + (STATE.factories?.[k]?.level || 0) + ':' + (defs[k].requires_research && !isResearched(defs[k].requires_research) ? 'L' : 'U')
+    ).join('|') + '#' + popBucket + '#' + (lit ? 1 : 0);
+  if (!force && sig === CS_SIG) return;
+  CS_SIG = sig;
 
-  let html = csTerrain();
+  const foundation = ['raw_depot','wohnkuppel'].map(k => defs[k]).filter(Boolean);
+  const stage1 = Object.values(defs).filter(fd => fd.stage === 1).sort((a,b)=>a.sort_order-b.sort_order);
+  const stage2 = Object.values(defs).filter(fd => fd.stage === 2).sort((a,b)=>a.sort_order-b.sort_order);
+  const greenLvl = STATE.factories?.gewaechshaus?.level || 0;
+  const powerLvl = STATE.factories?.kraftwerk?.level || 0;
+  const ctx = { lit };
+
+  let html = csDefs() + csSky() + csOcean() + csTerrain() + csDecor(greenLvl);
+  html += csSolarFarm(powerLvl) + csLandingPad();
   html += csRoads(stage1, stage2);
 
   const jobs = [];
-  foundation.forEach((fd, i) => {
-    jobs.push({ fd, radius: 50, angle: foundation.length > 1 ? (i === 0 ? 200 : 20) : 0 });
-  });
-  stage1.forEach((fd, i) => {
-    jobs.push({ fd, radius: 118, angle: (360 / stage1.length) * i + 45 });
-  });
-  stage2.forEach((fd, i) => {
-    jobs.push({ fd, radius: 194, angle: (360 / stage2.length) * i + 90 });
-  });
-  jobs.forEach(j => { j.y = csPoint(j.radius, j.angle).y; });
-  jobs.sort((a, b) => a.y - b.y);
-
+  foundation.forEach((fd, i) => jobs.push({ fd, radius: CS_R_FOUND, angle: foundation.length>1 ? (i===0?200:20) : 0 }));
+  stage1.forEach((fd, i) => jobs.push({ fd, radius: CS_R_S1, angle: (360/stage1.length)*i + 45 }));
+  stage2.forEach((fd, i) => jobs.push({ fd, radius: CS_R_S2, angle: (360/stage2.length)*i + 90 }));
+  const labels = [];
   jobs.forEach(j => {
+    j.y = csPoint(j.radius, j.angle).y;
     const st = STATE.factories?.[j.fd.factory_key] || { level: 0 };
-    html += csBuilding(j.fd, st, j.radius, j.angle);
+    const built = csBuilding(j.fd, st, j.radius, j.angle, ctx);
+    j.html = built.bodyHtml;
+    labels.push(built.labelHtml);
   });
+  csHouses(STATE.population || 0, lit).forEach(h => jobs.push(h));
+  jobs.sort((a,b) => a.y - b.y);
+  jobs.forEach(j => { html += j.html; });
+  html += labels.join('');
+
+  html += csDrones();
+  if (!lit) {
+    html += `<rect x="0" y="0" width="640" height="415" fill="#2a1408" opacity="0.2" pointer-events="none"></rect>
+      <text class="cs-warn" x="320" y="30" text-anchor="middle">Unterhalt nicht gedeckt — Wachstum gestoppt</text>`;
+  }
 
   svg.innerHTML = html;
   svg.querySelectorAll('[data-factory]').forEach(g => {
