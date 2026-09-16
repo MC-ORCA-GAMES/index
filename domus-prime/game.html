@@ -127,6 +127,85 @@
   .cs-lvl{ font-family:var(--mono); font-size:9.5px; fill:var(--accent); text-anchor:middle; paint-order:stroke; stroke:rgba(8,12,10,0.85); stroke-width:3px; stroke-linejoin:round; }
   .cs-warn{ font-family:'Space Grotesk',sans-serif; font-size:12px; fill:#ffb37a; paint-order:stroke; stroke:rgba(8,12,10,0.9); stroke-width:3px; stroke-linejoin:round; }
 
+
+  .cap-bar{ height:4px; border-radius:3px; background:rgba(255,255,255,0.09); margin-top:6px; overflow:hidden; }
+  .cap-bar span{ display:block; height:100%; background:var(--accent); border-radius:3px; }
+  .cap-bar.full span{ background:#e0a75f; }
+  .cap-bar.research{ height:5px; margin-top:8px; }
+  .res-item .rrate{ font-family:var(--mono); font-size:11.5px; margin-top:5px; }
+  .res-item .rrate.up{ color:var(--up); }
+  .res-item .rrate.down{ color:var(--down); }
+  .res-item .rrate.idle{ color:var(--fg-faint); }
+  .res-item .rnote{ font-size:10.5px; color:var(--fg-faint); margin-top:3px; line-height:1.45; }
+  .warn-text{ color:#e0a75f; }
+  .alert{ font-size:12.5px; line-height:1.5; padding:9px 12px; border-radius:8px; background:rgba(224,167,95,0.10); border:1px solid rgba(224,167,95,0.28); color:#e8c79a; margin-bottom:8px; }
+  .alert:last-child{ margin-bottom:0; }
+  .alert.ok-alert{ background:var(--up-dim); border-color:transparent; color:var(--up); }
+  .fac-info{ flex:1 1 260px; min-width:0; }
+  .fac-gain{ font-size:11.5px; color:var(--accent); margin-top:4px; }
+  .fac-need{ font-size:11px; color:var(--fg-faint); margin-top:3px; }
+  .fac-missing{ font-size:11px; color:#e0a75f; margin-top:6px; text-align:right; }
+  .buy-group{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .buy-btn{ margin:0; display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 11px; line-height:1.2; }
+  .buy-btn .bcost{ font-family:var(--mono); font-size:10px; opacity:0.75; font-weight:400; }
+  .r-info{ flex:1 1 260px; min-width:0; }
+  .r-progress{ font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-top:4px; }
+
+
+  .tab-badge{ display:inline-block; min-width:16px; padding:0 5px; height:16px; line-height:16px; font-size:10px; font-weight:700; border-radius:999px; background:#ffe9a8; color:#3a2c06; margin-left:4px; vertical-align:2px; }
+  .tab-badge.hidden{ display:none; }
+
+  .spark{ width:100%; height:26px; margin-top:8px; display:block; }
+
+  .invest-panel .sm-hint{ margin-top:0; }
+  .invest-preview{ margin-top:10px; font-size:12px; color:var(--fg-dim); line-height:1.6; }
+  .invest-preview .ip-row{ display:flex; justify-content:space-between; border-top:1px solid var(--line); padding:5px 0; }
+  .invest-preview .ip-row:first-child{ border-top:none; }
+  .invest-preview .ip-total{ margin-top:6px; padding-top:8px; border-top:1px solid var(--line); font-weight:600; color:var(--fg); display:flex; justify-content:space-between; }
+
+  .ach-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(210px,1fr)); gap:10px; }
+  .ach-card{ border:1px solid var(--line); border-radius:10px; padding:12px; opacity:0.42; transition:opacity 0.2s; }
+  .ach-card.unlocked{ opacity:1; border-color:rgba(62,207,142,0.35); background:rgba(62,207,142,0.05); }
+  .ach-card .a-icon{ font-size:20px; line-height:1; }
+  .ach-card .a-name{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px; margin-top:6px; }
+  .ach-card .a-desc{ font-size:11.5px; color:var(--fg-faint); margin-top:3px; line-height:1.4; }
+  .ach-card .a-bar{ margin-top:8px; }
+
+  .ach-toast-host{ position:fixed; top:16px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+  .ach-toast{ background:var(--panel); border:1px solid rgba(62,207,142,0.45); border-radius:12px; padding:11px 16px; box-shadow:0 8px 24px rgba(0,0,0,0.35); display:flex; gap:10px; align-items:center; animation:achIn 0.35s ease-out, achOut 0.4s ease-in 4.6s forwards; max-width:280px; }
+  .ach-toast .a-icon{ font-size:22px; }
+  .ach-toast .a-title{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--accent); }
+  .ach-toast .a-name{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; margin-top:2px; }
+  @keyframes achIn{ from{ opacity:0; transform:translateX(24px); } to{ opacity:1; transform:translateX(0); } }
+  @keyframes achOut{ to{ opacity:0; transform:translateX(24px); } }
+
+  .chronicle-feed{ display:flex; flex-direction:column; gap:2px; max-height:360px; overflow-y:auto; }
+  .chronicle-row{ display:flex; gap:10px; padding:8px 2px; border-top:1px solid var(--line); font-size:12.5px; }
+  .chronicle-row:first-child{ border-top:none; }
+  .chronicle-row .c-time{ flex:0 0 76px; color:var(--fg-faint); font-family:var(--mono); font-size:10.5px; padding-top:1px; }
+  .chronicle-row .c-text{ color:var(--fg-dim); line-height:1.45; }
+  .chronicle-empty{ color:var(--fg-faint); font-size:12.5px; padding:8px 2px; }
+
+  .autobuy-row{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+  .autobuy-toggle{ display:flex; align-items:center; gap:9px; font-size:13px; color:var(--fg-dim); cursor:pointer; }
+  .autobuy-toggle input{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }
+  .autobuy-reserve{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--fg-faint); margin-top:9px; }
+  .autobuy-reserve input{ width:90px; font-family:var(--mono); font-size:12px; padding:5px 8px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+
+  .wb-modal-backdrop{ position:fixed; inset:0; background:rgba(6,10,9,0.72); display:flex; align-items:center; justify-content:center; z-index:9998; padding:20px; }
+  .wb-modal-backdrop.hidden{ display:none; }
+  .wb-modal{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px; max-width:420px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+  .wb-modal h3{ margin:0 0 4px; }
+  .wb-away{ font-size:12.5px; color:var(--fg-faint); margin-bottom:16px; }
+  .wb-grid{ display:flex; flex-direction:column; gap:7px; }
+  .wb-grid .wb-row{ display:flex; justify-content:space-between; font-size:13.5px; padding:7px 0; border-top:1px solid var(--line); }
+  .wb-grid .wb-row:first-child{ border-top:none; }
+  .wb-grid .wb-row .wv{ font-family:var(--mono); color:var(--up); }
+  .wb-grid .wb-row .wv.down{ color:var(--down); }
+  .wb-crisis{ margin-top:14px; padding:9px 12px; border-radius:8px; background:rgba(224,167,95,0.10); border:1px solid rgba(224,167,95,0.28); color:#e8c79a; font-size:12.5px; }
+  .wb-crisis.hidden{ display:none; }
+  #wbCloseBtn{ margin-top:18px; }
+
   .stage-group{ margin-bottom:22px; }
   .stage-group h4{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); margin:0 0 10px; }
   .fac-row{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:12px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
@@ -200,6 +279,7 @@
       <button type="button" class="main-tab-btn" data-tab="gebaeude">Gebäude</button>
       <button type="button" class="main-tab-btn" data-tab="forschung">Forschung</button>
       <button type="button" class="main-tab-btn" data-tab="markt">Markt</button>
+      <button type="button" class="main-tab-btn" data-tab="erfolge">Erfolge <span id="achBadge" class="tab-badge hidden">0</span></button>
     </nav>
 
     <!-- ---------- ÜBERSICHT ---------- -->
@@ -215,13 +295,17 @@
             <div class="label">Bevölkerung</div>
             <div class="value" id="statPopulation">–</div>
             <div class="sub" id="statHousing">–</div>
+            <div class="sub" id="statHousingNote"></div>
+            <svg class="spark" id="sparkPop" viewBox="0 0 160 34" preserveAspectRatio="none"></svg>
           </div>
           <div class="stat-card">
             <div class="label">Unterhalt gedeckt</div>
             <div class="value" id="statUpkeep">–</div>
-            <div class="sub">Nährpaste + Fusionszellen pro Kopf</div>
+            <div class="sub" id="statUpkeepSub">Nährpaste + Fusionszellen pro Kopf</div>
+            <svg class="spark" id="sparkUpkeep" viewBox="0 0 160 34" preserveAspectRatio="none"></svg>
           </div>
         </div>
+        <div id="alertPanel" style="margin-top:14px;"></div>
         <div class="sm-hint" style="margin-top:12px;">Wächst nur weiter, solange Nährpaste und Fusionszellen den Unterhalt voll decken — reicht es nicht, stagniert die Bevölkerung (kein Rückgang). Kein Prestige: die Kolonie wächst unbegrenzt weiter.</div>
       </div>
 
@@ -244,6 +328,23 @@
 
     <!-- ---------- GEBÄUDE ---------- -->
     <div class="tab-page" id="tabPage-gebaeude">
+      <div class="panel invest-panel">
+        <h3>Investieren <span class="tag">MOGC: <span id="investBalance">–</span></span></h3>
+        <div class="sm-hint" style="margin-bottom:10px;">Verteilt dein MOGC automatisch auf die günstigsten nächsten Level — über alle freigeschalteten Gebäude hinweg, bis das Budget aufgebraucht ist.</div>
+        <button type="button" id="autoInvestBtn" class="btn-block">Optimal ausbauen</button>
+        <div id="investPreview" class="invest-preview"></div>
+        <div class="autobuy-row">
+          <label class="autobuy-toggle">
+            <input type="checkbox" id="autoBuyToggle">
+            <span>Automatisch investieren bei jedem Tick</span>
+          </label>
+          <label class="autobuy-reserve">
+            Reserve halten
+            <input type="number" id="autoBuyReserve" min="0" step="50" value="0"> MOGC
+          </label>
+          <div class="sm-hint" id="autoBuyStatus" style="margin-top:6px;"></div>
+        </div>
+      </div>
       <div class="panel">
         <h3>Fundament</h3>
         <div id="facGroup-0-3"></div>
@@ -275,6 +376,30 @@
       </div>
     </div>
 
+    <!-- ---------- ERFOLGE ---------- -->
+    <div class="tab-page" id="tabPage-erfolge">
+      <div class="panel">
+        <h3>Erfolge <span class="tag" id="achProgress">– / –</span></h3>
+        <div class="ach-grid" id="achGrid"></div>
+      </div>
+      <div class="panel">
+        <h3>Kolonie-Chronik</h3>
+        <div class="sm-hint" style="margin-bottom:10px;">Was in „Domus Prime: Verdantis" bisher passiert ist.</div>
+        <div id="chronicleFeed" class="chronicle-feed"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div id="achToastHost" class="ach-toast-host"></div>
+
+<div id="welcomeBackModal" class="wb-modal-backdrop hidden">
+  <div class="wb-modal">
+    <h3>Willkommen zurück</h3>
+    <div class="wb-away" id="wbAway"></div>
+    <div class="wb-grid" id="wbGrid"></div>
+    <div id="wbCrisisNote" class="wb-crisis hidden">Der Unterhalt war zwischenzeitlich nicht gedeckt.</div>
+    <button type="button" id="wbCloseBtn" class="btn-block">Weiter geht's</button>
   </div>
 </div>
 
@@ -297,10 +422,15 @@ const GOOD_LABELS = { BAUSTAHL: 'Baustahl', NAEHRPASTE: 'Nährpaste', FUSIONSZEL
 const TRADE_LABELS = { VERBUNDPLATTEN: 'Verbundplatten', MEDIZIN: 'Medizin', PRAEZISIONSWERKZEUG: 'Präzisionswerkzeug' };
 
 function isGuest(){ return !!(currentUser && currentUser.id === GUEST_USER_ID); }
+const msgTimers = {};
 function showMsg(elId, text, ok){
   const el = document.getElementById(elId);
   if (!el) return;
   el.innerHTML = '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + text + '</div>';
+  if (msgTimers[elId]) clearTimeout(msgTimers[elId]);
+  if (ok && elId === 'statusMsg') {
+    msgTimers[elId] = setTimeout(() => { if (el.querySelector('.msg.ok')) el.innerHTML = ''; }, 6000);
+  }
 }
 function clearMsg(elId){ const el = document.getElementById(elId); if (el) el.innerHTML=''; }
 function fmt(n){ n = Number(n) || 0; return n.toLocaleString('de-DE', { maximumFractionDigits: 0 }); }
@@ -366,9 +496,12 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 })();
 
 /* ---------- Nach dem Login ---------- */
+let pendingWelcomeSnapshot = null;
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
+  loadAutoBuyUI();
+  pendingWelcomeSnapshot = dpLoad('last_snapshot', null);
   await loadStatic();
   await loadEverything();
   startPolling();
@@ -409,13 +542,19 @@ async function loadWallet(){
   } catch(e){ console.error(e); }
 }
 
-async function loadEverything(){
+async function loadEverything(skipAutoBuy){
   try {
     const { data, error } = await sb.schema('colony').rpc('production_tick');
     if (error) { showMsg('statusMsg', error.message, false); return; }
     STATE = data;
     await loadWallet();
     render();
+    saveSnapshot();
+    if (pendingWelcomeSnapshot) {
+      checkWelcomeBack(pendingWelcomeSnapshot);
+      pendingWelcomeSnapshot = null;
+    }
+    if (!skipAutoBuy) await maybeAutoBuy();
   } catch(e){ console.error(e); }
 }
 
@@ -423,10 +562,16 @@ document.getElementById('refreshBtn').addEventListener('click', () => loadEveryt
 
 /* ---------- Rendering ---------- */
 function render(){
+  trackChronicle();
+  trackCrisisRecovery();
   renderOverview();
   renderColonyScene();
   renderBuildings();
   renderResearch();
+  renderAchievements();
+  renderChronicle();
+  renderInvestPreview();
+  renderSparklines(pushHistory());
 }
 
 /* ---------- Isometrische Kolonie-Szene ---------- */
@@ -885,70 +1030,290 @@ function renderColonyScene(force){
   svg.querySelectorAll('[data-factory]').forEach(g => {
     g.addEventListener('click', () => {
       if (g.classList.contains('locked')) return;
-      document.querySelector('[data-tab="gebaeude"]').click();
+      activateTab('gebaeude');
     });
   });
 }
 
+/* ---------- Zahlen- und Zeitformate ---------- */
+function fmtC(n){
+  n = Number(n) || 0;
+  const a = Math.abs(n);
+  if (a >= 1e9) return (n/1e9).toLocaleString('de-DE',{maximumFractionDigits:2}) + ' Mrd';
+  if (a >= 1e6) return (n/1e6).toLocaleString('de-DE',{maximumFractionDigits:2}) + ' Mio';
+  if (a >= 1e4) return (n/1e3).toLocaleString('de-DE',{maximumFractionDigits:1}) + ' Tsd';
+  return n.toLocaleString('de-DE',{maximumFractionDigits: a < 10 ? 2 : 0});
+}
+function fmtRate(n){
+  n = Number(n) || 0;
+  const s = n > 0 ? '+' : '';
+  return s + n.toLocaleString('de-DE',{maximumFractionDigits: Math.abs(n) < 10 ? 2 : 0}) + '/min';
+}
+function fmtDur(min){
+  if (!isFinite(min) || min <= 0) return '–';
+  if (min < 1) return Math.round(min*60) + ' Sek';
+  if (min < 60) return Math.round(min) + ' Min';
+  if (min < 1440) return (min/60).toLocaleString('de-DE',{maximumFractionDigits:1}) + ' Std';
+  return (min/1440).toLocaleString('de-DE',{maximumFractionDigits:1}) + ' Tage';
+}
+
+/* ---------- Produktionsrechnung ----------
+   Theoretische Raten aus recipe_defs: base_rate ist Output/Level/Minute,
+   inputs ist {item_key: Menge je Output-Einheit}. Bevölkerungsunterhalt
+   laut Backend: 0,05 Nährpaste + 0,03 Fusionszellen pro Kopf/Minute. */
+const UPKEEP_PER_POP = { NAEHRPASTE: 0.05, FUSIONSZELLEN: 0.03 };
+
+function computeRates(){
+  const produce = {}, consume = {}, byFactory = {};
+  Object.values(STATIC.factoryDefs || {}).forEach(fd => {
+    const level = STATE.factories?.[fd.factory_key]?.level || 0;
+    if (!level) return;
+    if (fd.requires_research && !isResearched(fd.requires_research)) return;
+    (STATIC.recipesByFactory[fd.factory_key] || []).forEach(r => {
+      const rate = (Number(r.base_rate) || 0) * level;
+      if (!rate) return;
+      produce[r.item_key] = (produce[r.item_key] || 0) + rate;
+      const inputs = r.inputs || {};
+      const needs = {};
+      Object.keys(inputs).forEach(ik => {
+        const amt = rate * (Number(inputs[ik]) || 0);
+        consume[ik] = (consume[ik] || 0) + amt;
+        needs[ik] = amt;
+      });
+      byFactory[fd.factory_key] = { outItem: r.item_key, rate, needs };
+    });
+  });
+  const pop = Number(STATE.population) || 0;
+  Object.keys(UPKEEP_PER_POP).forEach(k => {
+    consume[k] = (consume[k] || 0) + pop * UPKEEP_PER_POP[k];
+  });
+  return { produce, consume, byFactory };
+}
+
+/* Engpässe: Gut wird stärker verbraucht als produziert, oder Lager leer */
+function findBottlenecks(rates){
+  const stock = STATE.item_stock || {};
+  const out = [];
+  Object.keys(rates.consume).forEach(k => {
+    const need = rates.consume[k], have = rates.produce[k] || 0;
+    const label = GOOD_LABELS[k] || RAW_LABELS[k] || k;
+    if (need > have + 1e-9) {
+      const buffer = Number(stock[k]) || 0;
+      const deficit = need - have;
+      out.push({
+        item: k, label, deficit,
+        empty: buffer > 0 ? buffer / deficit : 0,
+        isRaw: !!RAW_LABELS[k]
+      });
+    }
+  });
+  return out.sort((a,b) => (a.empty || 0) - (b.empty || 0));
+}
+
+function capBar(stock, cap){
+  if (!cap || cap <= 0) return '';
+  const pct = Math.max(0, Math.min(100, (stock / cap) * 100));
+  const full = pct >= 99.5;
+  return `<div class="cap-bar ${full ? 'full' : ''}"><span style="width:${pct.toFixed(1)}%"></span></div>`;
+}
+
+function resCard(label, stock, cap, rateHtml, noteHtml){
+  return `<div class="res-item">
+    <div class="rname">${label}</div>
+    <div class="ramt">${fmtC(stock)}</div>
+    ${capBar(stock, cap)}
+    <div class="rcap">${cap ? 'Lager ' + fmtC(stock) + ' / ' + fmtC(cap) : ''}</div>
+    ${rateHtml || ''}
+    ${noteHtml || ''}
+  </div>`;
+}
+
 function renderOverview(){
-  document.getElementById('statPopulation').textContent = fmt2(STATE.population);
-  document.getElementById('statHousing').textContent = 'Wohnkapazität: ' + fmt2(STATE.housing_capacity);
+  const rates = computeRates();
+  const stock = STATE.item_stock || {};
+  const pop = Number(STATE.population) || 0;
+
+  document.getElementById('statPopulation').textContent = fmtC(pop);
+  document.getElementById('statHousing').textContent = 'Wohnkapazität: ' + fmtC(STATE.housing_capacity);
   const upkeepEl = document.getElementById('statUpkeep');
   const pct = Math.round((STATE.upkeep_ratio ?? 1) * 100);
   upkeepEl.textContent = pct + ' %';
   upkeepEl.classList.toggle('warn', pct < 100);
+  const upkeepSub = document.getElementById('statUpkeepSub');
+  if (upkeepSub) {
+    upkeepSub.textContent = 'Bedarf: ' + fmtC(pop * UPKEEP_PER_POP.NAEHRPASTE) + ' Nährpaste + '
+      + fmtC(pop * UPKEEP_PER_POP.FUSIONSZELLEN) + ' Fusionszellen /min';
+  }
 
-  const stock = STATE.item_stock || {};
-  const rawEl = document.getElementById('rawResGrid');
+  /* Freie Wohnkapazität */
+  const freeHousing = (Number(STATE.housing_capacity) || 0) - pop;
+  const housingEl = document.getElementById('statHousingNote');
+  if (housingEl) {
+    housingEl.innerHTML = freeHousing <= 0
+      ? '<span class="warn-text">Wohnraum voll — mehr Wohnkuppel-Level nötig</span>'
+      : 'Noch Platz für ' + fmtC(freeHousing) + ' Kolonisten';
+  }
+
+  /* Rohstoffe: kommen per Import, deshalb nur Verbrauch anzeigen */
   const rawCap = STATE.factories?.raw_depot?.capacity ?? 0;
-  rawEl.innerHTML = Object.keys(RAW_LABELS).map(sym => `
-    <div class="res-item">
-      <div class="rname">${RAW_LABELS[sym]}</div>
-      <div class="ramt">${fmt2(stock[sym] || 0)}</div>
-      <div class="rcap">Lagerkapazität: ${fmt(rawCap)}</div>
-    </div>`).join('');
-
-  const goodsEl = document.getElementById('goodsResGrid');
-  goodsEl.innerHTML = Object.keys(GOOD_LABELS).map(key => {
-    const factoryKey = { BAUSTAHL: 'bauwerk', NAEHRPASTE: 'gewaechshaus', FUSIONSZELLEN: 'kraftwerk', DATENKERNE: 'datenzentrum' }[key];
-    const cap = STATE.factories?.[factoryKey]?.capacity ?? 0;
-    return `<div class="res-item">
-      <div class="rname">${GOOD_LABELS[key]}</div>
-      <div class="ramt">${fmt2(stock[key] || 0)}</div>
-      <div class="rcap">Lagerkapazität: ${fmt(cap)}</div>
-    </div>`;
+  document.getElementById('rawResGrid').innerHTML = Object.keys(RAW_LABELS).map(sym => {
+    const have = Number(stock[sym]) || 0;
+    const use = rates.consume[sym] || 0;
+    let rate = use > 0 ? `<div class="rrate down">−${fmtC(use)}/min Verbrauch</div>` : '<div class="rrate idle">kein Verbrauch</div>';
+    let note = '';
+    if (use > 0 && have > 0) note = `<div class="rnote">Reicht noch ${fmtDur(have / use)}</div>`;
+    else if (use > 0 && have <= 0) note = '<div class="rnote warn-text">Leer — Import aus NEXUS nötig</div>';
+    if (rawCap && have >= rawCap * 0.995) note = '<div class="rnote warn-text">Lager voll — Importe verfallen</div>';
+    return resCard(RAW_LABELS[sym], have, rawCap, rate, note);
   }).join('');
+
+  /* Grundgüter: echte Nettorate */
+  const facOf = { BAUSTAHL:'bauwerk', NAEHRPASTE:'gewaechshaus', FUSIONSZELLEN:'kraftwerk', DATENKERNE:'datenzentrum' };
+  document.getElementById('goodsResGrid').innerHTML = Object.keys(GOOD_LABELS).map(key => {
+    const cap = STATE.factories?.[facOf[key]]?.capacity ?? 0;
+    const have = Number(stock[key]) || 0;
+    const prod = rates.produce[key] || 0, use = rates.consume[key] || 0;
+    const net = prod - use;
+    const cls = net > 1e-9 ? 'up' : (net < -1e-9 ? 'down' : 'idle');
+    const rate = `<div class="rrate ${cls}">${net === 0 ? '±0/min' : fmtRate(net)}</div>`;
+    let note = `<div class="rnote">${fmtC(prod)} Produktion · ${fmtC(use)} Verbrauch /min</div>`;
+    if (net > 0 && cap && have < cap) note += `<div class="rnote">Lager voll in ${fmtDur((cap - have) / net)}</div>`;
+    else if (net > 0 && cap && have >= cap * 0.995) note += '<div class="rnote warn-text">Lager voll — Produktion verfällt</div>';
+    else if (net < 0 && have > 0) note += `<div class="rnote warn-text">Leer in ${fmtDur(have / -net)}</div>`;
+    else if (net < 0) note += '<div class="rnote warn-text">Leer — Kette stockt</div>';
+    return resCard(GOOD_LABELS[key], have, cap, rate, note);
+  }).join('');
+
+  renderAlerts(rates);
+}
+
+/* Engpass-Panel */
+function renderAlerts(rates){
+  const el = document.getElementById('alertPanel');
+  if (!el) return;
+  const items = findBottlenecks(rates);
+  const pop = Number(STATE.population) || 0;
+  const extra = [];
+  if ((STATE.upkeep_ratio ?? 1) < 0.999 && pop > 0) {
+    extra.push('Der Unterhalt ist nicht gedeckt — die Bevölkerung wächst nicht weiter.');
+  }
+  const free = (Number(STATE.housing_capacity) || 0) - pop;
+  if (free <= 0 && pop > 0) extra.push('Wohnraum ist voll — ohne mehr Wohnkuppel-Level kein Wachstum.');
+
+  if (!items.length && !extra.length) {
+    el.innerHTML = '<div class="alert ok-alert">Alles im Gleichgewicht — keine Engpässe.</div>';
+    return;
+  }
+  const rows = extra.map(t => `<div class="alert">${t}</div>`);
+  items.slice(0, 5).forEach(b => {
+    const when = b.empty > 0 ? ` — Puffer reicht noch ${fmtDur(b.empty)}` : ' — Puffer bereits leer';
+    const src = b.isRaw ? 'Import aus NEXUS erhöhen' : 'Produktion ausbauen';
+    rows.push(`<div class="alert">Defizit bei <strong>${b.label}</strong>: ${fmtC(b.deficit)}/min${when}. ${src}.</div>`);
+  });
+  el.innerHTML = rows.join('');
 }
 
 function renderTradeGoods(balances){
   const el = document.getElementById('tradeResGrid');
   if (!el) return;
-  el.innerHTML = Object.keys(TRADE_LABELS).map(sym => `
-    <div class="res-item">
-      <div class="rname">${TRADE_LABELS[sym]}</div>
-      <div class="ramt">${fmt2(balances[sym] || 0)}</div>
-    </div>`).join('');
+  const rates = computeRates();
+  el.innerHTML = Object.keys(TRADE_LABELS).map(sym => {
+    const prod = rates.produce[sym] || 0;
+    const rate = prod > 0
+      ? `<div class="rrate up">${fmtRate(prod)}</div>`
+      : '<div class="rrate idle">keine Produktion</div>';
+    return resCard(TRADE_LABELS[sym], balances[sym] || 0, 0, rate,
+      '<div class="rnote">geht direkt in die Wallet</div>');
+  }).join('');
 }
 
 function isResearched(key){ return (STATE.researched || []).includes(key); }
+
+/* Geometrische Kostenreihe wie im Backend (cost_growth je Level) */
+function bulkCost(fd, st, n){
+  const g = Number(fd.cost_growth) || 1;
+  const c0 = Number(st.next_cost_mogc) || 0;
+  if (n <= 0) return 0;
+  if (Math.abs(g - 1) < 1e-9) return c0 * n;
+  return c0 * (Math.pow(g, n) - 1) / (g - 1);
+}
+function maxAffordable(fd, st, budget){
+  let n = 0;
+  while (n < 500 && bulkCost(fd, st, n + 1) <= budget) n++;
+  return n;
+}
 
 function facRow(fd){
   const st = STATE.factories?.[fd.factory_key] || { level: 0, capacity: fd.base_capacity, next_cost_mogc: fd.base_cost_mogc };
   const locked = fd.requires_research && !isResearched(fd.requires_research);
   const recipes = STATIC.recipesByFactory[fd.factory_key] || [];
-  let metaText = '';
-  if (fd.stage === 0) metaText = `Importkapazität: ${fmt(st.capacity)} je Rohstoff`;
-  else if (fd.stage === 3) metaText = `Wohnkapazität: ${fmt(st.capacity)} Kolonisten`;
-  else metaText = recipes.map(r => `${r.base_rate}× ${GOOD_LABELS[r.item_key] || TRADE_LABELS[r.item_key] || r.item_key}/Level/min`).join(', ') + ` · Kapazität ${fmt(st.capacity)}`;
+  const level = st.level || 0;
 
-  const btnHtml = locked
-    ? `<div class="fac-lock">Erfordert Forschung: ${STATIC.researchDefs.find(r => r.key === fd.requires_research)?.name || fd.requires_research}</div>`
-    : `<button type="button" data-factory="${fd.factory_key}" ${mogcBalance < st.next_cost_mogc ? 'disabled' : ''}>+1 (${fmt2(st.next_cost_mogc)} MOGC)</button>`;
+  let metaText = '';
+  if (fd.stage === 0) metaText = `Importkapazität: ${fmtC(st.capacity)} je Rohstoff`;
+  else if (fd.stage === 3) metaText = `Wohnkapazität: ${fmtC(st.capacity)} Kolonisten`;
+  else {
+    metaText = recipes.map(r => {
+      const per = Number(r.base_rate) || 0;
+      const now = per * level;
+      const label = GOOD_LABELS[r.item_key] || TRADE_LABELS[r.item_key] || r.item_key;
+      return `${label}: ${fmtC(now)}/min` + (level ? ` (${per}/Level)` : ` bei Lv.1: ${per}/min`);
+    }).join(' · ') + ` · Kapazität ${fmtC(st.capacity)}`;
+  }
+
+  /* Was ein weiteres Level bringt */
+  let gainText = '';
+  if (fd.stage === 1 || fd.stage === 2) {
+    const g = recipes.map(r => {
+      const label = GOOD_LABELS[r.item_key] || TRADE_LABELS[r.item_key] || r.item_key;
+      return `+${fmtC(Number(r.base_rate) || 0)} ${label}/min`;
+    }).join(', ');
+    const capStep = Number(fd.capacity_step) || 0;
+    gainText = g + (capStep ? ` · +${fmtC(capStep)} Lager` : '');
+  } else {
+    const capStep = Number(fd.capacity_step) || 0;
+    if (capStep) gainText = `+${fmtC(capStep)} ${fd.stage === 3 ? 'Wohnplätze' : 'Kapazität'}`;
+  }
+
+  /* Eingangsbedarf des nächsten Levels */
+  let needText = '';
+  if (recipes.length && recipes[0].inputs) {
+    const ins = Object.keys(recipes[0].inputs || {});
+    if (ins.length) {
+      needText = 'Braucht je Level: ' + ins.map(ik => {
+        const perOut = Number(recipes[0].inputs[ik]) || 0;
+        const perLvl = perOut * (Number(recipes[0].base_rate) || 0);
+        return `${fmtC(perLvl)} ${GOOD_LABELS[ik] || RAW_LABELS[ik] || ik}/min`;
+      }).join(', ');
+    }
+  }
+
+  let btnHtml;
+  if (locked) {
+    const rName = STATIC.researchDefs.find(r => r.key === fd.requires_research)?.name || fd.requires_research;
+    btnHtml = `<div class="fac-lock">Erfordert Forschung: ${rName}</div>`;
+  } else {
+    const c1 = bulkCost(fd, st, 1);
+    const maxN = maxAffordable(fd, st, mogcBalance);
+    const mk = (n, label) => {
+      const cost = bulkCost(fd, st, n);
+      const ok = n > 0 && cost <= mogcBalance;
+      return `<button type="button" class="buy-btn" data-buy-factory="${fd.factory_key}" data-levels="${n}" ${ok ? '' : 'disabled'} title="${fmtC(cost)} MOGC">${label}<span class="bcost">${n > 0 ? fmtC(cost) : '–'}</span></button>`;
+    };
+    const parts = [mk(1, '+1'), mk(10, '+10')];
+    if (maxN > 10) parts.push(mk(maxN, 'Max +' + maxN));
+    btnHtml = `<div class="buy-group">${parts.join('')}</div>`;
+    if (mogcBalance < c1) {
+      btnHtml += `<div class="fac-missing">Es fehlen ${fmtC(c1 - mogcBalance)} MOGC</div>`;
+    }
+  }
 
   return `<div class="fac-row">
-    <div>
-      <div class="fac-name">${fd.name} <span class="qty-badge">Lv.${st.level}</span></div>
+    <div class="fac-info">
+      <div class="fac-name">${fd.name} <span class="qty-badge">Lv.${level}</span></div>
       <div class="fac-meta">${metaText}</div>
+      ${gainText && !locked ? `<div class="fac-gain">Nächstes Level: ${gainText}</div>` : ''}
+      ${needText && !locked ? `<div class="fac-need">${needText}</div>` : ''}
     </div>
     <div class="fac-buy">${btnHtml}</div>
   </div>`;
@@ -963,18 +1328,20 @@ function renderBuildings(){
   document.getElementById('facGroup-1').innerHTML = stage1.map(facRow).join('');
   document.getElementById('facGroup-2').innerHTML = stage2.map(facRow).join('');
 
-  document.querySelectorAll('[data-factory]').forEach(btn => {
-    btn.addEventListener('click', () => buyFactory(btn.dataset.factory, btn));
+  /* WICHTIG: nur die Kaufbuttons, nicht die <g data-factory> der Kolonie-Karte */
+  document.querySelectorAll('[data-buy-factory]').forEach(btn => {
+    btn.addEventListener('click', () => buyFactory(btn.dataset.buyFactory, Number(btn.dataset.levels) || 1, btn));
   });
 }
 
-async function buyFactory(factoryKey, btnEl){
+async function buyFactory(factoryKey, levels, btnEl){
   btnEl.disabled = true;
   try {
-    const { data, error } = await sb.schema('colony').rpc('buy_factory', { p_factory_key: factoryKey, p_levels: 1 });
+    const { data, error } = await sb.schema('colony').rpc('buy_factory', { p_factory_key: factoryKey, p_levels: levels });
     if (error) { showMsg('statusMsg', error.message, false); return; }
     const row = Array.isArray(data) ? data[0] : data;
-    showMsg('statusMsg', `Gebaut: ${STATIC.factoryDefs[factoryKey]?.name || factoryKey} → Level ${row.new_level} (${fmt2(row.total_cost_mogc)} MOGC).`, true);
+    const name = STATIC.factoryDefs[factoryKey]?.name || factoryKey;
+    showMsg('statusMsg', `Gebaut: ${name} ${levels > 1 ? '+' + levels + ' Level ' : ''}→ Level ${row.new_level} (${fmtC(row.total_cost_mogc)} MOGC).`, true);
     await loadEverything();
   } catch(e){
     showMsg('statusMsg', 'Unerwarteter Fehler: ' + (e && e.message ? e.message : e), false);
@@ -985,19 +1352,44 @@ async function buyFactory(factoryKey, btnEl){
 
 function renderResearch(){
   const el = document.getElementById('researchList');
+  const stock = Number(STATE.item_stock?.DATENKERNE) || 0;
+  const rates = computeRates();
+  const coreNet = (rates.produce.DATENKERNE || 0) - (rates.consume.DATENKERNE || 0);
+
   el.innerHTML = STATIC.researchDefs.map(rd => {
     const done = isResearched(rd.key);
     const prereqOk = !rd.prerequisite_key || isResearched(rd.prerequisite_key);
-    const stock = STATE.item_stock?.DATENKERNE || 0;
-    const affordable = stock >= rd.cost_datenkerne;
-    let btnHtml;
-    if (done) btnHtml = `<span class="qty-badge">Erforscht</span>`;
-    else if (!prereqOk) btnHtml = `<div class="fac-lock">Erfordert: ${STATIC.researchDefs.find(r => r.key === rd.prerequisite_key)?.name || rd.prerequisite_key}</div>`;
-    else btnHtml = `<button type="button" data-research="${rd.key}" ${affordable ? '' : 'disabled'}>Erforschen (${fmt2(rd.cost_datenkerne)} Datenkerne)</button>`;
+    const cost = Number(rd.cost_datenkerne) || 0;
+    const affordable = stock >= cost;
+    const unlocks = STATIC.factoryDefs[rd.unlocks_factory_key]?.name || rd.unlocks_factory_key;
+
+    let btnHtml, metaHtml, progressHtml = '';
+    if (done) {
+      btnHtml = `<span class="qty-badge">Erforscht</span>`;
+      metaHtml = `Abgeschlossen · ${unlocks} freigeschaltet`;
+    } else if (!prereqOk) {
+      const pre = STATIC.researchDefs.find(r => r.key === rd.prerequisite_key)?.name || rd.prerequisite_key;
+      btnHtml = `<div class="fac-lock">Erfordert: ${pre}</div>`;
+      metaHtml = `Kosten: ${fmtC(cost)} Datenkerne · schaltet ${unlocks} frei`;
+    } else {
+      btnHtml = `<button type="button" data-research="${rd.key}" ${affordable ? '' : 'disabled'}>Erforschen</button>`;
+      metaHtml = `Kosten: ${fmtC(cost)} Datenkerne · schaltet ${unlocks} frei`;
+      const pctv = cost > 0 ? Math.min(100, (stock / cost) * 100) : 100;
+      let eta = '';
+      if (!affordable) {
+        eta = coreNet > 0
+          ? ` · bereit in ${fmtDur((cost - stock) / coreNet)}`
+          : ' · keine Datenkern-Produktion';
+      }
+      progressHtml = `<div class="cap-bar research"><span style="width:${pctv.toFixed(1)}%"></span></div>
+        <div class="r-progress">${fmtC(stock)} / ${fmtC(cost)} Datenkerne${eta}</div>`;
+    }
+
     return `<div class="research-row ${done ? 'done' : ''}">
-      <div>
+      <div class="r-info">
         <div class="r-name">${rd.name}</div>
-        <div class="r-meta">${done ? 'Abgeschlossen' : `Kosten: ${fmt2(rd.cost_datenkerne)} Datenkerne · schaltet ${STATIC.factoryDefs[rd.unlocks_factory_key]?.name || rd.unlocks_factory_key} frei`}</div>
+        <div class="r-meta">${metaHtml}</div>
+        ${progressHtml}
       </div>
       <div>${btnHtml}</div>
     </div>`;
@@ -1022,13 +1414,395 @@ async function doResearch(key, btnEl){
   }
 }
 
-/* ---------- Tab-Umschaltung ---------- */
+/* ---------- Persistenter Client-Speicher (pro Account) ---------- */
+function dpKey(name){ return 'dp_' + name + '_' + (currentUser ? currentUser.id : 'anon'); }
+function dpLoad(name, fallback){
+  try { const v = localStorage.getItem(dpKey(name)); return v ? JSON.parse(v) : fallback; }
+  catch(e){ return fallback; }
+}
+function dpSave(name, value){
+  try { localStorage.setItem(dpKey(name), JSON.stringify(value)); } catch(e){}
+}
+
+/* ---------- Verlauf & Sparklines ---------- */
+const HISTORY_MAX = 200;
+function pushHistory(){
+  const hist = dpLoad('history', []);
+  hist.push({ t: Date.now(), pop: Number(STATE.population)||0, upkeep: STATE.upkeep_ratio ?? 1, mogc: mogcBalance });
+  while (hist.length > HISTORY_MAX) hist.shift();
+  dpSave('history', hist);
+  return hist;
+}
+function sparkPath(values, w, h, pad){
+  if (values.length < 2) return '';
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = (max - min) || 1;
+  const n = values.length;
+  return values.map((v, i) => {
+    const x = pad + (i / (n - 1)) * (w - pad * 2);
+    const y = h - pad - ((v - min) / span) * (h - pad * 2);
+    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(' ');
+}
+function renderSparklines(hist){
+  const draw = (elId, values, color) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (values.length < 2) { el.innerHTML = ''; return; }
+    const d = sparkPath(values, 160, 34, 3);
+    const last = values[values.length - 1], first = values[0];
+    const trendColor = last >= first ? color : '#e0a75f';
+    el.innerHTML = `<path d="${d}" fill="none" stroke="${trendColor}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></path>`;
+  };
+  draw('sparkPop', hist.map(h => h.pop), '#3ECF8E');
+  draw('sparkUpkeep', hist.map(h => Math.round((h.upkeep ?? 1) * 100)), '#3ECF8E');
+}
+
+/* ---------- Kolonie-Chronik ---------- */
+function relTime(ts){
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return 'gerade eben';
+  if (s < 3600) return 'vor ' + Math.round(s/60) + ' Min';
+  if (s < 86400) return 'vor ' + Math.round(s/3600) + ' Std';
+  return 'vor ' + Math.round(s/86400) + ' Tg';
+}
+function addChronicle(text){
+  const feed = dpLoad('chronicle', []);
+  feed.unshift({ t: Date.now(), text });
+  while (feed.length > 60) feed.pop();
+  dpSave('chronicle', feed);
+}
+function renderChronicle(){
+  const el = document.getElementById('chronicleFeed');
+  if (!el) return;
+  const feed = dpLoad('chronicle', []);
+  el.innerHTML = feed.length
+    ? feed.map(e => `<div class="chronicle-row"><div class="c-time">${relTime(e.t)}</div><div class="c-text">${e.text}</div></div>`).join('')
+    : '<div class="chronicle-empty">Noch nichts zu berichten — bau die Kolonie aus.</div>';
+}
+
+/* Vergleicht altes/neues STATE und schreibt Chronik-Einträge für echte Meilensteine */
+let CHRON_PREV = null;
+function trackChronicle(){
+  if (!CHRON_PREV) { CHRON_PREV = snapshotForChronicle(); return; }
+  const now = snapshotForChronicle();
+
+  Object.keys(now.levels).forEach(fk => {
+    const before = CHRON_PREV.levels[fk] || 0, after = now.levels[fk];
+    if (after > before) {
+      const name = STATIC.factoryDefs[fk]?.name || fk;
+      const milestone = [5, 10, 20, 30, 50].find(m => before < m && after >= m);
+      if (milestone) addChronicle(`<strong>${name}</strong> hat Level ${milestone} erreicht.`);
+    }
+  });
+
+  now.researched.forEach(rk => {
+    if (!CHRON_PREV.researched.includes(rk)) {
+      const rd = STATIC.researchDefs.find(r => r.key === rk);
+      addChronicle(`Forschung abgeschlossen: <strong>${rd?.name || rk}</strong>.`);
+    }
+  });
+
+  [50, 100, 250, 500, 1000, 2500, 5000].forEach(m => {
+    if (CHRON_PREV.pop < m && now.pop >= m) addChronicle(`Die Kolonie zählt jetzt über <strong>${m.toLocaleString('de-DE')}</strong> Kolonisten.`);
+  });
+
+  if (CHRON_PREV.upkeepOk && !now.upkeepOk) addChronicle('<span class="warn-text">Der Unterhalt reißt</span> — Nährpaste oder Fusionszellen fehlen.');
+  if (!CHRON_PREV.upkeepOk && now.upkeepOk) addChronicle('Der Unterhalt ist wieder gedeckt — die Kolonie wächst weiter.');
+
+  CHRON_PREV = now;
+}
+function snapshotForChronicle(){
+  const levels = {};
+  Object.keys(STATIC.factoryDefs || {}).forEach(fk => { levels[fk] = STATE.factories?.[fk]?.level || 0; });
+  return { levels, researched: (STATE.researched || []).slice(), pop: Number(STATE.population)||0, upkeepOk: (STATE.upkeep_ratio ?? 1) >= 0.999 };
+}
+
+/* ---------- Erfolge ---------- */
+const ACHIEVEMENTS = [
+  { id:'pop_10',   icon:'👥', name:'Erste Siedler',        desc:'10 Kolonisten erreicht',            target:10,   get:s=>s.pop },
+  { id:'pop_100',  icon:'🏘️', name:'Kleinstadt',           desc:'100 Kolonisten erreicht',           target:100,  get:s=>s.pop },
+  { id:'pop_1000', icon:'🌆', name:'Metropole',            desc:'1.000 Kolonisten erreicht',         target:1000, get:s=>s.pop },
+  { id:'pop_10000',icon:'🏙️', name:'Verdantis erwacht',    desc:'10.000 Kolonisten erreicht',        target:10000,get:s=>s.pop },
+  { id:'depot_5',  icon:'📦', name:'Ausgebautes Lager',    desc:'Rohstoff-Lager auf Level 5',        target:5,    get:s=>s.levels.raw_depot||0 },
+  { id:'dome_10',  icon:'🏠', name:'Große Wohnkuppel',     desc:'Wohnkuppel auf Level 10',           target:10,   get:s=>s.levels.wohnkuppel||0 },
+  { id:'stage1_10',icon:'🏭', name:'Industrieaufschwung',  desc:'Ein Grundgüter-Werk auf Level 10',  target:10,   get:s=>Math.max(0,...['bauwerk','gewaechshaus','kraftwerk','datenzentrum'].map(k=>s.levels[k]||0)) },
+  { id:'stage1_full', icon:'⚙️', name:'Vollversorgt',      desc:'Alle vier Grundgüter-Werke auf Level 5+', target:4, get:s=>['bauwerk','gewaechshaus','kraftwerk','datenzentrum'].filter(k=>(s.levels[k]||0)>=5).length },
+  { id:'research_1', icon:'🔬', name:'Erste Entdeckung',   desc:'Erste Forschung abgeschlossen',    target:1,    get:s=>s.researched.length },
+  { id:'research_all',icon:'🧪', name:'Vollständig erforscht', desc:'Alle verfügbaren Forschungen abgeschlossen', target:'all', get:s=>s.researched.length },
+  { id:'manufaktur_1',icon:'🏗️', name:'Erste Manufaktur',  desc:'Erste Manufaktur gebaut',           target:1,    get:s=>Object.keys(s.levels).filter(k=>(STATIC.factoryDefs[k]?.stage===2)&&(s.levels[k]||0)>0).length },
+  { id:'upkeep_crisis',icon:'⚠️', name:'Krise gemeistert',  desc:'Einmal Unterhalt verloren und wieder gedeckt', target:1, get:s=>s.everHadCrisisRecovered?1:0 },
+  { id:'wallet_10k', icon:'💰', name:'Wohlstand',           desc:'10.000 MOGC in der Wallet',         target:10000,get:s=>s.mogc },
+  { id:'trade_good', icon:'📦', name:'Exporteur',           desc:'Erstes Handelsgut produziert',      target:1,    get:s=>s.hasTradeGood?1:0 },
+];
+
+function snapshotForAch(){
+  const levels = {};
+  Object.keys(STATIC.factoryDefs || {}).forEach(fk => { levels[fk] = STATE.factories?.[fk]?.level || 0; });
+  const rates = computeRates();
+  return {
+    pop: Number(STATE.population)||0,
+    levels,
+    researched: STATE.researched || [],
+    mogc: mogcBalance,
+    everHadCrisisRecovered: dpLoad('had_crisis_recovery', false),
+    hasTradeGood: Object.keys(TRADE_LABELS).some(k => (rates.produce[k]||0) > 0)
+  };
+}
+
+function achProgressValue(a, snap){
+  const v = a.get(snap);
+  if (a.target === 'all') {
+    const total = (STATIC.researchDefs || []).length;
+    return { current: v, target: total || 1, done: total > 0 && v >= total };
+  }
+  return { current: v, target: a.target, done: v >= a.target };
+}
+
+function renderAchievements(){
+  const snap = snapshotForAch();
+  const prevUnlocked = new Set(dpLoad('achievements', []));
+  const nowUnlocked = new Set();
+
+  ACHIEVEMENTS.forEach(a => { if (achProgressValue(a, snap).done) nowUnlocked.add(a.id); });
+
+  const newly = [...nowUnlocked].filter(id => !prevUnlocked.has(id));
+  if (newly.length) {
+    dpSave('achievements', [...nowUnlocked]);
+    newly.forEach(id => {
+      const a = ACHIEVEMENTS.find(x => x.id === id);
+      if (a) { showAchievementToast(a); addChronicle(`Erfolg freigeschaltet: <strong>${a.name}</strong>.`); }
+    });
+  }
+
+  const badge = document.getElementById('achBadge');
+  if (badge) {
+    const unseen = dpLoad('achievements_unseen', 0);
+    if (unseen > 0) { badge.textContent = unseen; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+  }
+  if (newly.length) dpSave('achievements_unseen', (dpLoad('achievements_unseen', 0)) + newly.length);
+
+  const grid = document.getElementById('achGrid');
+  if (grid) {
+    grid.innerHTML = ACHIEVEMENTS.map(a => {
+      const p = achProgressValue(a, snap);
+      const pct = Math.min(100, (p.current / (p.target || 1)) * 100);
+      return `<div class="ach-card ${p.done ? 'unlocked' : ''}">
+        <div class="a-icon">${a.icon}</div>
+        <div class="a-name">${a.name}</div>
+        <div class="a-desc">${a.desc}</div>
+        ${!p.done ? `<div class="a-bar"><div class="cap-bar"><span style="width:${pct.toFixed(1)}%"></span></div></div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  const progEl = document.getElementById('achProgress');
+  if (progEl) progEl.textContent = nowUnlocked.size + ' / ' + ACHIEVEMENTS.length;
+
+  return nowUnlocked;
+}
+
+function showAchievementToast(a){
+  const host = document.getElementById('achToastHost');
+  if (!host) return;
+  const el = document.createElement('div');
+  el.className = 'ach-toast';
+  el.innerHTML = `<div class="a-icon">${a.icon}</div><div><div class="a-title">Erfolg freigeschaltet</div><div class="a-name">${a.name}</div></div>`;
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 5100);
+}
+
 document.getElementById('mainTabs').addEventListener('click', (e) => {
-  const btn = e.target.closest('.main-tab-btn');
+  if (e.target.closest('[data-tab="erfolge"]')) { dpSave('achievements_unseen', 0); const b=document.getElementById('achBadge'); if(b) b.classList.add('hidden'); }
+});
+
+/* Unterhalts-Krise für den "Krise gemeistert"-Erfolg tracken */
+let SAW_CRISIS = false;
+function trackCrisisRecovery(){
+  const ok = (STATE.upkeep_ratio ?? 1) >= 0.999;
+  if (!ok) SAW_CRISIS = true;
+  if (ok && SAW_CRISIS && !dpLoad('had_crisis_recovery', false)) { dpSave('had_crisis_recovery', true); SAW_CRISIS = false; }
+}
+
+/* ---------- Optimal ausbauen ---------- */
+function planAutoInvest(budget){
+  const plan = {};
+  if (budget == null) budget = mogcBalance;
+  budget = Math.max(0, budget);
+  const startBudget = budget;
+  const state = {};
+  Object.keys(STATIC.factoryDefs).forEach(fk => {
+    const fd = STATIC.factoryDefs[fk];
+    if (fd.requires_research && !isResearched(fd.requires_research)) return;
+    const st = STATE.factories?.[fk] || { level: 0, next_cost_mogc: fd.base_cost_mogc };
+    state[fk] = { fd, level: st.level || 0, nextCost: Number(st.next_cost_mogc) || Number(fd.base_cost_mogc) || 1, growth: Number(fd.cost_growth) || 1 };
+    plan[fk] = 0;
+  });
+  let guard = 0;
+  while (guard++ < 2000) {
+    let cheapestKey = null, cheapestCost = Infinity;
+    Object.keys(state).forEach(fk => {
+      if (state[fk].nextCost < cheapestCost) { cheapestCost = state[fk].nextCost; cheapestKey = fk; }
+    });
+    if (!cheapestKey || cheapestCost > budget) break;
+    budget -= cheapestCost;
+    plan[cheapestKey]++;
+    state[cheapestKey].nextCost *= state[cheapestKey].growth;
+  }
+  const totalSpent = startBudget - budget;
+  const rows = Object.keys(plan).filter(fk => plan[fk] > 0).map(fk => ({ key: fk, name: STATIC.factoryDefs[fk].name, levels: plan[fk] }));
+  return { plan, rows, totalSpent, remaining: budget };
+}
+
+function renderInvestPreview(){
+  const bEl = document.getElementById('investBalance');
+  if (bEl) bEl.textContent = fmtC(mogcBalance) + ' MOGC';
+  const { rows, totalSpent } = planAutoInvest(mogcBalance);
+  const prev = document.getElementById('investPreview');
+  if (!prev) return;
+  if (!rows.length) { prev.innerHTML = '<div class="chronicle-empty">Nicht genug MOGC für ein weiteres Level.</div>'; return; }
+  prev.innerHTML = rows.map(r => `<div class="ip-row"><span>${r.name}</span><span>+${r.levels} Level</span></div>`).join('')
+    + `<div class="ip-total"><span>Gesamtkosten</span><span>${fmtC(totalSpent)} MOGC</span></div>`;
+}
+
+document.getElementById('autoInvestBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('autoInvestBtn');
+  const { plan, rows } = planAutoInvest();
+  if (!rows.length) { showMsg('statusMsg', 'Nicht genug MOGC für ein weiteres Level.', false); return; }
+  btn.disabled = true;
+  btn.textContent = 'Baue aus …';
+  try {
+    for (const fk of Object.keys(plan)) {
+      if (plan[fk] <= 0) continue;
+      const { error } = await sb.schema('colony').rpc('buy_factory', { p_factory_key: fk, p_levels: plan[fk] });
+      if (error) { showMsg('statusMsg', error.message, false); break; }
+    }
+    const summary = rows.map(r => `${r.name} +${r.levels}`).join(', ');
+    showMsg('statusMsg', 'Optimal ausgebaut: ' + summary + '.', true);
+    addChronicle(`Investitionsschub: ${summary}.`);
+    await loadEverything();
+  } catch(e){
+    showMsg('statusMsg', 'Unerwarteter Fehler: ' + (e && e.message ? e.message : e), false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Optimal ausbauen';
+  }
+});
+
+
+
+/* ---------- Willkommen-zurück ---------- */
+function saveSnapshot(){
+  dpSave('last_snapshot', {
+    t: Date.now(),
+    pop: Number(STATE.population) || 0,
+    mogc: mogcBalance,
+    stock: STATE.item_stock || {},
+    upkeepOk: (STATE.upkeep_ratio ?? 1) >= 0.999
+  });
+}
+
+const WB_MIN_AWAY_MS = 3 * 60 * 1000; /* erst ab 3 Min Abwesenheit zeigen */
+function checkWelcomeBack(oldSnap){
+  if (!oldSnap || !oldSnap.t) return;
+  const awayMs = Date.now() - oldSnap.t;
+  if (awayMs < WB_MIN_AWAY_MS) return;
+
+  const popDelta = (Number(STATE.population) || 0) - (oldSnap.pop || 0);
+  const mogcDelta = mogcBalance - (oldSnap.mogc || 0);
+  const stock = STATE.item_stock || {};
+  const oldStock = oldSnap.stock || {};
+  const allKeys = new Set([...Object.keys(stock), ...Object.keys(oldStock)]);
+  const deltas = [];
+  allKeys.forEach(k => {
+    const d = (Number(stock[k]) || 0) - (Number(oldStock[k]) || 0);
+    if (Math.abs(d) > 0.05) deltas.push({ key: k, delta: d, label: GOOD_LABELS[k] || RAW_LABELS[k] || TRADE_LABELS[k] || k });
+  });
+  deltas.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  const rows = [];
+  if (popDelta !== 0) rows.push({ label: 'Bevölkerung', val: (popDelta > 0 ? '+' : '') + fmtC(popDelta) });
+  if (mogcDelta !== 0) rows.push({ label: 'MOGC-Wallet', val: (mogcDelta > 0 ? '+' : '') + fmtC(mogcDelta) });
+  deltas.slice(0, 5).forEach(d => rows.push({ label: d.label, val: (d.delta > 0 ? '+' : '') + fmtC(d.delta) }));
+
+  if (!rows.length) return; /* nichts Nennenswertes passiert */
+
+  document.getElementById('wbAway').textContent = 'Du warst ' + fmtDur(awayMs / 60000) + ' weg.';
+  document.getElementById('wbGrid').innerHTML = rows.map(r =>
+    `<div class="wb-row"><span>${r.label}</span><span class="wv ${r.val.startsWith('-') ? 'down' : ''}">${r.val}</span></div>`
+  ).join('');
+  const crisisEl = document.getElementById('wbCrisisNote');
+  crisisEl.classList.toggle('hidden', (STATE.upkeep_ratio ?? 1) >= 0.999);
+  document.getElementById('welcomeBackModal').classList.remove('hidden');
+}
+document.getElementById('wbCloseBtn').addEventListener('click', () => {
+  document.getElementById('welcomeBackModal').classList.add('hidden');
+});
+
+/* ---------- Auto-Buy ---------- */
+let autoBuyRunning = false;
+function loadAutoBuyUI(){
+  const cfg = dpLoad('autobuy', { enabled: false, reserve: 0 });
+  document.getElementById('autoBuyToggle').checked = !!cfg.enabled;
+  document.getElementById('autoBuyReserve').value = cfg.reserve || 0;
+  updateAutoBuyStatus(cfg);
+}
+function updateAutoBuyStatus(cfg){
+  const el = document.getElementById('autoBuyStatus');
+  if (!el) return;
+  el.textContent = cfg.enabled
+    ? `Aktiv — hält mindestens ${fmtC(cfg.reserve || 0)} MOGC zurück, kauft bei jedem Tick (ca. alle 20 Sek).`
+    : 'Deaktiviert — kaufe manuell über den Button oben.';
+}
+function saveAutoBuyCfg(){
+  const cfg = { enabled: document.getElementById('autoBuyToggle').checked, reserve: Number(document.getElementById('autoBuyReserve').value) || 0 };
+  dpSave('autobuy', cfg);
+  updateAutoBuyStatus(cfg);
+}
+document.getElementById('autoBuyToggle').addEventListener('change', saveAutoBuyCfg);
+document.getElementById('autoBuyReserve').addEventListener('change', saveAutoBuyCfg);
+
+async function maybeAutoBuy(){
+  if (autoBuyRunning) return;
+  const cfg = dpLoad('autobuy', { enabled: false, reserve: 0 });
+  if (!cfg.enabled) return;
+  const budget = mogcBalance - (Number(cfg.reserve) || 0);
+  if (budget <= 0) return;
+  const { plan, rows } = planAutoInvest(budget);
+  if (!rows.length) return;
+
+  autoBuyRunning = true;
+  try {
+    for (const fk of Object.keys(plan)) {
+      if (plan[fk] <= 0) continue;
+      const { error } = await sb.schema('colony').rpc('buy_factory', { p_factory_key: fk, p_levels: plan[fk] });
+      if (error) { console.error(error); break; }
+    }
+    addChronicle('Automatisch investiert: ' + rows.map(r => r.name + ' +' + r.levels).join(', ') + '.');
+    await loadEverything(true); /* skipAutoBuy: verhindert Endlosschleife */
+  } catch(e){
+    console.error(e);
+  } finally {
+    autoBuyRunning = false;
+  }
+}
+
+/* ---------- Tab-Umschaltung ---------- */
+function activateTab(tab){
+  const btn = document.querySelector('.main-tab-btn[data-tab="' + tab + '"]');
   if (!btn) return;
   document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
-  document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-' + btn.dataset.tab));
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === 'tabPage-' + tab));
+  try { localStorage.setItem('dp_tab', tab); } catch(e){}
+}
+document.getElementById('mainTabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('.main-tab-btn');
+  if (btn) activateTab(btn.dataset.tab);
 });
+try {
+  const savedTab = localStorage.getItem('dp_tab');
+  if (savedTab) activateTab(savedTab);
+} catch(e){}
 </script>
 </body>
 </html>
