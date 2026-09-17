@@ -206,6 +206,17 @@
   .wb-crisis.hidden{ display:none; }
   #wbCloseBtn{ margin-top:18px; }
 
+  .goals-panel{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+  .goal-row{ display:flex; align-items:center; gap:10px; font-size:12.5px; padding:9px 12px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid var(--line); }
+  .goal-row .g-icon{ font-size:15px; flex:0 0 auto; }
+  .goal-row .g-body{ flex:1; min-width:0; }
+  .goal-row .g-text{ color:var(--fg-dim); }
+  .goal-row .g-eta{ font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); margin-top:2px; }
+  .goal-row .cap-bar{ margin-top:5px; }
+
+  .notify-toggle{ display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--fg-dim); cursor:pointer; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+  .notify-toggle input{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex:0 0 auto; }
+
   .stage-group{ margin-bottom:22px; }
   .stage-group h4{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); margin:0 0 10px; }
   .fac-row{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:12px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
@@ -306,7 +317,13 @@
           </div>
         </div>
         <div id="alertPanel" style="margin-top:14px;"></div>
+        <div id="goalsPanel" class="goals-panel"></div>
         <div class="sm-hint" style="margin-top:12px;">Wächst nur weiter, solange Nährpaste und Fusionszellen den Unterhalt voll decken — reicht es nicht, stagniert die Bevölkerung (kein Rückgang). Kein Prestige: die Kolonie wächst unbegrenzt weiter.</div>
+        <label class="notify-toggle">
+          <input type="checkbox" id="notifyToggle">
+          <span>Browser-Benachrichtigung bei Unterhaltskrise (auch im Hintergrund-Tab)</span>
+        </label>
+        <div class="sm-hint" id="notifyStatus"></div>
       </div>
 
       <div class="panel">
@@ -501,6 +518,7 @@ async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
   loadAutoBuyUI();
+  updateNotifyUI();
   pendingWelcomeSnapshot = dpLoad('last_snapshot', null);
   await loadStatic();
   await loadEverything();
@@ -571,6 +589,7 @@ function render(){
   renderAchievements();
   renderChronicle();
   renderInvestPreview();
+  renderGoals();
   renderSparklines(pushHistory());
 }
 
@@ -1507,7 +1526,7 @@ function trackChronicle(){
     if (CHRON_PREV.pop < m && now.pop >= m) addChronicle(`Die Kolonie zählt jetzt über <strong>${m.toLocaleString('de-DE')}</strong> Kolonisten.`);
   });
 
-  if (CHRON_PREV.upkeepOk && !now.upkeepOk) addChronicle('<span class="warn-text">Der Unterhalt reißt</span> — Nährpaste oder Fusionszellen fehlen.');
+  if (CHRON_PREV.upkeepOk && !now.upkeepOk) { addChronicle('<span class="warn-text">Der Unterhalt reißt</span> — Nährpaste oder Fusionszellen fehlen.'); maybeNotifyCrisis(); }
   if (!CHRON_PREV.upkeepOk && now.upkeepOk) addChronicle('Der Unterhalt ist wieder gedeckt — die Kolonie wächst weiter.');
 
   CHRON_PREV = now;
@@ -1785,6 +1804,119 @@ async function maybeAutoBuy(){
   } finally {
     autoBuyRunning = false;
   }
+}
+
+
+/* ---------- Ziele ("Was jetzt?") ---------- */
+function estimatePopGrowthPerMin(){
+  const hist = dpLoad('history', []);
+  if (hist.length < 3) return null;
+  const recent = hist.slice(-6);
+  const first = recent[0], last = recent[recent.length - 1];
+  const dtMin = (last.t - first.t) / 60000;
+  if (dtMin <= 0.15) return null;
+  const dPop = last.pop - first.pop;
+  return dPop > 0 ? dPop / dtMin : null;
+}
+
+function computeGoals(){
+  const goals = [];
+  const pop = Number(STATE.population) || 0;
+  const cap = Number(STATE.housing_capacity) || 0;
+
+  if (cap > 0) {
+    const free = cap - pop;
+    if (free <= 0) {
+      goals.push({ icon:'🏠', text:'Wohnraum ist voll — Wohnkuppel ausbauen, damit die Bevölkerung weiterwächst.', pct: 100 });
+    } else {
+      const rate = estimatePopGrowthPerMin();
+      const g = { icon:'🏠', text:`Wohnraum: noch Platz für ${fmtC(free)} Kolonisten`, pct: Math.min(100, (pop / cap) * 100) };
+      if (rate) g.eta = `voll in ${fmtDur(free / rate)}`;
+      goals.push(g);
+    }
+  }
+
+  if (STATIC.researchDefs && STATIC.researchDefs.length) {
+    const next = STATIC.researchDefs.find(rd => !isResearched(rd.key) && (!rd.prerequisite_key || isResearched(rd.prerequisite_key)));
+    if (next) {
+      const stock = Number(STATE.item_stock?.DATENKERNE) || 0;
+      const cost = Number(next.cost_datenkerne) || 0;
+      const pct = cost > 0 ? Math.min(100, (stock / cost) * 100) : 100;
+      let eta;
+      if (stock >= cost) eta = 'bereit — jetzt erforschen';
+      else {
+        const rates = computeRates();
+        const net = (rates.produce.DATENKERNE || 0) - (rates.consume.DATENKERNE || 0);
+        eta = net > 0 ? `bereit in ${fmtDur((cost - stock) / net)}` : 'keine Datenkern-Produktion';
+      }
+      goals.push({ icon:'🔬', text:`Forschung: ${next.name}`, eta, pct });
+    }
+  }
+
+  const milestones = [5, 10, 20, 30, 50];
+  let best = null;
+  Object.keys(STATIC.factoryDefs || {}).forEach(fk => {
+    const fd = STATIC.factoryDefs[fk];
+    if (fd.requires_research && !isResearched(fd.requires_research)) return;
+    const level = STATE.factories?.[fk]?.level || 0;
+    const m = milestones.find(x => x > level);
+    if (!m) return;
+    const gap = m - level;
+    if (!best || gap < best.gap) best = { name: fd.name, level, m, gap };
+  });
+  if (best) {
+    goals.push({ icon:'🏗️', text:`${best.name}: noch ${best.gap} Level bis Lv.${best.m}`, pct: Math.min(100, (best.level / best.m) * 100) });
+  }
+
+  return goals.slice(0, 3);
+}
+
+function renderGoals(){
+  const el = document.getElementById('goalsPanel');
+  if (!el) return;
+  const goals = computeGoals();
+  el.innerHTML = goals.map(g => `<div class="goal-row">
+    <div class="g-icon">${g.icon}</div>
+    <div class="g-body">
+      <div class="g-text">${g.text}</div>
+      ${g.eta ? `<div class="g-eta">${g.eta}</div>` : ''}
+      ${g.pct != null ? `<div class="cap-bar"><span style="width:${g.pct.toFixed(1)}%"></span></div>` : ''}
+    </div>
+  </div>`).join('');
+}
+
+/* ---------- Browser-Benachrichtigungen ---------- */
+function updateNotifyUI(){
+  const cb = document.getElementById('notifyToggle');
+  const statusEl = document.getElementById('notifyStatus');
+  if (!cb || !statusEl) return;
+  const enabled = dpLoad('notify_enabled', false);
+  const supported = typeof Notification !== 'undefined';
+  cb.checked = !!(enabled && supported && Notification.permission === 'granted');
+  if (!supported) statusEl.textContent = 'Dieser Browser unterstützt keine Benachrichtigungen.';
+  else if (Notification.permission === 'denied') statusEl.textContent = 'Berechtigung verweigert — bitte in den Browser-Einstellungen für diese Seite erlauben.';
+  else if (cb.checked) statusEl.textContent = 'Aktiv.';
+  else statusEl.textContent = '';
+}
+document.getElementById('notifyToggle').addEventListener('change', async (e) => {
+  const supported = typeof Notification !== 'undefined';
+  if (e.target.checked && supported) {
+    const perm = await Notification.requestPermission();
+    dpSave('notify_enabled', perm === 'granted');
+  } else {
+    dpSave('notify_enabled', false);
+  }
+  updateNotifyUI();
+});
+
+function maybeNotifyCrisis(){
+  if (!dpLoad('notify_enabled', false)) return;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  try {
+    new Notification('Domus Prime: Verdantis', {
+      body: 'Der Unterhalt ist nicht mehr gedeckt — die Bevölkerung wächst nicht weiter.'
+    });
+  } catch(e){ console.error(e); }
 }
 
 /* ---------- Tab-Umschaltung ---------- */
