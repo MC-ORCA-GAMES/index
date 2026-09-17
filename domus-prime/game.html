@@ -217,6 +217,16 @@
   .notify-toggle{ display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--fg-dim); cursor:pointer; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
   .notify-toggle input{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex:0 0 auto; }
 
+  .stats-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:10px; }
+  .stat-mini{ border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .stat-mini .sm-val{ font-family:var(--mono); font-size:19px; color:var(--accent); font-weight:600; }
+  .stat-mini .sm-label{ font-size:11px; color:var(--fg-faint); margin-top:3px; line-height:1.35; }
+
+  .lore-text{ font-size:11px; color:var(--fg-faint); font-style:italic; margin-top:5px; line-height:1.45; max-width:46ch; }
+
+  .ach-card .buy-btn{ margin-top:9px; width:100%; padding:6px 10px; font-size:11.5px; }
+  .ach-card.owned{ opacity:1; border-color:rgba(62,207,142,0.35); background:rgba(62,207,142,0.05); }
+
   .stage-group{ margin-bottom:22px; }
   .stage-group h4{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); margin:0 0 10px; }
   .fac-row{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:12px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
@@ -396,8 +406,17 @@
     <!-- ---------- ERFOLGE ---------- -->
     <div class="tab-page" id="tabPage-erfolge">
       <div class="panel">
+        <h3>Kolonie-Statistiken</h3>
+        <div class="stats-grid" id="lifetimeStats"></div>
+      </div>
+      <div class="panel">
         <h3>Erfolge <span class="tag" id="achProgress">– / –</span></h3>
         <div class="ach-grid" id="achGrid"></div>
+      </div>
+      <div class="panel">
+        <h3>Verzierungen <span class="tag" id="decoPoints">– Punkte verfügbar</span></h3>
+        <div class="sm-hint" style="margin-bottom:10px;">Für je 500 MOGC, die du jemals in die Kolonie investiert hast, gibt's einen Verzierungspunkt — rein kosmetisch, kostet keine Wallet-MOGC.</div>
+        <div class="ach-grid" id="decorShop"></div>
       </div>
       <div class="panel">
         <h3>Kolonie-Chronik</h3>
@@ -582,11 +601,14 @@ document.getElementById('refreshBtn').addEventListener('click', () => loadEveryt
 function render(){
   trackChronicle();
   trackCrisisRecovery();
+  trackLifetimePop();
   renderOverview();
   renderColonyScene();
   renderBuildings();
   renderResearch();
   renderAchievements();
+  renderLifetimeStats();
+  renderDecorShop();
   renderChronicle();
   renderInvestPreview();
   renderGoals();
@@ -1019,6 +1041,7 @@ function renderColonyScene(force){
   const ctx = { lit };
 
   let html = csDefs() + csSky() + csOcean() + csTerrain() + csDecor(greenLvl);
+  html += csDecorations(lit);
   html += csSolarFarm(powerLvl) + csLandingPad();
   html += csRoads(stage1, stage2);
 
@@ -1333,6 +1356,7 @@ function facRow(fd){
       <div class="fac-meta">${metaText}</div>
       ${gainText && !locked ? `<div class="fac-gain">Nächstes Level: ${gainText}</div>` : ''}
       ${needText && !locked ? `<div class="fac-need">${needText}</div>` : ''}
+      ${loreFor(fd) ? `<div class="lore-text">${loreFor(fd)}</div>` : ''}
     </div>
     <div class="fac-buy">${btnHtml}</div>
   </div>`;
@@ -1360,6 +1384,7 @@ async function buyFactory(factoryKey, levels, btnEl){
     if (error) { showMsg('statusMsg', error.message, false); return; }
     const row = Array.isArray(data) ? data[0] : data;
     const name = STATIC.factoryDefs[factoryKey]?.name || factoryKey;
+    addLifetimeSpend(row.total_cost_mogc, levels);
     showMsg('statusMsg', `Gebaut: ${name} ${levels > 1 ? '+' + levels + ' Level ' : ''}→ Level ${row.new_level} (${fmtC(row.total_cost_mogc)} MOGC).`, true);
     await loadEverything();
   } catch(e){
@@ -1686,7 +1711,7 @@ function renderInvestPreview(){
 
 document.getElementById('autoInvestBtn').addEventListener('click', async () => {
   const btn = document.getElementById('autoInvestBtn');
-  const { plan, rows } = planAutoInvest();
+  const { plan, rows, totalSpent } = planAutoInvest(mogcBalance);
   if (!rows.length) { showMsg('statusMsg', 'Nicht genug MOGC für ein weiteres Level.', false); return; }
   btn.disabled = true;
   btn.textContent = 'Baue aus …';
@@ -1697,6 +1722,7 @@ document.getElementById('autoInvestBtn').addEventListener('click', async () => {
       if (error) { showMsg('statusMsg', error.message, false); break; }
     }
     const summary = rows.map(r => `${r.name} +${r.levels}`).join(', ');
+    addLifetimeSpend(totalSpent, rows.reduce((sum, r) => sum + r.levels, 0));
     showMsg('statusMsg', 'Optimal ausgebaut: ' + summary + '.', true);
     addChronicle(`Investitionsschub: ${summary}.`);
     await loadEverything();
@@ -1787,7 +1813,7 @@ async function maybeAutoBuy(){
   if (!cfg.enabled) return;
   const budget = mogcBalance - (Number(cfg.reserve) || 0);
   if (budget <= 0) return;
-  const { plan, rows } = planAutoInvest(budget);
+  const { plan, rows, totalSpent } = planAutoInvest(budget);
   if (!rows.length) return;
 
   autoBuyRunning = true;
@@ -1797,6 +1823,7 @@ async function maybeAutoBuy(){
       const { error } = await sb.schema('colony').rpc('buy_factory', { p_factory_key: fk, p_levels: plan[fk] });
       if (error) { console.error(error); break; }
     }
+    addLifetimeSpend(totalSpent, rows.reduce((sum, r) => sum + r.levels, 0));
     addChronicle('Automatisch investiert: ' + rows.map(r => r.name + ' +' + r.levels).join(', ') + '.');
     await loadEverything(true); /* skipAutoBuy: verhindert Endlosschleife */
   } catch(e){
@@ -1917,6 +1944,167 @@ function maybeNotifyCrisis(){
       body: 'Der Unterhalt ist nicht mehr gedeckt — die Bevölkerung wächst nicht weiter.'
     });
   } catch(e){ console.error(e); }
+}
+
+
+/* ---------- Lifetime-Statistiken ---------- */
+function getLifetime(){
+  let s = dpLoad('lifetime', null);
+  if (!s) { s = { mogcSpent: 0, levelsBought: 0, founded: Date.now(), maxPop: 0 }; dpSave('lifetime', s); }
+  return s;
+}
+function addLifetimeSpend(mogcSpent, levelsBought){
+  const s = getLifetime();
+  s.mogcSpent += Math.max(0, Number(mogcSpent) || 0);
+  s.levelsBought += Math.max(0, Number(levelsBought) || 0);
+  dpSave('lifetime', s);
+}
+function trackLifetimePop(){
+  const s = getLifetime();
+  const pop = Number(STATE.population) || 0;
+  if (pop > s.maxPop) { s.maxPop = pop; dpSave('lifetime', s); }
+}
+function renderLifetimeStats(){
+  const el = document.getElementById('lifetimeStats');
+  if (!el) return;
+  const s = getLifetime();
+  const days = Math.floor(Math.max(0, (Date.now() - s.founded) / 86400000));
+  const cards = [
+    { val: days < 1 ? 'heute gegründet' : fmtC(days) + (days === 1 ? ' Tag alt' : ' Tage alt'), label: 'Kolonie Verdantis' },
+    { val: fmtC(s.mogcSpent) + ' MOGC', label: 'insgesamt investiert' },
+    { val: fmtC(s.levelsBought), label: 'Level insgesamt gekauft' },
+    { val: fmtC(s.maxPop), label: 'höchste je erreichte Bevölkerung' }
+  ];
+  el.innerHTML = cards.map(c => `<div class="stat-mini"><div class="sm-val">${c.val}</div><div class="sm-label">${c.label}</div></div>`).join('');
+}
+
+/* ---------- Gebäude-Lore ---------- */
+const BUILDING_LORE = {
+  raw_depot: 'Kilometerweit unter der Oberfläche gelagert — hier warten die aus NEXUS importierten Rohstoffe auf Verarbeitung, geschützt vor Verdantis’ unberechenbaren Stürmen.',
+  wohnkuppel: 'Die Wohnkuppel hält die dünne Atmosphäre draußen und die Kolonisten warm — das Herz von Verdantis.',
+  bauwerk: 'Aus rohem Metall werden hier die Stahlträger gewalzt, auf denen die ganze Kolonie steht.',
+  gewaechshaus: 'Reihen leuchtender Vertikalfarmen verwandeln Kristall und Energie in Nährpaste — nicht schmackhaft, aber niemand hungert.',
+  kraftwerk: 'Ein kleiner Fusionskern, tief unter meterdickem Beton, versorgt die ganze Kolonie mit Fusionszellen.',
+  datenzentrum: 'Server surren im Dauerbetrieb und verdichten Rohdaten zu wertvollen Datenkernen für die Forschung.',
+  medlab: 'Weiße Laborflure, in denen aus Nährpaste-Extrakten Medizin für die wachsende Bevölkerung entsteht.',
+  workshop: 'Präzisionsfräsen und ruhige Hände — hier entstehen die feinen Werkzeuge, die keine Fabrik entbehren kann.',
+  platewerk: 'Glühender Baustahl wird zu Verbundplatten gepresst, gefragt in jeder Kolonie des Systems.'
+};
+function loreFor(fd){
+  if (BUILDING_LORE[fd.factory_key]) return BUILDING_LORE[fd.factory_key];
+  const n = (fd.name || '').toLowerCase();
+  if (n.includes('mediz')) return BUILDING_LORE.medlab;
+  if (n.includes('werkzeug') || n.includes('präzis') || n.includes('praez')) return BUILDING_LORE.workshop;
+  if (n.includes('verbund') || n.includes('platten')) return BUILDING_LORE.platewerk;
+  return null;
+}
+
+
+/* ---------- Verzierungen (rein kosmetisch, kein Wallet-MOGC) ---------- */
+const DECO_POINTS_PER_MOGC = 500;
+const DECOR_TYPES = [
+  { key:'lantern', icon:'🏮', name:'Laterne', desc:'Erhellt die Straßen — geht bei Unterhaltskrise mit aus.', cost:1, max:null },
+  { key:'garden',  icon:'💮', name:'Ziergarten', desc:'Ein kleines Blumenbeet am Wegesrand.', cost:2, max:null },
+  { key:'banner',  icon:'🚩', name:'Banner', desc:'Kolonie-Wimpel im Wind.', cost:2, max:null },
+  { key:'statue',  icon:'🗿', name:'Denkmal', desc:'Ein steinernes Monument für Verdantis.', cost:4, max:null },
+  { key:'fountain',icon:'⛲', name:'Brunnen', desc:'Zentraler Springbrunnen auf dem Platz.', cost:8, max:1 }
+];
+function getDecorState(){ return dpLoad('decorations', {}); }
+function getDecoSpent(){ return dpLoad('deco_spent', 0); }
+function getDecoPoints(){ return Math.floor((getLifetime().mogcSpent || 0) / DECO_POINTS_PER_MOGC); }
+function getDecoAvailable(){ return Math.max(0, getDecoPoints() - getDecoSpent()); }
+
+function buyDecoration(key){
+  const def = DECOR_TYPES.find(d => d.key === key);
+  if (!def) return;
+  const state = getDecorState();
+  const owned = state[key] || 0;
+  if (def.max != null && owned >= def.max) return;
+  if (getDecoAvailable() < def.cost) return;
+  state[key] = owned + 1;
+  dpSave('decorations', state);
+  dpSave('deco_spent', getDecoSpent() + def.cost);
+  addChronicle(`Neue Verzierung errichtet: ${def.name}.`);
+  renderDecorShop();
+  renderColonyScene(true);
+}
+
+function renderDecorShop(){
+  const ptsEl = document.getElementById('decoPoints');
+  if (ptsEl) ptsEl.textContent = fmtC(getDecoAvailable()) + ' Punkte verfügbar';
+  const el = document.getElementById('decorShop');
+  if (!el) return;
+  const state = getDecorState();
+  const avail = getDecoAvailable();
+  el.innerHTML = DECOR_TYPES.map(d => {
+    const owned = state[d.key] || 0;
+    const maxed = d.max != null && owned >= d.max;
+    const afford = avail >= d.cost && !maxed;
+    return `<div class="ach-card ${owned > 0 ? 'owned' : ''}">
+      <div class="a-icon">${d.icon}</div>
+      <div class="a-name">${d.name}</div>
+      <div class="a-desc">${d.desc}<br>${owned} platziert${d.max ? ' (max ' + d.max + ')' : ''}</div>
+      <button type="button" class="buy-btn" data-buy-deco="${d.key}" ${afford ? '' : 'disabled'}>${maxed ? 'Maximum erreicht' : 'Bauen — ' + d.cost + ' Pkt'}</button>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-buy-deco]').forEach(btn => {
+    btn.addEventListener('click', () => buyDecoration(btn.dataset.buyDeco));
+  });
+}
+
+/* Zeichenfunktionen — platziert im äußeren, meist leeren Band der Insel */
+function csLantern(x, y, lit){
+  return `<g><ellipse cx="${x.toFixed(1)}" cy="${(y+1).toFixed(1)}" rx="3" ry="1.4" fill="#000" opacity="0.25"></ellipse>
+    <rect x="${(x-0.6).toFixed(1)}" y="${(y-10).toFixed(1)}" width="1.2" height="10" fill="#5a544a"></rect>
+    <rect x="${(x-2).toFixed(1)}" y="${(y-14).toFixed(1)}" width="4" height="4" rx="0.6" fill="${lit ? '#ffe9a8' : '#4a4a44'}" stroke="#5a544a" stroke-width="0.5"></rect>
+    ${lit ? `<circle cx="${x.toFixed(1)}" cy="${(y-12).toFixed(1)}" r="4.5" fill="#ffe9a8" opacity="0.18"></circle>` : ''}
+  </g>`;
+}
+function csBannerDeco(x, y){
+  return `<g><rect x="${(x-0.5).toFixed(1)}" y="${(y-12).toFixed(1)}" width="1" height="12" fill="#7a6b52"></rect>
+    <path d="M${x.toFixed(1)} ${(y-12).toFixed(1)} l7 2 l-7 3 z" fill="#3ECF8E" opacity="0.9"></path>
+  </g>`;
+}
+function csGardenDeco(x, y){
+  const colors = ['#e08fa0', '#e0c86a', '#8fb8e0'];
+  let s = `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="6" ry="3" fill="#1c4a2e"></ellipse>`;
+  for (let i = 0; i < 5; i++) {
+    const dx = (i - 2) * 2, dy = (i % 2) * 1.2 - 0.5;
+    s += `<circle cx="${(x+dx).toFixed(1)}" cy="${(y+dy).toFixed(1)}" r="1" fill="${colors[i % colors.length]}"></circle>`;
+  }
+  return `<g>${s}</g>`;
+}
+function csStatueDeco(x, y){
+  return `<g><ellipse cx="${x.toFixed(1)}" cy="${(y+1).toFixed(1)}" rx="5" ry="2.4" fill="#000" opacity="0.25"></ellipse>
+    <rect x="${(x-4).toFixed(1)}" y="${(y-2).toFixed(1)}" width="8" height="2.4" fill="#7d7a70"></rect>
+    <rect x="${(x-1.4).toFixed(1)}" y="${(y-11).toFixed(1)}" width="2.8" height="9" fill="#9b988e"></rect>
+    <circle cx="${x.toFixed(1)}" cy="${(y-12.5).toFixed(1)}" r="1.8" fill="#9b988e"></circle>
+  </g>`;
+}
+function csFountainDeco(x, y){
+  return `<g><ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="10" ry="5.5" fill="#3a5a6e" stroke="#6fa8c0" stroke-width="1"></ellipse>
+    <ellipse cx="${x.toFixed(1)}" cy="${(y-1).toFixed(1)}" rx="7" ry="3.6" fill="#2a4a5e"></ellipse>
+    <circle cx="${x.toFixed(1)}" cy="${(y-3).toFixed(1)}" r="1.5" fill="#9fd8e8">
+      <animate attributeName="cy" values="${(y-3).toFixed(1)};${(y-9).toFixed(1)};${(y-3).toFixed(1)}" dur="1.6s" repeatCount="indefinite"></animate>
+      <animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.6s" repeatCount="indefinite"></animate>
+    </circle>
+  </g>`;
+}
+function csDecorations(lit){
+  const state = getDecorState();
+  let s = '';
+  const place = (count, radius, angleBase, spacing, draw) => {
+    for (let i = 0; i < count; i++) {
+      const p = csPoint(radius, angleBase + i * spacing);
+      s += draw(p.x, p.y);
+    }
+  };
+  place(state.lantern || 0, 210, 15, 28, (x, y) => csLantern(x, y, lit));
+  place(state.garden || 0, 214, 20, 31, csGardenDeco);
+  place(state.banner || 0, 224, 5, 33, csBannerDeco);
+  place(state.statue || 0, 232, 10, 37, csStatueDeco);
+  if ((state.fountain || 0) > 0) { const p = csPoint(88, 100); s += csFountainDeco(p.x, p.y); }
+  return s;
 }
 
 /* ---------- Tab-Umschaltung ---------- */
