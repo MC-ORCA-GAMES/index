@@ -575,8 +575,36 @@
 
   .empty-state{ text-align:center; padding:40px 20px; color:var(--fg-dim); font-size:15.5px; line-height:1.6; }
 
-  .galaxy-map-wrap{ position:relative; border:1px solid var(--line); border-radius:9px; background:radial-gradient(ellipse at 50% 40%, rgba(33,199,184,0.08), transparent 60%), var(--bg-alt); overflow:hidden; }
-  #galaxyMapSvg{ width:100%; height:auto; display:block; }
+  .galaxy-map-wrap{ position:relative; border:1px solid var(--line); border-radius:9px; background:#04070C; overflow:hidden; height:clamp(420px, 62vh, 760px); touch-action:none; cursor:grab; }
+  .galaxy-map-wrap.dragging{ cursor:grabbing; }
+  #galaxyMapSvg{ width:100%; height:100%; display:block; }
+  #galaxyViewport{ transform-origin:0 0; }
+  .galaxy-core-ring{ transform-box:fill-box; transform-origin:center; animation:galaxyCoreSpin 26s linear infinite; }
+  .galaxy-core-ring.slow{ animation-duration:70s; animation-direction:reverse; }
+  @keyframes galaxyCoreSpin{ to{ transform:rotate(360deg); } }
+  .galaxy-core-label{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:11px; letter-spacing:0.22em; fill:#ffe9b4; opacity:0.5; }
+  .galaxy-hint{ position:absolute; left:10px; bottom:8px; font-size:11px; letter-spacing:.06em; color:var(--fg-faint); background:rgba(4,7,12,.6); padding:4px 8px; border-radius:6px; pointer-events:none; }
+
+  .galaxy-toolbar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+  .galaxy-search{ flex:1 1 240px; min-width:180px; padding:8px 11px; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; color:var(--fg); font-size:13px; font-family:inherit; }
+  .galaxy-search:focus{ outline:none; border-color:var(--accent); }
+  .galaxy-select{ padding:8px 10px; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; color:var(--fg); font-size:12.5px; font-family:inherit; }
+  .galaxy-toggle{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--fg-dim); white-space:nowrap; cursor:pointer; }
+  .galaxy-zoom{ display:flex; align-items:center; gap:4px; margin-left:auto; }
+  .galaxy-zoom button{ min-width:30px; height:30px; padding:0 8px; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; color:var(--fg-dim); font-size:14px; cursor:pointer; font-family:inherit; }
+  .galaxy-zoom button:hover{ border-color:var(--accent); color:var(--accent); }
+  #galaxyZoomLevel{ min-width:46px; text-align:center; font-size:11.5px; color:var(--fg-faint); font-family:'JetBrains Mono',ui-monospace,monospace; }
+
+  .galaxy-dot{ cursor:pointer; transition:opacity .15s; }
+  .galaxy-dot:hover{ opacity:1 !important; }
+  .galaxy-dot.own{ stroke:#fff; stroke-width:2px; }
+  .galaxy-dot.dimmed{ opacity:0.08 !important; }
+  .galaxy-halo{ pointer-events:none; }
+  .galaxy-halo.listed{ animation:galaxyPulse 2.6s ease-in-out infinite; }
+  @keyframes galaxyPulse{ 0%,100%{ opacity:.18; r:14; } 50%{ opacity:.5; r:20; } }
+  .galaxy-label{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:11px; fill:var(--fg-dim); pointer-events:none; paint-order:stroke; stroke:#04070C; stroke-width:3px; stroke-linejoin:round; }
+  .galaxy-label.own{ fill:#fff; }
+  .galaxy-label.hidden{ display:none; }
   .galaxy-dot{ cursor:pointer; transition:opacity .15s; }
   .galaxy-dot:hover{ opacity:1 !important; }
   .galaxy-dot.own{ stroke:#fff; stroke-width:2px; }
@@ -592,6 +620,9 @@
   .galaxy-popup-row span:first-child{ color:var(--fg-faint); }
   .galaxy-popup-row span:last-child{ color:var(--fg); font-weight:600; text-align:right; }
   .galaxy-popup-own{ display:inline-block; margin-top:9px; font-size:11px; font-weight:700; letter-spacing:.02em; color:#06231f; background:var(--accent); border-radius:999px; padding:3px 9px; }
+  .galaxy-popup-foot{ margin-top:9px; font-size:11px; line-height:1.5; color:var(--fg-faint); }
+  .galaxy-halo.dimmed{ opacity:0.02 !important; }
+  .galaxy-legend-item:hover{ color:var(--fg); }
   .galaxy-legend{ display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:14px; }
   .galaxy-legend-item{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--fg-dim); }
   .galaxy-legend-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
@@ -1196,35 +1227,90 @@
       <div class="tab-page" id="tabPage-galaxie">
         <div class="panel">
           <h3>Galaxie-Karte <span class="tag" id="galaxyCountTag">— alle Firmen aller Spieler</span></h3>
-          <div class="galaxy-map-wrap">
-            <svg id="galaxyMapSvg" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet">
+          <div class="galaxy-toolbar">
+            <input type="search" id="galaxySearch" class="galaxy-search" placeholder="Ticker, Firma, Gründer, Corp oder Sektor suchen …" autocomplete="off">
+            <select id="galaxySectorFilter" class="galaxy-select"><option value="">Alle Sektoren</option></select>
+            <select id="galaxyStageFilter" class="galaxy-select">
+              <option value="">Alle Phasen</option>
+              <option value="aufbau">Aufbau</option>
+              <option value="boersenreif">Börsenreif</option>
+              <option value="ipo">Börsennotiert</option>
+              <option value="insolvent">Insolvent</option>
+            </select>
+            <label class="galaxy-toggle"><input type="checkbox" id="galaxyLabelsChk"> Namen dauerhaft</label>
+            <div class="galaxy-zoom">
+              <button type="button" id="galaxyZoomOut" title="Rauszoomen">−</button>
+              <span id="galaxyZoomLevel">100%</span>
+              <button type="button" id="galaxyZoomIn" title="Reinzoomen">+</button>
+              <button type="button" id="galaxyZoomReset" title="Ansicht zurücksetzen">⟲</button>
+              <button type="button" id="galaxyFindMine" title="Zu meinen Firmen springen">◎ meine</button>
+            </div>
+          </div>
+          <div class="galaxy-map-wrap" id="galaxyMapWrap">
+            <svg id="galaxyMapSvg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet">
               <defs>
-                <radialGradient id="galaxyCoreGlow" cx="50%" cy="50%" r="55%">
-                  <stop offset="0%" stop-color="#fff3d6" stop-opacity="0.85"/>
-                  <stop offset="10%" stop-color="#f5dfa0" stop-opacity="0.4"/>
-                  <stop offset="35%" stop-color="#21C7B8" stop-opacity="0.10"/>
-                  <stop offset="100%" stop-color="#21C7B8" stop-opacity="0"/>
+                <radialGradient id="galaxyCoreGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%"   stop-color="#fff6e2" stop-opacity="0.95"/>
+                  <stop offset="6%"   stop-color="#ffe9b4" stop-opacity="0.55"/>
+                  <stop offset="18%"  stop-color="#ffb347" stop-opacity="0.22"/>
+                  <stop offset="42%"  stop-color="#2BF5DE" stop-opacity="0.10"/>
+                  <stop offset="100%" stop-color="#2BF5DE" stop-opacity="0"/>
                 </radialGradient>
+                <radialGradient id="galaxyBulge" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%"   stop-color="#fffdf5" stop-opacity="1"/>
+                  <stop offset="35%"  stop-color="#ffe2a0" stop-opacity="0.55"/>
+                  <stop offset="100%" stop-color="#ffb347" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="galaxyNebulaA" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#2BF5DE" stop-opacity="0.22"/>
+                  <stop offset="100%" stop-color="#2BF5DE" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="galaxyNebulaB" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#FFB347" stop-opacity="0.20"/>
+                  <stop offset="100%" stop-color="#FFB347" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="galaxyNebulaC" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#8f6bff" stop-opacity="0.18"/>
+                  <stop offset="100%" stop-color="#8f6bff" stop-opacity="0"/>
+                </radialGradient>
+                <filter id="galaxySoft" x="-60%" y="-60%" width="220%" height="220%">
+                  <feGaussianBlur stdDeviation="9"/>
+                </filter>
               </defs>
-              <rect x="0" y="0" width="1000" height="560" fill="url(#galaxyCoreGlow)"></rect>
-              <g id="galaxyBgStars"></g>
-              <circle cx="500" cy="280" r="9" fill="#fff8e6"></circle>
-              <circle cx="500" cy="280" r="18" fill="none" stroke="#fff3d6" stroke-opacity="0.25" stroke-width="1"></circle>
-              <g id="galaxyCompanyDots"></g>
-              <g id="galaxyTransporters"></g>
+
+              <rect id="galaxyBackdrop" x="0" y="0" width="1600" height="900" fill="#04070C"></rect>
+              <g id="galaxyViewport">
+                <rect x="-800" y="-450" width="3200" height="1800" fill="url(#galaxyCoreGlow)"></rect>
+                <g id="galaxyNebula"></g>
+                <g id="galaxyDust"></g>
+                <g id="galaxyBgStars"></g>
+                <g id="galaxyCore">
+                  <ellipse cx="800" cy="450" rx="190" ry="118" fill="url(#galaxyBulge)" opacity="0.55" filter="url(#galaxySoft)"></ellipse>
+                  <circle cx="800" cy="450" r="11" fill="#fff8e6"></circle>
+                  <circle class="galaxy-core-ring" cx="800" cy="450" r="26" fill="none" stroke="#ffe9b4" stroke-opacity="0.35" stroke-width="1"></circle>
+                  <circle class="galaxy-core-ring slow" cx="800" cy="450" r="44" fill="none" stroke="#2BF5DE" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 9"></circle>
+                  <text class="galaxy-core-label" x="800" y="494" text-anchor="middle">KERN · BOT-MARKT</text>
+                </g>
+                <g id="galaxyTransporters"></g>
+                <g id="galaxyCompanyDots"></g>
+                <g id="galaxyLabels"></g>
+              </g>
             </svg>
             <div class="galaxy-popup" id="galaxyPopup">
               <button type="button" class="galaxy-popup-close" id="galaxyPopupClose" aria-label="Schließen">✕</button>
               <div id="galaxyPopupBody"></div>
             </div>
+            <div class="galaxy-hint">Scrollen = zoomen · ziehen = verschieben · Doppelklick = Punkt zentrieren</div>
           </div>
           <div class="galaxy-legend" id="galaxyLegend"></div>
           <p style="font-size:13px; color:var(--fg-faint); margin:14px 0 0; line-height:1.6;">
-            Position ist rein kosmetisch (stabil pro Firma, entlang von Spiralarmen um das Galaxie-Zentrum
-            verteilt), Farbe = Sektor, Größe = Kapazität. Gold umrandet = börsenreif/börsennotiert,
-            blass = insolvent, weißer Ring = eigene Firma. Fahr mit der Maus über einen Punkt für Details.
-            Leuchtende Punkte mit gepunkteter Route = eigene Lieferungen unterwegs zu deinen Firmen
-            (Bot-Markt startet vom Galaxie-Zentrum, Firma-zu-Firma-Handel von einer zufälligen Route).
+            Jede Firma hat einen festen, aus ihrer ID abgeleiteten Platz in einem der vier Spiralarme —
+            gleiche Firma, gleicher Stern, für alle Spieler identisch. Der Kern bleibt firmenfrei, dort
+            sitzt der Bot-Markt. Farbe = Sektor, Größe = Kapazität, Ring = Phase: gold = börsenreif,
+            weiß pulsierend = börsennotiert, blass = insolvent. Deine eigenen Firmen tragen zusätzlich
+            einen weißen Ring und sind immer beschriftet. Leuchtende Punkte auf gepunkteter Route =
+            eigene Lieferungen unterwegs (Bot-Markt startet im Kern, Firma-zu-Firma von der
+            Herkunftsfirma).
           </p>
         </div>
       </div>
@@ -1983,35 +2069,69 @@ const STAGE_LABEL_GALAXY = { aufbau:'Im Aufbau', boersenreif:'Börsenreif', ipo:
 // (Ticker/Name/Sektor/Stage/Kapazität), die get_galaxy_map() liefert.
 // Position wird aus den Klick-Koordinaten relativ zum Karten-Wrapper berechnet,
 // damit es sowohl bei Maus- als auch bei Touch-Klicks am richtigen Punkt sitzt.
+function galaxyAge(iso){
+  if (!iso) return '—';
+  const days = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+  if (days < 1) return 'heute gegründet';
+  if (days === 1) return '1 Tag alt';
+  if (days < 60) return days + ' Tage alt';
+  return Math.floor(days / 30) + ' Monate alt';
+}
+function galaxyRow(label, value){
+  if (value === null || value === undefined || value === '') return '';
+  return '<div class="galaxy-popup-row"><span>' + escapeHtml(label) + '</span><span>' + value + '</span></div>';
+}
 function openGalaxyPopup(c, evt){
   const popup = document.getElementById('galaxyPopup');
   const wrap = document.querySelector('.galaxy-map-wrap');
   const body = document.getElementById('galaxyPopupBody');
   if (!popup || !wrap || !body) return;
   const color = SECTOR_COLORS[c.sector] || '#8b8fa3';
+  const num = v => (v === null || v === undefined) ? null : escapeHtml(String(v));
+  const pct = v => (v === null || v === undefined) ? null : escapeHtml(Number(v).toFixed(0)) + '%';
+
+  let rows =
+    galaxyRow('Gründer', escapeHtml(c.owner_name || '—')) +
+    galaxyRow('Corp', c.guild_name ? escapeHtml((c.guild_tag ? '[' + c.guild_tag + '] ' : '') + c.guild_name) : null) +
+    galaxyRow('Sektor', escapeHtml(c.sector)) +
+    galaxyRow('Phase', escapeHtml(STAGE_LABEL_GALAXY[c.stage] || c.stage) + (c.is_listed ? ' · an der Börse' : '')) +
+    galaxyRow('Gegründet', escapeHtml(galaxyAge(c.founded_at))) +
+    galaxyRow('Stufe', num(c.level)) +
+    galaxyRow('Kapazität', num(c.capacity)) +
+    galaxyRow('Angestellte', num(c.employees)) +
+    galaxyRow('Effizienz', pct(c.efficiency)) +
+    galaxyRow('Ruf', pct(c.reputation)) +
+    galaxyRow('Gewinnserie', (c.profitable_streak === null || c.profitable_streak === undefined)
+      ? null
+      : (Number(c.profitable_streak) > 0 ? escapeHtml(String(c.profitable_streak)) + ' Quartale in Folge' : 'keine'));
+
+  if (c.is_own) {
+    rows +=
+      galaxyRow('Umsatz (letztes Q)', (c.last_revenue === null || c.last_revenue === undefined) ? null : escapeHtml(fmt2(c.last_revenue))) +
+      galaxyRow('Gewinn (letztes Q)', (c.last_profit === null || c.last_profit === undefined) ? null
+        : '<span style="color:' + (Number(c.last_profit) >= 0 ? 'var(--green,#14F195)' : 'var(--red,#FF4D6E)') + '">' + escapeHtml(fmt2(c.last_profit)) + '</span>');
+  }
+
   body.innerHTML =
     '<div class="galaxy-popup-head">' +
       '<span class="galaxy-popup-swatch" style="background:' + color + '"></span>' +
       '<span class="galaxy-popup-ticker">' + escapeHtml(c.ticker) + '</span>' +
     '</div>' +
     '<div class="galaxy-popup-name">' + escapeHtml(c.name) + '</div>' +
-    '<div class="galaxy-popup-row"><span>Sektor</span><span>' + escapeHtml(c.sector) + '</span></div>' +
-    '<div class="galaxy-popup-row"><span>Status</span><span>' + escapeHtml(STAGE_LABEL_GALAXY[c.stage] || c.stage) + '</span></div>' +
-    '<div class="galaxy-popup-row"><span>Kapazität</span><span>' + escapeHtml(String(c.capacity ?? '—')) + '</span></div>' +
-    (c.is_own ? '<div class="galaxy-popup-own">Eigene Firma</div>' : '');
+    rows +
+    (c.is_own ? '<div class="galaxy-popup-own">Eigene Firma</div>'
+              : '<div class="galaxy-popup-foot">Umsatz und Gewinn sind nur für eigene Firmen sichtbar.</div>');
 
   const wrapRect = wrap.getBoundingClientRect();
   const clickX = evt.clientX - wrapRect.left;
   const clickY = evt.clientY - wrapRect.top;
   popup.style.left = '0px'; popup.style.top = '0px'; popup.classList.add('open');
-  // Nach dem Öffnen (damit offsetWidth/Height stimmen) an der Klickposition ausrichten
-  // und am Rand des Wrappers spiegeln, damit das Popup nie abgeschnitten wird.
   const pw = popup.offsetWidth, ph = popup.offsetHeight;
   let left = clickX + 14, top = clickY - ph / 2;
   if (left + pw > wrapRect.width - 6) left = clickX - pw - 14;
   if (left < 6) left = 6;
   if (top < 6) top = 6;
-  if (top + ph > wrapRect.height - 6) top = wrapRect.height - ph - 6;
+  if (top + ph > wrapRect.height - 6) top = Math.max(6, wrapRect.height - ph - 6);
   popup.style.left = left + 'px';
   popup.style.top = top + 'px';
 }
@@ -2036,72 +2156,363 @@ function hashSeed(str){
   return ((h >>> 0) % 100000) / 100000;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+//  GALAXIE-KARTE v2
+//  Grosse, zoom- und schiebbare Spiralgalaxie statt statischer Punktwolke.
+//  Wichtigste Aenderung an der Geometrie: companyGalaxyPos() benutzte
+//  radius = MAX * pow(seed, 1.4). Ein Exponent > 1 draengt kleine Seeds
+//  gegen null -- deshalb sassen mehrere Firmen praktisch im Zentrum
+//  uebereinander. Jetzt wird flaechengleich zwischen einem Innenradius
+//  (Kern bleibt frei, dort sitzt der Bot-Markt) und dem Aussenradius
+//  gezogen: radius = sqrt(MIN^2 + seed * (MAX^2 - MIN^2)).
+// ══════════════════════════════════════════════════════════════════════
+
+const GALAXY_CENTER_X = 800, GALAXY_CENTER_Y = 450;
+const GALAXY_MAX_RADIUS = 620, GALAXY_MIN_RADIUS = 150;
+const GALAXY_NUM_ARMS = 4, GALAXY_TWIST = 3.0, GALAXY_FLATTEN = 0.58;
+
+function galaxyArmPoint(arm, t, spread, wobble){
+  // t = 0..1 entlang des Arms, spread = seitliche Streuung in Radiant
+  const radius = Math.sqrt(GALAXY_MIN_RADIUS * GALAXY_MIN_RADIUS
+                 + t * (GALAXY_MAX_RADIUS * GALAXY_MAX_RADIUS - GALAXY_MIN_RADIUS * GALAXY_MIN_RADIUS));
+  const twist = (radius / GALAXY_MAX_RADIUS) * Math.PI * GALAXY_TWIST;
+  const angle = (arm / GALAXY_NUM_ARMS) * Math.PI * 2 + twist + spread;
+  return {
+    x: GALAXY_CENTER_X + radius * Math.cos(angle) + wobble,
+    y: GALAXY_CENTER_Y + radius * Math.sin(angle) * GALAXY_FLATTEN + wobble * GALAXY_FLATTEN,
+    radius: radius
+  };
+}
+
+function companyGalaxyPos(id){
+  const arm    = Math.floor(hashSeed(id + 'arm') * GALAXY_NUM_ARMS);
+  const t      = hashSeed(id + 'r');
+  const spread = (hashSeed(id + 'a') - 0.5) * 0.5;
+  const wobble = (hashSeed(id + 'j') - 0.5) * 30;
+  return galaxyArmPoint(arm, t, spread, wobble);
+}
+
 let galaxyBgInitialized = false;
 function initGalaxyBackground(){
   if (galaxyBgInitialized) return;
-  const group = document.getElementById('galaxyBgStars');
-  if (!group) return;
+  const stars  = document.getElementById('galaxyBgStars');
+  const dust   = document.getElementById('galaxyDust');
+  const nebula = document.getElementById('galaxyNebula');
+  if (!stars || !dust || !nebula) return;
   const ns = 'http://www.w3.org/2000/svg';
-  // Deko-Sternenfeld, einmalig generiert (kein Bezug zu echten Firmendaten) —
-  // rein damit die Karte wie eine Galaxie statt eine leere Fläche aussieht.
-  for (let i = 0; i < 260; i++) {
-    const star = document.createElementNS(ns, 'circle');
-    star.setAttribute('cx', (Math.random() * 1000).toFixed(1));
-    star.setAttribute('cy', (Math.random() * 560).toFixed(1));
-    star.setAttribute('r', (Math.random() * 1.1 + 0.3).toFixed(2));
-    star.setAttribute('fill', '#fff');
-    star.setAttribute('opacity', (Math.random() * 0.5 + 0.15).toFixed(2));
-    group.appendChild(star);
+
+  // Deterministischer Zufall, damit die Galaxie bei jedem Aufruf gleich aussieht
+  let seed = 20260918;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+
+  // 1) Nebelschwaden — grosse, weiche Farbflaechen hinter den Armen
+  const NEB = ['galaxyNebulaA','galaxyNebulaB','galaxyNebulaC'];
+  for (let i = 0; i < 9; i++) {
+    const p = galaxyArmPoint(i % GALAXY_NUM_ARMS, rnd(), (rnd() - 0.5) * 0.9, 0);
+    const e = document.createElementNS(ns, 'ellipse');
+    e.setAttribute('cx', p.x.toFixed(1));
+    e.setAttribute('cy', p.y.toFixed(1));
+    e.setAttribute('rx', (110 + rnd() * 220).toFixed(0));
+    e.setAttribute('ry', (70 + rnd() * 130).toFixed(0));
+    e.setAttribute('fill', 'url(#' + NEB[i % NEB.length] + ')');
+    e.setAttribute('opacity', (0.5 + rnd() * 0.5).toFixed(2));
+    nebula.appendChild(e);
   }
+
+  // 2) Staubbaender — folgen exakt derselben Armformel wie die Firmen,
+  //    dadurch liegen die Firmen sichtbar IN den Armen und nicht daneben
+  const DUST = ['#bcd9ff', '#ffe9c2', '#ffffff', '#a9f5ea'];
+  for (let arm = 0; arm < GALAXY_NUM_ARMS; arm++) {
+    for (let k = 0; k < 900; k++) {
+      const t = rnd();
+      const p = galaxyArmPoint(arm, t, (rnd() - 0.5) * 0.36, (rnd() - 0.5) * 46);
+      const st = document.createElementNS(ns, 'circle');
+      st.setAttribute('cx', p.x.toFixed(1));
+      st.setAttribute('cy', p.y.toFixed(1));
+      st.setAttribute('r', (rnd() * 1.5 + 0.25).toFixed(2));
+      st.setAttribute('fill', DUST[(rnd() * DUST.length) | 0]);
+      st.setAttribute('opacity', (0.12 + rnd() * 0.5 * (1 - t * 0.55)).toFixed(2));
+      dust.appendChild(st);
+    }
+  }
+
+  // 3) Kernwolke — dichte Streuung im Bulge
+  for (let k = 0; k < 500; k++) {
+    const ang = rnd() * Math.PI * 2;
+    const rad = Math.pow(rnd(), 0.6) * GALAXY_MIN_RADIUS * 1.15;
+    const st = document.createElementNS(ns, 'circle');
+    st.setAttribute('cx', (GALAXY_CENTER_X + rad * Math.cos(ang)).toFixed(1));
+    st.setAttribute('cy', (GALAXY_CENTER_Y + rad * Math.sin(ang) * GALAXY_FLATTEN).toFixed(1));
+    st.setAttribute('r', (rnd() * 1.2 + 0.25).toFixed(2));
+    st.setAttribute('fill', rnd() < 0.7 ? '#ffe9c2' : '#fff');
+    st.setAttribute('opacity', (0.2 + rnd() * 0.6).toFixed(2));
+    dust.appendChild(st);
+  }
+
+  // 4) Halo — vereinzelte Sterne im ganzen Bild, damit der Rand nicht leer wirkt
+  for (let i = 0; i < 420; i++) {
+    const st = document.createElementNS(ns, 'circle');
+    st.setAttribute('cx', (rnd() * 1900 - 150).toFixed(1));
+    st.setAttribute('cy', (rnd() * 1100 - 100).toFixed(1));
+    st.setAttribute('r', (rnd() * 1.1 + 0.2).toFixed(2));
+    st.setAttribute('fill', '#fff');
+    st.setAttribute('opacity', (rnd() * 0.42 + 0.08).toFixed(2));
+    stars.appendChild(st);
+  }
+
   galaxyBgInitialized = true;
 }
 
-// Geometrie der Spiralgalaxie zentral gehalten, damit renderGalaxyMap (Firmen-
-// Punkte) und renderGalaxyTransporters (Lieferrouten) exakt dieselben
-// Koordinaten benutzen. Nur von der ID abhaengig -> pro Firma stabil.
-const GALAXY_CENTER_X = 500, GALAXY_CENTER_Y = 280, GALAXY_MAX_RADIUS = 250, GALAXY_NUM_ARMS = 3;
-function companyGalaxyPos(id){
-  const armSeed = hashSeed(id + 'arm');
-  const radiusSeed = hashSeed(id + 'r');
-  const angleSeed = hashSeed(id + 'a');
-  const arm = Math.floor(armSeed * GALAXY_NUM_ARMS);
-  const radius = GALAXY_MAX_RADIUS * Math.pow(radiusSeed, 1.4);
-  const twist = (radius / GALAXY_MAX_RADIUS) * Math.PI * 2.4;
-  const angle = (arm / GALAXY_NUM_ARMS) * Math.PI * 2 + (angleSeed - 0.5) * (Math.PI * 2 / GALAXY_NUM_ARMS) * 0.7 + twist;
-  return {
-    x: GALAXY_CENTER_X + radius * Math.cos(angle),
-    y: GALAXY_CENTER_Y + radius * Math.sin(angle) * 0.55
+// ---------- Zoom & Pan ----------
+const galaxyView = { scale: 1, x: 0, y: 0 };
+const GALAXY_VB_W = 1600, GALAXY_VB_H = 900;
+
+function galaxyApplyView(){
+  const vp = document.getElementById('galaxyViewport');
+  if (!vp) return;
+  vp.setAttribute('transform', 'translate(' + galaxyView.x.toFixed(2) + ' ' + galaxyView.y.toFixed(2) + ') scale(' + galaxyView.scale.toFixed(4) + ')');
+  const lvl = document.getElementById('galaxyZoomLevel');
+  if (lvl) lvl.textContent = Math.round(galaxyView.scale * 100) + '%';
+  galaxyUpdateLabels();
+}
+
+function galaxyClamp(){
+  galaxyView.scale = Math.max(0.55, Math.min(7, galaxyView.scale));
+  const s = galaxyView.scale;
+  // Nie mehr als eine halbe Bildbreite ueber den Rand hinausschieben
+  const maxOver = GALAXY_VB_W * 0.5, maxOverY = GALAXY_VB_H * 0.5;
+  galaxyView.x = Math.min(maxOver, Math.max(GALAXY_VB_W - GALAXY_VB_W * s - maxOver, galaxyView.x));
+  galaxyView.y = Math.min(maxOverY, Math.max(GALAXY_VB_H - GALAXY_VB_H * s - maxOverY, galaxyView.y));
+}
+
+function galaxyZoomAt(vx, vy, factor){
+  const before = galaxyView.scale;
+  galaxyView.scale *= factor;
+  galaxyClamp();
+  const f = galaxyView.scale / before;
+  galaxyView.x = vx - (vx - galaxyView.x) * f;
+  galaxyView.y = vy - (vy - galaxyView.y) * f;
+  galaxyClamp();
+  galaxyApplyView();
+}
+
+function galaxyCenterOn(wx, wy, scale){
+  if (scale) galaxyView.scale = scale;
+  galaxyClamp();
+  galaxyView.x = GALAXY_VB_W / 2 - wx * galaxyView.scale;
+  galaxyView.y = GALAXY_VB_H / 2 - wy * galaxyView.scale;
+  galaxyClamp();
+  galaxyApplyView();
+}
+
+function galaxyResetView(){
+  galaxyView.scale = 1; galaxyView.x = 0; galaxyView.y = 0;
+  galaxyApplyView();
+}
+
+// Bildschirmkoordinate -> viewBox-Koordinate (beruecksichtigt preserveAspectRatio)
+function galaxyToViewBox(clientX, clientY){
+  const svg = document.getElementById('galaxyMapSvg');
+  if (!svg) return { x:0, y:0 };
+  const r = svg.getBoundingClientRect();
+  const s = Math.min(r.width / GALAXY_VB_W, r.height / GALAXY_VB_H);
+  const offX = (r.width  - GALAXY_VB_W * s) / 2;
+  const offY = (r.height - GALAXY_VB_H * s) / 2;
+  return { x: (clientX - r.left - offX) / s, y: (clientY - r.top - offY) / s };
+}
+
+let galaxyControlsWired = false;
+function wireGalaxyControls(){
+  if (galaxyControlsWired) return;
+  const wrap = document.getElementById('galaxyMapWrap');
+  if (!wrap) return;
+  galaxyControlsWired = true;
+
+  wrap.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const p = galaxyToViewBox(e.clientX, e.clientY);
+    galaxyZoomAt(p.x, p.y, e.deltaY < 0 ? 1.16 : 1 / 1.16);
+  }, { passive:false });
+
+  let dragging = false, moved = 0, lastX = 0, lastY = 0, pointers = new Map(), pinchDist = 0;
+  wrap.addEventListener('pointerdown', (e) => {
+    pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if (pointers.size === 1){
+      dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY;
+      wrap.classList.add('dragging');
+      try { wrap.setPointerCapture(e.pointerId); } catch(err){}
+    } else if (pointers.size === 2){
+      const p = [...pointers.values()];
+      pinchDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      dragging = false; wrap.classList.remove('dragging');
+    }
+  });
+  wrap.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if (pointers.size === 2 && pinchDist > 0){
+      const p = [...pointers.values()];
+      const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      const mid = galaxyToViewBox((p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2);
+      if (d > 0){ galaxyZoomAt(mid.x, mid.y, d / pinchDist); pinchDist = d; }
+      return;
+    }
+    if (!dragging) return;
+    const svg = document.getElementById('galaxyMapSvg');
+    const r = svg.getBoundingClientRect();
+    const s = Math.min(r.width / GALAXY_VB_W, r.height / GALAXY_VB_H) || 1;
+    const dx = (e.clientX - lastX) / s, dy = (e.clientY - lastY) / s;
+    moved += Math.abs(dx) + Math.abs(dy);
+    lastX = e.clientX; lastY = e.clientY;
+    galaxyView.x += dx; galaxyView.y += dy;
+    galaxyClamp(); galaxyApplyView();
+  });
+  const endPointer = (e) => {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchDist = 0;
+    if (pointers.size === 0){ dragging = false; wrap.classList.remove('dragging'); }
   };
+  wrap.addEventListener('pointerup', endPointer);
+  wrap.addEventListener('pointercancel', endPointer);
+  wrap.addEventListener('pointerleave', endPointer);
+
+  wrap.addEventListener('dblclick', (e) => {
+    const p = galaxyToViewBox(e.clientX, e.clientY);
+    const w = { x: (p.x - galaxyView.x) / galaxyView.scale, y: (p.y - galaxyView.y) / galaxyView.scale };
+    galaxyCenterOn(w.x, w.y, Math.min(7, galaxyView.scale * 2));
+  });
+
+  document.getElementById('galaxyZoomIn')?.addEventListener('click', () => galaxyZoomAt(GALAXY_VB_W/2, GALAXY_VB_H/2, 1.35));
+  document.getElementById('galaxyZoomOut')?.addEventListener('click', () => galaxyZoomAt(GALAXY_VB_W/2, GALAXY_VB_H/2, 1/1.35));
+  document.getElementById('galaxyZoomReset')?.addEventListener('click', galaxyResetView);
+  document.getElementById('galaxyFindMine')?.addEventListener('click', () => {
+    const mine = galaxyMap.filter(c => c.is_own);
+    if (!mine.length) return;
+    let sx = 0, sy = 0;
+    mine.forEach(c => { const p = companyGalaxyPos(c.id); sx += p.x; sy += p.y; });
+    galaxyCenterOn(sx / mine.length, sy / mine.length, Math.max(galaxyView.scale, 2.2));
+  });
+  document.getElementById('galaxySearch')?.addEventListener('input', galaxyApplyFilter);
+  document.getElementById('galaxySectorFilter')?.addEventListener('change', galaxyApplyFilter);
+  document.getElementById('galaxyStageFilter')?.addEventListener('change', galaxyApplyFilter);
+  document.getElementById('galaxyLabelsChk')?.addEventListener('change', galaxyUpdateLabels);
+}
+
+// ---------- Suche / Filter ----------
+function galaxyMatches(c){
+  const q = (document.getElementById('galaxySearch')?.value || '').trim().toLowerCase();
+  const sec = document.getElementById('galaxySectorFilter')?.value || '';
+  const stg = document.getElementById('galaxyStageFilter')?.value || '';
+  if (sec && c.sector !== sec) return false;
+  if (stg && c.stage !== stg) return false;
+  if (!q) return true;
+  return [c.ticker, c.name, c.sector, c.owner_name, c.guild_name, c.guild_tag]
+    .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
+}
+function galaxyApplyFilter(){
+  const dots = document.querySelectorAll('#galaxyCompanyDots .galaxy-dot');
+  let hits = 0, first = null;
+  dots.forEach(d => {
+    const c = galaxyMap.find(x => x.id === d.dataset.cid);
+    const ok = c ? galaxyMatches(c) : true;
+    d.classList.toggle('dimmed', !ok);
+    const halo = document.querySelector('#galaxyCompanyDots .galaxy-halo[data-cid="' + d.dataset.cid + '"]');
+    if (halo) halo.classList.toggle('dimmed', !ok);
+    if (ok){ hits++; if (!first && c) first = c; }
+  });
+  const tag = document.getElementById('galaxyCountTag');
+  if (tag) tag.textContent = '— ' + hits + ' von ' + galaxyMap.length + ' Firmen sichtbar';
+  galaxyUpdateLabels();
+  // Bei genau einem Treffer direkt hinspringen -- spart das Suchen von Hand
+  const q = (document.getElementById('galaxySearch')?.value || '').trim();
+  if (q && hits === 1 && first){
+    const p = companyGalaxyPos(first.id);
+    galaxyCenterOn(p.x, p.y, Math.max(galaxyView.scale, 3));
+  }
+}
+
+function galaxyUpdateLabels(){
+  const always = document.getElementById('galaxyLabelsChk')?.checked;
+  const q = (document.getElementById('galaxySearch')?.value || '').trim();
+  document.querySelectorAll('#galaxyLabels .galaxy-label').forEach(t => {
+    const own = t.classList.contains('own');
+    const dimmed = t.dataset.dim === '1';
+    const c = galaxyMap.find(x => x.id === t.dataset.cid);
+    const matched = c ? galaxyMatches(c) : true;
+    const show = matched && (always || own || galaxyView.scale >= 1.9 || (q && matched));
+    t.classList.toggle('hidden', !show || dimmed);
+  });
 }
 
 function renderGalaxyMap(){
   const dotsGroup = document.getElementById('galaxyCompanyDots');
+  const labelGroup = document.getElementById('galaxyLabels');
   if (!dotsGroup) return;
   closeGalaxyPopup();
   initGalaxyBackground();
+  wireGalaxyControls();
   dotsGroup.innerHTML = '';
+  if (labelGroup) labelGroup.innerHTML = '';
+
   const countTag = document.getElementById('galaxyCountTag');
   if (countTag) countTag.textContent = '— ' + galaxyMap.length + ' Firmen aller Spieler';
+
+  // Sektor-Filter einmalig befuellen
+  const secSel = document.getElementById('galaxySectorFilter');
+  if (secSel && secSel.options.length <= 1){
+    Object.keys(SECTOR_COLORS).forEach(sec => {
+      const o = document.createElement('option'); o.value = sec; o.textContent = sec; secSel.appendChild(o);
+    });
+  }
+
   const ns = 'http://www.w3.org/2000/svg';
   galaxyMap.forEach(c => {
     const { x, y } = companyGalaxyPos(c.id);
-    const r = Math.max(4, Math.min(13, 4 + Number(c.capacity || 0) / 18));
+    const r = Math.max(4.5, Math.min(15, 4.5 + Number(c.capacity || 0) / 16));
     const color = SECTOR_COLORS[c.sector] || '#8b8fa3';
+
+    // Schein hinter dem Punkt -- boersennotierte pulsieren
+    const halo = document.createElementNS(ns, 'circle');
+    halo.setAttribute('cx', x.toFixed(1)); halo.setAttribute('cy', y.toFixed(1));
+    halo.setAttribute('r', (r * 2.4).toFixed(1));
+    halo.setAttribute('fill', color);
+    halo.setAttribute('opacity', c.stage === 'insolvent' ? '0.06' : '0.16');
+    halo.setAttribute('class', 'galaxy-halo' + (c.is_listed ? ' listed' : ''));
+    halo.dataset.cid = c.id;
+    dotsGroup.appendChild(halo);
+
     const circle = document.createElementNS(ns, 'circle');
     circle.setAttribute('cx', x.toFixed(1));
     circle.setAttribute('cy', y.toFixed(1));
     circle.setAttribute('r', r.toFixed(1));
     circle.setAttribute('fill', color);
     circle.setAttribute('class', 'galaxy-dot' + (c.is_own ? ' own' : ''));
-    circle.setAttribute('opacity', c.stage === 'insolvent' ? '0.35' : '0.88');
+    circle.setAttribute('opacity', c.stage === 'insolvent' ? '0.35' : '0.92');
+    circle.dataset.cid = c.id;
     if (c.stage === 'boersenreif' || c.stage === 'ipo') {
       circle.setAttribute('stroke', '#D4AF37');
       circle.setAttribute('stroke-width', c.is_own ? '2.5' : '1.5');
     }
+    const tip = document.createElementNS(ns, 'title');
+    tip.textContent = c.ticker + ' · ' + c.name + ' · ' + c.sector + ' · ' + (c.owner_name || '—');
+    circle.appendChild(tip);
     circle.addEventListener('click', (e) => { e.stopPropagation(); openGalaxyPopup(c, e); });
     dotsGroup.appendChild(circle);
+
+    if (labelGroup){
+      const label = document.createElementNS(ns, 'text');
+      label.setAttribute('x', (x + r + 6).toFixed(1));
+      label.setAttribute('y', (y + 4).toFixed(1));
+      label.setAttribute('class', 'galaxy-label' + (c.is_own ? ' own' : '') + ' hidden');
+      label.dataset.cid = c.id;
+      label.textContent = c.ticker;
+      labelGroup.appendChild(label);
+    }
   });
+
   renderGalaxyTransporters();
+  galaxyApplyView();
+  galaxyApplyFilter();
 
   const legend = document.getElementById('galaxyLegend');
   if (legend) {
@@ -2109,7 +2520,14 @@ function renderGalaxyMap(){
     Object.entries(SECTOR_COLORS).forEach(([sector, color]) => {
       const item = document.createElement('div');
       item.className = 'galaxy-legend-item';
-      item.innerHTML = '<span class="galaxy-legend-dot" style="background:' + color + '"></span>' + sector;
+      const n = galaxyMap.filter(c => c.sector === sector).length;
+      item.innerHTML = '<span class="galaxy-legend-dot" style="background:' + color + '"></span>' + sector +
+                       ' <span style="color:var(--fg-faint)">(' + n + ')</span>';
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', () => {
+        const sel = document.getElementById('galaxySectorFilter');
+        if (sel){ sel.value = (sel.value === sector) ? '' : sector; galaxyApplyFilter(); }
+      });
       legend.appendChild(item);
     });
   }
