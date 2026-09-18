@@ -2,6 +2,85 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2: Fuenf Baustellen in einem Rutsch (Jens' Auftrag). Reihenfolge wie dort.
+    (1) CORP-SKILLBAUM statt Kette. platform.guild_upgrades bekam branch/
+    requires_key/effect_key/effect_value; die vier bestehenden Zeilen
+    (prod_t1..t4) wurden NICHT ersetzt, sondern in den Ast 'foerderung'
+    einsortiert -- guild_purchased_upgrades bleibt damit unveraendert gueltig,
+    keine Corp verliert Fortschritt. Neue Aeste: Schatzkammer (Kassenzins +
+    hoeherer Dividendensatz), Mitgliederausbau (member_cap_bonus), Ruhm &
+    Prestige (prestige_bonus_bp), dazu Foerderung V/VI. purchase_guild_upgrade()
+    prueft jetzt requires_key im Ast statt tier-1 global. WICHTIG: die
+    Dividenden-Freischaltung haengt bewusst weiter nur am VOLLEN FOERDER-AST
+    und nicht an "alle Upgrades" -- sonst haette MOG (hatte alle vier) die
+    bereits freigeschaltete Dividende durch die neuen Aeste wieder verloren.
+    Mitgliederlimit laeuft ueberall ueber guild_effective_member_cap().
+    Neuer Cron tick-guild-treasury-interest (03:15 UTC, nach der Dividende).
+    (2) PRESTIGE-SKILLBAUM ausgebaut. branch-CHECK entfernt, tier-Cap 8 -> 24.
+    Bestehende drei Aeste auf Tier 12 verlaengert (Dreieckszahlen weiter:
+    45/55/66/78). Drei neue Aeste, alle Effekte tatsaechlich verdrahtet und
+    nicht nur als Zeile angelegt: Automatisierung (offline_cap_hours, Basis 48 h
+    bis 168 h -- wirkt in allen fuenf collect-Funktionen), Risiko & Ertrag
+    (volatile_yield, 50/50-Wuerfel pro Abholung: +x% oder -0,6x%, Erwartungswert
+    bleibt dadurch auch bei nur einem gekauften Node positiv), Governance
+    (prestige_point_bonus bis +70%). skill_nodes hat jetzt branch_label/
+    branch_order und kommt gebuendelt aus get_full_game_state() -- das Frontend
+    hat weder feste Astliste noch Tier-Limit mehr (skillBranches()).
+    (3) VIERTE FOERDERLINIE "FLUX". Mechanik "Resonanz": der Ertragsfaktor
+    haengt an der Zeit seit der letzten Abholung -- 0,60 bei 0 h, 2,00 bei 6 h,
+    dann Abfall auf 0,70 ab 24 h, und er gilt fuers GESAMTE Fenster. Damit ist
+    sie klar von den drei bestehenden abgegrenzt: nicht passiv (Pulse), nicht
+    kooperativ (Relay), nicht flach (NRC), sondern rhythmusbelohnend. Voller
+    Kreislauf statt nur einer Wallet-Zahl: buy_flux/sell_flux gegen Nova-Rift
+    mit eigenem Kursverlauf + tick_flux_market() nach exaktem IONX-Muster
+    (invers zur globalen Foerderrate), Vault-Waehrung FVLT mit deposit_/
+    withdraw_from_flux_vault + tick_flux_vault_interest() nach ANCH/NVLT-Muster,
+    Zentralbank-Reserve flux_reserve_balance + Top-10-Ausschuettung. do_prestige()
+    nullt die Linie mit (analog PULSE/RELAY/ANCH/IONX). Eingebunden in
+    raenge.html (als CURRENCY_BOARD wie CYCLE/SIGIL/RELAY, NICHT ins GAMES-Array
+    -- GAMES listet eigenstaendige Spiele mit eigenem Save-Blob, FLUX ist eine
+    Waehrung innerhalb von Nexus) und in die Statistik-Sektion von profil.html.
+    Nebenbei: snapshot_currency_balances() liest die Symbole jetzt dynamisch aus
+    platform.currencies statt aus einer festen Liste -- damit sind FLUX/FVLT und
+    die in v3.34 als Fund notierten METAL/KRISTALL/DEUT/ENERGIE mit drin.
+    (4) HANDELSPLATZ komplett neu. Frueher: shopList, eventShopList,
+    cosmeticShopWrap als getrennte Listen, dazu CYCLE-, SIGIL- und Aktienmarkt
+    als eigene Panels in drei verschiedenen Tabs, fuer jeden Kauf ein eigenes
+    kleines Fenster. Jetzt ein Overlay: links Kategorien (Rigs & Items,
+    Kosmetik, Event-Shop, CYCLE, SIGIL, Aktienmarkt, Flux-Linie samt Umtausch
+    und Bank, Spieler-Markt), rechts der Produktbereich, der beim Wechsel
+    durchtauscht. Umsetzungsdetail, das beim Weiterarbeiten wichtig ist: die
+    Panels werden per appendChild aus ihren alten Containern VERSCHOBEN, nicht
+    neu geschrieben. appendChild bewegt einen vorhandenen Knoten samt IDs,
+    registrierten Listenern und Zustand -- renderShop(), renderCosmeticShop(),
+    renderEventShop(), die beiden Orderbuecher und der komplette Aktienmarkt
+    (marktSubpage-aktienmarkt wandert als ein Block) laufen dadurch unveraendert
+    weiter und muessen von diesem Umbau nichts wissen. Die Tabs "Handelsplatz"
+    und "Shop" sowie der Aktienmarkt-Knopf in der Markt-Subnav oeffnen jetzt das
+    Overlay statt eine eigene Seite; wo ein Panel wegging, steht ein Verweis mit
+    Sprungknopf. Charts in einer gerade sichtbar gewordenen Kategorie werden
+    einmal neu vermessen (gleiche Chart.js-Stolperfalle wie in activateTab).
+    (5) SOZIAL fertiggestellt. Der Corp-Chat war backendseitig komplett fertig,
+    aber in keinem Spiel verdrahtet; die Freundesliste lief nur hier. Beides
+    liegt jetzt in EINEM Panel mit Tab-Umschalter Corp/Global/Freunde, als
+    gemeinsame Datei /assets/orca-social.js in allen vier Login-Spielen (NEXUS,
+    Nexus Singularity, FOUNDRY, Domus Prime) -- eine Datei statt vier Kopien,
+    weil /assets/ ohnehin schon domain-root-relativ eingebunden wird (vgl.
+    /assets/avatars/*.svg) und Chat-Aenderungen sonst viermal nachzuziehen
+    waeren. In NEXUS inline im Freunde-Tab, in den anderen drei als schwebender
+    Launcher. Globaler Chat komplett neu: platform.global_chat_messages,
+    300 Zeichen, Rate-Limit 3 s + 15/min, Gast-Sperre, RLS-Muster wie beim
+    Corp-Chat, 7-Tage-Aufraeum-Cron. get_guild_chat_history() liefert jetzt
+    zusaetzlich den Avatar, damit beide Chats identisch gerendert werden.
+    Live-Updates bewusst per POLLING statt Supabase-Realtime (5 s bei offenem
+    Panel, 45 s fuer die Ungelesen-Markierung): Realtime wird im Projekt
+    nirgends verwendet, eine zweite dauerhafte Websocket-Verbindung nur fuer den
+    Chat wuerde ein zweites Aktualisierungsmodell mit eigenen Reconnect-, Auth-
+    Refresh- und Fehlerpfaden einfuehren und bei dauerhaft offenen Tabs die
+    Egress-Bilanz verschlechtern statt verbessern. Begruendung steht auch im
+    Kopf von orca-social.js. Die alten renderFriendRequests/
+    renderSentFriendRequests/renderFriendsList und der #friendAddBtn-Listener
+    sind ersatzlos entfallen, ihre DOM-Ziele gibt es nicht mehr.
   - v4.1: Skin-Schicht erweitert. Die Akzentfarbe laeuft jetzt ueber --acc
     (RGB-Dreier, im FX-Script aus --blue nachgezogen) -- gekaufte Rig-Skins und
     Kometen-Skins faerben dadurch die komplette Oberflaeche (Eckklammern,
@@ -517,6 +596,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/assets/orca-social.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
 <style>
   :root{
@@ -783,7 +863,11 @@
     border-radius:8px; padding:9px 12px; font-size:13px; }
   .guild-treasury-box{ display:flex; align-items:center; flex-wrap:wrap; gap:16px; }
   .guild-treasury-balance{ font-family:var(--mono); font-size:22px; font-weight:700; color:var(--blue); }
-  .guild-upgrade-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
+  .guild-upgrade-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:18px; }
+  .gu-branch h4{ margin:0 0 10px; font-size:12.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--fg-dim); display:flex; align-items:center; gap:8px; }
+  .gu-branch h4 .tag{ font-family:var(--mono); font-size:11px; }
+  .gu-branch .guild-upgrade-card{ margin-bottom:10px; }
+  .guild-upgrade-card.locked{ opacity:0.45; }
   .guild-upgrade-card{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--bg-alt); }
   .guild-upgrade-card.owned{ border-color:rgba(47,140,255,0.4); opacity:0.85; }
   .guild-upgrade-card .gu-name{ font-weight:600; font-size:13.5px; margin-bottom:4px; }
@@ -1167,6 +1251,61 @@
   .prestige-points-row{ display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
   .prestige-points-row .label{ font-size:12.5px; color:var(--fg-dim); }
   .prestige-points-row .value{ font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:var(--violet); }
+
+  /* ---------- Handelsplatz-Overlay (v4.2) ----------
+     Loest die frueheren Einzelfenster ab: eine Flaeche, links Kategorien,
+     rechts der Produktbereich. Die Panels werden beim Start per JS aus ihren
+     alten Tabs HIERHER VERSCHOBEN (nicht kopiert), damit saemtliche IDs,
+     Listener und Render-Funktionen unveraendert weiterlaufen. */
+  .mp-overlay{ position:fixed; inset:0; z-index:9000; display:none; background:rgba(3,7,15,0.72);
+    backdrop-filter:blur(4px); padding:24px; }
+  .mp-overlay.open{ display:flex; align-items:center; justify-content:center; }
+  .mp-shell{ display:flex; width:min(1180px,100%); height:min(820px,100%); background:var(--bg);
+    border:1px solid rgba(var(--acc,47,140,255),0.4); overflow:hidden;
+    clip-path:polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px); }
+  .mp-side{ flex:0 0 218px; display:flex; flex-direction:column; border-right:1px solid var(--line);
+    background:var(--bg-alt); padding:14px 0; overflow-y:auto; }
+  .mp-side-title{ font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--fg-faint); padding:0 16px 10px; }
+  .mp-cat{ display:flex; align-items:center; gap:9px; width:100%; text-align:left; background:none; border:none;
+    color:var(--fg-dim); font-size:13px; padding:9px 16px; cursor:pointer; border-left:2px solid transparent; }
+  .mp-cat:hover{ color:var(--fg); background:rgba(255,255,255,0.03); }
+  .mp-cat.active{ color:rgb(var(--acc,47,140,255)); background:rgba(var(--acc,47,140,255),0.10);
+    border-left-color:rgb(var(--acc,47,140,255)); }
+  .mp-cat .mp-cat-sub{ display:block; font-family:var(--mono); font-size:10px; color:var(--fg-faint); margin-top:2px; }
+  .mp-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .mp-head{ display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); }
+  .mp-head h2{ margin:0; font-size:15px; font-weight:600; flex:1; }
+  .mp-head .mp-bal{ font-family:var(--mono); font-size:12px; color:var(--fg-dim); }
+  .mp-close{ background:none; border:none; color:var(--fg-faint); font-size:24px; line-height:1; cursor:pointer; padding:0 4px; }
+  .mp-close:hover{ color:var(--fg); }
+  .mp-content{ flex:1; min-height:0; overflow-y:auto; padding:16px 18px; }
+  .mp-pane{ display:none; }
+  .mp-pane.active{ display:block; animation:mpFade .18s ease; }
+  @keyframes mpFade{ from{ opacity:0; transform:translateY(4px);} to{ opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce){ .mp-pane.active{ animation:none; } }
+  @media (max-width:860px){
+    .mp-overlay{ padding:0; }
+    .mp-shell{ flex-direction:column; width:100%; height:100%; clip-path:none; }
+    .mp-side{ flex:none; flex-direction:row; overflow-x:auto; border-right:none; border-bottom:1px solid var(--line); padding:8px; }
+    .mp-side-title{ display:none; }
+    .mp-cat{ white-space:nowrap; width:auto; border-left:none; border-bottom:2px solid transparent; }
+    .mp-cat.active{ border-left-color:transparent; border-bottom-color:rgb(var(--acc,47,140,255)); }
+    .mp-cat .mp-cat-sub{ display:none; }
+  }
+
+  /* ---------- Flux-Resonanzkurve ---------- */
+  .flux-curve{ position:relative; height:46px; margin-top:14px; border:1px solid var(--line); border-radius:10px;
+    background:linear-gradient(90deg,
+      rgba(var(--acc,47,140,255),0.05) 0%,
+      rgba(var(--acc,47,140,255),0.38) 25%,
+      rgba(var(--acc,47,140,255),0.20) 60%,
+      rgba(var(--acc,47,140,255),0.05) 100%); overflow:hidden; }
+  .flux-curve-marker{ position:absolute; top:0; bottom:0; width:2px; left:0%;
+    background:rgb(var(--acc,47,140,255)); box-shadow:0 0 8px rgba(var(--acc,47,140,255),0.9); transition:left .4s ease; }
+  .flux-curve-scale{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:10.5px;
+    color:var(--fg-faint); margin-top:4px; }
+  @media (prefers-reduced-motion: reduce){ .flux-curve-marker{ transition:none; } }
 
   /* ---------- skill tree ---------- */
   .skill-tree{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:18px; }
@@ -2448,6 +2587,7 @@
       <button type="button" class="sub-tab active" data-subtab="nrc"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 12L8 6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M5 3.3C6.6 1.6 9.3 1.8 10.7 3.6C9 3.2 7.3 3.6 5.9 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span> NRC</button>
       <button type="button" class="sub-tab" data-subtab="pulse"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 3,8 6,8 5,13 10,6 7,6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Pulse</button>
       <button type="button" class="sub-tab" data-subtab="relay"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="3" cy="4" r="1.1" fill="currentColor"/><circle cx="11" cy="4" r="1.1" fill="currentColor"/><circle cx="7" cy="11" r="1.1" fill="currentColor"/><line x1="3" y1="4" x2="11" y2="4" stroke="currentColor" stroke-width="0.9"/><line x1="3" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/><line x1="11" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/></svg></span> Relay</button>
+      <button type="button" class="sub-tab" data-subtab="flux"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2 7C3 3.5 5 3.5 7 7C9 10.5 11 10.5 12 7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="7" r="1" fill="currentColor"/></svg></span> Flux</button>
     </div>
 
     <div class="sub-tab-page active" id="farmSub-nrc">
@@ -2547,6 +2687,46 @@
       <div class="panel">
         <h3>Relais-Netzwerk-Skillbaum <span class="tag">— bezahlt mit Relay, nicht mit Prestige-Punkten</span></h3>
         <div class="skill-tree" id="relaySkillTree"></div>
+      </div>
+    </div>
+
+    <div class="sub-tab-page" id="farmSub-flux">
+      <div class="panel">
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2 7C3 3.5 5 3.5 7 7C9 10.5 11 10.5 12 7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="7" r="1" fill="currentColor"/></svg></span> Flux-Resonanz <span class="tag">— der Ertrag hängt davon ab, WANN du abholst</span></h3>
+        <div class="top-row">
+          <div class="stat-card">
+            <div class="label">Flux</div>
+            <div class="value coin-value"><span class="js-balance-flux">–</span></div>
+            <div class="sub" id="fluxOwnRateDisplay">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Resonanz</div>
+            <div class="value" id="fluxResonanceDisplay">–</div>
+            <div class="sub" id="fluxResonanceSub">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Bestes Fenster</div>
+            <div class="value" id="fluxPeakDisplay">–</div>
+            <div class="sub" id="fluxBestDisplay">–</div>
+          </div>
+        </div>
+
+        <div class="flux-curve" aria-hidden="true"><div class="flux-curve-marker" id="fluxCurveMarker"></div></div>
+        <div class="flux-curve-scale"><span>0 h</span><span>6 h — Maximum</span><span>24 h+</span></div>
+
+        <div class="sm-hint" id="fluxHint">Die Kondensatoren laden sich nach dem Abholen auf: der Faktor steigt von 0,60 auf <b>2,00 nach 6 Stunden</b> und fällt danach bis auf 0,70 zurück. Anders als bei Pulse (passiv) und Relay (gemeinsamer Topf) zahlt sich hier ein <b>regelmäßiger Rhythmus</b> aus — zu früh abholen verschenkt Faktor, zu spät auch.</div>
+        <button type="button" class="btn btn-primary" id="fluxCollectBtn" style="margin-top:10px;">Einsammeln</button>
+      </div>
+
+      <div class="panel">
+        <h3>Flux-Kondensatoren <span class="tag">— Kosten in MOGC, nicht in Flux</span></h3>
+        <div id="fluxRigList"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Umtausch &amp; Speicher <span class="tag">— liegt im Handelsplatz</span></h3>
+        <div class="sm-hint">Flux tauschst du gegen Nova-Rift und parkst es verzinst im Flux-Speicher (FVLT). Beides findest du im Handelsplatz unter <b>Flux-Linie</b>.</div>
+        <button type="button" class="btn btn-ghost" id="fluxToMarketBtn" style="margin-top:10px;">Zum Handelsplatz</button>
       </div>
     </div>
     </div>
@@ -2956,7 +3136,7 @@
     </div>
 
     <div class="tab-page" id="tabPage-handelsplatz">
-    <div class="panel cycle-market-panel">
+    <div class="panel cycle-market-panel" id="mpSrcCycle">
       <h3><span class="live-dot"></span>CYCLE-Handelsplatz <span class="tag">— Spieler-Orderbuch, Preis wird von euch selbst gemacht — gehandelt gegen MOGC</span></h3>
       <div class="market-price-big" id="cycleLastPriceDisplay">Letzter Kurs: –</div>
       <div class="chart-box compact market-chart"><canvas id="cycleTradeChart"></canvas></div>
@@ -2990,7 +3170,7 @@
       <div id="cycleMyOrdersList"><div class="cycle-ob-empty">Keine offenen Orders.</div></div>
     </div>
 
-    <div class="panel cycle-market-panel">
+    <div class="panel cycle-market-panel" id="mpSrcSigil">
       <h3><span class="live-dot"></span>SIGIL-Handelsplatz <span class="tag">— Spieler-Orderbuch, Preis wird von euch selbst gemacht — gehandelt gegen MOGC</span></h3>
       <div class="sm-hint" style="margin-bottom:10px;">SIGIL entsteht nur durch freigeschaltete <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2H10V5.5C10 7.5 8.5 9 7 9C5.5 9 4 7.5 4 5.5V2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M4 3H2.5C2.5 5 3.5 6 4.5 6" fill="none" stroke="currentColor" stroke-width="1"/><path d="M10 3H11.5C11.5 5 10.5 6 9.5 6" fill="none" stroke="currentColor" stroke-width="1"/><line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="12.5" x2="9.5" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="7" y1="11" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1"/></svg></span> Erfolge, nicht durch Mining oder Claims. Gehandelt wird es hier genau wie CYCLE.</div>
       <div class="market-price-big" id="sigilLastPriceDisplay">Letzter Kurs: –</div>
@@ -3044,6 +3224,75 @@
       <h4 style="margin-top:16px;">Meine Angebote</h4>
       <div id="barterMyOffersList"><div class="cycle-ob-empty">Keine eigenen Angebote.</div></div>
     </div>
+    </div>
+
+    <!-- ============================================================
+         Handelsplatz-Overlay: eine Flaeche fuer alles, was frueher auf
+         shopList / eventShopList / cosmeticShopWrap / CYCLE / SIGIL /
+         Aktienmarkt verteilt war. Die Kategorie-Panes werden beim Start
+         mit den vorhandenen Panels befuellt (siehe initMarketplace).
+         ============================================================ -->
+
+    <!-- Quelle fuer die Handelsplatz-Kategorie "Flux-Linie"; wird beim Start ins Overlay verschoben. -->
+    <div id="mpSrcFlux" style="display:none;">
+      <div class="panel">
+        <h3><span class="live-dot"></span>Flux &harr; Nova-Rift <span class="tag">— beweglicher Kurs, sinkt wenn netzweit viel Flux gefördert wird</span></h3>
+        <div class="market-price-big" id="fluxPriceDisplay">Kurs: –</div>
+        <div class="sm-hint" id="fluxRateDisplay">Förderrate-Index: –</div>
+        <div class="chart-box"><canvas id="fluxChart"></canvas></div>
+        <div class="sm-trade-box" style="margin-top:12px;">
+          <input type="number" id="fluxBuyInput" min="0" step="any" placeholder="Nova-Rift einsetzen">
+          <button type="button" class="btn btn-ghost" id="fluxBuyMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="fluxBuyBtn">Flux kaufen</button>
+        </div>
+        <div class="sm-trade-box" style="margin-top:8px;">
+          <input type="number" id="fluxSellInput" min="0" step="any" placeholder="Menge Flux">
+          <button type="button" class="btn btn-ghost" id="fluxSellMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="fluxSellBtn">Flux verkaufen</button>
+        </div>
+        <div class="sm-hint" id="fluxTradePreview" style="margin-top:8px;">–</div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 6V4a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span> FVLT — Flux-Speicher <span class="tag">— eigener Pool, getrennt von STBL/ANCH/NVLT</span></h3>
+        <div class="sm-hint">Geparktes Flux wird stündlich mit 0,05&nbsp;% verzinst. Beim Auszahlen geht 1&nbsp;% Gebühr an die Flux-Reserve der Zentralbank, die an die Top-10-Flux-Halter ausgeschüttet wird. Achtung: ein Prestige nullt FLUX und FVLT, genau wie PULSE/RELAY/ANCH/IONX.</div>
+        <div class="top-row" style="margin-top:12px;">
+          <div class="stat-card">
+            <div class="label">Im Speicher</div>
+            <div class="value coin-value"><span class="js-balance-fvlt">–</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Frei verfügbar</div>
+            <div class="value coin-value"><span class="js-balance-flux">–</span></div>
+          </div>
+        </div>
+        <div class="sm-trade-box" style="margin-top:12px;">
+          <input type="number" id="fvltDepositInput" min="0" step="any" placeholder="Flux einzahlen">
+          <button type="button" class="btn btn-ghost" id="fvltDepositMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="fvltDepositBtn">Einzahlen</button>
+        </div>
+        <div class="sm-trade-box" style="margin-top:8px;">
+          <input type="number" id="fvltWithdrawInput" min="0" step="any" placeholder="FVLT auszahlen">
+          <button type="button" class="btn btn-ghost" id="fvltWithdrawMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="fvltWithdrawBtn">Auszahlen (1 % Gebühr)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mp-overlay" id="mpOverlay" role="dialog" aria-modal="true" aria-label="Handelsplatz">
+      <div class="mp-shell">
+        <div class="mp-side" id="mpSide">
+          <div class="mp-side-title">Handelsplatz</div>
+        </div>
+        <div class="mp-main">
+          <div class="mp-head">
+            <h2 id="mpTitle">Handelsplatz</h2>
+            <span class="mp-bal" id="mpBalance">–</span>
+            <button type="button" class="mp-close" id="mpCloseBtn" aria-label="Schließen">&times;</button>
+          </div>
+          <div class="mp-content" id="mpContent"></div>
+        </div>
+      </div>
     </div>
 
     <div class="tab-page" id="tabPage-bank">
@@ -3313,7 +3562,7 @@
         </div>
 
         <div class="panel">
-          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5L7 2L11.5 6.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="2.5" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Corp-Upgrades <span class="tag">— aus der Kasse finanziert, boostet die Fördermenge aller Mitglieder dauerhaft; nach Vollausbau gibt's zusätzlich eine tägliche Dividende</span></h3>
+          <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5L7 2L11.5 6.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="2.5" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Corp-Upgrades <span class="tag">— verzweigter Skillbaum aus der Kasse finanziert: Förderung, Schatzkammer, Mitgliederausbau, Ruhm &amp; Prestige. Ist der Förder-Ast komplett, zahlt die Corp zusätzlich eine tägliche Dividende</span></h3>
           <div class="guild-upgrade-grid" id="guildUpgradesList"><div class="sm-hint">Lade Upgrades…</div></div>
         </div>
       </div>
@@ -3328,27 +3577,8 @@
       <div id="friendsStatusMsg"></div>
 
       <div class="panel">
-        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="4.7" cy="5" r="1.8" fill="none" stroke="currentColor" stroke-width="1"/><path d="M1.3 11.5C1.3 9.3 2.8 8 4.7 8C6.6 8 8.1 9.3 8.1 11.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><circle cx="9.8" cy="4.3" r="1.4" fill="none" stroke="currentColor" stroke-width="0.9"/><path d="M8.8 8.2C9.1 8 9.5 7.9 9.8 7.9C11.3 7.9 12.4 9 12.4 10.7" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round"/></svg></span> Freund hinzufügen</h3>
-        <div class="guild-form-row">
-          <input type="text" id="friendAddUsernameInput" placeholder="Username…">
-          <button type="button" class="btn btn-primary" id="friendAddBtn">Anfrage senden</button>
-        </div>
-      </div>
-
-      <div class="panel" id="friendRequestsPanel" style="display:none;">
-        <h3>Eingehende Anfragen</h3>
-        <div id="friendRequestsList"></div>
-      </div>
-
-      <div class="panel" id="friendSentRequestsPanel" style="display:none;">
-        <h3>Ausstehende Anfragen</h3>
-        <div id="friendSentRequestsList"></div>
-      </div>
-
-      <div class="panel">
-        <h3>Meine Freunde <span class="tag" id="friendCountTag"></span></h3>
-        <div class="sm-hint" style="margin-bottom:8px;">Ein kleines Geschenk (<span id="friendGiftAmountLabel">150</span> NRC) kannst du jedem Freund einmal pro Tag schicken.</div>
-        <div id="friendsList"><div class="sm-hint">Lade Freunde…</div></div>
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="4.7" cy="5" r="1.8" fill="none" stroke="currentColor" stroke-width="1"/><path d="M1.3 11.5C1.3 9.3 2.8 8 4.7 8C6.6 8 8.1 9.3 8.1 11.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><circle cx="9.8" cy="4.3" r="1.4" fill="none" stroke="currentColor" stroke-width="0.9"/><path d="M8.8 8.2C9.1 8 9.5 7.9 9.8 7.9C11.3 7.9 12.4 9 12.4 10.7" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round"/></svg></span> Kommunikation <span class="tag">— Corp-Chat, globaler Chat und Freundesliste in einem Panel</span></h3>
+        <div id="orcaSocialMount"></div>
       </div>
     </div>
 
@@ -3618,6 +3848,16 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
 });
 
+/* ---------- ORCA-SOCIAL: gemeinsames Panel Corp-Chat/Global-Chat/Freunde ----------
+   Liegt als eine Datei unter /assets/orca-social.js und laeuft in allen vier
+   Login-Spielen identisch, damit Chat-Aenderungen nicht viermal nachgezogen
+   werden muessen. Wird erst gestartet, wenn eine Session existiert. */
+sb.auth.getSession().then(function(r){
+  if (r && r.data && r.data.session && window.OrcaSocial) {
+    OrcaSocial.init({ sb: sb, game: 'NEXUS', container: document.getElementById('orcaSocialMount') });
+  }
+});
+
 let currentUser = null;
 function isGuest(){ return currentUser?.email === 'gast@mc-orca-games.local'; }
 let rigTypes = [];
@@ -3639,7 +3879,7 @@ let currentBalance = 0;   // Nova-Rift (volatil, gehalten)
 let storeBalance = 0;     // MOGC / Store-Credits (stabil, zahlt den Premium-Shop)
 let currentRate = 0;
 let latestPrice = 100;    // letzter bekannter Kurs, fuer die Verkaufsvorschau
-let skillNodes = [];       // statischer Katalog, wird einmal geladen
+let skillNodes = [];       // Katalog aus gs.skill_nodes (Aeste + Tiers rein datengetrieben)
 let ownedSkillIds = new Set();
 let prestigePoints = 0;
 let prestigeLevel = 0;
@@ -3774,6 +4014,7 @@ let pulseRigTypes = [];
 let pulsePlayerRigs = {};
 let ionxChart = null;
 let gridChart = null;
+let fluxChart = null;
 let anchChart = null;
 
 /* ---------- Farm-Tab (Reiter Relay): kooperative 3. Mine, siehe crypto_farm.relay_* + platform.*.
@@ -4027,6 +4268,13 @@ function enterGame(){
   const btns = Array.from(nav.querySelectorAll('.main-tab-btn'));
 
   function activateTab(tabId, opts){
+    /* Handelsplatz und Shop sind seit v4.2 keine eigenen Seiten mehr, sondern
+       Kategorien im Handelsplatz-Overlay. Der Tab-Button oeffnet das Overlay
+       und laesst die darunterliegende Seite stehen. */
+    if (tabId === 'handelsplatz' || tabId === 'shop') {
+      openMarketplace(tabId === 'shop' ? 'rigs' : null);
+      return;
+    }
     btns.forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
     document.querySelectorAll('.tab-page').forEach(p => {
       p.classList.toggle('active', p.id === 'tabPage-' + tabId);
@@ -4352,6 +4600,11 @@ function initCharts(){
     data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
     options: miniOpts
   });
+  fluxChart = new Chart(document.getElementById('fluxChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
+    options: miniOpts
+  });
   cycleTradeChart = new Chart(document.getElementById('cycleTradeChart'), {
     type: 'line',
     data: { labels: [], datasets: [{ data: [], borderColor: '#2F8CFF', backgroundColor: 'rgba(47,140,255,0.14)', fill: true, tension: 0.25, borderWidth: 2 }] },
@@ -4526,10 +4779,10 @@ async function applyFullGameState(gs){
   const marketHist = gs.market_price_history;
   const collectedNow = gs.collected_now;
 
-  if (skillNodes.length === 0) {
-    const { data: nodes } = await sb.schema('platform').from('skill_nodes').select('*').order('branch').order('tier');
-    skillNodes = nodes || [];
-  }
+  /* Skillbaum-Katalog kommt seit v4.2 mit im gebuendelten gs-Objekt
+     (platform.get_full_game_state liefert skill_nodes) -- kein zweiter Request
+     mehr, und Aeste/Tiers sind damit vollstaendig datengetrieben. */
+  if (Array.isArray(gs.skill_nodes) && gs.skill_nodes.length) skillNodes = gs.skill_nodes;
   const marketHistOrdered = (marketHist || []).slice().reverse(); // wieder chronologisch (älteste zuerst) fürs Chart
   const marketStatus = gs.market_status || null;
 
@@ -4732,6 +4985,8 @@ async function applyFullGameState(gs){
 
   applyPulseState(gs);
   applyRelayState(gs);
+  applyFluxState(gs);
+  applyFluxMarket(gs);
   applySprungmaerkteState(gs);
   applyForgeState(gs);
 }
@@ -5194,6 +5449,373 @@ function applyRelayState(gs){
 
   updateRelayBoostCostPreview();
 }
+
+/* ============================================================
+   Handelsplatz (v4.2)
+   Vorher: shopList, eventShopList, cosmeticShopWrap als getrennte Listen,
+   dazu CYCLE-, SIGIL- und Aktienmarkt als eigene Panels in drei verschiedenen
+   Tabs -- fuer jeden Kauf ein eigenes kleines Fenster.
+   Jetzt: ein Overlay, links die Kategorien, rechts der Produktbereich.
+
+   Wichtig fuer spaetere Aenderungen: die Panels werden NICHT neu geschrieben,
+   sondern beim Start per appendChild aus ihren alten Containern ins Overlay
+   VERSCHOBEN. appendChild bewegt einen bereits vorhandenen Knoten, dabei
+   bleiben Element-IDs, bereits registrierte Listener und der Zustand erhalten
+   -- renderShop(), renderCosmeticShop(), renderEventShop(), die Orderbuecher
+   und der komplette Aktienmarkt laufen also unveraendert weiter und muessen
+   nichts von diesem Umbau wissen.
+   ============================================================ */
+const MP_CATEGORIES = [
+  { id: 'rigs',        label: 'Rigs & Items',   sub: 'Premium-Shop',      title: 'Premium-Shop & Inventar' },
+  { id: 'kosmetik',    label: 'Kosmetik',       sub: 'Skins & Effekte',   title: 'Kosmetik' },
+  { id: 'event',       label: 'Event-Shop',     sub: 'COMET',             title: 'Event-Shop' },
+  { id: 'cycle',       label: 'CYCLE',          sub: 'Orderbuch',         title: 'CYCLE-Orderbuch' },
+  { id: 'sigil',       label: 'SIGIL',          sub: 'Orderbuch',         title: 'SIGIL-Orderbuch' },
+  { id: 'aktien',      label: 'Aktienmarkt',    sub: 'Firmen & Depot',    title: 'Aktienmarkt' },
+  { id: 'flux',        label: 'Flux-Linie',     sub: 'Umtausch & Bank',   title: 'Flux — Umtausch & Speicher' },
+  { id: 'spielermarkt',label: 'Spieler-Markt',  sub: 'Tauschangebote',    title: 'Spieler-Markt' }
+];
+
+let mpInitialized = false;
+let mpActiveCat = 'rigs';
+
+/* Verschiebt ein Panel ins Overlay und laesst an seiner alten Stelle einen
+   kurzen Verweis zurueck, damit niemand im alten Tab vor einer Luecke steht. */
+function mpMove(pane, node, stubLabel, catId){
+  if (!node) return;
+  if (stubLabel && node.parentNode) {
+    const stub = document.createElement('div');
+    stub.className = 'panel';
+    stub.innerHTML = `<div class="sm-hint">${stubLabel} liegt jetzt im Handelsplatz.</div>`;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-ghost';
+    btn.style.marginTop = '10px';
+    btn.textContent = 'Zum Handelsplatz';
+    btn.addEventListener('click', () => openMarketplace(catId));
+    stub.appendChild(btn);
+    node.parentNode.insertBefore(stub, node);
+  }
+  pane.appendChild(node);   // verschiebt den Knoten samt Listenern und Zustand
+}
+
+function initMarketplace(){
+  if (mpInitialized) return;
+  const side = document.getElementById('mpSide');
+  const content = document.getElementById('mpContent');
+  if (!side || !content) return;
+
+  MP_CATEGORIES.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mp-cat' + (i === 0 ? ' active' : '');
+    btn.dataset.mpcat = c.id;
+    btn.innerHTML = `<span>${c.label}<span class="mp-cat-sub">${c.sub}</span></span>`;
+    btn.addEventListener('click', () => showMarketplaceCategory(c.id));
+    side.appendChild(btn);
+
+    const pane = document.createElement('div');
+    pane.className = 'mp-pane' + (i === 0 ? ' active' : '');
+    pane.id = 'mpPane-' + c.id;
+    content.appendChild(pane);
+  });
+
+  const paneOf = id => document.getElementById('mpPane-' + id);
+
+  // Premium-Shop + Inventar aus dem Shop-Tab
+  const shopList = document.getElementById('shopList');
+  const invList = document.getElementById('inventoryList');
+  mpMove(paneOf('rigs'), shopList && shopList.closest('.panel'));
+  mpMove(paneOf('rigs'), invList && invList.closest('.panel'));
+
+  // Kosmetik: Shop-Karten + eigene Galerie
+  const cosShop = document.getElementById('cosmeticShopWrap');
+  const cosOwned = document.getElementById('cosmeticOwnedWrap');
+  mpMove(paneOf('kosmetik'), cosShop && cosShop.closest('.panel'), 'Der Kosmetik-Shop', 'kosmetik');
+  mpMove(paneOf('kosmetik'), cosOwned && cosOwned.closest('.panel'));
+
+  // Event-Shop
+  const evShop = document.getElementById('eventShopList');
+  mpMove(paneOf('event'), evShop && evShop.closest('.panel'), 'Der Event-Shop', 'event');
+
+  // Orderbuecher und Spieler-Markt aus dem alten Handelsplatz-Tab
+  mpMove(paneOf('cycle'), document.getElementById('mpSrcCycle'));
+  mpMove(paneOf('sigil'), document.getElementById('mpSrcSigil'));
+  mpMove(paneOf('spielermarkt'), document.getElementById('barterMarketPanel'));
+
+  // Aktienmarkt: die komplette Unterseite wandert als ein Block herueber
+  const am = document.getElementById('marktSubpage-aktienmarkt');
+  if (am) { am.style.display = ''; mpMove(paneOf('aktien'), am); }
+
+  // Flux-Umtausch + Speicher
+  const fluxSrc = document.getElementById('mpSrcFlux');
+  if (fluxSrc) {
+    const pane = paneOf('flux');
+    while (fluxSrc.firstElementChild) pane.appendChild(fluxSrc.firstElementChild);
+    fluxSrc.remove();
+  }
+
+  document.getElementById('mpCloseBtn').addEventListener('click', closeMarketplace);
+  document.getElementById('mpOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'mpOverlay') closeMarketplace();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('mpOverlay').classList.contains('open')) closeMarketplace();
+  });
+
+  mpInitialized = true;
+}
+
+function showMarketplaceCategory(catId){
+  const cat = MP_CATEGORIES.find(c => c.id === catId) || MP_CATEGORIES[0];
+  mpActiveCat = cat.id;
+  document.querySelectorAll('#mpSide .mp-cat').forEach(b => {
+    b.classList.toggle('active', b.dataset.mpcat === cat.id);
+  });
+  document.querySelectorAll('#mpContent .mp-pane').forEach(pane => {
+    pane.classList.toggle('active', pane.id === 'mpPane-' + cat.id);
+  });
+  document.getElementById('mpTitle').textContent = cat.title;
+  document.getElementById('mpContent').scrollTop = 0;
+  try { localStorage.setItem('nexusMarketCat', cat.id); } catch (e) {}
+
+  /* Chart.js misst ein Canvas falsch, solange dessen Container display:none ist
+     -- dieselbe Stolperfalle wie beim Markt-Tab in activateTab(). Die Charts der
+     gerade sichtbar gewordenen Kategorie deshalb einmal aktiv neu vermessen. */
+  const MP_CHARTS = {
+    cycle:  () => [cycleTradeChart],
+    sigil:  () => [sigilTradeChart],
+    flux:   () => [fluxChart],
+    aktien: () => [amDetailChart]
+  };
+  if (MP_CHARTS[cat.id]) {
+    requestAnimationFrame(() => {
+      MP_CHARTS[cat.id]().forEach(c => { if (c) c.resize(); });
+    });
+  }
+
+  // Kategorien, deren Daten ueber eigene RPCs laufen, beim Wechsel nachladen
+  if (cat.id === 'cycle' && typeof loadCycleMarket === 'function') loadCycleMarket();
+  if (cat.id === 'sigil' && typeof loadSigilMarket === 'function') loadSigilMarket();
+  if (cat.id === 'spielermarkt' && typeof loadBarterMarket === 'function') loadBarterMarket();
+  if (cat.id === 'aktien' && typeof loadAktienmarkt === 'function') loadAktienmarkt();
+}
+
+window.openMarketplace = function(catId){
+  initMarketplace();
+  document.getElementById('mpOverlay').classList.add('open');
+  let start = catId;
+  if (!start) { try { start = localStorage.getItem('nexusMarketCat'); } catch (e) {} }
+  showMarketplaceCategory(start || mpActiveCat);
+  updateMarketplaceBalance();
+};
+
+function closeMarketplace(){
+  document.getElementById('mpOverlay').classList.remove('open');
+}
+
+function updateMarketplaceBalance(){
+  const el = document.getElementById('mpBalance');
+  if (el) el.textContent = `${fmtCoin(storeBalance)} MOGC · ${fmtCoin(currentBalance)} NRC`;
+}
+
+/* Einmalig beim Laden: die Panels wandern sofort ins Overlay, damit die
+   Platzhalter-Hinweise in den alten Tabs von Anfang an stimmen. */
+initMarketplace();
+wireFluxMarket();
+
+/* ============================================================
+   Flux-Linie (4. Foerderlinie, crypto_farm.flux_*)
+   Mechanik "Resonanz": der Ertragsfaktor haengt an der Zeit seit der letzten
+   Abholung -- 0,60 bei 0 h, 2,00 bei 6 h, dann Abfall auf 0,70 ab 24 h.
+   Der Faktor gilt fuer das GESAMTE verstrichene Fenster, nicht nur fuer die
+   letzte Stunde; deshalb ist der 6-Stunden-Rhythmus das Optimum und nicht
+   einfach "je laenger, desto besser" (Pulse) oder "je mehr Rigs" (Relay).
+   Liest wie Pulse/Relay ausschliesslich aus dem gebuendelten gs-Objekt.
+   ============================================================ */
+let fluxRigTypes = [];
+let fluxPlayerRigs = {};
+let fluxBalance = 0;
+let fluxVaultBalance = 0;
+let fluxOwnRate = 0;
+let fluxResonance = 0;
+let fluxHoursSince = 0;
+let fluxLatestPrice = null;
+
+/* Position des Markers auf der Kurve: 0-6 h auf den ersten 25 % der Breite,
+   6-24 h auf den restlichen 75 % -- passend zur CSS-Verlaufsfuellung. */
+function fluxCurvePct(hours){
+  if (hours <= 6) return (hours / 6) * 25;
+  if (hours >= 24) return 100;
+  return 25 + ((hours - 6) / 18) * 75;
+}
+
+function applyFluxState(gs){
+  const fs = gs.flux_status || null;
+  fluxBalance = Number(fs?.flux_balance ?? 0);
+  fluxVaultBalance = Number(fs?.fvlt_balance ?? 0);
+  fluxOwnRate = Number(fs?.own_rate ?? 0);
+  fluxResonance = Number(fs?.resonance ?? 0);
+  fluxHoursSince = Number(fs?.hours_since_collect ?? 0);
+
+  document.querySelectorAll('.js-balance-flux').forEach(el => { el.textContent = fmtCoin(fluxBalance) + ' FLUX'; });
+  document.querySelectorAll('.js-balance-fvlt').forEach(el => { el.textContent = fmtCoin(fluxVaultBalance) + ' FVLT'; });
+
+  const rateEl = document.getElementById('fluxOwnRateDisplay');
+  if (rateEl) rateEl.textContent = `Basisrate ${fluxOwnRate.toFixed(4)} Flux/s · aktuell ${(fluxOwnRate * fluxResonance).toFixed(4)} Flux/s`;
+
+  const resEl = document.getElementById('fluxResonanceDisplay');
+  if (resEl) resEl.textContent = fluxResonance ? `${fluxResonance.toFixed(2)}×` : '–';
+  const resSub = document.getElementById('fluxResonanceSub');
+  if (resSub) {
+    const rising = fluxHoursSince < 6;
+    resSub.innerHTML = `seit ${fmtDuration(fluxHoursSince * 3600000)} nicht abgeholt ` +
+      `<span style="color:${rising ? 'var(--up)' : 'var(--down)'}">${rising ? '▲ lädt' : '▼ entlädt'}</span>`;
+  }
+
+  const peakEl = document.getElementById('fluxPeakDisplay');
+  const peakSecs = Number(fs?.peak_in_seconds ?? 0);
+  if (peakEl) peakEl.textContent = peakSecs > 0 ? 'in ' + fmtDuration(peakSecs * 1000) : 'erreicht';
+  const bestEl = document.getElementById('fluxBestDisplay');
+  if (bestEl) bestEl.textContent = `bester Faktor bisher: ${Number(fs?.best_resonance ?? 0).toFixed(2)}×`;
+
+  const marker = document.getElementById('fluxCurveMarker');
+  if (marker) marker.style.left = fluxCurvePct(fluxHoursSince).toFixed(1) + '%';
+
+  const hint = document.getElementById('fluxHint');
+  if (hint) hint.style.display = fluxOwnRate > 0 ? 'none' : 'block';
+
+  fluxRigTypes = gs.flux_rig_types || [];
+  fluxPlayerRigs = {};
+  (gs.flux_player_rigs || []).forEach(r => { fluxPlayerRigs[r.rig_type_id] = r.quantity; });
+  renderFluxRigs();
+}
+
+/* ---------- Flux-Markt: Kurs, Umtausch gegen Nova-Rift, FVLT-Speicher ----------
+   Kursbildung invers zur globalen Foerderrate, exakt nach dem Muster von
+   platform.tick_ionx_market(): viel Flux im Umlauf -> Kurs faellt. */
+function applyFluxMarket(gs){
+  const st = gs.flux_market || null;
+  const hist = (gs.flux_price_history || []).slice().reverse();
+  const last = hist.length ? hist[hist.length - 1].price : null;
+  const prev = hist.length > 1 ? hist[hist.length - 2].price : last;
+  const up = last != null && prev != null && last >= prev;
+  if (last != null) fluxLatestPrice = Number(last);
+  else if (st) fluxLatestPrice = Number(st.price);
+
+  const priceEl = document.getElementById('fluxPriceDisplay');
+  if (priceEl) priceEl.innerHTML = last != null
+    ? `Kurs: ${Number(last).toFixed(2)} <span style="color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲' : '▼'}</span>`
+    : 'Kurs: –';
+  const rateEl = document.getElementById('fluxRateDisplay');
+  if (rateEl) rateEl.textContent = st
+    ? `Förderrate-Index: ${Number(st.flux_rate_index).toFixed(2)}× (relativ zum 24h-Schnitt) — hoch = Kurs sinkt`
+    : 'Förderrate-Index: –';
+
+  if (fluxChart) { updateChart(fluxChart, hist, 'price'); setChartTrendColor([fluxChart], up); }
+  updateFluxTradePreview();
+}
+
+function updateFluxTradePreview(){
+  const el = document.getElementById('fluxTradePreview');
+  if (!el || !fluxLatestPrice) return;
+  const buy = Number(document.getElementById('fluxBuyInput')?.value) || 0;
+  const sell = Number(document.getElementById('fluxSellInput')?.value) || 0;
+  const parts = [`1 Flux = ${(fluxLatestPrice / 100).toFixed(4)} Nova-Rift`];
+  if (buy > 0) parts.push(`${fmtCoin(buy)} NRC → ca. ${fmtCoin(buy / (fluxLatestPrice / 100))} FLUX`);
+  if (sell > 0) parts.push(`${fmtCoin(sell)} FLUX → ca. ${fmtCoin(sell * (fluxLatestPrice / 100))} NRC`);
+  el.textContent = parts.join(' · ');
+}
+
+function wireFluxMarket(){
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+  const onInput = (id) => { const el = document.getElementById(id); if (el) el.addEventListener('input', updateFluxTradePreview); };
+  onInput('fluxBuyInput'); onInput('fluxSellInput');
+
+  on('fluxBuyMaxBtn', () => { document.getElementById('fluxBuyInput').value = currentBalance; updateFluxTradePreview(); });
+  on('fluxSellMaxBtn', () => { document.getElementById('fluxSellInput').value = fluxBalance; updateFluxTradePreview(); });
+  on('fvltDepositMaxBtn', () => { document.getElementById('fvltDepositInput').value = fluxBalance; });
+  on('fvltWithdrawMaxBtn', () => { document.getElementById('fvltWithdrawInput').value = fluxVaultBalance; });
+
+  async function run(rpcName, argName, inputId, btnId, okText){
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    const amount = Number(input.value);
+    if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte einen Betrag größer als 0 eingeben.', false); return; }
+    btn.disabled = true;
+    const args = {}; args[argName] = amount;
+    const { error } = await sb.schema('platform').rpc(rpcName, args);
+    btn.disabled = false;
+    if (error) { showMsg('statusMsg', error.message, false); return; }
+    input.value = '';
+    showMsg('statusMsg', okText, true, 'coin');
+    await loadEverything({ light: true });
+  }
+
+  on('fluxBuyBtn',      () => run('buy_flux', 'p_nova_rift_amount', 'fluxBuyInput', 'fluxBuyBtn', 'Flux gekauft.'));
+  on('fluxSellBtn',     () => run('sell_flux', 'p_flux_amount', 'fluxSellInput', 'fluxSellBtn', 'Flux verkauft.'));
+  on('fvltDepositBtn',  () => run('deposit_to_flux_vault', 'p_flux_amount', 'fvltDepositInput', 'fvltDepositBtn', 'In den Flux-Speicher eingezahlt.'));
+  on('fvltWithdrawBtn', () => run('withdraw_from_flux_vault', 'p_fvlt_amount', 'fvltWithdrawInput', 'fvltWithdrawBtn', 'Aus dem Flux-Speicher ausgezahlt.'));
+}
+
+function renderFluxRigs(){
+  const el = document.getElementById('fluxRigList');
+  if (!el) return;
+  el.innerHTML = '';
+  fluxRigTypes.forEach(rt => {
+    const owned = fluxPlayerRigs[rt.id] || 0;
+    const cost1 = rigCost(rt, owned, 1);
+    const cost10 = rigCost(rt, owned, 10);
+    const row = document.createElement('div');
+    row.className = 'rig-row';
+    row.innerHTML = `
+      <div class="rig-row-main">
+        <div class="rig-icon-tile"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2 7C3 3.5 5 3.5 7 7C9 10.5 11 10.5 12 7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="7" r="1" fill="currentColor"/></svg></span></div>
+        <div>
+          <div class="rig-name">${rt.name} <span class="qty-badge">×${owned}</span></div>
+          <div class="rig-desc">${rt.description ?? ''}</div>
+          <div class="rig-meta">${Number(rt.base_rate)} Flux/s pro Einheit (×&nbsp;Resonanzfaktor)</div>
+        </div>
+      </div>
+      <div class="buy-btn-group">
+        <button data-qty="1" data-cost="${cost1}">+1 (${fmtCoin(cost1)} MOGC)</button>
+        <button data-qty="10" data-cost="${cost10}">+10 (${fmtCoin(cost10)} MOGC)</button>
+      </div>`;
+    row.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => buyFluxRig(rt.id, parseInt(btn.dataset.qty, 10), btn));
+    });
+    el.appendChild(row);
+  });
+}
+
+window.buyFluxRig = async function(rigTypeId, qty, btnEl){
+  const { data, error } = await sb.schema('crypto_farm').rpc('buy_flux_rig', { p_rig_type_id: rigTypeId, p_quantity: qty });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${qty}× Flux-Kondensator für ${fmtCoin(row?.total_cost ?? 0)} MOGC.`, true);
+  spawnFly('-' + fmtCoin(row?.total_cost ?? 0) + ' MOGC', btnEl, false);
+  await loadEverything({ light: true });
+};
+
+/* Abholen: laeuft zusaetzlich zum 5-Min-Cron collect_all_flux_earnings(). */
+document.getElementById('fluxCollectBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('fluxCollectBtn');
+  if (fluxHoursSince < 6 && fluxOwnRate > 0) {
+    const missing = fmtDuration(Math.max((6 - fluxHoursSince) * 3600000, 0));
+    if (!confirm(`Die Resonanz steht erst bei ${fluxResonance.toFixed(2)}× und erreicht in ${missing} ihr Maximum von 2,00×. Trotzdem jetzt abholen?`)) return;
+  }
+  btn.disabled = true;
+  const { data, error } = await sb.schema('crypto_farm').rpc('collect_flux_earnings');
+  btn.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const amt = Number(data) || 0;
+  if (amt > 0.0001) spawnFly('+' + fmtCoin(amt) + ' FLUX', btn, true);
+  await loadEverything({ light: true });
+});
+
+document.getElementById('fluxToMarketBtn').addEventListener('click', () => {
+  if (window.openMarketplace) openMarketplace('flux');
+});
 
 /* ---------- Relay-Rigs (Kosten in MOGC, siehe crypto_farm.buy_relay_rig) ---------- */
 function renderRelayRigs(){
@@ -6391,128 +7013,16 @@ function fmtLastActive(iso){
 }
 
 async function loadFriendsTab(){
-  if (friendsLoading) return;
-  friendsLoading = true;
-  clearMsg('friendsStatusMsg');
-  try {
-    await Promise.all([renderFriendRequests(), renderSentFriendRequests(), renderFriendsList()]);
-  } finally {
-    friendsLoading = false;
-  }
+  /* Freundesliste, Anfragen und Geschenke laufen seit v4.2 komplett ueber das
+     gemeinsame Panel /assets/orca-social.js (Tab "Freunde"). Die frueheren
+     renderFriendRequests/renderSentFriendRequests/renderFriendsList sind
+     ersatzlos entfallen, ihre DOM-Ziele gibt es in diesem Tab nicht mehr. */
+  if (window.OrcaSocial && OrcaSocial.refreshGuild) OrcaSocial.refreshGuild();
 }
 
-async function renderFriendRequests(){
-  const panel = document.getElementById('friendRequestsPanel');
-  const wrap = document.getElementById('friendRequestsList');
-  const { data, error } = await sb.schema('platform').rpc('get_my_friend_requests');
-  if (error || !data || !data.length) { panel.style.display = 'none'; return; }
-  panel.style.display = '';
-  wrap.innerHTML = data.map(req => `
-    <div class="guild-row">
-      <div>
-        <div class="gr-main">${req.sender_username || 'Unbekannt'}</div>
-        <div class="gr-sub">${new Date(req.created_at).toLocaleString('de-DE')}</div>
-      </div>
-      <div class="gr-actions">
-        <button type="button" class="btn btn-primary" data-friend-accept="${req.id}">Annehmen</button>
-        <button type="button" class="btn btn-ghost" data-friend-decline="${req.id}">Ablehnen</button>
-      </div>
-    </div>`).join('');
-
-  wrap.querySelectorAll('[data-friend-accept]').forEach(btn => btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    const { error } = await sb.schema('platform').rpc('resolve_friend_request', { p_request_id: btn.dataset.friendAccept, p_accept: true });
-    if (error) { showMsg('friendsStatusMsg', error.message, false); btn.disabled = false; return; }
-    showMsg('friendsStatusMsg', 'Ihr seid jetzt befreundet!', true, 'success');
-    await loadFriendsTab();
-  }));
-  wrap.querySelectorAll('[data-friend-decline]').forEach(btn => btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    await sb.schema('platform').rpc('resolve_friend_request', { p_request_id: btn.dataset.friendDecline, p_accept: false });
-    await loadFriendsTab();
-  }));
-}
-
-async function renderSentFriendRequests(){
-  const panel = document.getElementById('friendSentRequestsPanel');
-  const wrap = document.getElementById('friendSentRequestsList');
-  const { data, error } = await sb.schema('platform').rpc('get_my_sent_friend_requests');
-  if (error || !data || !data.length) { panel.style.display = 'none'; return; }
-  panel.style.display = '';
-  wrap.innerHTML = data.map(req => `
-    <div class="guild-row">
-      <div>
-        <div class="gr-main">${req.recipient_username || 'Unbekannt'}</div>
-        <div class="gr-sub">Gesendet ${new Date(req.created_at).toLocaleString('de-DE')}</div>
-      </div>
-      <div class="gr-actions">
-        <button type="button" class="btn btn-ghost" data-friend-cancel="${req.id}">Zurückziehen</button>
-      </div>
-    </div>`).join('');
-
-  wrap.querySelectorAll('[data-friend-cancel]').forEach(btn => btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    const { error } = await sb.schema('platform').rpc('cancel_friend_request', { p_request_id: btn.dataset.friendCancel });
-    if (error) { showMsg('friendsStatusMsg', error.message, false); btn.disabled = false; return; }
-    await loadFriendsTab();
-  }));
-}
-
-async function renderFriendsList(){
-  const wrap = document.getElementById('friendsList');
-  const countTag = document.getElementById('friendCountTag');
-  const { data, error } = await sb.schema('platform').rpc('get_my_friends');
-  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Freundesliste nicht laden.</div>'; return; }
-  const rows = data || [];
-  countTag.textContent = rows.length ? `${rows.length}` : '';
-  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Noch keine Freunde — sende oben eine Anfrage per Username.</div>'; return; }
-
-  wrap.innerHTML = rows.map(f => {
-    const giftBtn = f.gift_sent_today
-      ? '<span class="sm-hint">heute schon geschenkt</span>'
-      : `<button type="button" class="btn btn-primary" data-friend-gift="${f.player_id}">Geschenk senden</button>`;
-    return `
-      <div class="guild-row">
-        <div>
-          <div class="gr-main">${f.username || 'Unbekannt'}</div>
-          <div class="gr-sub">${fmtLastActive(f.last_active)} · befreundet seit ${new Date(f.friends_since).toLocaleDateString('de-DE')}</div>
-        </div>
-        <div class="gr-actions">
-          ${giftBtn}
-          <button type="button" class="btn btn-ghost" data-friend-remove="${f.player_id}">Entfernen</button>
-        </div>
-      </div>`;
-  }).join('');
-
-  wrap.querySelectorAll('[data-friend-gift]').forEach(btn => btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    const { error } = await sb.schema('platform').rpc('send_friend_gift', { p_recipient_id: btn.dataset.friendGift });
-    if (error) { showMsg('friendsStatusMsg', error.message, false); btn.disabled = false; return; }
-    showMsg('friendsStatusMsg', 'Geschenk gesendet!', true, 'coin');
-    await renderFriendsList();
-  }));
-  wrap.querySelectorAll('[data-friend-remove]').forEach(btn => btn.addEventListener('click', async () => {
-    if (!confirm('Diesen Freund wirklich entfernen?')) return;
-    btn.disabled = true;
-    const { error } = await sb.schema('platform').rpc('remove_friend', { p_player_id: btn.dataset.friendRemove });
-    if (error) { showMsg('friendsStatusMsg', error.message, false); btn.disabled = false; return; }
-    await renderFriendsList();
-  }));
-}
-
-document.getElementById('friendAddBtn').addEventListener('click', async () => {
-  const input = document.getElementById('friendAddUsernameInput');
-  const username = input.value.trim();
-  if (!username) return;
-  const btn = document.getElementById('friendAddBtn');
-  btn.disabled = true;
-  const { error } = await sb.schema('platform').rpc('send_friend_request', { p_username: username });
-  btn.disabled = false;
-  if (error) { showMsg('friendsStatusMsg', error.message, false); return; }
-  showMsg('friendsStatusMsg', 'Anfrage gesendet.', true, 'success');
-  input.value = '';
-  await loadFriendsTab();
-});
+/* Das Eingabefeld zum Hinzufuegen von Freunden liegt seit v4.2 im gemeinsamen
+   Panel (/assets/orca-social.js). Der fruehere Listener auf #friendAddBtn ist
+   damit entfallen -- das Element existiert in diesem Tab nicht mehr. */
 
 /* ---------- Corps/Teams ---------- */
 let guildLoading = false;
@@ -6596,7 +7106,7 @@ async function renderGuildBrowse(p_search){
       <div class="guild-row">
         <div>
           <div class="gr-main">[${g.tag}] ${g.name}</div>
-          <div class="gr-sub">${g.member_count}/${g.member_cap} Mitglieder · ${GUILD_JOIN_MODE_LABEL[g.join_mode]} · Kasse ${fmtCoin(g.treasury_balance)} MOGC · Ausbau ${g.dividend_tier}/4</div>
+          <div class="gr-sub">${g.member_count}/${g.member_cap} Mitglieder · ${GUILD_JOIN_MODE_LABEL[g.join_mode]} · Kasse ${fmtCoin(g.treasury_balance)} MOGC · Förder-Ast ${g.dividend_tier}/6</div>
         </div>
         <div class="gr-actions">${actionHtml}</div>
       </div>`;
@@ -6635,7 +7145,7 @@ async function renderGuildMine(guild){
   document.getElementById('guildMineTitle').innerHTML = `<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> [${guild.tag}] ${guild.name}`;
   document.getElementById('guildMineJoinMode').textContent = GUILD_JOIN_MODE_LABEL[guild.join_mode] || guild.join_mode;
   document.getElementById('guildMineMeta').innerHTML =
-    `${guild.member_count}/${guild.member_cap} Mitglieder · deine Rolle: ${guild.my_role === 'leader' ? 'Leiter' : guild.my_role === 'officer' ? 'Offizier' : 'Mitglied'} · gegründet ${new Date(guild.created_at).toLocaleDateString('de-DE')} · Corp-Steuer: ${guild.tax_percent}% · ${guild.dividend_unlocked ? 'tägliche Dividende aktiv <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.3 7.2L6.2 9.1L9.8 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' : 'Dividende ab Vollausbau <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 6V4a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span>'}`;
+    `${guild.member_count}/${guild.member_cap} Mitglieder${guild.member_cap > guild.base_member_cap ? ` (${guild.base_member_cap} + ${guild.member_cap - guild.base_member_cap} aus dem Mitglieder-Ast)` : ''} · deine Rolle: ${guild.my_role === 'leader' ? 'Leiter' : guild.my_role === 'officer' ? 'Offizier' : 'Mitglied'} · gegründet ${new Date(guild.created_at).toLocaleDateString('de-DE')} · Corp-Steuer: ${guild.tax_percent}% · Dividendensatz ${(guild.dividend_rate_bp/100).toFixed(2)}%/Tag${guild.treasury_interest_bp > 0 ? ` · Kassenzins ${(guild.treasury_interest_bp/100).toFixed(2)}%/Tag` : ''}${guild.prestige_bonus_bp > 0 ? ` · +${(guild.prestige_bonus_bp/100).toFixed(0)}% Prestige` : ''} · ${guild.dividend_unlocked ? 'tägliche Dividende aktiv <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.3 7.2L6.2 9.1L9.8 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' : 'Dividende ab vollem Förder-Ast <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 6V4a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span>'}`;
 
   const isLeader = guild.my_role === 'leader';
   const isOfficer = guild.my_role === 'officer' || isLeader;
@@ -6835,25 +7345,68 @@ async function renderGuildJoinRequests(guildId){
   }));
 }
 
+const GUILD_BRANCH_LABELS = {
+  foerderung:   'Förderung',
+  schatzkammer: 'Schatzkammer',
+  mitglieder:   'Mitgliederausbau',
+  prestige:     'Ruhm & Prestige'
+};
+
+/* Ein Upgrade-Effekt kann seit v4.2 mehr sein als nur Fördermenge --
+   die Meta-Zeile wird deshalb aus effect_key/effect_value gebaut. */
+function guildEffectLabel(u){
+  const v = Number(u.effect_value || 0);
+  switch (u.effect_key) {
+    case 'production_boost_bp':  return `+${(v / 100).toFixed(1)}% Fördermenge`;
+    case 'dividend_rate_bp':     return `+${(v / 100).toFixed(1)}% Tagesdividende`;
+    case 'treasury_interest_bp': return `+${(v / 100).toFixed(2)}% Kassenzins/Tag`;
+    case 'member_cap_bonus':     return `+${v} Mitgliederplätze`;
+    case 'prestige_bonus_bp':    return `+${(v / 100).toFixed(1)}% Prestige-Punkte`;
+    default:                     return `Stufe ${u.tier}`;
+  }
+}
+
 async function renderGuildUpgrades(guildId, isOfficer){
   const wrap = document.getElementById('guildUpgradesList');
   const { data, error } = await sb.schema('platform').rpc('get_guild_upgrade_catalog', { p_guild_id: guildId });
   if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Upgrades nicht laden.</div>'; return; }
   const rows = data || [];
+  if (!rows.length) { wrap.innerHTML = '<div class="sm-hint">Keine Upgrades verfügbar.</div>'; return; }
 
-  wrap.innerHTML = rows.map(u => {
-    let actionHtml;
-    if (u.owned) actionHtml = '<span class="sm-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.3 7.2L6.2 9.1L9.8 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span> freigeschaltet</span>';
-    else if (!u.purchasable) actionHtml = '<span class="sm-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 6V4a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span> gesperrt</span>';
-    else if (isOfficer) actionHtml = `<button type="button" class="btn btn-primary" data-buy-upgrade="${u.key}">${fmtCoin(u.cost_mogc)} MOGC</button>`;
-    else actionHtml = `<span class="sm-hint">${fmtCoin(u.cost_mogc)} MOGC</span>`;
-    return `
-      <div class="guild-upgrade-card ${u.owned ? 'owned' : ''}">
-        <div class="gu-name">${u.name}</div>
-        <div class="gu-desc">${u.description}</div>
-        <div class="gu-meta"><span>Stufe ${u.tier} · +${(u.production_boost_bp / 100).toFixed(1)}% Fördermenge</span>${actionHtml}</div>
-      </div>`;
-  }).join('') || '<div class="sm-hint">Keine Upgrades verfügbar.</div>';
+  /* Aeste aus den Daten ableiten (Reihenfolge ueber sort_order), damit ein
+     spaeter ergaenzter Ast ohne Frontend-Aenderung erscheint. */
+  const branches = [];
+  rows.forEach(u => {
+    let b = branches.find(x => x.key === u.branch);
+    if (!b) { b = { key: u.branch, order: Number(u.sort_order ?? 999), nodes: [] }; branches.push(b); }
+    b.order = Math.min(b.order, Number(u.sort_order ?? 999));
+    b.nodes.push(u);
+  });
+  branches.sort((a, b) => a.order - b.order);
+
+  const ICON_OK = '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.3 7.2L6.2 9.1L9.8 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+  const ICON_LOCK = '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 6V4a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span>';
+
+  wrap.innerHTML = branches.map(b => {
+    const nodes = b.nodes.slice().sort((x, y) => x.tier - y.tier);
+    const ownedCount = nodes.filter(n => n.owned).length;
+    const cards = nodes.map(u => {
+      let actionHtml;
+      if (u.owned) actionHtml = `<span class="sm-hint">${ICON_OK} freigeschaltet</span>`;
+      else if (!u.purchasable) actionHtml = `<span class="sm-hint">${ICON_LOCK} gesperrt</span>`;
+      else if (isOfficer) actionHtml = `<button type="button" class="btn btn-primary" data-buy-upgrade="${u.key}">${fmtCoin(u.cost_mogc)} MOGC</button>`;
+      else actionHtml = `<span class="sm-hint">${fmtCoin(u.cost_mogc)} MOGC</span>`;
+      const cls = u.owned ? 'owned' : (u.purchasable ? '' : 'locked');
+      return `
+        <div class="guild-upgrade-card ${cls}">
+          <div class="gu-name">${u.name}</div>
+          <div class="gu-desc">${u.description}</div>
+          <div class="gu-meta"><span>Stufe ${u.tier} · ${guildEffectLabel(u)}</span>${actionHtml}</div>
+        </div>`;
+    }).join('');
+    const label = GUILD_BRANCH_LABELS[b.key] || b.key;
+    return `<div class="gu-branch"><h4>${label}<span class="tag">${ownedCount}/${nodes.length}</span></h4>${cards}</div>`;
+  }).join('');
 
   wrap.querySelectorAll('[data-buy-upgrade]').forEach(btn => btn.addEventListener('click', async () => {
     btn.disabled = true;
@@ -8044,22 +8597,48 @@ window.doPrestige = async function(){
 };
 
 /* ---------- Skillbaum ---------- */
-const SKILL_BRANCH_LABELS = { produktion: '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="2.3" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M7 1.5V3.2M7 10.8V12.5M1.5 7H3.2M10.8 7H12.5M3 3L4.2 4.2M9.8 9.8L11 11M11 3L9.8 4.2M4.2 9.8L3 11" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Produktion', markt: '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 11L5 6.5L7.5 8.8L12.5 2.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 2.5H12.5V6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Markt', oekonomie: '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M5 3L9 3L11 6C12 8 11 12 7 12C3 12 2 8 3 6Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="5" y1="3" x2="4" y2="1.5" stroke="currentColor" stroke-width="1"/><line x1="9" y1="3" x2="10" y2="1.5" stroke="currentColor" stroke-width="1"/></svg></span> Ökonomie' };
+/* Astbeschriftung: die Icons bleiben fuer die drei urspruenglichen Aeste
+   erhalten, neue Aeste bringen ihr Label per skill_nodes.branch_label mit --
+   so muss beim Anlegen eines weiteren Astes hier nichts nachgezogen werden. */
+const SKILL_BRANCH_ICONS = {
+  produktion: '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="2.3" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M7 1.5V3.2M7 10.8V12.5M1.5 7H3.2M10.8 7H12.5M3 3L4.2 4.2M9.8 9.8L11 11M11 3L9.8 4.2M4.2 9.8L3 11" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span>',
+  markt: '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 11L5 6.5L7.5 8.8L12.5 2.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 2.5H12.5V6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>',
+  oekonomie: '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M5 3L9 3L11 6C12 8 11 12 7 12C3 12 2 8 3 6Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="5" y1="3" x2="4" y2="1.5" stroke="currentColor" stroke-width="1"/><line x1="9" y1="3" x2="10" y2="1.5" stroke="currentColor" stroke-width="1"/></svg></span>',
+  automatisierung: '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4.5" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="7" cy="3" r="1.2" fill="none" stroke="currentColor" stroke-width="1"/><line x1="7" y1="4.2" x2="7" y2="4.5" stroke="currentColor" stroke-width="1"/><circle cx="5.3" cy="7.3" r="0.8" fill="currentColor"/><circle cx="8.7" cy="7.3" r="0.8" fill="currentColor"/></svg></span>',
+  risiko: '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.8L12.8 11.8H1.2L7 1.8Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="7" y1="5.6" x2="7" y2="8.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="10.2" r="0.75" fill="currentColor"/></svg></span>',
+  governance: '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 5L7 2L12.5 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="3.2" y1="5.8" x2="3.2" y2="10.5" stroke="currentColor" stroke-width="1.1"/><line x1="7" y1="5.8" x2="7" y2="10.5" stroke="currentColor" stroke-width="1.1"/><line x1="10.8" y1="5.8" x2="10.8" y2="10.5" stroke="currentColor" stroke-width="1.1"/><line x1="1.8" y1="11.8" x2="12.2" y2="11.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span>'
+};
+
+function skillBranches(){
+  /* Reihenfolge aus branch_order (DB), Beschriftung aus branch_label -- keine
+     feste Astliste und kein hartkodiertes Tier-Limit mehr im Frontend. */
+  const seen = new Map();
+  skillNodes.forEach(n => {
+    if (seen.has(n.branch)) return;
+    seen.set(n.branch, {
+      key: n.branch,
+      label: n.branch_label || n.branch,
+      order: Number(n.branch_order ?? 999)
+    });
+  });
+  return [...seen.values()].sort((a, b) => a.order - b.order || a.key.localeCompare(b.key));
+}
 
 function renderSkillTree(){
   const el = document.getElementById('skillTree');
   el.innerHTML = '';
-  const branches = ['produktion', 'markt', 'oekonomie'];
-  branches.forEach(branch => {
-    const nodes = skillNodes.filter(n => n.branch === branch).sort((a, b) => a.tier - b.tier);
+  skillBranches().forEach(branch => {
+    const nodes = skillNodes.filter(n => n.branch === branch.key).sort((a, b) => a.tier - b.tier);
     if (nodes.length === 0) return;
+    const ownedCount = nodes.filter(n => ownedSkillIds.has(n.id)).length;
     const col = document.createElement('div');
     col.className = 'skill-branch';
-    col.innerHTML = `<h4>${SKILL_BRANCH_LABELS[branch] || branch}</h4>`;
-    let prevOwned = true; // Tier 1 hat keine Voraussetzung
+    col.innerHTML = `<h4>${SKILL_BRANCH_ICONS[branch.key] || ''} ${branch.label}
+      <span class="tag" style="font-family:var(--font-mono, ui-monospace, monospace)">${ownedCount}/${nodes.length}</span></h4>`;
+    let prevOwned = true; // erste Stufe im Ast hat keine Voraussetzung
     nodes.forEach(node => {
       const owned = ownedSkillIds.has(node.id);
-      const unlocked = prevOwned; // Vorstufe freigeschaltet?
+      const unlocked = prevOwned;
       const affordable = prestigePoints >= Number(node.cost_points);
       const card = document.createElement('div');
       card.className = 'skill-node' + (owned ? ' owned' : (unlocked ? ' available' : ''));
@@ -8681,11 +9260,13 @@ document.querySelectorAll('#amTable th[data-sort]').forEach(th => th.addEventLis
 }));
 
 document.querySelectorAll('.markt-subnav-btn').forEach(btn => btn.addEventListener('click', () => {
-  document.querySelectorAll('.markt-subnav-btn').forEach(b => b.classList.toggle('active', b === btn));
   const sub = btn.dataset.marktsub;
-  document.getElementById('marktSubpage-sprungmaerkte').style.display = sub === 'sprungmaerkte' ? '' : 'none';
-  document.getElementById('marktSubpage-aktienmarkt').style.display = sub === 'aktienmarkt' ? '' : 'none';
-  if (sub === 'aktienmarkt') loadAktienmarkt();
+  /* Der Aktienmarkt liegt seit v4.2 als Kategorie im Handelsplatz-Overlay --
+     seine Unterseite wurde dorthin verschoben (siehe initMarketplace). Der
+     Knopf hier bleibt als Einstiegspunkt erhalten und oeffnet das Overlay. */
+  if (sub === 'aktienmarkt') { openMarketplace('aktien'); return; }
+  document.querySelectorAll('.markt-subnav-btn').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('marktSubpage-sprungmaerkte').style.display = '';
 }));
 
 document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListener('click', () => {

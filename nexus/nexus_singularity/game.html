@@ -846,12 +846,23 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/assets/orca-social.js"></script>
 <script>
 /* ---------- Supabase-Client (gleicher Account wie andere Spiele) ---------- */
 const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
+});
+
+/* ---------- ORCA-SOCIAL: gemeinsames Panel Corp-Chat/Global-Chat/Freunde ----------
+   Liegt als eine Datei unter /assets/orca-social.js und laeuft in allen vier
+   Login-Spielen identisch, damit Chat-Aenderungen nicht viermal nachgezogen
+   werden muessen. Wird erst gestartet, wenn eine Session existiert. */
+sb.auth.getSession().then(function(r){
+  if (r && r.data && r.data.session && window.OrcaSocial) {
+    OrcaSocial.init({ sb: sb, game: 'NEXUS SINGULARITY' });
+  }
 });
 
 let currentUser = null;

@@ -1813,8 +1813,41 @@
       cards.push(gameCardEl('var(--violet)', 'Astrion', emptyMsg('Statistiken konnten nicht geladen werden.')));
     }
 
+    // --- Nexus: die vier Foerderlinien ---
+    // Nexus liegt nicht im generischen 'saves'-Blob wie die vier Spiele oben,
+    // sondern in platform.wallets / platform.wallet_balances -- deshalb hier
+    // ueber RPCs statt ueber die saves-Tabelle. Rein lesend.
+    try{
+      var wRes = await supabaseClient.schema('platform').rpc('get_my_wallet_balances');
+      if(wRes.error) throw wRes.error;
+      var bal = {};
+      (wRes.data || []).forEach(function(r){ bal[r.symbol] = Number(r.balance) || 0; });
+
+      var fRes = await supabaseClient.schema('crypto_farm').rpc('get_flux_status');
+      var flux = (!fRes.error && fRes.data && fRes.data[0]) || null;
+
+      var grid = document.createElement('div'); grid.className = 'stats-grid';
+      grid.appendChild(statTile(num(bal.PULSE), 'PULSE — Feld'));
+      grid.appendChild(statTile(num(bal.RELAY), 'RELAY — Netzwerk'));
+      grid.appendChild(statTile(num(bal.FLUX), 'FLUX — Resonanz'));
+      grid.appendChild(statTile(num(bal.FVLT), 'FVLT — Flux-Speicher'));
+      if(flux){
+        grid.appendChild(statTile(Number(flux.resonance || 0).toFixed(2) + '\u00d7', 'Resonanz gerade'));
+        grid.appendChild(statTile(Number(flux.best_resonance || 0).toFixed(2) + '\u00d7', 'Bester Faktor bisher'));
+      }
+      cards.push(gameCardEl('#2FD8C3', 'Nexus \u2014 F\u00f6rderlinien', grid));
+    }catch(e){
+      console.warn('Nexus-Foerderlinien konnten nicht geladen werden', e);
+      cards.push(gameCardEl('#2FD8C3', 'Nexus \u2014 F\u00f6rderlinien', emptyMsg('Statistiken konnten nicht geladen werden.')));
+    }
+
     statsGames.innerHTML = '';
     cards.forEach(function(c){ statsGames.appendChild(c); });
+  }
+
+  function num(n){
+    n = Number(n) || 0;
+    try{ return Math.round(n).toLocaleString('de-DE'); }catch(e){ return String(Math.round(n)); }
   }
 
   // Denkmal: reine Statistik-Anzeige aus platform.get_my_monument() (Nexus) --
