@@ -956,6 +956,7 @@
 </style>
 </head>
 <body>
+<script src="/assets/orca-settings.js" data-sections="music"></script>
 
 <canvas id="stars"></canvas>
 
@@ -1424,40 +1425,24 @@
 })();
 </script>
 
-<!-- ---------- Musik-Widget ---------- -->
-<div class="music-widget" id="musicWidget">
-  <button type="button" class="music-btn" id="musicBtn" title="Musik" aria-label="Musik-Einstellungen"><span class="nx-icon" style="display:inline-flex;width:20px;height:20px;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="4" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="6" y1="11" x2="6" y2="2.5" stroke="currentColor" stroke-width="1.1"/><path d="M6 2.5L11 1.5V4.5L6 5.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span></button>
-  <div class="music-panel" id="musicPanel">
-    <div class="mp-title"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="4" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="6" y1="11" x2="6" y2="2.5" stroke="currentColor" stroke-width="1.1"/><path d="M6 2.5L11 1.5V4.5L6 5.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Musik <span class="mp-state" id="musicToggleState">an</span></div>
-    <div class="mp-track" id="musicTrackName">NEXUS Gateway</div>
-    <div class="mp-row">
-      <span style="font-size:14px;"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2 5.5H4L7 2.5V11.5L4 8.5H2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span></span>
-      <input type="range" id="musicVolume" min="0" max="100" step="1" value="5">
-      <span class="mp-val" id="musicVolumeVal">5%</span>
-    </div>
-    <div class="mp-actions">
-      <button type="button" id="musicPlayPause"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="2.5" width="2.8" height="9" rx="0.6" fill="currentColor"/><rect x="8.2" y="2.5" width="2.8" height="9" rx="0.6" fill="currentColor"/></svg></span> Pause</button>
-    </div>
-  </div>
-</div>
 <audio id="bgMusic" src="art/music/NEXUS%20Gateway.ogg" preload="none" loop></audio>
 <script>
 (function(){
   'use strict';
 
   // Gemeinsame Keys mit game.html -- Lautstaerke-Einstellung gilt fuers ganze NEXUS.
-  var VOL_KEY = 'nexusMusicVolume';
-  var MUTE_KEY = 'nexusMusicMuted';
+  var VOL_KEY = 'orcaMusicVolume';
+  var MUTE_KEY = 'orcaMusicMuted';
   var DEFAULT_VOL = 5;
 
   var audio = document.getElementById('bgMusic');
-  var btn = document.getElementById('musicBtn');
-  var panel = document.getElementById('musicPanel');
   var volSlider = document.getElementById('musicVolume');
   var volVal = document.getElementById('musicVolumeVal');
   var playPauseBtn = document.getElementById('musicPlayPause');
   var stateEl = document.getElementById('musicToggleState');
-  if (!audio || !btn) return;
+  var trackNameEl = document.getElementById('musicTrackName');
+  if (trackNameEl) trackNameEl.textContent = 'NEXUS Gateway';
+  if (!audio) return;
 
   var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
   if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
@@ -1472,7 +1457,6 @@
       ? '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2.2L11.5 7L4 11.8Z" fill="currentColor"/></svg></span> Play'
       : '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="2.5" width="2.8" height="9" rx="0.6" fill="currentColor"/><rect x="8.2" y="2.5" width="2.8" height="9" rx="0.6" fill="currentColor"/></svg></span> Pause';
     if (stateEl) stateEl.textContent = audio.paused ? 'aus' : 'an';
-    if (btn) btn.classList.toggle('playing', !audio.paused);
   }
 
   // Autoplay-Policies: erst versuchen, sonst beim ersten Klick/Touch/Tastendruck nachholen.
@@ -1489,16 +1473,6 @@
       });
     }
   })();
-
-  btn.addEventListener('click', function(e){
-    e.stopPropagation();
-    panel.classList.toggle('open');
-  });
-  document.addEventListener('click', function(e){
-    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) {
-      panel.classList.remove('open');
-    }
-  });
 
   if (volSlider) {
     volSlider.addEventListener('input', function(){

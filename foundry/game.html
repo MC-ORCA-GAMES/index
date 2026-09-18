@@ -1119,6 +1119,7 @@
 </style>
 </head>
 <body>
+<script src="/assets/orca-settings.js" data-sections="music,sfx" data-next="1"></script>
 
 <canvas id="stars"></canvas>
 
@@ -1133,31 +1134,8 @@
         <span></span><span></span><span></span>
       </button>
       <div class="burger-panel" id="burgerPanel">
-        <!-- BUGFIX: dasselbe Muster wie in NEXUS -- Musik-/SFX-JS und die
-             passenden .mp-* CSS-Klassen waren angelegt, das HTML im
-             Buergermenue fehlte. -->
-        <div class="burger-group">
-          <div class="mp-title">Musik <span class="mp-state" id="musicToggleState">an</span></div>
-          <div class="mp-track" id="musicTrackName">–</div>
-          <div class="mp-row">
-            <input type="range" id="musicVolume" min="0" max="100" value="5" step="1" aria-label="Musiklautstärke">
-            <span class="mp-val" id="musicVolumeVal">5%</span>
-          </div>
-          <div class="mp-actions">
-            <button type="button" id="musicPlayPause">Play</button>
-            <button type="button" id="musicNext">Weiter</button>
-          </div>
-        </div>
-        <div class="burger-group">
-          <div class="mp-title">Soundeffekte <span class="mp-state" id="sfxToggleState">an</span></div>
-          <div class="mp-row">
-            <input type="range" id="sfxVolume" min="0" max="100" value="40" step="1" aria-label="Soundeffekt-Lautstärke">
-            <span class="mp-val" id="sfxVolumeVal">40%</span>
-          </div>
-          <div class="mp-actions">
-            <button type="button" id="sfxMuteBtn">Stumm</button>
-          </div>
-        </div>
+        <!-- Musik-/SFX-Regler: liegen jetzt im gemeinsamen Einstellungs-Popup
+             (/assets/orca-settings.js, Knopf unten mittig). -->
         <div class="burger-group">
           <div class="burger-label">Seiten</div>
           <a href="../index.html">Hub</a>
@@ -3486,8 +3464,8 @@ document.getElementById('refreshBtn').addEventListener('click', async () => { aw
     "Market Momentum.ogg",
     "Cold Numbers.ogg"
   ];
-  var VOL_KEY = 'foundryMusicVolume';
-  var MUTE_KEY = 'foundryMusicMuted';
+  var VOL_KEY = 'orcaMusicVolume';
+  var MUTE_KEY = 'orcaMusicMuted';
   var DEFAULT_VOL = 5;
 
   var audio = document.getElementById('bgMusic');
@@ -3597,8 +3575,8 @@ document.getElementById('refreshBtn').addEventListener('click', async () => { aw
 (function(){
   'use strict';
 
-  var VOL_KEY = 'foundrySfxVolume';
-  var MUTE_KEY = 'foundrySfxMuted';
+  var VOL_KEY = 'orcaSfxVolume';
+  var MUTE_KEY = 'orcaSfxMuted';
   var DEFAULT_VOL = 40;
 
   var volSlider = document.getElementById('sfxVolume');

@@ -2148,6 +2148,7 @@
 </style>
 </head>
 <body>
+<script src="/assets/orca-settings.js" data-sections="music,sfx" data-next="1"></script>
 
 <canvas id="stars"></canvas>
 
@@ -2170,35 +2171,8 @@
           <span></span><span></span><span></span>
         </button>
         <div class="burger-panel" id="burgerPanel">
-        <!-- BUGFIX: Musik-/SFX-Steuerung war seit jeher nur als JS+CSS angelegt
-             (siehe Kommentare "Steuerung liegt jetzt im Buergermenue" bei
-             #bgMusic weiter unten), das dazugehoerige HTML im Buergermenue hat
-             aber gefehlt -- getElementById('musicVolume') etc. liefen seit
-             Anbeginn ins Leere, ohne Fehler zu werfen. Betrifft laut Gegenpruefung
-             alle sieben MC-ORCA-Spiele mit derselben Musik/SFX-Vorlage, hier erstmal
-             fuer NEXUS nachgezogen, weil das die gemeldete Stelle ist. -->
-        <div class="burger-group">
-          <div class="mp-title">Musik <span class="mp-state" id="musicToggleState">an</span></div>
-          <div class="mp-track" id="musicTrackName">–</div>
-          <div class="mp-row">
-            <input type="range" id="musicVolume" min="0" max="100" value="5" step="1" aria-label="Musiklautstärke">
-            <span class="mp-val" id="musicVolumeVal">5%</span>
-          </div>
-          <div class="mp-actions">
-            <button type="button" id="musicPlayPause">Play</button>
-            <button type="button" id="musicNext">Weiter</button>
-          </div>
-        </div>
-        <div class="burger-group">
-          <div class="mp-title">Soundeffekte <span class="mp-state" id="sfxToggleState">an</span></div>
-          <div class="mp-row">
-            <input type="range" id="sfxVolume" min="0" max="100" value="40" step="1" aria-label="Soundeffekt-Lautstärke">
-            <span class="mp-val" id="sfxVolumeVal">40%</span>
-          </div>
-          <div class="mp-actions">
-            <button type="button" id="sfxMuteBtn">Stumm</button>
-          </div>
-        </div>
+        <!-- Musik-/SFX-Regler: liegen jetzt im gemeinsamen Einstellungs-Popup
+             (/assets/orca-settings.js, Knopf unten mittig). -->
         <div class="burger-group">
           <div class="burger-label">Seiten</div>
           <a href="../index.html">Hub</a>
@@ -9394,8 +9368,8 @@ document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListene
     "09 NEXUS Ascension.ogg",
     "10 NEXUS Rebirth.ogg"
   ];
-  var VOL_KEY = 'nexusMusicVolume';
-  var MUTE_KEY = 'nexusMusicMuted';
+  var VOL_KEY = 'orcaMusicVolume';
+  var MUTE_KEY = 'orcaMusicMuted';
   var DEFAULT_VOL = 5;
 
   var audio = document.getElementById('bgMusic');
@@ -9505,8 +9479,8 @@ document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListene
 (function(){
   'use strict';
 
-  var VOL_KEY = 'nexusSfxVolume';
-  var MUTE_KEY = 'nexusSfxMuted';
+  var VOL_KEY = 'orcaSfxVolume';
+  var MUTE_KEY = 'orcaSfxMuted';
   var DEFAULT_VOL = 40;
 
   var volSlider = document.getElementById('sfxVolume');

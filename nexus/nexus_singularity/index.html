@@ -943,6 +943,7 @@
 </style>
 </head>
 <body>
+<script src="/assets/orca-settings.js" data-sections="music"></script>
 
 <canvas id="stars"></canvas>
 
@@ -1336,40 +1337,24 @@
 })();
 </script>
 
-<!-- ---------- Musik-Widget ---------- -->
-<div class="music-widget" id="musicWidget">
-  <button type="button" class="music-btn" id="musicBtn" title="Musik" aria-label="Musik-Einstellungen">🎵</button>
-  <div class="music-panel" id="musicPanel">
-    <div class="mp-title">Musik <span class="mp-state" id="musicToggleState">an</span></div>
-    <div class="mp-track" id="musicTrackName">NEXUS Gateway</div>
-    <div class="mp-row">
-      <span style="font-size:14px;">🔈</span>
-      <input type="range" id="musicVolume" min="0" max="100" step="1" value="5">
-      <span class="mp-val" id="musicVolumeVal">5%</span>
-    </div>
-    <div class="mp-actions">
-      <button type="button" id="musicPlayPause">⏸ Pause</button>
-    </div>
-  </div>
-</div>
 <audio id="bgMusic" src="../art/music/NEXUS%20Gateway.ogg" preload="none" loop></audio>
 <script>
 (function(){
   'use strict';
 
   // Gemeinsame Keys mit game.html -- Lautstaerke-Einstellung gilt fuers ganze NEXUS.
-  var VOL_KEY = 'nexusMusicVolume';
-  var MUTE_KEY = 'nexusMusicMuted';
+  var VOL_KEY = 'orcaMusicVolume';
+  var MUTE_KEY = 'orcaMusicMuted';
   var DEFAULT_VOL = 5;
 
   var audio = document.getElementById('bgMusic');
-  var btn = document.getElementById('musicBtn');
-  var panel = document.getElementById('musicPanel');
   var volSlider = document.getElementById('musicVolume');
   var volVal = document.getElementById('musicVolumeVal');
   var playPauseBtn = document.getElementById('musicPlayPause');
   var stateEl = document.getElementById('musicToggleState');
-  if (!audio || !btn) return;
+  var trackNameEl = document.getElementById('musicTrackName');
+  if (trackNameEl) trackNameEl.textContent = 'NEXUS Gateway';
+  if (!audio) return;
 
   var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
   if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
@@ -1382,7 +1367,6 @@
   function updatePlayIcon(){
     if (playPauseBtn) playPauseBtn.textContent = audio.paused ? '▶ Play' : '⏸ Pause';
     if (stateEl) stateEl.textContent = audio.paused ? 'aus' : 'an';
-    if (btn) btn.classList.toggle('playing', !audio.paused);
   }
 
   // Autoplay-Policies: erst versuchen, sonst beim ersten Klick/Touch/Tastendruck nachholen.
@@ -1399,16 +1383,6 @@
       });
     }
   })();
-
-  btn.addEventListener('click', function(e){
-    e.stopPropagation();
-    panel.classList.toggle('open');
-  });
-  document.addEventListener('click', function(e){
-    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) {
-      panel.classList.remove('open');
-    }
-  });
 
   if (volSlider) {
     volSlider.addEventListener('input', function(){
