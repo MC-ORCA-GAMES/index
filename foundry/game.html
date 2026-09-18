@@ -2494,13 +2494,16 @@ function wireGalaxyControls(){
     galaxyZoomAt(p.x, p.y, e.deltaY < 0 ? 1.16 : 1 / 1.16);
   }, { passive:false });
 
-  let dragging = false, moved = 0, lastX = 0, lastY = 0, pointers = new Map(), pinchDist = 0;
+  let dragging = false, moved = 0, lastX = 0, lastY = 0, pointers = new Map(), pinchDist = 0, captured = false;
   wrap.addEventListener('pointerdown', (e) => {
     pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
     if (pointers.size === 1){
-      dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY;
+      dragging = true; moved = 0; captured = false; lastX = e.clientX; lastY = e.clientY;
       wrap.classList.add('dragging');
-      try { wrap.setPointerCapture(e.pointerId); } catch(err){}
+      // BUGFIX Firmen-Popup: setPointerCapture darf NICHT schon beim pointerdown passieren.
+      // Sonst wird das anschliessende "click" auf die Karte (wrap) umgeleitet statt auf den
+      // angeklickten Firmen-Punkt -- der click-Handler des Punkts feuerte nie, das Popup
+      // kam nie. Erfasst wird der Zeiger erst, sobald wirklich gezogen wird (siehe pointermove).
     } else if (pointers.size === 2){
       const p = [...pointers.values()];
       pinchDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
@@ -2523,6 +2526,10 @@ function wireGalaxyControls(){
     const s = Math.min(r.width / GALAXY_VB_W, r.height / GALAXY_VB_H) || 1;
     const dx = (e.clientX - lastX) / s, dy = (e.clientY - lastY) / s;
     moved += Math.abs(dx) + Math.abs(dy);
+    if (moved > 4 && !captured){
+      captured = true;
+      try { wrap.setPointerCapture(e.pointerId); } catch(err){}
+    }
     lastX = e.clientX; lastY = e.clientY;
     galaxyView.x += dx; galaxyView.y += dy;
     galaxyClamp(); galaxyApplyView();
