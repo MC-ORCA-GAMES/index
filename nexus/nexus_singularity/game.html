@@ -1,3 +1,10 @@
+<!--
+  SKIN "DEEP DECK 2600" fuer NEXUS SINGULARITY (Optik-Update):
+  Zwei ergaenzte Bloecke -- ein CSS-Block am Ende des <style> und ein
+  Script-Block am Ende des <body>. Reine Optik, keine Logikaenderung;
+  beide Bloecke sind ersatzlos loeschbar. prefers-reduced-motion schaltet
+  saemtliche Bewegung ab.
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -292,6 +299,237 @@
   .burger-group .mp-actions{ display:flex; gap:8px; margin-top:12px; padding:0 4px; }
   .burger-group .mp-actions button{ flex:1; padding:6px 0; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--fg); font-size:12px; cursor:pointer; }
   .burger-group .mp-actions button:hover{ border-color:var(--accent2); }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SKIN "DEEP DECK 2600" — NEXUS SINGULARITY
+     Optik-Schicht am Ende des Style-Blocks. Das Spielgeschehen ist hier
+     das Vollbild-Canvas, deshalb bleibt der Hintergrund unangetastet --
+     umgebaut wird das HUD drumherum. Rückbau = diesen Block löschen.
+     ══════════════════════════════════════════════════════════════════ */
+  :root{
+    --accent:#9B6BFF; --accent2:#33E0FF;
+    --acc:155,107,255; --acc2:51,224,255;
+    --fg:#EDE9FF; --dim:#8A90AD; --warn:#FF3D6E;
+    --hud:rgba(9,8,18,0.9);
+    --hud-line:rgba(var(--acc2),0.28);
+  }
+
+  /* CRT-Auflage über dem Vollbild-Canvas */
+  #nxCrt{
+    position:fixed; inset:0; z-index:40; pointer-events:none; opacity:0.45; mix-blend-mode:multiply;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.22) 0 1px, transparent 1px 3px),
+      radial-gradient(130% 100% at 50% 50%, transparent 48%, rgba(2,2,8,0.8) 100%);
+  }
+  #nxCrt::after{
+    content:''; position:absolute; left:0; right:0; height:38vh;
+    background:linear-gradient(to bottom, transparent, rgba(var(--acc2),0.04) 60%, transparent);
+    animation:nxSweepDown 9s linear infinite;
+  }
+  @keyframes nxSweepDown{ 0%{ top:-40vh; } 100%{ top:105vh; } }
+
+  /* ---------- Kopfleiste ---------- */
+  .nav{ border-bottom:1px solid var(--hud-line); background:linear-gradient(to bottom, rgba(5,5,12,0.94), rgba(5,5,12,0.66)); }
+  .nav::after{
+    content:''; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+    background:linear-gradient(90deg, transparent, var(--accent2), var(--accent), transparent);
+    background-size:44% 100%; background-repeat:no-repeat; animation:nxRail 7s linear infinite;
+  }
+  @keyframes nxRail{ 0%{ background-position:-45% 0; } 100%{ background-position:145% 0; } }
+  .brand .mark{ background:conic-gradient(from 0deg, var(--accent), var(--accent2), var(--accent)); animation:nxSpin 6s linear infinite; }
+  @keyframes nxSpin{ to{ transform:rotate(360deg); } }
+  .brand .sub{ color:var(--accent2); text-shadow:0 0 12px rgba(var(--acc2),0.6); }
+  .nav-cta, .burger-btn{
+    border-radius:0 !important;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  }
+  .burger-btn span{ background:var(--accent2); box-shadow:0 0 6px rgba(var(--acc2),0.6); }
+  .burger-panel{ border-radius:2px; border-color:var(--hud-line); background:rgba(7,7,16,0.95); }
+  .burger-label{ color:var(--accent2); opacity:0.75; letter-spacing:0.16em; }
+
+  /* ---------- HUD-Platten: Glas mit Eckklammern ---------- */
+  #factoryPanel, #eventLogPanel, #endgamePanel, #eventToast, #infoTip, #loginBox, #pathBox{
+    position:absolute;
+    border-radius:2px !important;
+    background:var(--hud) !important;
+    border:1px solid var(--hud-line) !important;
+    backdrop-filter:blur(10px) saturate(1.2) !important;
+    box-shadow:inset 0 1px 0 rgba(var(--acc2),0.16), 0 0 50px -26px rgba(var(--acc),0.9) !important;
+  }
+  #loginBox, #pathBox{ position:relative; }
+  #factoryPanel::before, #eventLogPanel::before, #endgamePanel::before, #loginBox::before, #pathBox::before{
+    content:''; position:absolute; inset:-1px; pointer-events:none; z-index:1;
+    background:
+      linear-gradient(var(--accent2),var(--accent2)) left  top    / 14px 1px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) left  top    / 1px 14px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) right top    / 14px 1px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) right top    / 1px 14px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) left  bottom / 14px 1px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) left  bottom / 1px 14px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) right bottom / 14px 1px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) right bottom / 1px 14px no-repeat;
+    opacity:0.5;
+  }
+  #factoryPanel h4, #eventLogPanel h4{
+    letter-spacing:0.18em; color:var(--fg); display:flex; align-items:center; gap:7px;
+    padding-bottom:8px; border-bottom:1px solid rgba(var(--acc2),0.16);
+  }
+  #factoryPanel h4::before, #eventLogPanel h4::before{
+    content:''; width:3px; height:11px; background:var(--accent2);
+    box-shadow:0 0 10px rgba(var(--acc2),0.8); animation:nxBlink 2.4s ease-in-out infinite;
+  }
+  @keyframes nxBlink{ 0%,100%{ opacity:1; } 50%{ opacity:0.3; } }
+  #factoryBalance{ font-variant-numeric:tabular-nums; text-shadow:0 0 14px rgba(var(--acc2),0.45); }
+
+  /* Fabrikzeilen reagieren */
+  .factory-row{ position:relative; border-top-color:rgba(var(--acc2),0.12); transition:background .2s; }
+  .factory-row::before{
+    content:''; position:absolute; left:-16px; top:6px; bottom:6px; width:2px;
+    background:var(--accent2); box-shadow:0 0 10px rgba(var(--acc2),0.8);
+    transform:scaleY(0); transition:transform .22s;
+  }
+  .factory-row:hover::before{ transform:scaleY(1); }
+  .factory-row:hover{ background:linear-gradient(90deg, rgba(var(--acc2),0.06), transparent 70%); }
+  .factory-row .flevel{ text-shadow:0 0 10px rgba(var(--acc2),0.5); }
+  .factory-row button.affordable{
+    background:linear-gradient(120deg, rgba(var(--acc2),0.18), rgba(var(--acc),0.14));
+    box-shadow:0 0 18px -6px rgba(var(--acc2),0.9);
+    animation:nxReady 2.6s ease-in-out infinite;
+  }
+  @keyframes nxReady{
+    0%,100%{ box-shadow:0 0 18px -8px rgba(var(--acc2),0.6); }
+    50%{ box-shadow:0 0 26px -6px rgba(var(--acc2),1); }
+  }
+
+  /* Ereignis-Einträge laufen ein */
+  #eventLogPanel .entry{ border-top-color:rgba(var(--acc2),0.10); animation:nxEntryIn 380ms ease-out both; }
+  @keyframes nxEntryIn{ 0%{ opacity:0; transform:translateX(10px); } 100%{ opacity:1; transform:none; } }
+  #eventLogPanel .entry .tag{ font-weight:700; }
+
+  /* ---------- Steuerleiste unten ---------- */
+  #controls{
+    border-radius:2px !important;
+    border:1px solid var(--hud-line) !important;
+    background:rgba(7,7,16,0.82) !important;
+    box-shadow:0 -10px 40px -26px rgba(var(--acc),0.9), inset 0 1px 0 rgba(var(--acc2),0.14) !important;
+  }
+  #growthBar{ border-radius:0; background:rgba(var(--acc2),0.08); border:1px solid rgba(var(--acc2),0.18); }
+  #growthFill{
+    position:relative;
+    background:linear-gradient(90deg, var(--accent), var(--accent2)) !important;
+    box-shadow:0 0 16px rgba(var(--acc2),0.75);
+  }
+  #growthFill::after{
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(115deg, rgba(255,255,255,0.24) 0 5px, transparent 5px 12px);
+    animation:nxFlow 850ms linear infinite;
+  }
+  @keyframes nxFlow{ to{ background-position:28px 0; } }
+
+  /* ---------- Ressourcen-Chips ---------- */
+  .res-chip{
+    border-radius:0;
+    clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
+    background:linear-gradient(150deg, rgba(var(--acc2),0.12), rgba(6,8,18,0.7));
+    border:1px solid rgba(var(--acc2),0.24);
+    font-variant-numeric:tabular-nums; letter-spacing:0.04em;
+    transition:border-color .2s, box-shadow .2s, transform .2s;
+  }
+  .res-chip:hover{ border-color:rgba(var(--acc2),0.6); box-shadow:0 0 18px -6px rgba(var(--acc2),0.9); transform:translateY(-1px); }
+  .res-chip .icon{ filter:drop-shadow(0 0 6px rgba(var(--acc2),0.7)); }
+
+  /* ---------- Knöpfe ---------- */
+  button{
+    border-radius:0 !important;
+    background:rgba(255,255,255,0.05); border:1px solid rgba(var(--acc2),0.2);
+    letter-spacing:0.06em;
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+    transition:.18s;
+  }
+  button:hover:not(:disabled){
+    border-color:var(--accent2); color:var(--accent2);
+    background:rgba(var(--acc2),0.1); box-shadow:0 0 22px -8px rgba(var(--acc2),0.9);
+  }
+  button.active{
+    background:linear-gradient(180deg, rgba(var(--acc),0.35), rgba(var(--acc),0.12)) !important;
+    border-color:var(--accent) !important; color:#F4F0FF !important;
+    box-shadow:0 0 24px -6px rgba(var(--acc),0.95), inset 0 0 18px rgba(var(--acc),0.2) !important;
+  }
+  #infoBtn{ border-radius:50% !important; clip-path:none; }
+  #loginBox .btn-block, .btn-block{
+    background:linear-gradient(120deg, var(--accent), var(--accent2) 180%) !important;
+    border-color:var(--accent) !important; color:#0A0714 !important; font-weight:700;
+    box-shadow:0 0 28px -8px rgba(var(--acc),0.95) !important;
+  }
+  #loginBox input{
+    border-radius:0 !important; background:rgba(2,3,10,0.7) !important;
+    border-color:rgba(var(--acc2),0.2) !important; letter-spacing:0.06em;
+  }
+  #loginBox input:focus{
+    outline:none; border-color:var(--accent2) !important;
+    box-shadow:0 0 0 1px rgba(var(--acc2),0.25), 0 0 20px -6px rgba(var(--acc2),0.8) !important;
+  }
+  #loginBox::after, #pathBox::after{
+    content:''; position:absolute; left:0; right:0; top:0; height:2px; z-index:2;
+    background:linear-gradient(90deg, transparent, var(--accent2), var(--accent), transparent);
+    background-size:50% 100%; background-repeat:no-repeat; animation:nxRail 4.5s linear infinite;
+  }
+
+  /* ---------- Pfad-Karten ---------- */
+  .path-card{
+    position:relative; overflow:hidden; border-radius:2px;
+    background:linear-gradient(160deg, rgba(var(--acc),0.12), rgba(6,6,16,0.7));
+    border:1px solid rgba(var(--acc2),0.18);
+    clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+    transition:transform .2s, border-color .2s, box-shadow .2s;
+  }
+  .path-card::after{
+    content:''; position:absolute; top:-60%; bottom:-60%; left:-60%; width:45%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.13), transparent);
+    transform:rotate(18deg); pointer-events:none;
+  }
+  .path-card:hover{
+    transform:translateY(-3px); border-color:var(--accent2);
+    background:linear-gradient(160deg, rgba(var(--acc),0.2), rgba(6,6,16,0.7));
+    box-shadow:0 0 40px -16px rgba(var(--acc2),0.95);
+  }
+  .path-card:hover::after{ animation:nxFoil 1.1s ease-out; }
+  @keyframes nxFoil{ to{ left:130%; } }
+  .path-card h3{ letter-spacing:0.12em; text-shadow:0 0 14px rgba(var(--acc2),0.5); }
+
+  /* ---------- Anzeigen rechts oben ---------- */
+  #title{ letter-spacing:0.28em; }
+  #title .ver{ text-shadow:0 0 10px rgba(var(--acc2),0.7); }
+  #stageLabel{ text-shadow:0 0 24px rgba(var(--acc),0.55); letter-spacing:0.06em; }
+  #tierLabel{ text-shadow:0 0 12px rgba(var(--acc2),0.5); }
+  #unclaimedLabel{ animation:nxBlink 2.2s ease-in-out infinite; }
+  #territoryBar{ border-radius:0 !important; border:1px solid rgba(var(--acc2),0.18); overflow:hidden; }
+  #territoryPlayerFill{ box-shadow:0 0 14px rgba(var(--acc2),0.6); }
+  #territoryRivalFill{ box-shadow:0 0 14px rgba(255,61,110,0.5); }
+  #endgamePanel .influenceLabel{ text-shadow:0 0 20px rgba(255,213,74,0.5); font-variant-numeric:tabular-nums; }
+  #observerLabel .bar{ border-radius:0; border:1px solid rgba(var(--acc2),0.2); }
+
+  /* ---------- Toast ---------- */
+  #eventToast{
+    clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);
+  }
+  #eventToast .kind{ letter-spacing:0.2em; font-weight:700; }
+
+  /* ---------- Scrollbalken ---------- */
+  #factoryScroll::-webkit-scrollbar-thumb{ background:rgba(var(--acc2),0.35) !important; border-radius:0 !important; }
+  #factoryScroll::-webkit-scrollbar-thumb:hover{ background:rgba(var(--acc2),0.6) !important; }
+
+  /* Zahlenimpuls */
+  @keyframes nxFlashUp{ 0%{ color:var(--accent2); text-shadow:0 0 22px rgba(var(--acc2),0.95); } 100%{} }
+  .nx-flash-up{ animation:nxFlashUp 620ms ease-out; }
+  @keyframes nxFlashDown{ 0%{ color:var(--warn); text-shadow:0 0 22px rgba(255,61,110,0.9); } 100%{} }
+  .nx-flash-down{ animation:nxFlashDown 620ms ease-out; }
+
+  @media (prefers-reduced-motion: reduce){
+    #nxCrt::after, .nav::after, .brand .mark, #growthFill::after, #unclaimedLabel,
+    #loginBox::after, #pathBox::after, #eventLogPanel .entry,
+    .factory-row button.affordable, #factoryPanel h4::before, #eventLogPanel h4::before{ animation:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -2023,6 +2261,42 @@ draw();
       updatePlayIcon();
     });
   }
+})();
+</script>
+<script>
+/* SKIN "DEEP DECK 2600" — NEXUS SINGULARITY, Bewegungsschicht.
+   Nur CRT-Auflage und Zahlenimpuls; der Rest liegt im CSS-Block. */
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var crt = document.createElement('div');
+  crt.id = 'nxCrt'; crt.setAttribute('aria-hidden','true');
+  document.body.appendChild(crt);
+  if (reduce) return;
+
+  var SEL = '#factoryBalance, #pctLabel, .res-chip .amt, #stockGrid .samt';
+  var numOf = function(t){
+    var n = parseFloat(String(t).replace(/[^\d,.\-]/g, '').replace(/\./g, '').replace(',', '.'));
+    return isNaN(n) ? null : n;
+  };
+  var seen = new WeakMap();
+  function pulse(el){
+    var now = numOf(el.textContent), was = seen.get(el);
+    seen.set(el, now);
+    if (was === undefined || now === null || was === null || now === was) return;
+    var cls = now > was ? 'nx-flash-up' : 'nx-flash-down';
+    el.classList.remove('nx-flash-up', 'nx-flash-down');
+    void el.offsetWidth; el.classList.add(cls);
+    setTimeout(function(){ el.classList.remove(cls); }, 700);
+  }
+  document.querySelectorAll(SEL).forEach(function(el){ seen.set(el, numOf(el.textContent)); });
+  new MutationObserver(function(muts){
+    for (var i = 0; i < muts.length; i++){
+      var n = muts[i].target, el = n.nodeType === 1 ? n : n.parentElement;
+      if (!el || !el.closest) continue;
+      var hit = el.closest(SEL);
+      if (hit) pulse(hit);
+    }
+  }).observe(document.body, { childList:true, characterData:true, subtree:true });
 })();
 </script>
 </body>
