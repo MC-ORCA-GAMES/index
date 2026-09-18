@@ -2,6 +2,29 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.1: Skin-Schicht erweitert. Die Akzentfarbe laeuft jetzt ueber --acc
+    (RGB-Dreier, im FX-Script aus --blue nachgezogen) -- gekaufte Rig-Skins und
+    Kometen-Skins faerben dadurch die komplette Oberflaeche (Eckklammern,
+    Tab-Schiene, Balken, Diagramme), nicht nur Buttons. Kosmetik-Items neu
+    inszeniert: rotierender Energiering statt Rahmen, atmende Aura beim
+    Partikel-Effekt, Sammelkarten-Folie auf Shop-/Galerie-Karten. Event-,
+    Prestige- und Erfolge-Tab haben eigene Farbwelten (Plasma/Violett/Gold) per
+    lokaler Variablen-Ueberschreibung. Diagramme: Chart-Konstruktor wird
+    umhuellt (Akzentfarbe statt Fest-Blau, Verlaufsfuellung, keine Punkte,
+    Schein-Plugin, dunkler Tooltip, Cyber-Gitter + Radar-Sweep hinter dem
+    Canvas), Trendfarben auf Neon umgestellt. Zusaetzlich: gestaffelter Aufbau
+    von Karten-Rastern, Puls auf abholbereiten Aufgaben, Akzentbalken an
+    Rig-/Shop-Zeilen.
+  - v4.0: Optisches Redesign "DEEP DECK 2600" -- reine Skin-Schicht, keine
+    Logikaenderung. Zwei neue Bloecke: (1) CSS-Block am Ende des <style>
+    (Token-Ueberschreibung auf Cyan/Plasma-HUD, kantige Clip-Path-Formen statt
+    Radius, Panel-Eckklammern, Kommandoschiene fuer die Haupt-Tabs,
+    Kompilier-Animation beim Tabwechsel, energetisierte Fortschrittsbalken).
+    (2) Script-Block am Ende des <body> (Hintergrund-Canvas mit Gitterhorizont,
+    Schwebeteilchen und Datenstroemen, CRT-Auflage, zeigerfolgendes Panel-Licht,
+    Impuls auf sich aendernde Zahlen, Chart.js-Standardfarben). Beide Bloecke
+    sind ersatzlos loeschbar, dann steht wieder das alte Design.
+    prefers-reduced-motion schaltet saemtliche Bewegung ab.
   - v3.36: Bugfix -- an 9 Stellen wurde HTML-Icon-Markup (nx-icon-Spans) per
     .textContent statt .innerHTML in Elemente geschrieben, wodurch der rohe
     SVG/HTML-Code als sichtbarer Text erschien statt als Icon gerendert zu
@@ -1249,6 +1272,576 @@
   .burger-group .mp-actions{ display:flex; gap:8px; margin-top:12px; padding:0 4px; }
   .burger-group .mp-actions button{ flex:1; padding:6px 0; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--fg); font-size:12px; cursor:pointer; }
   .burger-group .mp-actions button:hover{ border-color:var(--blue); }
+
+  /* ══════════════════════════════════════════════════════════════════
+     NEXUS — SKIN "DEEP DECK 2600"
+     Optische Überlagerung (v4.0). Liegt bewusst komplett am Ende des
+     Style-Blocks und überschreibt nur Aussehen -- keine IDs, keine
+     Klassen-Logik, kein Layout-Bruch. Rückbau = diesen Block löschen.
+     ══════════════════════════════════════════════════════════════════ */
+
+  :root{
+    /* Untergrund: kein Schwarz, sondern kaltes Vakuum-Blau */
+    --bg:#04060C; --bg-alt:#070C16; --panel:rgba(10,17,30,0.66);
+    --panel-solid:#0A111E;
+    --line:rgba(var(--acc),0.13);
+    --line-hot:rgba(var(--acc),0.42);
+    --fg:#DCF2FF; --fg-dim:#7B9AB4; --fg-faint:#47657C;
+    --radius:3px;
+
+    /* HUD-Signalfarben */
+    --acc:53,228,255;
+    --blue:#35E4FF; --blue-dim:rgba(var(--acc),0.11);
+    --plasma:#FF4FD8; --plasma-dim:rgba(255,79,216,0.12);
+    --up:#14F195; --up-dim:rgba(20,241,149,0.12);
+    --down:#FF3D6E; --down-dim:rgba(255,61,110,0.12);
+    --gold:#FFC64D; --violet:#C86BFF; --orange:#FF8A3D; --red:#FF4060;
+
+    --glow-c:0 0 12px rgba(var(--acc),0.55);
+    --glow-p:0 0 14px rgba(255,79,216,0.45);
+  }
+
+  /* ---------- Untergrund: Vakuum + Nebel + Gitterboden ---------- */
+  body{
+    background:
+      radial-gradient(1200px 700px at 78% -10%, rgba(255,79,216,0.10), transparent 62%),
+      radial-gradient(1000px 800px at 8% 105%, rgba(var(--acc),0.11), transparent 60%),
+      radial-gradient(900px 600px at 50% 40%, rgba(20,60,120,0.16), transparent 70%),
+      #04060C;
+    background-attachment:fixed;
+  }
+  body::before{
+    content:''; position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:
+      repeating-linear-gradient(90deg, rgba(var(--acc),0.045) 0 1px, transparent 1px 88px),
+      repeating-linear-gradient(0deg,  rgba(var(--acc),0.035) 0 1px, transparent 1px 88px);
+    mask-image:radial-gradient(120% 90% at 50% 0%, #000 10%, transparent 78%);
+    -webkit-mask-image:radial-gradient(120% 90% at 50% 0%, #000 10%, transparent 78%);
+  }
+  /* Vignette + hauchdünne Zeilenraster (CRT), liegt über allem, klickt nicht */
+  #nxCrt{
+    position:fixed; inset:0; z-index:900; pointer-events:none;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.20) 0 1px, transparent 1px 3px),
+      radial-gradient(130% 100% at 50% 50%, transparent 52%, rgba(2,4,9,0.72) 100%);
+    opacity:0.5; mix-blend-mode:multiply;
+  }
+  #nxCrt::after{
+    content:''; position:absolute; left:0; right:0; height:42vh;
+    background:linear-gradient(to bottom, transparent, rgba(var(--acc),0.035) 62%, transparent);
+    animation:nxSweepDown 9s linear infinite;
+  }
+  @keyframes nxSweepDown{ 0%{ top:-45vh; } 100%{ top:105vh; } }
+
+  #stars{ opacity:0.38; z-index:0; }
+  #nxFx{ position:fixed; inset:0; z-index:0; pointer-events:none; }
+
+  ::selection{ background:var(--blue); color:#02060C; }
+  :focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:#05080F; }
+  ::-webkit-scrollbar-thumb{ background:linear-gradient(180deg, rgba(var(--acc),0.45), rgba(var(--acc),0.15)); border:2px solid #05080F; border-radius:0; }
+  ::-webkit-scrollbar-thumb:hover{ background:rgba(var(--acc),0.7); }
+
+  /* ---------- Kopfleiste: Datenschiene ---------- */
+  .nav{
+    background:linear-gradient(to bottom, rgba(4,7,14,0.94), rgba(4,7,14,0.72));
+    backdrop-filter:blur(14px) saturate(1.3);
+    border-bottom:1px solid var(--line-hot);
+    box-shadow:0 12px 40px -20px rgba(var(--acc),0.35);
+  }
+  .nav::after{
+    content:''; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+    background:linear-gradient(90deg, transparent, var(--blue), var(--plasma), transparent);
+    background-size:44% 100%; background-repeat:no-repeat;
+    animation:nxRail 7s linear infinite; opacity:0.85;
+  }
+  @keyframes nxRail{ 0%{ background-position:-45% 0; } 100%{ background-position:145% 0; } }
+  .brand{ letter-spacing:0.14em; font-size:13.5px; }
+  .brand .sub{ color:var(--blue); text-shadow:var(--glow-c); }
+  .brand .mark{
+    border-radius:50%; position:relative;
+    background:conic-gradient(from 0deg, var(--blue), var(--plasma), var(--gold), var(--blue));
+    animation:nxSpin 6s linear infinite, markPulse 3.2s ease-in-out infinite;
+  }
+  .brand .mark::after{
+    content:''; position:absolute; inset:-5px; border-radius:50%;
+    border:1px solid rgba(var(--acc),0.35); animation:nxRing 2.8s ease-out infinite;
+  }
+  @keyframes nxSpin{ to{ transform:rotate(360deg); } }
+  @keyframes nxRing{ 0%{ transform:scale(0.75); opacity:0.9; } 100%{ transform:scale(1.35); opacity:0; } }
+  .brand .game-pill{ border-radius:0; clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); letter-spacing:0.14em; }
+
+  .nav-cta{ border-radius:0; border-color:var(--line); letter-spacing:0.06em;
+    clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px); }
+  .nav-cta:hover{ border-color:var(--blue); color:var(--blue); background:var(--blue-dim); box-shadow:inset 0 0 18px rgba(var(--acc),0.12); }
+
+  .burger-btn{ border-radius:0; clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); }
+  .burger-btn:hover{ border-color:var(--blue); box-shadow:0 0 16px -4px rgba(var(--acc),0.5); }
+  .burger-btn span{ background:var(--blue); box-shadow:0 0 6px rgba(var(--acc),0.6); }
+  .burger-panel{
+    background:rgba(7,12,22,0.92); backdrop-filter:blur(16px);
+    border:1px solid var(--line-hot); border-radius:2px;
+    box-shadow:0 24px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(var(--acc),0.18);
+  }
+  .burger-panel a{ border-radius:2px; }
+  .burger-panel a:hover{ background:var(--blue-dim); color:var(--blue) !important; }
+  .burger-label{ color:var(--blue); opacity:0.75; letter-spacing:0.16em; }
+
+  /* ---------- Panels: Hardlight-Platten mit Eckklammern ---------- */
+  .panel{
+    position:relative; border-radius:var(--radius);
+    background:
+      linear-gradient(180deg, rgba(var(--acc),0.035), transparent 120px),
+      var(--panel);
+    backdrop-filter:blur(9px);
+    border:1px solid var(--line);
+    box-shadow:inset 0 1px 0 rgba(var(--acc),0.10), 0 18px 40px -28px rgba(0,0,0,0.9);
+    transition:border-color .25s, box-shadow .25s, transform .25s;
+  }
+  .panel::before{
+    content:''; position:absolute; inset:-1px; pointer-events:none; border-radius:inherit;
+    background:
+      linear-gradient(var(--blue),var(--blue)) left  top    / 14px 1px no-repeat,
+      linear-gradient(var(--blue),var(--blue)) left  top    / 1px 14px no-repeat,
+      linear-gradient(var(--blue),var(--blue)) right top    / 14px 1px no-repeat,
+      linear-gradient(var(--blue),var(--blue)) right top    / 1px 14px no-repeat,
+      linear-gradient(var(--blue),var(--blue)) left  bottom / 14px 1px no-repeat,
+      linear-gradient(var(--blue),var(--blue)) left  bottom / 1px 14px no-repeat,
+      linear-gradient(var(--blue),var(--blue)) right bottom / 14px 1px no-repeat,
+      linear-gradient(var(--blue),var(--blue)) right bottom / 1px 14px no-repeat;
+    opacity:0.35; transition:opacity .25s;
+  }
+  .panel:hover{ border-color:rgba(var(--acc),0.3); box-shadow:inset 0 1px 0 rgba(var(--acc),0.16), 0 0 34px -18px rgba(var(--acc),0.55); }
+  .panel:hover::before{ opacity:0.85; }
+
+  .panel h3{
+    letter-spacing:0.1em; text-transform:none; color:var(--fg);
+    padding-bottom:11px; margin-bottom:15px; position:relative;
+  }
+  .panel h3::before{
+    content:''; width:3px; height:15px; flex:0 0 auto; margin-right:2px;
+    background:var(--blue); box-shadow:var(--glow-c);
+    animation:nxBlink 2.4s ease-in-out infinite;
+  }
+  .panel h3::after{
+    content:''; position:absolute; left:0; right:0; bottom:0; height:1px;
+    background:linear-gradient(90deg, rgba(var(--acc),0.5), rgba(var(--acc),0.05) 60%, transparent);
+  }
+  @keyframes nxBlink{ 0%,100%{ opacity:1; } 50%{ opacity:0.35; } }
+  .panel h3 .tag{ font-family:var(--mono); font-size:11px; letter-spacing:0.08em; }
+
+  /* ---------- Kennzahlen-Kacheln ---------- */
+  .stat-card{
+    position:relative; overflow:hidden; border-radius:var(--radius);
+    background:linear-gradient(160deg, rgba(var(--acc),0.06), rgba(6,10,18,0.5) 55%);
+    border:1px solid var(--line);
+    transition:border-color .25s, transform .25s, box-shadow .25s;
+  }
+  .stat-card::after{
+    content:''; position:absolute; top:0; bottom:0; width:38%; left:-45%;
+    background:linear-gradient(90deg, transparent, rgba(var(--acc),0.10), transparent);
+    transform:skewX(-18deg);
+  }
+  .stat-card:hover{ border-color:rgba(var(--acc),0.36); transform:translateY(-2px); box-shadow:0 0 30px -14px rgba(var(--acc),0.6); }
+  .stat-card:hover::after{ animation:nxShine 900ms ease-out; }
+  @keyframes nxShine{ to{ left:120%; } }
+  .stat-card .label{ font-family:var(--mono); color:var(--blue); opacity:0.62; letter-spacing:0.16em; font-size:10px; }
+  .stat-card .value{ text-shadow:0 0 18px rgba(var(--acc),0.25); letter-spacing:-0.01em; }
+  .stat-card .value.up{ text-shadow:0 0 18px rgba(20,241,149,0.4); }
+  .sc-icon, .coin-icon{ filter:drop-shadow(0 0 7px rgba(var(--acc),0.75)); }
+
+  /* Wert hat sich geändert -> kurzer Impuls (von nxWatchValues gesetzt) */
+  @keyframes nxFlash{
+    0%{ color:var(--blue); text-shadow:0 0 22px rgba(var(--acc),0.9); transform:translateY(-1px); }
+    100%{ text-shadow:0 0 18px rgba(var(--acc),0.25); transform:none; }
+  }
+  .nx-flash{ animation:nxFlash 620ms ease-out; }
+  @keyframes nxFlashUp{ 0%{ color:var(--up); text-shadow:0 0 22px rgba(20,241,149,0.9); } 100%{} }
+  .nx-flash-up{ animation:nxFlashUp 620ms ease-out; }
+  @keyframes nxFlashDown{ 0%{ color:var(--down); text-shadow:0 0 22px rgba(255,61,110,0.9); } 100%{} }
+  .nx-flash-down{ animation:nxFlashDown 620ms ease-out; }
+
+  /* ---------- Haupt-Tabs: Kommandoschiene ---------- */
+  .main-tabs{
+    position:relative; padding:10px 12px; margin:26px 0 22px;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(var(--acc),0.05), rgba(4,7,14,0.35));
+  }
+  .main-tabs::before, .main-tabs::after{
+    content:''; position:absolute; left:0; right:0; height:1px; pointer-events:none;
+    background:linear-gradient(90deg, transparent, rgba(var(--acc),0.55), transparent);
+    background-size:30% 100%; background-repeat:no-repeat;
+  }
+  .main-tabs::before{ top:-1px; animation:nxRail 6s linear infinite; }
+  .main-tabs::after{ bottom:-1px; animation:nxRail 6s linear infinite reverse; }
+
+  .main-tab-btn{
+    position:relative; border-radius:0; overflow:hidden;
+    background:rgba(8,14,25,0.7);
+    border:1px solid var(--line); color:var(--fg-dim);
+    clip-path:polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);
+    transition:color .2s, border-color .2s, background .2s, transform .2s, box-shadow .2s;
+  }
+  .main-tab-btn::before{
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(70% 70% at 50% 120%, rgba(var(--acc),0.35), transparent 70%);
+    opacity:0; transition:opacity .25s;
+  }
+  .main-tab-btn:hover{ color:var(--blue); border-color:rgba(var(--acc),0.45); transform:translateY(-2px); }
+  .main-tab-btn:hover::before{ opacity:0.7; }
+  .main-tab-btn.active{
+    background:linear-gradient(180deg, rgba(var(--acc),0.22), rgba(var(--acc),0.06));
+    border-color:var(--blue); color:#EAFEFF;
+    box-shadow:0 0 26px -6px rgba(var(--acc),0.75), inset 0 0 22px rgba(var(--acc),0.18);
+  }
+  .main-tab-btn.active::before{ opacity:1; }
+  button.main-tab-btn.active:hover:not(:disabled){
+    background:linear-gradient(180deg, rgba(var(--acc),0.3), rgba(var(--acc),0.08));
+    border-color:var(--blue); color:#EAFEFF;
+    box-shadow:0 0 34px -6px rgba(var(--acc),0.95), inset 0 0 24px rgba(var(--acc),0.22);
+  }
+  .main-tab-btn.active::after{
+    content:''; position:absolute; left:14%; right:14%; bottom:3px; height:2px;
+    background:var(--blue); box-shadow:var(--glow-c);
+    animation:nxBar 2.4s ease-in-out infinite;
+  }
+  @keyframes nxBar{ 0%,100%{ opacity:0.45; transform:scaleX(0.6); } 50%{ opacity:1; transform:scaleX(1); } }
+  .main-tab-btn .mt-icon svg{ filter:drop-shadow(0 0 5px rgba(var(--acc),0.45)); }
+
+  /* ---------- Tabwechsel: die Seite wird "kompiliert" ---------- */
+  .tab-page.active{ animation:nxPageIn 420ms cubic-bezier(.16,.84,.3,1) both; }
+  @keyframes nxPageIn{
+    0%{ opacity:0; filter:blur(7px) saturate(1.8); transform:translateY(14px); }
+    55%{ filter:blur(0) saturate(1.25); }
+    100%{ opacity:1; filter:none; transform:none; }
+  }
+  .tab-page.active > *{ animation:nxBlockIn 460ms cubic-bezier(.16,.84,.3,1) both; }
+  .tab-page.active > *:nth-child(1){ animation-delay:40ms; }
+  .tab-page.active > *:nth-child(2){ animation-delay:95ms; }
+  .tab-page.active > *:nth-child(3){ animation-delay:150ms; }
+  .tab-page.active > *:nth-child(4){ animation-delay:200ms; }
+  .tab-page.active > *:nth-child(5){ animation-delay:245ms; }
+  .tab-page.active > *:nth-child(6){ animation-delay:285ms; }
+  .tab-page.active > *:nth-child(n+7){ animation-delay:320ms; }
+  @keyframes nxBlockIn{
+    0%{ opacity:0; transform:translateY(16px); clip-path:inset(0 0 100% 0); }
+    99%{ opacity:1; transform:none; clip-path:inset(0 0 0 0); }
+    100%{ opacity:1; transform:none; clip-path:none; }
+  }
+
+  /* ---------- Unter-Tabs / Pillen ---------- */
+  .sub-tab, .markt-subnav-btn, .am-innernav-btn, .wr-tab{
+    border-radius:0; background:rgba(8,14,25,0.6); border:1px solid var(--line);
+    color:var(--fg-dim); letter-spacing:0.06em;
+    transition:color .18s, border-color .18s, background .18s, box-shadow .18s;
+  }
+  .sub-tab{ clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px); }
+  .sub-tab:hover, .markt-subnav-btn:hover, .am-innernav-btn:hover, .wr-tab:hover{
+    color:var(--blue); border-color:rgba(var(--acc),0.4); background:var(--blue-dim);
+  }
+  button.sub-tab.active:hover:not(:disabled), button.markt-subnav-btn.active:hover:not(:disabled),
+  button.am-innernav-btn.active:hover:not(:disabled), button.wr-tab.active:hover:not(:disabled),
+  .sub-tab.active, .markt-subnav-btn.active, .am-innernav-btn.active, .wr-tab.active{
+    background:linear-gradient(180deg, rgba(var(--acc),0.22), rgba(var(--acc),0.05));
+    border-color:var(--blue); color:#EAFEFF;
+    box-shadow:0 0 20px -6px rgba(var(--acc),0.7), inset 0 0 14px rgba(var(--acc),0.14);
+  }
+
+  /* ---------- Bedienelemente ---------- */
+  button, .btn{
+    border-radius:0; letter-spacing:0.05em; position:relative; overflow:hidden;
+    transition:color .18s, border-color .18s, background .18s, box-shadow .18s, transform .18s;
+  }
+  button:hover:not(:disabled){
+    border-color:var(--blue); color:var(--blue);
+    background:var(--blue-dim); box-shadow:0 0 22px -8px rgba(var(--acc),0.8);
+  }
+  button:active:not(:disabled){ transform:translateY(1px); }
+  .btn-block, .btn-primary{
+    background:linear-gradient(120deg, var(--blue), #16A6C8 60%, var(--plasma) 160%);
+    border-color:var(--blue); color:#02121A; font-weight:700;
+    box-shadow:0 0 26px -8px rgba(var(--acc),0.9);
+  }
+  button.btn-block:hover:not(:disabled), .btn-primary:hover{
+    filter:brightness(1.14); color:#02121A; border-color:var(--blue);
+    background:linear-gradient(120deg, var(--blue), #16A6C8 60%, var(--plasma) 160%);
+    box-shadow:0 0 34px -8px rgba(var(--acc),1);
+  }
+  .btn-block::after, .btn-primary::after{
+    content:''; position:absolute; top:0; bottom:0; left:-40%; width:32%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+    transform:skewX(-20deg); animation:nxShine 3.4s ease-in-out infinite;
+  }
+  .btn-ghost, .btn-block-ghost{ border-color:var(--line); }
+
+  input:not([type=range]), select, textarea{ border-radius:0 !important; background:rgba(4,8,15,0.75) !important; border-color:var(--line) !important; }
+  input:not([type=range]):focus, select:focus, textarea:focus{
+    border-color:var(--blue) !important;
+    box-shadow:0 0 0 1px rgba(var(--acc),0.25), 0 0 20px -6px rgba(var(--acc),0.7) !important;
+  }
+  input#otpInput{ color:var(--blue); text-shadow:var(--glow-c); }
+
+  /* ---------- Fortschritt / Reserven ---------- */
+  .bank-bar-box{
+    background:linear-gradient(180deg, rgba(var(--acc),0.05), rgba(6,10,18,0.55));
+    border-color:var(--line);
+  }
+  .bb-track{ background:rgba(var(--acc),0.08) !important; border:1px solid rgba(var(--acc),0.16); }
+  .bb-fill{
+    background:linear-gradient(90deg, #0B7C9B, var(--blue) 70%, #BFF7FF) !important;
+    box-shadow:0 0 16px rgba(var(--acc),0.8) !important; position:relative;
+  }
+  .bb-fill::after{
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(115deg, rgba(255,255,255,0.22) 0 6px, transparent 6px 14px);
+    animation:nxFlow 900ms linear infinite;
+  }
+  @keyframes nxFlow{ to{ background-position:28px 0; } }
+
+  /* ---------- Login: Startkonsole ---------- */
+  .login-splash .ls-fallback{
+    color:var(--blue); text-shadow:0 0 30px rgba(var(--acc),0.7); letter-spacing:12px;
+    animation:nxGlitch 6s steps(1) infinite;
+  }
+  @keyframes nxGlitch{
+    0%,92%,100%{ transform:none; text-shadow:0 0 30px rgba(var(--acc),0.7); }
+    93%{ transform:translateX(-3px); text-shadow:3px 0 var(--plasma), -3px 0 var(--blue); }
+    95%{ transform:translateX(2px); text-shadow:-2px 0 var(--plasma), 2px 0 var(--blue); }
+    97%{ transform:none; text-shadow:0 0 30px rgba(var(--acc),0.7); }
+  }
+  .login-splash .ls-tag{ color:var(--blue); opacity:0.7; letter-spacing:0.4em; }
+  .login-box{
+    position:relative; background:rgba(8,13,24,0.8); backdrop-filter:blur(12px);
+    border:1px solid var(--line-hot);
+    box-shadow:0 0 60px -30px rgba(var(--acc),0.9), inset 0 1px 0 rgba(var(--acc),0.2);
+    clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+  }
+  .login-box::before{
+    content:''; position:absolute; left:0; right:0; top:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--blue), var(--plasma), transparent);
+    background-size:50% 100%; background-repeat:no-repeat; animation:nxRail 4.5s linear infinite;
+  }
+
+  /* ---------- Karten in Listen (Erfolge, Quests, Sprungmärkte …) ---------- */
+  .ach-card, .quest-card, .sm-card, .feature{
+    border-radius:var(--radius);
+    background:linear-gradient(165deg, rgba(var(--acc),0.045), rgba(6,10,18,0.55));
+    border:1px solid var(--line); transition:border-color .2s, transform .2s, box-shadow .2s;
+  }
+  .ach-card:hover, .quest-card:hover, .sm-card:hover, .feature:hover{
+    border-color:rgba(var(--acc),0.34); transform:translateY(-2px);
+    box-shadow:0 0 26px -14px rgba(var(--acc),0.7);
+  }
+  .ach-card.unlocked{ border-color:rgba(255,198,77,0.4); box-shadow:inset 0 0 22px rgba(255,198,77,0.07); }
+  .ach-tier{ border-radius:0; clip-path:polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%); letter-spacing:0.1em; }
+
+  /* ---------- Meldungen ---------- */
+  .msg{ border-radius:0; border-left:2px solid currentColor; font-family:var(--mono); font-size:12px; }
+  .msg.ok{ background:var(--up-dim); }
+  .msg.err{ background:var(--down-dim); }
+
+  /* ---------- Modale ---------- */
+  .offline-modal-backdrop{ background:rgba(2,4,9,0.82); backdrop-filter:blur(7px) saturate(1.2); }
+  .offline-modal-card{
+    background:rgba(8,13,24,0.94) !important; border:1px solid var(--line-hot) !important;
+    box-shadow:0 0 80px -30px rgba(var(--acc),0.9) !important;
+    clip-path:polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px);
+  }
+
+  /* ---------- Kurs-Signale ---------- */
+  .am-status-dot, .live-dot{ box-shadow:0 0 10px currentColor !important; }
+  .nexus-tap .nt-value{ color:var(--blue); text-shadow:var(--glow-c); }
+
+  @media (max-width:600px){
+    .main-tabs{ padding:8px 6px; }
+    #nxCrt{ opacity:0.32; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    #nxCrt::after, .main-tabs::before, .main-tabs::after, .nav::after,
+    .btn-block::after, .btn-primary::after, .bb-fill::after, .brand .mark::after{ display:none; }
+    .tab-page.active, .tab-page.active > *{ animation:none !important; }
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════
+     NEXUS — SKIN "DEEP DECK 2600", Teil 2 (v4.1)
+     Kosmetik/Skins, Diagramme, zusätzliche Bewegung.
+     --acc ist der RGB-Dreier der aktiven Akzentfarbe und wird zur
+     Laufzeit aus --blue nachgezogen (siehe FX-Script), damit gekaufte
+     Rig-Skins und Kometen-Skins die komplette Oberfläche einfärben.
+     ══════════════════════════════════════════════════════════════════ */
+
+  /* ---------- Bereichs-Farbwelten: Belohnungs-Tabs laufen nicht in Cyan ---------- */
+  #tabPage-event, #tabPage-holiday{
+    --acc:255,79,216; --blue:#FF4FD8; --blue-dim:rgba(255,79,216,0.12);
+  }
+  #tabPage-prestige{
+    --acc:200,107,255; --blue:#C86BFF; --blue-dim:rgba(200,107,255,0.12);
+  }
+  #tabPage-erfolge{
+    --acc:255,198,77; --blue:#FFC64D; --blue-dim:rgba(255,198,77,0.12);
+  }
+
+  /* ---------- Rig-Kacheln: Träger der gekauften Skins ---------- */
+  .rig-icon-tile{
+    border-radius:2px;
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+    background:linear-gradient(150deg, rgba(var(--acc),0.26), rgba(4,8,15,0.7));
+    border:1px solid rgba(var(--acc),0.3);
+  }
+
+  /* Skin aktiv: rotierender Energiering in der Skin-Farbe statt starrem Rahmen */
+  body.cosmetic-skin-active .rig-icon-tile{ box-shadow:none; }
+  body.cosmetic-skin-active .rig-icon-tile::before{
+    content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:conic-gradient(from 0deg,
+      transparent 0deg,
+      var(--cosmetic-rig-color, var(--blue)) 60deg,
+      transparent 150deg,
+      var(--cosmetic-rig-color, var(--blue)) 250deg,
+      transparent 340deg);
+    opacity:0.85; animation:nxSpin 3.4s linear infinite;
+    mask:radial-gradient(circle, transparent 60%, #000 66%);
+    -webkit-mask:radial-gradient(circle, transparent 60%, #000 66%);
+  }
+  body.cosmetic-skin-active .rig-icon-tile > *{ position:relative; z-index:1; }
+
+  /* Partikel-Effekt: Holo-Folie bleibt, bekommt aber eine atmende Aura dazu */
+  body.cosmetic-particles-active .rig-icon-tile{
+    box-shadow:0 0 0 1px var(--cosmetic-rig-color, var(--blue));
+    animation:nxAura 2.2s ease-in-out infinite;
+  }
+  @keyframes nxAura{
+    0%,100%{ box-shadow:0 0 0 1px var(--cosmetic-rig-color, var(--blue)), 0 0 8px -2px var(--cosmetic-rig-color, var(--blue)); }
+    50%{ box-shadow:0 0 0 1px var(--cosmetic-rig-color, var(--blue)), 0 0 22px 2px var(--cosmetic-rig-color, var(--blue)); }
+  }
+  body.cosmetic-particles-active .rig-icon-tile::after{
+    background:linear-gradient(115deg, transparent 22%, rgba(255,255,255,0.85) 47%, rgba(255,255,255,0.85) 53%, transparent 78%);
+    animation-duration:2.1s;
+  }
+
+  /* ---------- Skin- & Kosmetik-Karten: Sammelkarten-Optik ---------- */
+  #cosmeticShopWrap .ach-card, #cosmeticOwnedWrap .ach-card,
+  #rigSkinGalleryWrap .ach-card, #rigSkinWrap .ach-card{
+    position:relative; overflow:hidden;
+    background:linear-gradient(155deg, rgba(var(--acc),0.10), rgba(6,10,18,0.6) 60%);
+  }
+  #cosmeticShopWrap .ach-card::after, #cosmeticOwnedWrap .ach-card::after,
+  #rigSkinGalleryWrap .ach-card::after, #rigSkinWrap .ach-card::after{
+    content:''; position:absolute; top:-60%; bottom:-60%; left:-60%; width:45%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
+    transform:rotate(18deg); pointer-events:none;
+  }
+  #cosmeticShopWrap .ach-card:hover::after, #cosmeticOwnedWrap .ach-card:hover::after,
+  #rigSkinGalleryWrap .ach-card:hover::after, #rigSkinWrap .ach-card:hover::after{
+    animation:nxFoil 1.1s ease-out;
+  }
+  @keyframes nxFoil{ to{ left:130%; } }
+  /* ausgerüstet / im Besitz */
+  #cosmeticOwnedWrap .ach-card.unlocked, #rigSkinGalleryWrap .ach-card.unlocked{
+    border-color:rgba(var(--acc),0.5);
+    box-shadow:inset 0 0 26px rgba(var(--acc),0.10), 0 0 30px -18px rgba(var(--acc),0.9);
+  }
+
+  /* ---------- Erfolge: freigeschaltete Karten glänzen von allein ---------- */
+  .ach-card{ position:relative; overflow:hidden; }
+  .ach-card.unlocked::after{
+    content:''; position:absolute; top:-60%; bottom:-60%; left:-60%; width:40%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
+    transform:rotate(18deg); pointer-events:none;
+    animation:nxFoil 5.5s ease-in-out infinite;
+  }
+  .ach-card .ach-check{ filter:drop-shadow(0 0 6px rgba(var(--acc),0.8)); }
+
+  /* Karten in Rastern bauen sich gestaffelt auf, sobald sie gerendert werden */
+  .ach-grid > *, .quest-grid > *, .sm-grid > *{ animation:nxCardIn 420ms cubic-bezier(.16,.84,.3,1) both; }
+  .ach-grid > *:nth-child(2), .quest-grid > *:nth-child(2), .sm-grid > *:nth-child(2){ animation-delay:45ms; }
+  .ach-grid > *:nth-child(3), .quest-grid > *:nth-child(3), .sm-grid > *:nth-child(3){ animation-delay:90ms; }
+  .ach-grid > *:nth-child(4), .quest-grid > *:nth-child(4), .sm-grid > *:nth-child(4){ animation-delay:130ms; }
+  .ach-grid > *:nth-child(n+5), .quest-grid > *:nth-child(n+5), .sm-grid > *:nth-child(n+5){ animation-delay:165ms; }
+  @keyframes nxCardIn{
+    0%{ opacity:0; transform:translateY(10px) scale(0.985); }
+    100%{ opacity:1; transform:none; }
+  }
+
+  /* ---------- Aufgaben: Fortschritt unter Strom ---------- */
+  .quest-card .q-track{ border-radius:0; background:rgba(var(--acc),0.10); border:1px solid rgba(var(--acc),0.18); }
+  .quest-card .q-fill{
+    border-radius:0; position:relative;
+    background:linear-gradient(90deg, rgba(var(--acc),0.55), var(--blue)) !important;
+    box-shadow:0 0 14px rgba(var(--acc),0.7) !important;
+  }
+  .quest-card .q-fill::after{
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(115deg, rgba(255,255,255,0.22) 0 5px, transparent 5px 12px);
+    animation:nxFlow 850ms linear infinite;
+  }
+  .quest-card.done{
+    border-color:rgba(var(--acc),0.5);
+    box-shadow:inset 0 0 24px rgba(var(--acc),0.08);
+    animation:nxReady 2.4s ease-in-out infinite;
+  }
+  @keyframes nxReady{
+    0%,100%{ box-shadow:inset 0 0 24px rgba(var(--acc),0.08), 0 0 0 0 rgba(var(--acc),0); }
+    50%{ box-shadow:inset 0 0 24px rgba(var(--acc),0.14), 0 0 26px -12px rgba(var(--acc),0.9); }
+  }
+  .quest-card.claimed{ filter:saturate(0.4); }
+
+  .prestige-progress-track{ border-radius:0; }
+  .prestige-progress-fill{
+    position:relative;
+    background:linear-gradient(90deg, var(--blue), var(--plasma)) !important;
+    box-shadow:0 0 16px rgba(var(--acc),0.6);
+  }
+
+  /* ---------- Zeilen (Rigs, Shop) reagieren ---------- */
+  .rig-row, .shop-row{ position:relative; transition:background .2s; }
+  .rig-row::before, .shop-row::before{
+    content:''; position:absolute; left:-22px; top:0; bottom:0; width:2px;
+    background:var(--blue); box-shadow:0 0 10px rgba(var(--acc),0.8);
+    transform:scaleY(0); transform-origin:center; transition:transform .22s;
+  }
+  .rig-row:hover::before, .shop-row:hover::before{ transform:scaleY(0.75); }
+  .rig-row:hover, .shop-row:hover{ background:linear-gradient(90deg, rgba(var(--acc),0.05), transparent 70%); }
+
+  /* ---------- Diagramme: Messgeräte statt Bildchen ---------- */
+  .chart-box{
+    position:relative; overflow:hidden;
+    background:
+      repeating-linear-gradient(90deg, rgba(var(--acc),0.05) 0 1px, transparent 1px 34px),
+      repeating-linear-gradient(0deg,  rgba(var(--acc),0.05) 0 1px, transparent 1px 28px),
+      linear-gradient(180deg, rgba(var(--acc),0.05), transparent 65%);
+    border:1px solid rgba(var(--acc),0.10);
+  }
+  .chart-box::before{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
+    background:linear-gradient(90deg, transparent, rgba(var(--acc),0.16), transparent);
+    width:22%; left:-25%;
+    animation:nxRadar 5.5s linear infinite;
+  }
+  @keyframes nxRadar{ 0%{ left:-25%; } 100%{ left:105%; } }
+  .chart-box::after{
+    content:''; position:absolute; left:0; right:0; bottom:0; height:1px; z-index:2;
+    background:linear-gradient(90deg, transparent, rgba(var(--acc),0.55), transparent);
+  }
+  .chart-box canvas{ position:absolute; z-index:1; }
+  .market-price-big{ text-shadow:0 0 22px rgba(var(--acc),0.35); letter-spacing:-0.01em; }
+  .chart-legend i{ box-shadow:0 0 8px currentColor; }
+
+  /* ---------- Orderbuch/Listenzeilen: dezent lebendig ---------- */
+  .bb-payout-row{ transition:background .18s; }
+  .bb-payout-row:hover{ background:rgba(var(--acc),0.06); }
+
+  @media (prefers-reduced-motion: reduce){
+    .chart-box::before, .ach-card.unlocked::after, .quest-card.done,
+    .quest-card .q-fill::after, body.cosmetic-skin-active .rig-icon-tile::before,
+    body.cosmetic-particles-active .rig-icon-tile{ animation:none !important; }
+    .ach-grid > *, .quest-grid > *, .sm-grid > *{ animation:none !important; }
+  }
+
 </style>
 </head>
 <body>
@@ -3754,13 +4347,13 @@ function setChartTrendColor(charts, trendUp){
     const h = canvasEl.height || 190;
     const gradient = gctx.createLinearGradient(0, 0, 0, h);
     if (trendUp) {
-      ds.borderColor = '#0ECB81';
-      gradient.addColorStop(0, 'rgba(14,203,129,0.32)');
-      gradient.addColorStop(1, 'rgba(14,203,129,0.02)');
+      ds.borderColor = '#14F195';
+      gradient.addColorStop(0, 'rgba(20,241,149,0.34)');
+      gradient.addColorStop(1, 'rgba(20,241,149,0.02)');
     } else {
-      ds.borderColor = '#F6465D';
-      gradient.addColorStop(0, 'rgba(246,70,93,0.32)');
-      gradient.addColorStop(1, 'rgba(246,70,93,0.02)');
+      ds.borderColor = '#FF3D6E';
+      gradient.addColorStop(0, 'rgba(255,61,110,0.34)');
+      gradient.addColorStop(1, 'rgba(255,61,110,0.02)');
     }
     ds.backgroundColor = gradient;
   });
@@ -8275,5 +8868,369 @@ document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListene
   }
 })();
 </script>
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   NEXUS — SKIN "DEEP DECK 2600", Bewegungsschicht (v4.0)
+   Rein optisch: Hintergrund-Canvas, CRT-Auflage, Panel-Licht,
+   Wert-Impulse, Chart-Farben. Kein Eingriff in Spiel-Logik.
+   Rückbau = diesen Script-Block löschen.
+   ══════════════════════════════════════════════════════════════════ */
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- CRT-Auflage ---------- */
+  var crt = document.createElement('div');
+  crt.id = 'nxCrt'; crt.setAttribute('aria-hidden','true');
+  document.body.appendChild(crt);
+
+  /* ---------- Hintergrund: Gitterhorizont + Datenströme ---------- */
+  var fx = document.createElement('canvas');
+  fx.id = 'nxFx'; fx.setAttribute('aria-hidden','true');
+  document.body.insertBefore(fx, document.body.firstChild);
+  var ctx = fx.getContext('2d');
+  var W = 0, H = 0, horizon = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var motes = [], streams = [], gridOff = 0;
+
+  function build(){
+    W = window.innerWidth; H = window.innerHeight;
+    fx.width = W * dpr; fx.height = H * dpr;
+    fx.style.width = W + 'px'; fx.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    horizon = H * 0.62;
+
+    var moteCount = Math.min(90, Math.round(W * H / 24000));
+    motes = [];
+    for (var i = 0; i < moteCount; i++){
+      motes.push({
+        x: Math.random() * W,
+        y: Math.random() * horizon,
+        r: Math.random() * 1.6 + 0.4,
+        vx: (Math.random() - 0.5) * 0.14,
+        vy: -(Math.random() * 0.16 + 0.03),
+        a: Math.random() * 0.5 + 0.12,
+        hot: Math.random() < 0.18
+      });
+    }
+
+    var streamCount = W < 700 ? 6 : 14;
+    streams = [];
+    for (var j = 0; j < streamCount; j++) streams.push(newStream(true));
+  }
+
+  function newStream(spread){
+    return {
+      x: Math.random() * W,
+      y: spread ? Math.random() * H : -Math.random() * 240,
+      len: Math.random() * 120 + 60,
+      sp: Math.random() * 1.5 + 0.5,
+      a: Math.random() * 0.22 + 0.06
+    };
+  }
+
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+
+    /* Horizontlinie + Schimmer */
+    var glow = ctx.createLinearGradient(0, horizon - 90, 0, horizon + 10);
+    glow.addColorStop(0, 'rgba(53,228,255,0)');
+    glow.addColorStop(1, 'rgba(53,228,255,0.13)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, horizon - 90, W, 100);
+
+    /* Fluchtpunkt-Gitter unterhalb des Horizonts */
+    var vpx = W / 2;
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(53,228,255,0.13)';
+    ctx.beginPath();
+    for (var k = -16; k <= 16; k++){
+      var bx = vpx + k * (W / 9);
+      ctx.moveTo(vpx, horizon); ctx.lineTo(bx, H);
+    }
+    ctx.stroke();
+
+    ctx.beginPath();
+    for (var row = 0; row < 16; row++){
+      var t = (row + gridOff) / 16;
+      var y = horizon + (H - horizon) * t * t;
+      if (y > H) continue;
+      ctx.moveTo(0, y); ctx.lineTo(W, y);
+    }
+    ctx.strokeStyle = 'rgba(53,228,255,0.10)';
+    ctx.stroke();
+
+    /* Schwebeteilchen über dem Horizont */
+    for (var m = 0; m < motes.length; m++){
+      var p = motes[m];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.hot
+        ? 'rgba(255,79,216,' + p.a.toFixed(3) + ')'
+        : 'rgba(53,228,255,' + p.a.toFixed(3) + ')';
+      ctx.fill();
+      if (!reduce){
+        p.x += p.vx; p.y += p.vy;
+        if (p.y < -6){ p.y = horizon; p.x = Math.random() * W; }
+        if (p.x < -6) p.x = W + 6; else if (p.x > W + 6) p.x = -6;
+      }
+    }
+
+    /* Senkrechte Datenströme */
+    for (var s = 0; s < streams.length; s++){
+      var st = streams[s];
+      var g = ctx.createLinearGradient(0, st.y, 0, st.y + st.len);
+      g.addColorStop(0, 'rgba(53,228,255,0)');
+      g.addColorStop(0.7, 'rgba(53,228,255,' + st.a.toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(190,250,255,' + Math.min(0.5, st.a * 2.2).toFixed(3) + ')');
+      ctx.fillStyle = g;
+      ctx.fillRect(st.x, st.y, 1, st.len);
+      if (!reduce){
+        st.y += st.sp;
+        if (st.y > H + 40) streams[s] = newStream(false);
+      }
+    }
+
+    if (!reduce) gridOff = (gridOff + 0.012) % 1;
+  }
+
+  var last = 0, running = true;
+  function loop(ts){
+    if (running && ts - last > 33){ last = ts; draw(); }
+    if (!reduce) requestAnimationFrame(loop);
+  }
+  document.addEventListener('visibilitychange', function(){ running = !document.hidden; });
+  window.addEventListener('resize', build);
+  build(); draw();
+  if (!reduce) requestAnimationFrame(loop);
+
+  /* ---------- Panels folgen dem Zeiger (Hardlight-Reflex) ---------- */
+  if (!reduce && window.matchMedia('(pointer:fine)').matches){
+    var style = document.createElement('style');
+    style.textContent =
+      '.panel::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;' +
+      'transition:opacity .3s;background:radial-gradient(340px circle at var(--nx-mx,50%) var(--nx-my,50%),' +
+      'rgba(53,228,255,0.10),transparent 62%);}' +
+      '.panel:hover::after{opacity:1;}';
+    document.head.appendChild(style);
+
+    var pending = null;
+    document.addEventListener('pointermove', function(e){
+      var panel = e.target && e.target.closest ? e.target.closest('.panel') : null;
+      if (!panel) return;
+      pending = { panel: panel, x: e.clientX, y: e.clientY };
+    }, { passive: true });
+
+    setInterval(function(){
+      if (!pending) return;
+      var r = pending.panel.getBoundingClientRect();
+      pending.panel.style.setProperty('--nx-mx', (pending.x - r.left) + 'px');
+      pending.panel.style.setProperty('--nx-my', (pending.y - r.top) + 'px');
+      pending = null;
+    }, 60);
+  }
+
+  /* ---------- Zahlen, die sich ändern, blitzen kurz auf ---------- */
+  (function watchValues(){
+    if (reduce) return;
+    var SEL = '.stat-card .value, .wallet-row .wr-value, .market-price-big';
+    var numOf = function(t){
+      var m = String(t).replace(/[^\d,.\-]/g, '').replace(/\./g, '').replace(',', '.');
+      var n = parseFloat(m);
+      return isNaN(n) ? null : n;
+    };
+    var seen = new WeakMap();
+    var pulse = function(el){
+      var now = numOf(el.textContent);
+      var was = seen.get(el);
+      seen.set(el, now);
+      if (was === undefined || now === null || was === null || now === was) return;
+      var cls = now > was ? 'nx-flash-up' : (now < was ? 'nx-flash-down' : 'nx-flash');
+      el.classList.remove('nx-flash', 'nx-flash-up', 'nx-flash-down');
+      void el.offsetWidth;
+      el.classList.add(cls);
+      setTimeout(function(){ el.classList.remove(cls); }, 700);
+    };
+    document.querySelectorAll(SEL).forEach(function(el){ seen.set(el, numOf(el.textContent)); });
+
+    var mo = new MutationObserver(function(muts){
+      for (var i = 0; i < muts.length; i++){
+        var node = muts[i].target;
+        var el = node.nodeType === 1 ? node : node.parentElement;
+        if (!el) continue;
+        var hit = el.closest ? el.closest(SEL) : null;
+        if (hit) pulse(hit);
+      }
+    });
+    mo.observe(document.body, { childList: true, characterData: true, subtree: true });
+  })();
+
+  /* ---------- Dashboard erscheint: Aufbau-Animation neu ausloesen ---------- */
+  (function(){
+    if (reduce) return;
+    var gv = document.getElementById('gameView');
+    if (!gv) return;
+    var wasHidden = gv.classList.contains('hidden');
+    new MutationObserver(function(){
+      var isHidden = gv.classList.contains('hidden');
+      if (wasHidden && !isHidden){
+        var page = gv.querySelector('.tab-page.active');
+        if (page){ page.classList.remove('active'); void page.offsetWidth; page.classList.add('active'); }
+      }
+      wasHidden = isHidden;
+    }).observe(gv, { attributes:true, attributeFilter:['class'] });
+  })();
+
+  /* ---------- Akzentfarbe nachziehen: gekaufte Skins faerben die ganze Oberflaeche ----------
+     Die Kosmetik-/Kometen-Skins setzen zur Laufzeit --blue auf ihre Farbe. Hier wird
+     daraus --acc (RGB-Dreier) abgeleitet, den der komplette Skin-Block benutzt --
+     Rahmen, Eckklammern, Glimmen, Balken, Diagramme laufen dadurch in der Skin-Farbe. */
+  (function(){
+    var root = document.documentElement;
+    function toTriplet(v){
+      v = (v || '').trim();
+      if (!v) return null;
+      var m = v.match(/^#?([0-9a-f]{6})$/i);
+      if (m){
+        var n = parseInt(m[1], 16);
+        return ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255);
+      }
+      m = v.match(/^#?([0-9a-f]{3})$/i);
+      if (m){
+        var c = m[1];
+        return parseInt(c[0] + c[0], 16) + ',' + parseInt(c[1] + c[1], 16) + ',' + parseInt(c[2] + c[2], 16);
+      }
+      m = v.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+      if (m) return Math.round(+m[1]) + ',' + Math.round(+m[2]) + ',' + Math.round(+m[3]);
+      return null;
+    }
+    var lastAcc = null;
+    function sync(){
+      var blue = getComputedStyle(root).getPropertyValue('--blue');
+      var t = toTriplet(blue);
+      if (t && t !== lastAcc){
+        lastAcc = t;
+        root.style.setProperty('--acc', t);
+        if (window.nxAccent) window.nxAccent(t);
+      }
+    }
+    sync();
+    new MutationObserver(sync).observe(root, { attributes:true, attributeFilter:['style'] });
+    window.addEventListener('nx-accent-refresh', sync);
+    setInterval(sync, 4000);
+  })();
+
+  /* ---------- Diagramme: Messgeraet-Optik ----------
+     Kein Eingriff in die Chart-Aufrufe selbst -- der Konstruktor wird umhuellt und
+     die Konfiguration vorher angereichert: Akzentfarbe statt Fest-Blau, Verlaufs-
+     fuellung unter der Linie, keine Punkte, weicher Schein, dunkler Tooltip. */
+  if (window.Chart){
+    var _Chart = window.Chart, D = _Chart.defaults;
+
+    D.color = '#7B9AB4';
+    D.borderColor = 'rgba(53,228,255,0.10)';
+    D.font.family = "'JetBrains Mono', monospace";
+    D.font.size = 10;
+    if (D.animation !== false){ D.animation = D.animation || {}; D.animation.duration = 900; D.animation.easing = 'easeOutQuart'; }
+    if (D.plugins && D.plugins.tooltip){
+      var tt = D.plugins.tooltip;
+      tt.backgroundColor = 'rgba(6,11,20,0.94)';
+      tt.titleColor = '#DCF2FF';
+      tt.bodyColor = '#DCF2FF';
+      tt.borderColor = 'rgba(53,228,255,0.45)';
+      tt.borderWidth = 1;
+      tt.cornerRadius = 0;
+      tt.padding = 9;
+      tt.displayColors = false;
+    }
+
+    function accent(){
+      var v = getComputedStyle(document.documentElement).getPropertyValue('--blue').trim();
+      return v || '#35E4FF';
+    }
+    function rgba(col, a){
+      var m = String(col).trim().match(/^#?([0-9a-f]{6})$/i);
+      if (m){
+        var n = parseInt(m[1], 16);
+        return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+      }
+      m = String(col).match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+      if (m) return 'rgba(' + Math.round(+m[1]) + ',' + Math.round(+m[2]) + ',' + Math.round(+m[3]) + ',' + a + ')';
+      return 'rgba(53,228,255,' + a + ')';
+    }
+
+    /* Weicher Schein unter jeder Linie */
+    _Chart.register({
+      id: 'nxGlow',
+      beforeDatasetDraw: function(chart, args){
+        var ds = chart.data.datasets[args.index];
+        if (!ds || (chart.config.type !== 'line' && ds.type !== 'line')) return;
+        var c = chart.ctx;
+        c.save();
+        c.shadowColor = rgba(typeof ds.borderColor === 'string' ? ds.borderColor : accent(), 0.85);
+        c.shadowBlur = 10;
+      },
+      afterDatasetDraw: function(chart, args){
+        var ds = chart.data.datasets[args.index];
+        if (!ds || (chart.config.type !== 'line' && ds.type !== 'line')) return;
+        chart.ctx.restore();
+      }
+    });
+
+    function styleConfig(cfg){
+      if (!cfg || !cfg.data || !cfg.data.datasets) return cfg;
+      cfg.data.datasets.forEach(function(ds){
+        if (typeof ds.borderColor === 'string' && /^#2f8cff$/i.test(ds.borderColor.trim())) ds.borderColor = accent();
+        if (ds.pointRadius === undefined) ds.pointRadius = 0;
+        if (ds.pointHoverRadius === undefined) ds.pointHoverRadius = 4;
+        if (ds.pointHoverBorderWidth === undefined) ds.pointHoverBorderWidth = 2;
+        if (ds.borderCapStyle === undefined) ds.borderCapStyle = 'round';
+        if (ds.fill){
+          ds.backgroundColor = function(c){
+            var area = c.chart.chartArea;
+            if (!area) return null;
+            var base = (c.dataset && typeof c.dataset.borderColor === 'string') ? c.dataset.borderColor : accent();
+            var g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+            g.addColorStop(0, rgba(base, 0.34));
+            g.addColorStop(0.55, rgba(base, 0.10));
+            g.addColorStop(1, rgba(base, 0));
+            return g;
+          };
+        }
+      });
+      var sc = cfg.options && cfg.options.scales;
+      if (sc) Object.keys(sc).forEach(function(k){
+        var ax = sc[k];
+        if (ax && ax.grid && ax.grid.display !== false){
+          ax.grid.color = 'rgba(53,228,255,0.07)';
+          ax.grid.drawTicks = false;
+        }
+        if (ax && ax.border) ax.border.color = 'rgba(53,228,255,0.18)';
+      });
+      return cfg;
+    }
+
+    var Wrapped = function(item, cfg){ return new _Chart(item, styleConfig(cfg)); };
+    Wrapped.prototype = _Chart.prototype;
+    Object.setPrototypeOf(Wrapped, _Chart);
+    window.Chart = Wrapped;
+
+    /* Skinwechsel: laufende Charts uebernehmen die neue Akzentfarbe */
+    window.nxAccent = function(){
+      var reg = _Chart.instances || (_Chart.registry && _Chart.instances);
+      var list = reg ? Object.keys(reg).map(function(k){ return reg[k]; }) : [];
+      if (!list.length && _Chart.getChart) return;
+      list.forEach(function(ch){
+        try {
+          ch.data.datasets.forEach(function(ds){
+            if (typeof ds.borderColor === 'string' && ds.borderColor !== accent()
+                && !/rgb|#0e|#f6|#14f|#ff3/i.test(ds.borderColor)) ds.borderColor = accent();
+          });
+          ch.update('none');
+        } catch(e){}
+      });
+    };
+  }
+})();
+</script>
+
 </body>
 </html>
