@@ -638,6 +638,170 @@
   }
   /* ════════════════ Ende SITE-SKIN "DEEP DECK 2600" v1.1 ════════════════ */
 
+
+
+  /* ══════════════════════════════════════════════════════════════════
+     MC ORCA — ORCA-LINK v1.0  (Seitenbreite + Kosmetik-Effekte)
+     Reine Optik-Schicht, haengt an den Body-Klassen, die der
+     ORCA-LINK-Script-Block am Ende des <body> setzt.
+     Rueckbau = diesen Block und den Script-Block loeschen.
+     ══════════════════════════════════════════════════════════════════ */
+
+  :root{ --orca-page-w:900px; }
+  .wrap{ max-width:var(--orca-page-w); }
+  .nav-inner, .foot-inner{ max-width:var(--orca-page-w); }
+
+  /* ---------- Avatar-Rahmen (slot: frame) ---------- */
+  .ofx-ring{
+    position:absolute; inset:0; border-radius:inherit;
+    pointer-events:none; display:block;
+  }
+  .ofx-host{ position:relative; }
+
+  body[data-ofx-frame="orbit"] .ofx-ring{
+    background:conic-gradient(from 0deg,
+      transparent 0deg, rgba(var(--acc),0.05) 200deg,
+      rgb(var(--acc)) 330deg, #fff 352deg, transparent 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    animation:ofxSpin 3.6s linear infinite;
+  }
+  body[data-ofx-frame="hexlock"] .ofx-ring{
+    border:2px solid rgba(var(--acc),0.75);
+    border-radius:inherit;
+    box-shadow:inset 0 0 0 4px rgba(var(--acc),0.10);
+    -webkit-mask:repeating-conic-gradient(#000 0 22deg, transparent 22deg 30deg);
+    mask:repeating-conic-gradient(#000 0 22deg, transparent 22deg 30deg);
+    animation:ofxSpin 9s steps(12) infinite;
+  }
+  body[data-ofx-frame="corona"] .ofx-ring{
+    border:2px solid rgba(var(--acc),0.9);
+    box-shadow:inset 0 0 14px 2px rgba(var(--acc),0.55), 0 0 18px -2px rgba(var(--acc),0.8);
+    animation:ofxCorona 2.8s ease-in-out infinite;
+  }
+  body[data-ofx-frame="comet_tail"] .ofx-ring{
+    background:conic-gradient(from 0deg,
+      rgb(var(--acc2)) 0deg, rgba(var(--acc2),0.35) 26deg, transparent 90deg, transparent 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    animation:ofxSpin 2.4s linear infinite;
+  }
+  @keyframes ofxSpin{ to{ transform:rotate(360deg); } }
+  @keyframes ofxCorona{
+    0%,100%{ box-shadow:inset 0 0 10px 1px rgba(var(--acc),0.40), 0 0 12px -4px rgba(var(--acc),0.6); }
+    50%    { box-shadow:inset 0 0 20px 3px rgba(var(--acc),0.70), 0 0 26px 0 rgba(var(--acc),0.9); }
+  }
+
+  /* ---------- Namensschilder (slot: nameplate) ---------- */
+  body[data-ofx-nameplate="chrome"] .ofx-name{
+    background-image:linear-gradient(180deg,#ffffff 0%,#cfe3f2 38%,#7e97ab 52%,#ffffff 74%,#b9cede 100%);
+    -webkit-background-clip:text !important; background-clip:text !important;
+    -webkit-text-fill-color:transparent !important; color:transparent !important;
+    text-shadow:0 1px 0 rgba(0,0,0,0.45);
+  }
+  body[data-ofx-nameplate="glitch"] .ofx-name{
+    position:relative; animation:ofxGlitch 5s steps(1) infinite;
+  }
+  @keyframes ofxGlitch{
+    0%,92%,100%{ text-shadow:none; transform:translate(0,0); }
+    93%{ text-shadow:-2px 0 rgba(255,79,216,.9), 2px 0 rgba(53,228,255,.9); transform:translate(1px,0); }
+    95%{ text-shadow:2px 0 rgba(255,79,216,.9), -2px 0 rgba(53,228,255,.9); transform:translate(-1px,0); }
+    97%{ text-shadow:-1px 0 rgba(255,79,216,.7), 1px 0 rgba(53,228,255,.7); transform:translate(0,1px); }
+  }
+  body[data-ofx-nameplate="prism"] .ofx-name{
+    background-image:linear-gradient(100deg,
+      rgb(var(--acc)) 0%, #ffffff 22%, rgb(var(--acc2)) 44%,
+      rgb(var(--acc)) 66%, #ffffff 82%, rgb(var(--acc2)) 100%);
+    background-size:280% 100%;
+    -webkit-background-clip:text !important; background-clip:text !important;
+    -webkit-text-fill-color:transparent !important; color:transparent !important;
+    animation:ofxPrismSlide 5.5s linear infinite;
+  }
+  @keyframes ofxPrismSlide{ to{ background-position:280% 0; } }
+
+  /* ---------- Abzeichen (slot: badge) ---------- */
+  .ofx-badge{
+    display:inline-block; width:0.72em; height:0.72em; margin-left:0.42em;
+    border-radius:50%; vertical-align:baseline; flex-shrink:0;
+  }
+  body[data-ofx-badge="pulsar"] .ofx-badge{
+    background:rgb(var(--acc)); box-shadow:0 0 0 0 rgba(var(--acc),0.65);
+    animation:ofxPulsar 2s ease-out infinite;
+  }
+  @keyframes ofxPulsar{
+    0%{ box-shadow:0 0 0 0 rgba(var(--acc),0.6); }
+    70%{ box-shadow:0 0 0 0.7em rgba(var(--acc),0); }
+    100%{ box-shadow:0 0 0 0 rgba(var(--acc),0); }
+  }
+  body[data-ofx-badge="singularity"] .ofx-badge{
+    background:
+      radial-gradient(circle at 50% 50%, #000 0 34%, transparent 35%),
+      conic-gradient(from 0deg, rgba(var(--acc),0) 0deg, rgb(var(--acc)) 120deg,
+                     #ffffff 200deg, rgba(var(--acc2),0.9) 280deg, rgba(var(--acc),0) 360deg);
+    box-shadow:0 0 8px -1px rgba(var(--acc),0.9);
+    animation:ofxSpin 2.4s linear infinite;
+  }
+
+  /* ---------- Zeiger-Effekt (slot: cursor_fx) ---------- */
+  #ofxCursor{ position:fixed; inset:0; z-index:2147482000; pointer-events:none; }
+
+  /* ---------- Hub-Dock (Rueckweg aus den Spielen) ---------- */
+  #ofxDock{
+    position:fixed; left:14px; bottom:14px; z-index:2147483000;
+    font-family:var(--dd-mono,'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace);
+    font-size:12px; line-height:1; display:flex; flex-direction:column-reverse;
+    align-items:flex-start; gap:8px; pointer-events:none;
+  }
+  #ofxDock > *{ pointer-events:auto; }
+  .ofx-dock-btn{
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    padding:9px 13px; color:#DCF2FF; font-weight:700; letter-spacing:.06em;
+    background:linear-gradient(180deg, rgba(8,14,26,0.96), rgba(4,7,14,0.92));
+    border:1px solid rgba(var(--acc,255,206,69),0.42);
+    box-shadow:0 10px 30px -14px rgba(0,0,0,0.9), 0 0 14px -6px rgba(var(--acc,255,206,69),0.55);
+    clip-path:polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+    backdrop-filter:blur(8px);
+    transition:border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .ofx-dock-btn:hover{ border-color:rgba(var(--acc,255,206,69),0.9); transform:translateY(-1px); }
+  .ofx-dock-btn .ofx-dot{
+    width:7px; height:7px; border-radius:50%; background:rgb(var(--acc,255,206,69));
+    box-shadow:0 0 9px rgba(var(--acc,255,206,69),0.9); flex-shrink:0;
+    animation:ofxBlink 2.6s ease-in-out infinite;
+  }
+  @keyframes ofxBlink{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .ofx-dock-panel{
+    display:none; min-width:210px; max-height:64vh; overflow:auto;
+    padding:10px; color:#DCF2FF;
+    background:linear-gradient(180deg, rgba(8,14,26,0.97), rgba(4,7,14,0.95));
+    border:1px solid rgba(var(--acc,255,206,69),0.34);
+    box-shadow:0 22px 60px -22px #000;
+    clip-path:polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+    backdrop-filter:blur(10px);
+  }
+  .ofx-dock-panel.open{ display:block; animation:ofxDockIn .18s ease-out; }
+  @keyframes ofxDockIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  .ofx-dock-panel .ofx-lbl{
+    font-size:9.5px; letter-spacing:.22em; text-transform:uppercase;
+    color:rgba(var(--acc,255,206,69),0.85); padding:8px 8px 5px;
+  }
+  .ofx-dock-panel a{
+    display:block; padding:7px 9px; color:#9FBBD0; text-decoration:none;
+    border-left:2px solid transparent; font-size:12px;
+  }
+  .ofx-dock-panel a:hover{
+    color:#fff; background:rgba(var(--acc,255,206,69),0.09);
+    border-left-color:rgb(var(--acc,255,206,69));
+  }
+  .ofx-dock-panel a.ofx-home{ color:#fff; font-weight:700; }
+  @media (max-width:520px){ #ofxDock{ left:10px; bottom:10px; } .ofx-dock-panel{ min-width:176px; } }
+
+  @media (prefers-reduced-motion: reduce){
+    .ofx-ring, .ofx-badge, .ofx-name, .ofx-dock-btn .ofx-dot{ animation:none !important; }
+    #ofxCursor{ display:none !important; }
+  }
+  /* ════════════════════ Ende ORCA-LINK v1.0 (CSS) ════════════════════ */
+
 </style>
 </head>
 <body>
@@ -657,8 +821,10 @@
         <div class="burger-group">
           <div class="burger-label">Seiten</div>
           <a href="index.html">Hub</a>
-          <a href="profil.html">Profil</a>
+          <a href="profil.html">Profil &amp; Skins</a>
           <a href="raenge.html">Ränge</a>
+          <a href="uhr.html">Sternzeit</a>
+          <a href="nexus/global.html">NEXUS global</a>
         </div>
         <div class="burger-group">
           <div class="burger-label">Spiele</div>
@@ -1291,6 +1457,318 @@
 })();
 </script>
 <!-- ═══════════ Ende SITE-SKIN "DEEP DECK 2600" v1.1 (Bewegungsschicht) ═══════════ -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     MC ORCA — ORCA-LINK v1.0 (Skin-Sync + Hub-Dock)
+     Holt die im Profil ausgeruesteten Kosmetik-Items und faerbt damit
+     JEDE Seite ueber --acc / --acc2 um (daran haengt der komplette
+     DEEP-DECK-Skin). Laeuft ohne supabase-js: liest das Auth-Token aus
+     dem localStorage und spricht PostgREST direkt an. Ergebnis wird
+     zwischengespeichert, damit beim naechsten Seitenaufruf nichts blitzt.
+     Rueckbau = diesen Block und den gleichnamigen CSS-Block loeschen.
+     ══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+  if (window.__orcaLink) return; window.__orcaLink = true;
+
+  var URL_  = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var REF   = 'iuvckfoikhifywayuwkj';
+  var KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  var CACHE = 'mog.orcalink.v1';
+  var PREFIX = '';
+  var root  = document.documentElement;
+
+  /* ---------- kleine Helfer ---------- */
+  function rgbTriple(hex){
+    if(!hex) return null;
+    var h = String(hex).trim().replace('#','');
+    if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    if(!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16);
+  }
+  function hslTriple(h,s,l){
+    h=((h%360)+360)%360; s/=100; l/=100;
+    var c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2, r,g,b;
+    if(h<60){r=c;g=x;b=0;} else if(h<120){r=x;g=c;b=0;} else if(h<180){r=0;g=c;b=x;}
+    else if(h<240){r=0;g=x;b=c;} else if(h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}
+    return Math.round((r+m)*255)+','+Math.round((g+m)*255)+','+Math.round((b+m)*255);
+  }
+  function body(){ return document.body || document.documentElement; }
+
+  /* ---------- Anwenden ---------- */
+  var prismTimer = null;
+  var cursorState = null;
+
+  function applyTheme(rows){
+    rows = rows || [];
+    var byslot = {};
+    rows.forEach(function(r){ if(r && r.slot) byslot[r.slot] = r; });
+
+    /* Farbwelt: page_theme schlaegt den Monats-/Kometen-Skin. */
+    var theme = byslot['page_theme'] || null;
+    var fallback = byslot['rig_skin'] || byslot['month_skin'] || null;
+
+    if(prismTimer){ clearInterval(prismTimer); prismTimer = null; }
+
+    if(theme){
+      var a1 = rgbTriple(theme.color_hex), a2 = rgbTriple(theme.color_hex2);
+      if(a1){
+        root.style.setProperty('--acc', a1);
+        root.style.setProperty('--blue', theme.color_hex);
+        root.style.setProperty('--cc', theme.color_hex);
+      }
+      if(a2) root.style.setProperty('--acc2', theme.color_hex2 ? a2 : null);
+      root.setAttribute('data-orca-theme', theme.name || '');
+
+      if(theme.effect_key === 'prism_shift'){
+        var hue = (Date.now()/120) % 360;
+        prismTimer = setInterval(function(){
+          hue = (hue + 0.55) % 360;
+          root.style.setProperty('--acc',  hslTriple(hue, 92, 64));
+          root.style.setProperty('--acc2', hslTriple(hue + 148, 88, 62));
+        }, 110);
+      }
+    } else if(fallback && fallback.color_hex){
+      /* Kein eigener Farbweltkauf: der Rig-/Monats-Skin faerbt weiter mit,
+         aber nur den Hauptakzent -- die Hausfarbe des Spiels als Gegenfarbe
+         bleibt damit erhalten. */
+      var f = rgbTriple(fallback.color_hex);
+      if(f){
+        root.style.setProperty('--acc', f);
+        root.style.setProperty('--blue', fallback.color_hex);
+        root.style.setProperty('--cc', fallback.color_hex);
+      }
+    } else {
+      root.style.removeProperty('--acc');
+      root.style.removeProperty('--acc2');
+      root.style.removeProperty('--blue');
+      root.style.removeProperty('--cc');
+      root.removeAttribute('data-orca-theme');
+    }
+
+    var b = body();
+    ['frame','nameplate','badge','cursor_fx'].forEach(function(slot){
+      var attr = 'data-ofx-' + (slot === 'cursor_fx' ? 'cursor' : slot);
+      var it = byslot[slot];
+      if(it && it.effect_key) b.setAttribute(attr, it.effect_key);
+      else b.removeAttribute(attr);
+    });
+
+    decorate();
+    setupCursor(byslot['cursor_fx'] ? byslot['cursor_fx'].effect_key : null);
+    try{ window.dispatchEvent(new CustomEvent('orca-theme', { detail:{ slots:byslot } })); }catch(e){}
+  }
+
+  /* ---------- Rahmen/Name/Abzeichen an die vorhandenen Elemente haengen ---------- */
+  var AVATAR_SEL = ['.pv-avatar', '#cloudUserAvatar', '.acct-avatar',
+                    '.row.me .r-avatar', '.lb-row.me .lb-avatar', '.orca-my-avatar'];
+  var NAME_SEL   = ['.pv-name', '#cloudUserName', '.row.me .r-name',
+                    '.lb-row.me .lb-name', '.orca-my-name'];
+
+  function decorate(){
+    var b = body();
+    var hasFrame = b.hasAttribute('data-ofx-frame');
+    var hasBadge = b.hasAttribute('data-ofx-badge');
+
+    AVATAR_SEL.forEach(function(sel){
+      var nodes;
+      try{ nodes = document.querySelectorAll(sel); }catch(e){ return; }
+      Array.prototype.forEach.call(nodes, function(el){
+        el.classList.add('ofx-host');
+        var ring = el.querySelector(':scope > .ofx-ring');
+        if(hasFrame && !ring){
+          ring = document.createElement('i');
+          ring.className = 'ofx-ring';
+          ring.setAttribute('aria-hidden','true');
+          el.appendChild(ring);
+        } else if(!hasFrame && ring){ ring.remove(); }
+      });
+    });
+
+    NAME_SEL.forEach(function(sel){
+      var nodes;
+      try{ nodes = document.querySelectorAll(sel); }catch(e){ return; }
+      Array.prototype.forEach.call(nodes, function(el){
+        el.classList.add('ofx-name');
+        var bd = el.querySelector(':scope > .ofx-badge');
+        if(hasBadge && !bd){
+          bd = document.createElement('i');
+          bd.className = 'ofx-badge';
+          bd.setAttribute('aria-hidden','true');
+          el.appendChild(bd);
+        } else if(!hasBadge && bd){ bd.remove(); }
+      });
+    });
+  }
+  window.orcaDecorate = decorate;
+
+  /* ---------- Zeiger-Effekt ---------- */
+  function setupCursor(kind){
+    if(cursorState){ cursorState.stop(); cursorState = null; }
+    if(!kind) return;
+    if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if(window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+
+    var cv = document.getElementById('ofxCursor');
+    if(!cv){
+      cv = document.createElement('canvas'); cv.id = 'ofxCursor';
+      body().appendChild(cv);
+    }
+    var ctx = cv.getContext('2d'), parts = [], raf = 0, alive = true, last = {x:-999,y:-999};
+    function size(){
+      var d = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = innerWidth * d; cv.height = innerHeight * d;
+      cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
+      ctx.setTransform(d,0,0,d,0,0);
+    }
+    size();
+    function acc(){
+      var v = getComputedStyle(root).getPropertyValue('--acc').trim() || '255,206,69';
+      return v;
+    }
+    function onMove(e){
+      last.x = e.clientX; last.y = e.clientY;
+      var n = kind === 'stardust' ? 2 : 1;
+      for(var i=0;i<n;i++){
+        parts.push({
+          x:e.clientX + (Math.random()-0.5)*6,
+          y:e.clientY + (Math.random()-0.5)*6,
+          vx:(Math.random()-0.5)*(kind==='stardust'?0.7:0.25),
+          vy:kind==='stardust' ? (0.25+Math.random()*0.8) : (Math.random()-0.5)*0.25,
+          life:1, r: kind==='stardust' ? (0.7+Math.random()*1.5) : (1.2+Math.random()*1.8)
+        });
+      }
+      if(parts.length > 260) parts.splice(0, parts.length - 260);
+    }
+    function tick(){
+      if(!alive) return;
+      ctx.clearRect(0,0,innerWidth,innerHeight);
+      var c = acc();
+      for(var i=parts.length-1;i>=0;i--){
+        var p = parts[i];
+        p.x += p.vx; p.y += p.vy; p.life -= kind==='stardust' ? 0.016 : 0.034;
+        if(p.life <= 0){ parts.splice(i,1); continue; }
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba('+c+','+(p.life*0.85).toFixed(3)+')';
+        ctx.arc(p.x, p.y, p.r*p.life + 0.2, 0, 6.283);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    addEventListener('mousemove', onMove, {passive:true});
+    addEventListener('resize', size);
+    raf = requestAnimationFrame(tick);
+    cursorState = { stop:function(){
+      alive = false; cancelAnimationFrame(raf);
+      removeEventListener('mousemove', onMove); removeEventListener('resize', size);
+      if(cv && cv.parentNode) cv.parentNode.removeChild(cv);
+    }};
+  }
+
+  /* ---------- Laden: erst Cache, dann Netz ---------- */
+  function readCache(){
+    try{
+      var raw = localStorage.getItem(CACHE); if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(!o || !o.t || (Date.now() - o.t) > 30*864e5) return null;
+      return o;
+    }catch(e){ return null; }
+  }
+  function token(){
+    try{
+      var raw = localStorage.getItem('sb-'+REF+'-auth-token');
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      return (o && (o.access_token || (o.currentSession && o.currentSession.access_token))) || null;
+    }catch(e){ return null; }
+  }
+
+  var cached = readCache();
+  if(cached) applyTheme(cached.rows);
+
+  function refresh(){
+    var tok = token();
+    if(!tok){
+      if(cached){ try{ localStorage.removeItem(CACHE); }catch(e){} cached = null; applyTheme([]); }
+      return;
+    }
+    fetch(URL_ + '/rest/v1/rpc/get_my_active_theme', {
+      method:'POST',
+      headers:{ 'apikey':KEY, 'Authorization':'Bearer '+tok, 'Content-Type':'application/json',
+                'Accept-Profile':'platform', 'Content-Profile':'platform' },
+      body:'{}'
+    }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(rows){
+        if(!rows) return;
+        try{ localStorage.setItem(CACHE, JSON.stringify({ t:Date.now(), rows:rows })); }catch(e){}
+        applyTheme(rows);
+      }).catch(function(){});
+  }
+  window.orcaRefreshTheme = refresh;
+
+  /* ---------- Hub-Dock ---------- */
+  var GAMES = [
+    ['Aetheris','aetheris/game.html'], ['Astrion','astrion/game.html'],
+    ['Deep Anchor','deepanchor/game.html'], ['Path of the Stars','pathofthestars/game.html'],
+    ['NEXUS','nexus/game.html'], ['Nexus Singularity','nexus/nexus_singularity/game.html'],
+    ['FOUNDRY','foundry/game.html'], ['Domus Prime','domus-prime/game.html']
+  ];
+  function buildDock(){
+    if(document.getElementById('ofxDock')) return;
+    var d = document.createElement('div'); d.id = 'ofxDock';
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'ofx-dock-btn';
+    btn.setAttribute('aria-expanded','false');
+    btn.innerHTML = '<span class="ofx-dot"></span><span>HUB</span>';
+    var panel = document.createElement('div');
+    panel.className = 'ofx-dock-panel';
+    var html = '<div class="ofx-lbl">Navigation</div>'
+      + '<a class="ofx-home" href="'+PREFIX+'index.html">← Zurück zum Hub</a>'
+      + '<a href="'+PREFIX+'profil.html">Profil &amp; Skins</a>'
+      + '<a href="'+PREFIX+'raenge.html">Ränge</a>'
+      + '<a href="'+PREFIX+'uhr.html">Sternzeit</a>'
+      + '<div class="ofx-lbl">Spiele</div>';
+    var here = location.pathname;
+    GAMES.forEach(function(g){
+      if(here.indexOf('/'+g[1].split('/')[0]+'/') !== -1 && here.indexOf(g[1].split('/').pop()) !== -1) return;
+      html += '<a href="'+PREFIX+g[1]+'">'+g[0]+'</a>';
+    });
+    panel.innerHTML = html;
+    d.appendChild(panel); d.appendChild(btn);
+    body().appendChild(d);
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var open = panel.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function(e){
+      if(!d.contains(e.target)) panel.classList.remove('open');
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') panel.classList.remove('open');
+    });
+  }
+
+  function boot(){
+    if(false) buildDock();
+    decorate();
+    refresh();
+    /* Listen, die erst spaeter gerendert werden (Rangliste, Profil), nachdekorieren. */
+    var t = 0;
+    var mo = new MutationObserver(function(){
+      clearTimeout(t); t = setTimeout(decorate, 120);
+    });
+    try{ mo.observe(document.body, { childList:true, subtree:true }); }catch(e){}
+    setInterval(refresh, 180000);
+    addEventListener('focus', refresh);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<!-- ══════════════════ Ende ORCA-LINK v1.0 (Skin-Sync + Hub-Dock) ══════════════════ -->
 
 </body>
 </html>

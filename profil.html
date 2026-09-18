@@ -763,6 +763,246 @@
   }
   /* ════════════════ Ende SITE-SKIN "DEEP DECK 2600" v1.1 ════════════════ */
 
+
+
+  /* ══════════════════════════════════════════════════════════════════
+     MC ORCA — ORCA-LINK v1.0  (Seitenbreite + Kosmetik-Effekte)
+     Reine Optik-Schicht, haengt an den Body-Klassen, die der
+     ORCA-LINK-Script-Block am Ende des <body> setzt.
+     Rueckbau = diesen Block und den Script-Block loeschen.
+     ══════════════════════════════════════════════════════════════════ */
+
+  :root{ --orca-page-w:1080px; }
+  .wrap{ max-width:var(--orca-page-w); }
+  .nav-inner, .foot-inner{ max-width:var(--orca-page-w); }
+
+  /* ---------- Avatar-Rahmen (slot: frame) ---------- */
+  .ofx-ring{
+    position:absolute; inset:0; border-radius:inherit;
+    pointer-events:none; display:block;
+  }
+  .ofx-host{ position:relative; }
+
+  body[data-ofx-frame="orbit"] .ofx-ring{
+    background:conic-gradient(from 0deg,
+      transparent 0deg, rgba(var(--acc),0.05) 200deg,
+      rgb(var(--acc)) 330deg, #fff 352deg, transparent 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    animation:ofxSpin 3.6s linear infinite;
+  }
+  body[data-ofx-frame="hexlock"] .ofx-ring{
+    border:2px solid rgba(var(--acc),0.75);
+    border-radius:inherit;
+    box-shadow:inset 0 0 0 4px rgba(var(--acc),0.10);
+    -webkit-mask:repeating-conic-gradient(#000 0 22deg, transparent 22deg 30deg);
+    mask:repeating-conic-gradient(#000 0 22deg, transparent 22deg 30deg);
+    animation:ofxSpin 9s steps(12) infinite;
+  }
+  body[data-ofx-frame="corona"] .ofx-ring{
+    border:2px solid rgba(var(--acc),0.9);
+    box-shadow:inset 0 0 14px 2px rgba(var(--acc),0.55), 0 0 18px -2px rgba(var(--acc),0.8);
+    animation:ofxCorona 2.8s ease-in-out infinite;
+  }
+  body[data-ofx-frame="comet_tail"] .ofx-ring{
+    background:conic-gradient(from 0deg,
+      rgb(var(--acc2)) 0deg, rgba(var(--acc2),0.35) 26deg, transparent 90deg, transparent 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    animation:ofxSpin 2.4s linear infinite;
+  }
+  @keyframes ofxSpin{ to{ transform:rotate(360deg); } }
+  @keyframes ofxCorona{
+    0%,100%{ box-shadow:inset 0 0 10px 1px rgba(var(--acc),0.40), 0 0 12px -4px rgba(var(--acc),0.6); }
+    50%    { box-shadow:inset 0 0 20px 3px rgba(var(--acc),0.70), 0 0 26px 0 rgba(var(--acc),0.9); }
+  }
+
+  /* ---------- Namensschilder (slot: nameplate) ---------- */
+  body[data-ofx-nameplate="chrome"] .ofx-name{
+    background-image:linear-gradient(180deg,#ffffff 0%,#cfe3f2 38%,#7e97ab 52%,#ffffff 74%,#b9cede 100%);
+    -webkit-background-clip:text !important; background-clip:text !important;
+    -webkit-text-fill-color:transparent !important; color:transparent !important;
+    text-shadow:0 1px 0 rgba(0,0,0,0.45);
+  }
+  body[data-ofx-nameplate="glitch"] .ofx-name{
+    position:relative; animation:ofxGlitch 5s steps(1) infinite;
+  }
+  @keyframes ofxGlitch{
+    0%,92%,100%{ text-shadow:none; transform:translate(0,0); }
+    93%{ text-shadow:-2px 0 rgba(255,79,216,.9), 2px 0 rgba(53,228,255,.9); transform:translate(1px,0); }
+    95%{ text-shadow:2px 0 rgba(255,79,216,.9), -2px 0 rgba(53,228,255,.9); transform:translate(-1px,0); }
+    97%{ text-shadow:-1px 0 rgba(255,79,216,.7), 1px 0 rgba(53,228,255,.7); transform:translate(0,1px); }
+  }
+  body[data-ofx-nameplate="prism"] .ofx-name{
+    background-image:linear-gradient(100deg,
+      rgb(var(--acc)) 0%, #ffffff 22%, rgb(var(--acc2)) 44%,
+      rgb(var(--acc)) 66%, #ffffff 82%, rgb(var(--acc2)) 100%);
+    background-size:280% 100%;
+    -webkit-background-clip:text !important; background-clip:text !important;
+    -webkit-text-fill-color:transparent !important; color:transparent !important;
+    animation:ofxPrismSlide 5.5s linear infinite;
+  }
+  @keyframes ofxPrismSlide{ to{ background-position:280% 0; } }
+
+  /* ---------- Abzeichen (slot: badge) ---------- */
+  .ofx-badge{
+    display:inline-block; width:0.72em; height:0.72em; margin-left:0.42em;
+    border-radius:50%; vertical-align:baseline; flex-shrink:0;
+  }
+  body[data-ofx-badge="pulsar"] .ofx-badge{
+    background:rgb(var(--acc)); box-shadow:0 0 0 0 rgba(var(--acc),0.65);
+    animation:ofxPulsar 2s ease-out infinite;
+  }
+  @keyframes ofxPulsar{
+    0%{ box-shadow:0 0 0 0 rgba(var(--acc),0.6); }
+    70%{ box-shadow:0 0 0 0.7em rgba(var(--acc),0); }
+    100%{ box-shadow:0 0 0 0 rgba(var(--acc),0); }
+  }
+  body[data-ofx-badge="singularity"] .ofx-badge{
+    background:
+      radial-gradient(circle at 50% 50%, #000 0 34%, transparent 35%),
+      conic-gradient(from 0deg, rgba(var(--acc),0) 0deg, rgb(var(--acc)) 120deg,
+                     #ffffff 200deg, rgba(var(--acc2),0.9) 280deg, rgba(var(--acc),0) 360deg);
+    box-shadow:0 0 8px -1px rgba(var(--acc),0.9);
+    animation:ofxSpin 2.4s linear infinite;
+  }
+
+  /* ---------- Zeiger-Effekt (slot: cursor_fx) ---------- */
+  #ofxCursor{ position:fixed; inset:0; z-index:2147482000; pointer-events:none; }
+
+  /* ---------- Hub-Dock (Rueckweg aus den Spielen) ---------- */
+  #ofxDock{
+    position:fixed; left:14px; bottom:14px; z-index:2147483000;
+    font-family:var(--dd-mono,'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace);
+    font-size:12px; line-height:1; display:flex; flex-direction:column-reverse;
+    align-items:flex-start; gap:8px; pointer-events:none;
+  }
+  #ofxDock > *{ pointer-events:auto; }
+  .ofx-dock-btn{
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    padding:9px 13px; color:#DCF2FF; font-weight:700; letter-spacing:.06em;
+    background:linear-gradient(180deg, rgba(8,14,26,0.96), rgba(4,7,14,0.92));
+    border:1px solid rgba(var(--acc,255,206,69),0.42);
+    box-shadow:0 10px 30px -14px rgba(0,0,0,0.9), 0 0 14px -6px rgba(var(--acc,255,206,69),0.55);
+    clip-path:polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+    backdrop-filter:blur(8px);
+    transition:border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .ofx-dock-btn:hover{ border-color:rgba(var(--acc,255,206,69),0.9); transform:translateY(-1px); }
+  .ofx-dock-btn .ofx-dot{
+    width:7px; height:7px; border-radius:50%; background:rgb(var(--acc,255,206,69));
+    box-shadow:0 0 9px rgba(var(--acc,255,206,69),0.9); flex-shrink:0;
+    animation:ofxBlink 2.6s ease-in-out infinite;
+  }
+  @keyframes ofxBlink{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .ofx-dock-panel{
+    display:none; min-width:210px; max-height:64vh; overflow:auto;
+    padding:10px; color:#DCF2FF;
+    background:linear-gradient(180deg, rgba(8,14,26,0.97), rgba(4,7,14,0.95));
+    border:1px solid rgba(var(--acc,255,206,69),0.34);
+    box-shadow:0 22px 60px -22px #000;
+    clip-path:polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+    backdrop-filter:blur(10px);
+  }
+  .ofx-dock-panel.open{ display:block; animation:ofxDockIn .18s ease-out; }
+  @keyframes ofxDockIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  .ofx-dock-panel .ofx-lbl{
+    font-size:9.5px; letter-spacing:.22em; text-transform:uppercase;
+    color:rgba(var(--acc,255,206,69),0.85); padding:8px 8px 5px;
+  }
+  .ofx-dock-panel a{
+    display:block; padding:7px 9px; color:#9FBBD0; text-decoration:none;
+    border-left:2px solid transparent; font-size:12px;
+  }
+  .ofx-dock-panel a:hover{
+    color:#fff; background:rgba(var(--acc,255,206,69),0.09);
+    border-left-color:rgb(var(--acc,255,206,69));
+  }
+  .ofx-dock-panel a.ofx-home{ color:#fff; font-weight:700; }
+  @media (max-width:520px){ #ofxDock{ left:10px; bottom:10px; } .ofx-dock-panel{ min-width:176px; } }
+
+  @media (prefers-reduced-motion: reduce){
+    .ofx-ring, .ofx-badge, .ofx-name, .ofx-dock-btn .ofx-dot{ animation:none !important; }
+    #ofxCursor{ display:none !important; }
+  }
+  /* ════════════════════ Ende ORCA-LINK v1.0 (CSS) ════════════════════ */
+
+
+  /* ---------- Skins & Individualisierung ---------- */
+  .sk-wallet{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+  .sk-coin{
+    display:flex; align-items:baseline; gap:7px; padding:8px 12px;
+    border:1px solid var(--line); background:var(--bg-alt);
+    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  }
+  .sk-coin b{ font-family:var(--dd-mono); font-size:14px; }
+  .sk-coin span{ font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--fg-faint); }
+  .sk-coin.prsm{ border-color:rgba(142,216,255,0.45); box-shadow:inset 0 0 22px -14px #8ED8FF; }
+
+  .sk-loadout{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
+    gap:8px; margin-bottom:18px;
+  }
+  .sk-slot{
+    border:1px solid var(--line); background:var(--bg-alt); padding:10px 11px;
+    display:flex; flex-direction:column; gap:5px; min-height:64px;
+    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  }
+  .sk-slot .sl-k{ font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--fg-faint); }
+  .sk-slot .sl-v{ font-size:12.5px; font-weight:600; color:var(--fg-dim); }
+  .sk-slot.filled{ border-color:rgba(var(--acc),0.5); }
+  .sk-slot.filled .sl-v{ color:var(--fg); }
+  .sk-slot .sl-off{
+    align-self:flex-start; margin-top:2px; font-size:10.5px; color:var(--fg-faint);
+    background:none; border:none; border-bottom:1px solid var(--line); cursor:pointer; padding:0 0 1px;
+  }
+  .sk-slot .sl-off:hover{ color:#FF6B8A; border-bottom-color:#FF6B8A; }
+
+  .sk-filter{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .sk-chip{
+    font-size:11.5px; font-weight:600; padding:6px 11px; cursor:pointer;
+    border:1px solid var(--line); background:transparent; color:var(--fg-dim);
+  }
+  .sk-chip.on{ border-color:rgb(var(--acc)); color:rgb(var(--acc)); background:rgba(var(--acc),0.09); }
+
+  .cosmetic-list.sk-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(232px,1fr)); gap:12px;
+  }
+  .sk-card{
+    position:relative; overflow:hidden; display:flex; flex-direction:column; gap:9px;
+    border:1px solid var(--line); background:var(--bg-alt); padding:13px 14px 12px;
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+    transition:border-color .16s, transform .16s;
+  }
+  .sk-card:hover{ border-color:rgba(var(--acc),0.5); transform:translateY(-2px); }
+  .sk-card.owned{ border-color:rgba(var(--acc),0.32); }
+  .sk-card.equipped{ border-color:rgb(var(--acc)); box-shadow:inset 0 0 34px -20px rgb(var(--acc)); }
+  .sk-prev{ height:46px; border:1px solid rgba(255,255,255,0.07); position:relative; overflow:hidden; }
+  .sk-prev .pv-a, .sk-prev .pv-b{ position:absolute; inset:0; }
+  .sk-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .sk-name{ font-size:13.5px; font-weight:700; line-height:1.25; }
+  .sk-rar{
+    font-size:9px; letter-spacing:.18em; text-transform:uppercase; white-space:nowrap;
+    padding:3px 6px; border:1px solid currentColor; opacity:.9;
+  }
+  .sk-rar.standard{ color:#7B9AB4; } .sk-rar.selten{ color:#35E4FF; }
+  .sk-rar.episch{ color:#C86BFF; }   .sk-rar.legendaer{ color:#FFC64D; }
+  .sk-rar.event{ color:#FF4FD8; }
+  .sk-desc{ font-size:11.5px; line-height:1.45; color:var(--fg-dim); flex:1; }
+  .sk-foot{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .sk-price{ font-family:var(--dd-mono); font-size:12.5px; font-weight:700; white-space:nowrap; }
+  .sk-slotname{ font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--fg-faint); }
+  .sk-group-h{
+    grid-column:1/-1; margin-top:4px; font-size:10.5px; letter-spacing:.2em;
+    text-transform:uppercase; color:rgba(var(--acc),0.9);
+    border-bottom:1px solid var(--line); padding-bottom:6px;
+  }
+  .sk-group-h span{ color:var(--fg-faint); letter-spacing:0; text-transform:none; font-size:11px; }
+  @media (max-width:560px){ .cosmetic-list.sk-grid{ grid-template-columns:1fr; } }
+
+  /* Profil bleibt trotz breiterer Seite gut lesbar */
+  #profileForm input, #profileForm textarea{ max-width:680px; }
+
 </style>
 </head>
 <body>
@@ -805,9 +1045,10 @@
         <div class="burger-group">
           <div class="burger-label">Seiten</div>
           <a href="index.html">Hub</a>
-          <a href="profil.html">Profil</a>
+          <a href="profil.html">Profil &amp; Skins</a>
           <a href="raenge.html">Ränge</a>
           <a href="uhr.html">Sternzeit</a>
+          <a href="nexus/global.html">NEXUS global</a>
         </div>
         <div class="burger-group">
           <div class="burger-label">Spiele</div>
@@ -918,14 +1159,21 @@
     </div>
 
     <div class="card" id="cosmeticSection" style="display:none; margin-top:20px;">
-      <div class="flabel" style="margin-bottom:6px;">Kosmetik-Shop <span style="color:var(--fg-faint); font-weight:400;">— Nexus</span></div>
-      <p class="fhint" style="margin-bottom:14px;">Reine Optik, kein Spielvorteil. SIGIL-Items sind dein Achievement-Prestige — CYCLE-Items sind zeitlich befristete Season-Skins.</p>
+      <div class="flabel" style="margin-bottom:6px;">Skins &amp; Individualisierung</div>
+      <p class="fhint" style="margin-bottom:14px;">Reine Optik, kein Spielvorteil. Eine ausgerüstete
+        <b>Farbwelt</b> färbt den kompletten Auftritt um — Hub, alle Spiele, Ränge, Sternzeit.
+        <b>Prisma-Splitter</b> gibt es ausschließlich über Tagesaufgaben: einen pro Aufgabe.</p>
+
+      <div class="sk-wallet" id="cosmeticWallet"></div>
+      <div class="sk-loadout" id="cosmeticLoadout"></div>
+
       <div class="cosmetic-tabs">
         <button type="button" class="cosmetic-tab active" data-tab="shop">Shop</button>
         <button type="button" class="cosmetic-tab" data-tab="owned">Meine Items</button>
       </div>
-      <div class="cosmetic-list" id="cosmeticShopList"><div class="monument-empty">Lade …</div></div>
-      <div class="cosmetic-list" id="cosmeticOwnedList" style="display:none;"></div>
+      <div class="sk-filter" id="cosmeticFilter"></div>
+      <div class="cosmetic-list sk-grid" id="cosmeticShopList"><div class="monument-empty">Lade …</div></div>
+      <div class="cosmetic-list sk-grid" id="cosmeticOwnedList" style="display:none;"></div>
       <div class="fstatus" id="cosmeticStatus"></div>
     </div>
 
@@ -1121,6 +1369,31 @@
     return { path: '/pathofthestars/bilder/ship/ship_' + n + '.png', label: 'Schiff ' + (i + 1) };
   });
 
+  /* Neue, eigens gezeichnete Avatare: animierte SVGs unter /assets/avatars/.
+     Sie animieren auch als <img>, wo kein JavaScript laeuft -- deshalb SMIL
+     statt CSS-Keyframes. Absolute Pfade, weil derselbe Wert auch in den
+     Unterordnern der Spiele angezeigt wird. */
+  var ORCA_AVATARS = [
+    { path: '/assets/avatars/singularity.svg', label: 'Singularität' },
+    { path: '/assets/avatars/pulsar.svg',      label: 'Pulsar' },
+    { path: '/assets/avatars/wormhole.svg',    label: 'Wurmloch' },
+    { path: '/assets/avatars/nova.svg',        label: 'Nova' },
+    { path: '/assets/avatars/quantum.svg',     label: 'Quantenwelle' },
+    { path: '/assets/avatars/reactor.svg',     label: 'Reaktor' },
+    { path: '/assets/avatars/prism.svg',       label: 'Prismenkern' },
+    { path: '/assets/avatars/hexforge.svg',    label: 'Hexkern' },
+    { path: '/assets/avatars/circuit.svg',     label: 'Schaltkreis' },
+    { path: '/assets/avatars/datastream.svg',  label: 'Datenstrom' },
+    { path: '/assets/avatars/station.svg',     label: 'Orbitalstation' },
+    { path: '/assets/avatars/probe.svg',       label: 'Sonde' },
+    { path: '/assets/avatars/hauler.svg',      label: 'Frachtsegler' },
+    { path: '/assets/avatars/starchart.svg',   label: 'Sternenkarte' },
+    { path: '/assets/avatars/terraform.svg',   label: 'Terraformer' },
+    { path: '/assets/avatars/aurora.svg',      label: 'Aurora' },
+    { path: '/assets/avatars/leviathan.svg',   label: 'Leviathan' },
+    { path: '/assets/avatars/warden.svg',      label: 'Wächter' }
+  ];
+
   function isImageAvatar(a){
     return typeof a === 'string' && /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(a);
   }
@@ -1137,6 +1410,25 @@
       el.textContent = a || '';
     }
   }
+
+  var orcaDivider = document.createElement('div');
+  orcaDivider.className = 'avatar-divider';
+  orcaDivider.textContent = 'MC ORCA — animiert';
+  avatarGrid.appendChild(orcaDivider);
+
+  ORCA_AVATARS.forEach(function(entry){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'avatar-opt';
+    btn.title = entry.label;
+    btn.dataset.avatarValue = entry.path;
+    renderAvatarInto(btn, entry.path);
+    btn.addEventListener('click', function(){
+      selectAvatarInGrid(entry.path);
+      updatePreview();
+    });
+    avatarGrid.appendChild(btn);
+  });
 
   var iconDivider = document.createElement('div');
   iconDivider.className = 'avatar-divider';
@@ -1552,118 +1844,292 @@
     }
   }
 
-  // Kosmetik-Shop: platform.cosmetic_items / player_owned_cosmetics (Nexus) --
-  // reine Optik (Rig-Skins, Partikel-Effekte), bezahlt in SIGIL oder CYCLE.
-  var cosmeticShopEl = document.getElementById('cosmeticShopList');
-  var cosmeticOwnedEl = document.getElementById('cosmeticOwnedList');
+  /* ── Skins & Individualisierung ──────────────────────────────────────────
+     platform.cosmetic_items kennt jetzt sieben Slots. Neu gegenueber der
+     alten Liste: page_theme (faerbt ueber --acc/--acc2 die GANZE Seite und
+     alle Spiele), frame, nameplate, badge, cursor_fx. Bezahlt wird in
+     PRSM (Prisma-Splitter, 1 je Tagesaufgabe), SIGIL, CYCLE oder COMET.
+     Nach jedem Aus-/Anlegen stossen wir orcaRefreshTheme() an, damit der
+     seitenweite Skin-Sync sofort nachzieht statt erst beim Seitenwechsel. */
+  var SK_SLOTS = [
+    { key:'page_theme',      label:'Farbwelt',      hint:'färbt jede Seite' },
+    { key:'frame',           label:'Avatar-Rahmen', hint:'um dein Profilbild' },
+    { key:'nameplate',       label:'Namensschild',  hint:'Schriftbild des Namens' },
+    { key:'badge',           label:'Abzeichen',     hint:'neben deinem Namen' },
+    { key:'cursor_fx',       label:'Zeiger-Effekt', hint:'folgt der Maus' },
+    { key:'rig_skin',        label:'Rig-Skin',      hint:'Nexus-Förderanlagen' },
+    { key:'particle_effect', label:'Partikel',      hint:'Nexus-Förderanlagen' }
+  ];
+  var SK_SLOTMAP = {};
+  SK_SLOTS.forEach(function(sl){ SK_SLOTMAP[sl.key] = sl; });
+
+  var SK_CUR = {
+    PRSM:  { label:'Prisma-Splitter',    color:'#8ED8FF' },
+    SIGIL: { label:'Sigil',              color:'#F0B93A' },
+    CYCLE: { label:'Zyklus-Credits',     color:'#3ddc84' },
+    COMET: { label:'Kometen-Fragmente',  color:'#8ECBE6' },
+    MOGC:  { label:'MOGC',               color:'#FFC64D' }
+  };
+  var SK_RAR = { standard:'Standard', selten:'Selten', episch:'Episch',
+                 legendaer:'Legendär', event:'Event' };
+
+  var cosmeticShopEl   = document.getElementById('cosmeticShopList');
+  var cosmeticOwnedEl  = document.getElementById('cosmeticOwnedList');
   var cosmeticStatusEl = document.getElementById('cosmeticStatus');
+  var cosmeticWalletEl = document.getElementById('cosmeticWallet');
+  var cosmeticLoadEl   = document.getElementById('cosmeticLoadout');
+  var cosmeticFilterEl = document.getElementById('cosmeticFilter');
+
+  var skState = { shop:[], owned:[], balances:{}, filter:'all', busy:false };
 
   function setCosmeticStatus(msg, isErr){
     cosmeticStatusEl.textContent = msg || '';
     cosmeticStatusEl.className = 'fstatus' + (isErr ? ' err' : (msg ? ' ok' : ''));
   }
+  function skNum(n){ return Math.round(Number(n) || 0).toLocaleString('de-DE'); }
 
-  function cosmeticRowEl(item, mode){
-    // mode: 'shop' (Kauf-Button) oder 'owned' (Ausruesten-Button)
-    var row = document.createElement('div');
-    row.className = 'cosmetic-item';
+  /* ---------- Guthaben-Leiste ---------- */
+  function renderWallet(){
+    cosmeticWalletEl.innerHTML = '';
+    ['PRSM','SIGIL','CYCLE','COMET'].forEach(function(sym){
+      var c = SK_CUR[sym];
+      var d = document.createElement('div');
+      d.className = 'sk-coin' + (sym === 'PRSM' ? ' prsm' : '');
+      d.innerHTML = '<b style="color:' + c.color + '">' + skNum(skState.balances[sym]) + '</b>'
+                  + '<span>' + c.label + '</span>';
+      cosmeticWalletEl.appendChild(d);
+    });
+  }
 
-    var swatch = document.createElement('div');
-    swatch.className = 'cosmetic-swatch';
-    swatch.style.background = item.color_hex || 'var(--panel)';
-    row.appendChild(swatch);
+  /* ---------- Was ist gerade angelegt ---------- */
+  function renderLoadout(){
+    cosmeticLoadEl.innerHTML = '';
+    SK_SLOTS.forEach(function(sl){
+      var active = skState.owned.filter(function(o){ return o.slot === sl.key && o.active; })[0];
+      var box = document.createElement('div');
+      box.className = 'sk-slot' + (active ? ' filled' : '');
+      var k = document.createElement('div'); k.className = 'sl-k'; k.textContent = sl.label;
+      var v = document.createElement('div'); v.className = 'sl-v';
+      v.textContent = active ? active.name : '— leer —';
+      box.appendChild(k); box.appendChild(v);
+      if(active){
+        var off = document.createElement('button');
+        off.type = 'button'; off.className = 'sl-off'; off.textContent = 'ablegen';
+        off.addEventListener('click', function(){ skToggle(active, true); });
+        box.appendChild(off);
+      }
+      cosmeticLoadEl.appendChild(box);
+    });
+  }
 
-    var main = document.createElement('div');
-    main.className = 'cosmetic-main';
-    var name = document.createElement('div');
-    name.className = 'cosmetic-name';
-    name.textContent = item.name + (item.season_key ? ' ⏳' : '');
-    var desc = document.createElement('div');
-    desc.className = 'cosmetic-desc';
-    desc.textContent = item.description || (item.slot === 'rig_skin' ? 'Rig-Skin' : 'Partikel-Effekt');
-    main.appendChild(name); main.appendChild(desc);
-    row.appendChild(main);
+  /* ---------- Filterleiste ---------- */
+  function renderFilter(){
+    cosmeticFilterEl.innerHTML = '';
+    var opts = [{ key:'all', label:'Alles' }].concat(SK_SLOTS.map(function(sl){
+      return { key:sl.key, label:sl.label };
+    }));
+    opts.forEach(function(o){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sk-chip' + (skState.filter === o.key ? ' on' : '');
+      b.textContent = o.label;
+      b.addEventListener('click', function(){ skState.filter = o.key; renderFilter(); renderLists(); });
+      cosmeticFilterEl.appendChild(b);
+    });
+  }
+
+  /* ---------- Karte ---------- */
+  function skPreview(item){
+    var box = document.createElement('div');
+    box.className = 'sk-prev';
+    var c1 = item.color_hex || '#35E4FF';
+    var c2 = item.color_hex2 || c1;
+    if(item.slot === 'page_theme'){
+      box.style.background = 'linear-gradient(112deg, ' + c1 + ' 0%, #05080F 48%, ' + c2 + ' 100%)';
+      if(item.effect_key === 'prism_shift'){
+        box.style.background = 'linear-gradient(112deg,#FF3D6E,#FFC64D,#14F195,#35E4FF,#C86BFF,#FF3D6E)';
+        box.style.backgroundSize = '340% 100%';
+        box.style.animation = 'ofxPrismSlide 5s linear infinite';
+      }
+    } else {
+      box.style.background = 'radial-gradient(circle at 50% 50%, ' + c1 + '55 0%, transparent 62%), #05080F';
+      var dot = document.createElement('div');
+      dot.className = 'pv-a';
+      dot.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+      dot.innerHTML = '<span style="width:24px;height:24px;border-radius:50%;'
+        + 'border:2px solid ' + c1 + ';box-shadow:0 0 14px -2px ' + c1 + ';display:block"></span>';
+      box.appendChild(dot);
+    }
+    return box;
+  }
+
+  function skCard(item, mode){
+    var card = document.createElement('div');
+    var equipped = mode === 'owned' && item.active;
+    card.className = 'sk-card' + (item.owned ? ' owned' : '') + (equipped ? ' equipped' : '');
+    card.appendChild(skPreview(item));
+
+    var head = document.createElement('div'); head.className = 'sk-head';
+    var nm = document.createElement('div'); nm.className = 'sk-name';
+    nm.textContent = item.name + (item.season_key ? ' ⏳' : '');
+    var rar = document.createElement('div');
+    var rk = item.rarity || 'standard';
+    rar.className = 'sk-rar ' + rk;
+    rar.textContent = SK_RAR[rk] || rk;
+    head.appendChild(nm); head.appendChild(rar);
+    card.appendChild(head);
+
+    var sn = document.createElement('div'); sn.className = 'sk-slotname';
+    var meta = SK_SLOTMAP[item.slot];
+    sn.textContent = meta ? meta.label : item.slot;
+    card.appendChild(sn);
+
+    var de = document.createElement('div'); de.className = 'sk-desc';
+    de.textContent = item.description || '';
+    card.appendChild(de);
+
+    var foot = document.createElement('div'); foot.className = 'sk-foot';
 
     if(mode === 'shop'){
-      var price = document.createElement('div');
-      price.className = 'cosmetic-price ' + item.symbol.toLowerCase();
-      price.textContent = Math.round(item.price).toLocaleString('de-DE') + ' ' + item.symbol;
-      row.appendChild(price);
+      var cur = SK_CUR[item.symbol] || { color:'var(--gold)' };
+      var pr = document.createElement('div');
+      pr.className = 'sk-price'; pr.style.color = cur.color;
+      pr.textContent = skNum(item.price) + ' ' + item.symbol;
+      foot.appendChild(pr);
 
       var btn = document.createElement('button');
       btn.type = 'button'; btn.className = 'cosmetic-btn';
       if(item.owned){ btn.textContent = 'Besessen'; btn.disabled = true; }
-      else { btn.textContent = 'Kaufen'; }
-      btn.addEventListener('click', async function(){
-        if(item.owned) return;
-        btn.disabled = true; btn.textContent = '…';
-        try{
-          var res = await supabaseClient.schema('platform').rpc('purchase_cosmetic', { p_item_id: item.id });
-          if(res.error) throw res.error;
-          setCosmeticStatus('"' + item.name + '" gekauft!', false);
-          loadCosmetics(window.__cloudUser);
-        }catch(e){
-          setCosmeticStatus('Fehler: ' + (e && e.message ? e.message : 'Kauf fehlgeschlagen.'), true);
-          btn.disabled = false; btn.textContent = 'Kaufen';
-        }
-      });
-      row.appendChild(btn);
+      else {
+        var afford = (skState.balances[item.symbol] || 0) >= Number(item.price);
+        btn.textContent = 'Kaufen';
+        btn.className += afford ? ' primary' : '';
+        if(!afford){ btn.disabled = true; btn.title = 'Nicht genug ' + item.symbol; }
+        btn.addEventListener('click', function(){ skBuy(item, btn); });
+      }
+      foot.appendChild(btn);
     } else {
-      var btn2 = document.createElement('button');
-      btn2.type = 'button';
-      btn2.className = 'cosmetic-btn' + (item.active ? ' active-state' : '');
-      btn2.textContent = item.active ? 'Aktiv ✓' : 'Ausrüsten';
-      btn2.addEventListener('click', async function(){
-        btn2.disabled = true;
-        try{
-          if(item.active){
-            var res2 = await supabaseClient.schema('platform').rpc('clear_active_cosmetic', { p_slot: item.slot });
-            if(res2.error) throw res2.error;
-          } else {
-            var res = await supabaseClient.schema('platform').rpc('set_active_cosmetic', { p_item_id: item.id });
-            if(res.error) throw res.error;
-          }
-          loadCosmetics(window.__cloudUser);
-        }catch(e){
-          setCosmeticStatus('Fehler: ' + (e && e.message ? e.message : 'Aktion fehlgeschlagen.'), true);
-          btn2.disabled = false;
-        }
-      });
-      row.appendChild(btn2);
+      var tag = document.createElement('div');
+      tag.className = 'sk-price';
+      tag.style.color = (SK_CUR[item.symbol] || {}).color || 'var(--fg-faint)';
+      tag.textContent = item.symbol;
+      foot.appendChild(tag);
+
+      var eb = document.createElement('button');
+      eb.type = 'button';
+      eb.className = 'cosmetic-btn' + (item.active ? ' active-state' : ' primary');
+      eb.textContent = item.active ? 'Angelegt ✓' : 'Anlegen';
+      eb.addEventListener('click', function(){ skToggle(item, !!item.active, eb); });
+      foot.appendChild(eb);
     }
-    return row;
+    card.appendChild(foot);
+    return card;
+  }
+
+  /* ---------- Aktionen ---------- */
+  async function skBuy(item, btn){
+    if(skState.busy) return;
+    skState.busy = true; btn.disabled = true; btn.textContent = '…';
+    try{
+      var res = await supabaseClient.schema('platform').rpc('purchase_cosmetic', { p_item_id: item.id });
+      if(res.error) throw res.error;
+      setCosmeticStatus('„' + item.name + '" gekauft. Unter „Meine Items" anlegen.', false);
+      skState.busy = false;
+      await loadCosmetics(window.__cloudUser);
+    }catch(e){
+      setCosmeticStatus('Fehler: ' + (e && e.message ? e.message : 'Kauf fehlgeschlagen.'), true);
+      btn.disabled = false; btn.textContent = 'Kaufen'; skState.busy = false;
+    }
+  }
+
+  async function skToggle(item, isActive, btn){
+    if(skState.busy) return;
+    skState.busy = true; if(btn) btn.disabled = true;
+    try{
+      var res;
+      if(isActive) res = await supabaseClient.schema('platform').rpc('clear_active_cosmetic', { p_slot: item.slot });
+      else         res = await supabaseClient.schema('platform').rpc('set_active_cosmetic',   { p_item_id: item.id });
+      if(res.error) throw res.error;
+      setCosmeticStatus(isActive ? '„' + item.name + '" abgelegt.' : '„' + item.name + '" angelegt.', false);
+      skState.busy = false;
+      await loadCosmetics(window.__cloudUser);
+      /* Seitenweiten Skin-Sync sofort nachziehen (ORCA-LINK). */
+      if(typeof window.orcaRefreshTheme === 'function') window.orcaRefreshTheme();
+    }catch(e){
+      setCosmeticStatus('Fehler: ' + (e && e.message ? e.message : 'Aktion fehlgeschlagen.'), true);
+      if(btn) btn.disabled = false;
+      skState.busy = false;
+    }
+  }
+
+  /* ---------- Listen zeichnen ---------- */
+  function renderInto(el, items, mode, emptyText){
+    el.innerHTML = '';
+    var list = items.filter(function(it){
+      return skState.filter === 'all' || it.slot === skState.filter;
+    });
+    if(!list.length){
+      var d = document.createElement('div');
+      d.className = 'monument-empty'; d.textContent = emptyText;
+      el.appendChild(d);
+      return;
+    }
+    var lastSlot = null;
+    list.forEach(function(it){
+      if(it.slot !== lastSlot){
+        lastSlot = it.slot;
+        var meta = SK_SLOTMAP[it.slot];
+        var h = document.createElement('div');
+        h.className = 'sk-group-h';
+        h.innerHTML = (meta ? meta.label : it.slot)
+                    + (meta ? ' <span>— ' + meta.hint + '</span>' : '');
+        el.appendChild(h);
+      }
+      el.appendChild(skCard(it, mode));
+    });
+  }
+
+  function renderLists(){
+    renderInto(cosmeticShopEl, skState.shop, 'shop',
+      'In dieser Kategorie ist gerade nichts im Angebot.');
+    renderInto(cosmeticOwnedEl, skState.owned, 'owned',
+      'In dieser Kategorie besitzt du noch nichts.');
+  }
+
+  function skOrder(a, b){
+    var ia = SK_SLOTS.findIndex(function(s){ return s.key === a.slot; });
+    var ib = SK_SLOTS.findIndex(function(s){ return s.key === b.slot; });
+    if(ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    return (Number(a.price) || 0) - (Number(b.price) || 0);
   }
 
   async function loadCosmetics(user){
     try{
+      var balRes = await supabaseClient.schema('platform').rpc('get_my_wallet_balances');
+      skState.balances = {};
+      (balRes.data || []).forEach(function(r){ skState.balances[r.symbol] = Number(r.balance) || 0; });
+    }catch(e){ console.warn('Guthaben konnte nicht geladen werden', e); }
+    renderWallet();
+
+    try{
       var shopRes = await supabaseClient.schema('platform').rpc('get_cosmetic_shop');
       if(shopRes.error) throw shopRes.error;
-      cosmeticShopEl.innerHTML = '';
-      var items = shopRes.data || [];
-      if(items.length === 0){
-        cosmeticShopEl.appendChild((function(){ var d=document.createElement('div'); d.className='monument-empty'; d.textContent='Aktuell keine Items im Shop.'; return d; })());
-      } else {
-        items.forEach(function(it){ cosmeticShopEl.appendChild(cosmeticRowEl(it, 'shop')); });
-      }
+      skState.shop = (shopRes.data || []).slice().sort(skOrder);
     }catch(e){
-      cosmeticShopEl.innerHTML = '';
-      cosmeticShopEl.appendChild((function(){ var d=document.createElement('div'); d.className='monument-empty'; d.textContent='Shop konnte nicht geladen werden.'; return d; })());
+      skState.shop = [];
       console.warn('Kosmetik-Shop konnte nicht geladen werden', e);
     }
     try{
       var ownedRes = await supabaseClient.schema('platform').rpc('get_my_cosmetics');
       if(ownedRes.error) throw ownedRes.error;
-      cosmeticOwnedEl.innerHTML = '';
-      var owned = ownedRes.data || [];
-      if(owned.length === 0){
-        cosmeticOwnedEl.appendChild((function(){ var d=document.createElement('div'); d.className='monument-empty'; d.textContent='Noch keine Kosmetik-Items gekauft.'; return d; })());
-      } else {
-        owned.forEach(function(it){ cosmeticOwnedEl.appendChild(cosmeticRowEl(it, 'owned')); });
-      }
+      skState.owned = (ownedRes.data || []).slice().sort(skOrder);
     }catch(e){
-      cosmeticOwnedEl.innerHTML = '';
+      skState.owned = [];
       console.warn('Eigene Kosmetik-Items konnten nicht geladen werden', e);
     }
+    renderLoadout();
+    renderFilter();
+    renderLists();
   }
 
   Array.prototype.forEach.call(document.querySelectorAll('.cosmetic-tab'), function(tab){
@@ -2303,6 +2769,318 @@
 })();
 </script>
 <!-- ═══════════ Ende SITE-SKIN "DEEP DECK 2600" v1.1 (Bewegungsschicht) ═══════════ -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     MC ORCA — ORCA-LINK v1.0 (Skin-Sync + Hub-Dock)
+     Holt die im Profil ausgeruesteten Kosmetik-Items und faerbt damit
+     JEDE Seite ueber --acc / --acc2 um (daran haengt der komplette
+     DEEP-DECK-Skin). Laeuft ohne supabase-js: liest das Auth-Token aus
+     dem localStorage und spricht PostgREST direkt an. Ergebnis wird
+     zwischengespeichert, damit beim naechsten Seitenaufruf nichts blitzt.
+     Rueckbau = diesen Block und den gleichnamigen CSS-Block loeschen.
+     ══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+  if (window.__orcaLink) return; window.__orcaLink = true;
+
+  var URL_  = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var REF   = 'iuvckfoikhifywayuwkj';
+  var KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  var CACHE = 'mog.orcalink.v1';
+  var PREFIX = '';
+  var root  = document.documentElement;
+
+  /* ---------- kleine Helfer ---------- */
+  function rgbTriple(hex){
+    if(!hex) return null;
+    var h = String(hex).trim().replace('#','');
+    if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    if(!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16);
+  }
+  function hslTriple(h,s,l){
+    h=((h%360)+360)%360; s/=100; l/=100;
+    var c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2, r,g,b;
+    if(h<60){r=c;g=x;b=0;} else if(h<120){r=x;g=c;b=0;} else if(h<180){r=0;g=c;b=x;}
+    else if(h<240){r=0;g=x;b=c;} else if(h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}
+    return Math.round((r+m)*255)+','+Math.round((g+m)*255)+','+Math.round((b+m)*255);
+  }
+  function body(){ return document.body || document.documentElement; }
+
+  /* ---------- Anwenden ---------- */
+  var prismTimer = null;
+  var cursorState = null;
+
+  function applyTheme(rows){
+    rows = rows || [];
+    var byslot = {};
+    rows.forEach(function(r){ if(r && r.slot) byslot[r.slot] = r; });
+
+    /* Farbwelt: page_theme schlaegt den Monats-/Kometen-Skin. */
+    var theme = byslot['page_theme'] || null;
+    var fallback = byslot['rig_skin'] || byslot['month_skin'] || null;
+
+    if(prismTimer){ clearInterval(prismTimer); prismTimer = null; }
+
+    if(theme){
+      var a1 = rgbTriple(theme.color_hex), a2 = rgbTriple(theme.color_hex2);
+      if(a1){
+        root.style.setProperty('--acc', a1);
+        root.style.setProperty('--blue', theme.color_hex);
+        root.style.setProperty('--cc', theme.color_hex);
+      }
+      if(a2) root.style.setProperty('--acc2', theme.color_hex2 ? a2 : null);
+      root.setAttribute('data-orca-theme', theme.name || '');
+
+      if(theme.effect_key === 'prism_shift'){
+        var hue = (Date.now()/120) % 360;
+        prismTimer = setInterval(function(){
+          hue = (hue + 0.55) % 360;
+          root.style.setProperty('--acc',  hslTriple(hue, 92, 64));
+          root.style.setProperty('--acc2', hslTriple(hue + 148, 88, 62));
+        }, 110);
+      }
+    } else if(fallback && fallback.color_hex){
+      /* Kein eigener Farbweltkauf: der Rig-/Monats-Skin faerbt weiter mit,
+         aber nur den Hauptakzent -- die Hausfarbe des Spiels als Gegenfarbe
+         bleibt damit erhalten. */
+      var f = rgbTriple(fallback.color_hex);
+      if(f){
+        root.style.setProperty('--acc', f);
+        root.style.setProperty('--blue', fallback.color_hex);
+        root.style.setProperty('--cc', fallback.color_hex);
+      }
+    } else {
+      root.style.removeProperty('--acc');
+      root.style.removeProperty('--acc2');
+      root.style.removeProperty('--blue');
+      root.style.removeProperty('--cc');
+      root.removeAttribute('data-orca-theme');
+    }
+
+    var b = body();
+    ['frame','nameplate','badge','cursor_fx'].forEach(function(slot){
+      var attr = 'data-ofx-' + (slot === 'cursor_fx' ? 'cursor' : slot);
+      var it = byslot[slot];
+      if(it && it.effect_key) b.setAttribute(attr, it.effect_key);
+      else b.removeAttribute(attr);
+    });
+
+    decorate();
+    setupCursor(byslot['cursor_fx'] ? byslot['cursor_fx'].effect_key : null);
+    try{ window.dispatchEvent(new CustomEvent('orca-theme', { detail:{ slots:byslot } })); }catch(e){}
+  }
+
+  /* ---------- Rahmen/Name/Abzeichen an die vorhandenen Elemente haengen ---------- */
+  var AVATAR_SEL = ['.pv-avatar', '#cloudUserAvatar', '.acct-avatar',
+                    '.row.me .r-avatar', '.lb-row.me .lb-avatar', '.orca-my-avatar'];
+  var NAME_SEL   = ['.pv-name', '#cloudUserName', '.row.me .r-name',
+                    '.lb-row.me .lb-name', '.orca-my-name'];
+
+  function decorate(){
+    var b = body();
+    var hasFrame = b.hasAttribute('data-ofx-frame');
+    var hasBadge = b.hasAttribute('data-ofx-badge');
+
+    AVATAR_SEL.forEach(function(sel){
+      var nodes;
+      try{ nodes = document.querySelectorAll(sel); }catch(e){ return; }
+      Array.prototype.forEach.call(nodes, function(el){
+        el.classList.add('ofx-host');
+        var ring = el.querySelector(':scope > .ofx-ring');
+        if(hasFrame && !ring){
+          ring = document.createElement('i');
+          ring.className = 'ofx-ring';
+          ring.setAttribute('aria-hidden','true');
+          el.appendChild(ring);
+        } else if(!hasFrame && ring){ ring.remove(); }
+      });
+    });
+
+    NAME_SEL.forEach(function(sel){
+      var nodes;
+      try{ nodes = document.querySelectorAll(sel); }catch(e){ return; }
+      Array.prototype.forEach.call(nodes, function(el){
+        el.classList.add('ofx-name');
+        var bd = el.querySelector(':scope > .ofx-badge');
+        if(hasBadge && !bd){
+          bd = document.createElement('i');
+          bd.className = 'ofx-badge';
+          bd.setAttribute('aria-hidden','true');
+          el.appendChild(bd);
+        } else if(!hasBadge && bd){ bd.remove(); }
+      });
+    });
+  }
+  window.orcaDecorate = decorate;
+
+  /* ---------- Zeiger-Effekt ---------- */
+  function setupCursor(kind){
+    if(cursorState){ cursorState.stop(); cursorState = null; }
+    if(!kind) return;
+    if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if(window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+
+    var cv = document.getElementById('ofxCursor');
+    if(!cv){
+      cv = document.createElement('canvas'); cv.id = 'ofxCursor';
+      body().appendChild(cv);
+    }
+    var ctx = cv.getContext('2d'), parts = [], raf = 0, alive = true, last = {x:-999,y:-999};
+    function size(){
+      var d = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = innerWidth * d; cv.height = innerHeight * d;
+      cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
+      ctx.setTransform(d,0,0,d,0,0);
+    }
+    size();
+    function acc(){
+      var v = getComputedStyle(root).getPropertyValue('--acc').trim() || '255,206,69';
+      return v;
+    }
+    function onMove(e){
+      last.x = e.clientX; last.y = e.clientY;
+      var n = kind === 'stardust' ? 2 : 1;
+      for(var i=0;i<n;i++){
+        parts.push({
+          x:e.clientX + (Math.random()-0.5)*6,
+          y:e.clientY + (Math.random()-0.5)*6,
+          vx:(Math.random()-0.5)*(kind==='stardust'?0.7:0.25),
+          vy:kind==='stardust' ? (0.25+Math.random()*0.8) : (Math.random()-0.5)*0.25,
+          life:1, r: kind==='stardust' ? (0.7+Math.random()*1.5) : (1.2+Math.random()*1.8)
+        });
+      }
+      if(parts.length > 260) parts.splice(0, parts.length - 260);
+    }
+    function tick(){
+      if(!alive) return;
+      ctx.clearRect(0,0,innerWidth,innerHeight);
+      var c = acc();
+      for(var i=parts.length-1;i>=0;i--){
+        var p = parts[i];
+        p.x += p.vx; p.y += p.vy; p.life -= kind==='stardust' ? 0.016 : 0.034;
+        if(p.life <= 0){ parts.splice(i,1); continue; }
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba('+c+','+(p.life*0.85).toFixed(3)+')';
+        ctx.arc(p.x, p.y, p.r*p.life + 0.2, 0, 6.283);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    addEventListener('mousemove', onMove, {passive:true});
+    addEventListener('resize', size);
+    raf = requestAnimationFrame(tick);
+    cursorState = { stop:function(){
+      alive = false; cancelAnimationFrame(raf);
+      removeEventListener('mousemove', onMove); removeEventListener('resize', size);
+      if(cv && cv.parentNode) cv.parentNode.removeChild(cv);
+    }};
+  }
+
+  /* ---------- Laden: erst Cache, dann Netz ---------- */
+  function readCache(){
+    try{
+      var raw = localStorage.getItem(CACHE); if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(!o || !o.t || (Date.now() - o.t) > 30*864e5) return null;
+      return o;
+    }catch(e){ return null; }
+  }
+  function token(){
+    try{
+      var raw = localStorage.getItem('sb-'+REF+'-auth-token');
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      return (o && (o.access_token || (o.currentSession && o.currentSession.access_token))) || null;
+    }catch(e){ return null; }
+  }
+
+  var cached = readCache();
+  if(cached) applyTheme(cached.rows);
+
+  function refresh(){
+    var tok = token();
+    if(!tok){
+      if(cached){ try{ localStorage.removeItem(CACHE); }catch(e){} cached = null; applyTheme([]); }
+      return;
+    }
+    fetch(URL_ + '/rest/v1/rpc/get_my_active_theme', {
+      method:'POST',
+      headers:{ 'apikey':KEY, 'Authorization':'Bearer '+tok, 'Content-Type':'application/json',
+                'Accept-Profile':'platform', 'Content-Profile':'platform' },
+      body:'{}'
+    }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(rows){
+        if(!rows) return;
+        try{ localStorage.setItem(CACHE, JSON.stringify({ t:Date.now(), rows:rows })); }catch(e){}
+        applyTheme(rows);
+      }).catch(function(){});
+  }
+  window.orcaRefreshTheme = refresh;
+
+  /* ---------- Hub-Dock ---------- */
+  var GAMES = [
+    ['Aetheris','aetheris/game.html'], ['Astrion','astrion/game.html'],
+    ['Deep Anchor','deepanchor/game.html'], ['Path of the Stars','pathofthestars/game.html'],
+    ['NEXUS','nexus/game.html'], ['Nexus Singularity','nexus/nexus_singularity/game.html'],
+    ['FOUNDRY','foundry/game.html'], ['Domus Prime','domus-prime/game.html']
+  ];
+  function buildDock(){
+    if(document.getElementById('ofxDock')) return;
+    var d = document.createElement('div'); d.id = 'ofxDock';
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'ofx-dock-btn';
+    btn.setAttribute('aria-expanded','false');
+    btn.innerHTML = '<span class="ofx-dot"></span><span>HUB</span>';
+    var panel = document.createElement('div');
+    panel.className = 'ofx-dock-panel';
+    var html = '<div class="ofx-lbl">Navigation</div>'
+      + '<a class="ofx-home" href="'+PREFIX+'index.html">← Zurück zum Hub</a>'
+      + '<a href="'+PREFIX+'profil.html">Profil &amp; Skins</a>'
+      + '<a href="'+PREFIX+'raenge.html">Ränge</a>'
+      + '<a href="'+PREFIX+'uhr.html">Sternzeit</a>'
+      + '<div class="ofx-lbl">Spiele</div>';
+    var here = location.pathname;
+    GAMES.forEach(function(g){
+      if(here.indexOf('/'+g[1].split('/')[0]+'/') !== -1 && here.indexOf(g[1].split('/').pop()) !== -1) return;
+      html += '<a href="'+PREFIX+g[1]+'">'+g[0]+'</a>';
+    });
+    panel.innerHTML = html;
+    d.appendChild(panel); d.appendChild(btn);
+    body().appendChild(d);
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var open = panel.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function(e){
+      if(!d.contains(e.target)) panel.classList.remove('open');
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') panel.classList.remove('open');
+    });
+  }
+
+  function boot(){
+    if(false) buildDock();
+    decorate();
+    refresh();
+    /* Listen, die erst spaeter gerendert werden (Rangliste, Profil), nachdekorieren. */
+    var t = 0;
+    var mo = new MutationObserver(function(){
+      clearTimeout(t); t = setTimeout(decorate, 120);
+    });
+    try{ mo.observe(document.body, { childList:true, subtree:true }); }catch(e){}
+    setInterval(refresh, 180000);
+    addEventListener('focus', refresh);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<!-- ══════════════════ Ende ORCA-LINK v1.0 (Skin-Sync + Hub-Dock) ══════════════════ -->
 
 </body>
 </html>
