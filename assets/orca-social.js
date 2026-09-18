@@ -14,6 +14,8 @@
       OrcaSocial.init({ sb: sb, game: 'NEXUS' });
   Optional inline statt als schwebendes Overlay:
       OrcaSocial.mount(document.getElementById('someContainer'));
+  Optional ohne schwebenden Knopf (Zugang ueber Buergermenue-Eintrag):
+      OrcaSocial.init({ sb: sb, game: 'FOUNDRY', launcher: false });
 
   Backend: platform.get_guild_chat_history / send_guild_chat_message,
   platform.get_global_chat_history / send_global_chat_message,
@@ -372,11 +374,20 @@
   }
 
   function refreshBadge() {
-    if (!launcherEl || !rootEl) return;
+    if (!rootEl) return;
     var n = rootEl.querySelectorAll('.osx-tab.unread').length;
-    launcherEl.classList.toggle('has-unread', n > 0 && !isOpen);
-    var b = launcherEl.querySelector('.osx-badge');
-    if (b) b.textContent = String(n);
+    if (launcherEl) {
+      launcherEl.classList.toggle('has-unread', n > 0 && !isOpen);
+      var b = launcherEl.querySelector('.osx-badge');
+      if (b) b.textContent = String(n);
+    }
+    // Zaehler im Buergermenue: <span data-orca-badge="social" hidden></span>
+    var menuBadges = document.querySelectorAll('[data-orca-badge="social"]');
+    Array.prototype.forEach.call(menuBadges, function (el) {
+      var show = n > 0 && !isOpen;
+      el.textContent = show ? String(n) : '';
+      el.hidden = !show;
+    });
   }
 
   function showTab(kind) {
@@ -497,13 +508,17 @@
           if (e.target === overlayEl) OrcaSocial.close();
         });
 
-        launcherEl = document.createElement('button');
-        launcherEl.type = 'button';
-        launcherEl.className = 'osx-launch';
-        launcherEl.setAttribute('aria-label', 'Chat & Freunde');
-        launcherEl.innerHTML = ICON_CHAT + '<span class="osx-badge">0</span>';
-        launcherEl.addEventListener('click', function () { OrcaSocial.toggle(); });
-        document.body.appendChild(launcherEl);
+        // launcher:false = kein schwebender Knopf; geoeffnet wird dann ueber das
+        // Buergermenue (data-orca-open="social", siehe orca-settings.js).
+        if (opts.launcher !== false) {
+          launcherEl = document.createElement('button');
+          launcherEl.type = 'button';
+          launcherEl.className = 'osx-launch';
+          launcherEl.setAttribute('aria-label', 'Chat & Freunde');
+          launcherEl.innerHTML = ICON_CHAT + '<span class="osx-badge">0</span>';
+          launcherEl.addEventListener('click', function () { OrcaSocial.toggle(); });
+          document.body.appendChild(launcherEl);
+        }
 
         wire();
         showTab('gilde');

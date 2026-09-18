@@ -19,6 +19,12 @@
     data-sections   "music", "sfx" oder "music,sfx" (Standard: music)
     data-next       "1" = "Weiter"-Knopf in der Musik-Sektion (nur bei Playlists)
     data-pos        "center" (Standard), "left" oder "right"
+    data-launcher   "menu" = KEIN schwebender Knopf; das Popup oeffnet sich ueber
+                    Eintraege im Buergermenue:
+                      <a href="#" data-orca-open="settings">Einstellungen</a>
+                      <a href="#" data-orca-open="social">Chat &amp; Freunde
+                        <span class="orca-unread" data-orca-badge="social" hidden></span></a>
+                    "social" oeffnet das Social-Panel (orca-social.js) bzw. in NEXUS den Freunde-Tab.
 
   Geteilte Speicher-Schluessel (gelten fuer ALLE betroffenen Spiele):
       orcaMusicVolume, orcaMusicMuted, orcaSfxVolume, orcaSfxMuted
@@ -40,6 +46,7 @@
   var SECTIONS = attr('sections', 'music').split(',').map(function (s) { return s.trim(); });
   var WITH_NEXT = attr('next', '0') === '1';
   var POS = attr('pos', 'center');
+  var MENU_MODE = attr('launcher', 'button') === 'menu';
 
   /* ------------------------------------------------- Schluessel-Migration */
   var KEYS = {
@@ -102,7 +109,19 @@
     '.orcs-actions{display:flex;gap:8px;margin-top:12px;}',
     '.orcs-actions button{flex:1;padding:7px 0;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);',
     '  color:#dbe7f5;font-size:12px;cursor:pointer;border-radius:6px;}',
-    '.orcs-actions button:hover{border-color:rgb(' + A + ');}'
+    '.orcs-actions button:hover{border-color:rgb(' + A + ');}',
+    /* Menue-Modus: Popup mittig als Dialog mit Abdunklung */
+    '.orcs-menu .orcs-pop{left:50%;top:50%;bottom:auto;z-index:9999;max-height:calc(100vh - 40px);',
+    '  transform:translate(-50%,-46%);}',
+    '.orcs-menu .orcs-pop.open{transform:translate(-50%,-50%);}',
+    '.orcs-backdrop{position:fixed;inset:0;z-index:9998;background:rgba(2,6,14,0.55);backdrop-filter:blur(3px);',
+    '  opacity:0;pointer-events:none;transition:opacity .15s ease;}',
+    '.orcs-backdrop.open{opacity:1;pointer-events:auto;}',
+    /* Zaehler am Menue-Eintrag "Chat & Freunde" */
+    '.orca-unread{display:inline-block;min-width:16px;height:16px;padding:0 5px;margin-left:6px;border-radius:8px;',
+    '  background:#ff5470;color:#fff;font:600 10.5px/16px ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;',
+    '  vertical-align:1px;}',
+    '.orca-unread[hidden]{display:none;}'
   ].join('\n');
 
   var GEAR = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" ' +
@@ -128,7 +147,7 @@
   }
 
   /* ------------------------------------------------------------- Aufbau */
-  var root, btn, pop, body;
+  var root, btn, pop, body, backdrop;
 
   function addSection(def) {
     var sec = document.createElement('div');
@@ -142,7 +161,22 @@
 
   function setOpen(open) {
     pop.classList.toggle('open', open);
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (backdrop) backdrop.classList.toggle('open', open);
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  // Buergermenue der Seite zuklappen (gleiche Klassen wie das Seiten-eigene Burger-Skript)
+  function closeBurger() {
+    var bb = document.getElementById('burgerBtn'), bp = document.getElementById('burgerPanel');
+    if (bb) { bb.classList.remove('open'); bb.setAttribute('aria-expanded', 'false'); }
+    if (bp) bp.classList.remove('open');
+  }
+
+  function openSocial() {
+    // NEXUS: Social liegt fest im Tab "Freunde"; sonst das Overlay von orca-social.js
+    var tab = document.querySelector('.main-tab-btn[data-tab="freunde"]');
+    if (tab) { tab.click(); return; }
+    if (window.OrcaSocial && typeof window.OrcaSocial.open === 'function') window.OrcaSocial.open();
   }
 
   function build() {
@@ -153,17 +187,22 @@
 
     root = document.createElement('div');
     root.id = 'orcaSettings';
-    root.className = 'orcs-pos-' + (POS === 'left' || POS === 'right' ? POS : 'center');
+    root.className = 'orcs-pos-' + (POS === 'left' || POS === 'right' ? POS : 'center') + (MENU_MODE ? ' orcs-menu' : '');
 
-    btn = document.createElement('button');
-    btn.type = 'button';
-    btn.id = 'orcaSettingsBtn';
-    btn.className = 'orcs-btn';
-    btn.title = 'Einstellungen';
-    btn.setAttribute('aria-label', 'Einstellungen öffnen');
-    btn.setAttribute('aria-haspopup', 'true');
-    btn.setAttribute('aria-expanded', 'false');
-    btn.innerHTML = GEAR;
+    if (!MENU_MODE) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'orcaSettingsBtn';
+      btn.className = 'orcs-btn';
+      btn.title = 'Einstellungen';
+      btn.setAttribute('aria-label', 'Einstellungen öffnen');
+      btn.setAttribute('aria-haspopup', 'true');
+      btn.setAttribute('aria-expanded', 'false');
+      btn.innerHTML = GEAR;
+    } else {
+      backdrop = document.createElement('div');
+      backdrop.className = 'orcs-backdrop';
+    }
 
     pop = document.createElement('div');
     pop.className = 'orcs-pop';
@@ -175,7 +214,8 @@
       '<div class="orcs-body"></div>';
     body = pop.querySelector('.orcs-body');
 
-    root.appendChild(btn);
+    if (backdrop) root.appendChild(backdrop);
+    if (btn) root.appendChild(btn);
     root.appendChild(pop);
     document.body.appendChild(root);
 
@@ -185,31 +225,43 @@
     var first = body.firstElementChild;
     if (first) first.style.borderTop = 'none';
 
-    btn.addEventListener('click', function (e) {
+    if (btn) btn.addEventListener('click', function (e) {
       e.stopPropagation();
       setOpen(!pop.classList.contains('open'));
     });
     pop.querySelector('.orcs-close').addEventListener('click', function () { setOpen(false); });
     document.addEventListener('click', function (e) {
-      if (pop.classList.contains('open') && !pop.contains(e.target) && !btn.contains(e.target)) setOpen(false);
+      var t = e.target;
+      if (t.closest && t.closest('[data-orca-open]')) return; // Menue-Eintraege steuern das selbst
+      if (pop.classList.contains('open') && !pop.contains(t) && !(btn && btn.contains(t))) setOpen(false);
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && pop.classList.contains('open')) { setOpen(false); btn.focus(); }
+      if (e.key === 'Escape' && pop.classList.contains('open')) { setOpen(false); if (btn) btn.focus(); }
     });
 
     // Knopf dreht sich leicht, solange Musik laeuft (rein optisch).
     var bg = document.getElementById('bgMusic') || document.getElementById('bgMusicPre');
-    if (bg) {
+    if (bg && btn) {
       var upd = function () {
         var any = ['bgMusic', 'bgMusicPre', 'bgMusicDom', 'bgMusicThreat'].some(function (id) {
           var a = document.getElementById(id);
           return a && !a.paused && !a.muted && a.volume > 0;
         });
-        btn.classList.toggle('playing', any);
+        if (btn) btn.classList.toggle('playing', any);
       };
       setInterval(upd, 1000);
     }
   }
+
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('[data-orca-open]');
+    if (!a) return;
+    e.preventDefault();
+    var what = a.getAttribute('data-orca-open');
+    closeBurger();
+    if (what === 'settings') { if (pop) setOpen(!pop.classList.contains('open')); }
+    else if (what === 'social') { if (pop) setOpen(false); openSocial(); }
+  });
 
   window.OrcaSettings = {
     KEYS: KEYS,

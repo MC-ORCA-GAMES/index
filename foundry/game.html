@@ -1119,7 +1119,7 @@
 </style>
 </head>
 <body>
-<script src="/assets/orca-settings.js" data-sections="music,sfx" data-next="1"></script>
+<script src="../assets/orca-settings.js" data-sections="music,sfx" data-launcher="menu" data-next="1"></script>
 
 <canvas id="stars"></canvas>
 
@@ -1134,8 +1134,11 @@
         <span></span><span></span><span></span>
       </button>
       <div class="burger-panel" id="burgerPanel">
-        <!-- Musik-/SFX-Regler: liegen jetzt im gemeinsamen Einstellungs-Popup
-             (/assets/orca-settings.js, Knopf unten mittig). -->
+        <div class="burger-group">
+          <div class="burger-label">Optionen</div>
+          <a href="#" data-orca-open="settings">Einstellungen</a>
+          <a href="#" data-orca-open="social">Chat &amp; Freunde <span class="orca-unread" data-orca-badge="social" hidden></span></a>
+        </div>
         <div class="burger-group">
           <div class="burger-label">Seiten</div>
           <a href="../index.html">Hub</a>
@@ -1600,7 +1603,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth:
    werden muessen. Wird erst gestartet, wenn eine Session existiert. */
 sb.auth.getSession().then(function(r){
   if (r && r.data && r.data.session && window.OrcaSocial) {
-    OrcaSocial.init({ sb: sb, game: 'FOUNDRY' });
+    OrcaSocial.init({ sb: sb, game: 'FOUNDRY', launcher: false });
   }
 });
 
