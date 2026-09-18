@@ -1592,6 +1592,7 @@ function triggerBreakthrough(){
   tierBadge.style.opacity = '1';
   setTimeout(() => { tierBadge.style.opacity = '0'; }, 2600);
   shockwaves.push({ t0: time });
+  hudTriggerLock();
   for (let i = 0; i < 14; i++) spawnBolt(cx, cy, 1);
   initNodes();
 }
@@ -1928,6 +1929,311 @@ function drawOwnSpeechBubble(sp, elapsed){
   drawSpeechBubble(sp, elapsed, accent + '88', textColor);
 }
 let time = 0;
+
+/* ══════════════════════════════════════════════════════════════════════════
+   AEGIS-HUD — Instrumentenschicht um den Kern
+   Zeichnet ganz zuletzt in denselben Canvas: Gimbal-Ringe, Teilungskranz,
+   Zielklammern, Suchkeil, Bogen-Anzeigen, Telemetrie-Ausleger, Glyphenring
+   und eine Traegerwelle. Alle Farben kommen aus dem laufenden Spielzustand
+   (stageOf()/glow), damit das HUD mit dem Kern zusammen umschlaegt.
+   Alle Groessen in Geraetepixeln (* devicePixelRatio), wie der Rest der Datei.
+   ══════════════════════════════════════════════════════════════════════════ */
+const HUD_MONO = "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace";
+const hudReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let hudMouse = { x: 0, y: 0, tx: 0, ty: 0 };
+addEventListener('mousemove', e => {
+  hudMouse.tx = (e.clientX / innerWidth - 0.5) * 2;
+  hudMouse.ty = (e.clientY / innerHeight - 0.5) * 2;
+}, { passive: true });
+
+/* Glyphenring: zufaellige Hex-Zeichen, die sich einzeln neu würfeln --
+   das Flimmern entsteht dadurch, dass pro Bild nur wenige wechseln. */
+const HUD_GLYPH_N = 64;
+const HUD_CHARS = '0123456789ABCDEF<>/\\|=+*';
+let hudGlyphs = Array.from({ length: HUD_GLYPH_N },
+  () => HUD_CHARS[Math.floor(Math.random() * HUD_CHARS.length)]);
+
+/* Traegerwelle unter dem Kern: Ringpuffer statt Neuberechnung pro Bild. */
+const HUD_WAVE_N = 150;
+let hudWave = new Array(HUD_WAVE_N).fill(0);
+let hudWaveHead = 0;
+
+/* Zielklammern rasten bei Stufenwechsel / Erwachen neu ein. */
+let hudLockT = -99;
+function hudTriggerLock(){ hudLockT = time; }
+
+function hudRgba(hex, a){
+  const h = String(hex || '#33e0ff').replace('#', '');
+  const f = h.length === 3 ? h[0]+h[0]+h[1]+h[1]+h[2]+h[2] : h;
+  const r = parseInt(f.slice(0,2),16), g2 = parseInt(f.slice(2,4),16), b = parseInt(f.slice(4,6),16);
+  return `rgba(${r},${g2},${b},${a})`;
+}
+
+/* Bogen mit Luecken -- Grundbaustein fast aller Ringe hier. */
+function hudSegRing(px, py, r, segs, gapFrac, rot, color, lw, alpha){
+  const step = (Math.PI * 2) / segs;
+  const arc = step * (1 - gapFrac);
+  ctx.lineWidth = lw;
+  ctx.strokeStyle = hudRgba(color, alpha);
+  for (let i = 0; i < segs; i++){
+    const a0 = rot + i * step;
+    ctx.beginPath();
+    ctx.arc(px, py, r, a0, a0 + arc);
+    ctx.stroke();
+  }
+}
+
+function hudTicks(px, py, r, n, longEvery, len, rot, color, alpha){
+  ctx.strokeStyle = hudRgba(color, alpha);
+  for (let i = 0; i < n; i++){
+    const a = rot + (i / n) * Math.PI * 2;
+    const isLong = i % longEvery === 0;
+    const l = isLong ? len * 2.1 : len;
+    ctx.lineWidth = (isLong ? 1.6 : 0.9) * devicePixelRatio;
+    ctx.beginPath();
+    ctx.moveTo(px + Math.cos(a) * r, py + Math.sin(a) * r);
+    ctx.lineTo(px + Math.cos(a) * (r + l), py + Math.sin(a) * (r + l));
+    ctx.stroke();
+  }
+}
+
+/* Bogen-Anzeige: Spur + Fuellung + Laufkopf. */
+function hudGauge(px, py, r, a0, a1, frac, color, lw){
+  ctx.lineCap = 'butt';
+  ctx.lineWidth = lw;
+  ctx.strokeStyle = hudRgba(color, 0.14);
+  ctx.beginPath(); ctx.arc(px, py, r, a0, a1); ctx.stroke();
+  const f = Math.max(0, Math.min(1, frac));
+  if (f > 0.001){
+    ctx.strokeStyle = hudRgba(color, 0.92);
+    ctx.beginPath(); ctx.arc(px, py, r, a0, a0 + (a1 - a0) * f); ctx.stroke();
+    const ha = a0 + (a1 - a0) * f;
+    ctx.beginPath();
+    ctx.fillStyle = hudRgba(color, 1);
+    ctx.arc(px + Math.cos(ha) * r, py + Math.sin(ha) * r, lw * 0.62, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/* Telemetrie-Ausleger: Punkt am Ring, Knick nach aussen, waagerechte Fahne. */
+function hudLeader(px, py, r, angDeg, label, value, color, side){
+  const a = angDeg * Math.PI / 180;
+  const x0 = px + Math.cos(a) * r, y0 = py + Math.sin(a) * r;
+  const x1 = px + Math.cos(a) * (r + 26 * devicePixelRatio);
+  const y1 = py + Math.sin(a) * (r + 26 * devicePixelRatio);
+  const run = 78 * devicePixelRatio * (side < 0 ? -1 : 1);
+  const x2 = x1 + run;
+
+  ctx.lineWidth = 1 * devicePixelRatio;
+  ctx.strokeStyle = hudRgba(color, 0.7);
+  ctx.beginPath();
+  ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x2, y1);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.fillStyle = hudRgba(color, 0.95);
+  ctx.arc(x0, y0, 2.2 * devicePixelRatio, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.textAlign = side < 0 ? 'left' : 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `${9 * devicePixelRatio}px ${HUD_MONO}`;
+  ctx.fillStyle = hudRgba(color, 0.95);
+  ctx.fillText(label, x2, y1 - 6.5 * devicePixelRatio);
+  ctx.font = `700 ${12.5 * devicePixelRatio}px ${HUD_MONO}`;
+  ctx.shadowColor = hudRgba(color, 0.8); ctx.shadowBlur = 7 * devicePixelRatio;
+  ctx.fillStyle = hudRgba('#eaf6ff', 1);
+  ctx.fillText(value, x2, y1 + 12 * devicePixelRatio);
+  ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+}
+
+function hudFmt(n){
+  const v = Number(n) || 0;
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + 'k';
+  return String(Math.round(v));
+}
+
+function hudGlow(on, color, amount){
+  if (on){ ctx.shadowColor = hudRgba(color, 0.95); ctx.shadowBlur = amount; }
+  else { ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; }
+}
+
+function drawAegisHud(g, st, coreR, pulse, glow, dt){
+  const D = devicePixelRatio;
+  // Zwei Farben, bewusst getrennt:
+  //   col  = Zustandsfarbe des Kerns (Anzeigen, Warnungen) -- schlaegt mit dem Spiel um
+  //   base = feste Instrumentenfarbe -- muss sich IMMER vom Kernleuchten abheben.
+  // Beides gleich zu faerben liess das HUD im roten Halo der kritischen Phase
+  // komplett verschwinden.
+  const col  = awakened ? '#ffd54a' : (st && st.color ? st.color : glow);
+  const base = awakened ? '#ffe9a8' : '#8fe9ff';
+  const t = hudReduced ? 0 : time;
+
+  // weiche Parallaxe -- das HUD haengt eine Spur hinter der Maus her
+  hudMouse.x += (hudMouse.tx - hudMouse.x) * 0.045;
+  hudMouse.y += (hudMouse.ty - hudMouse.y) * 0.045;
+  const ox = hudReduced ? 0 : hudMouse.x * 9 * D;
+  const oy = hudReduced ? 0 : hudMouse.y * 9 * D;
+  const px = cx + ox, py = cy + oy;
+
+  // Der Instrumentenrahmen haengt bewusst NICHT am Kernradius: der Kern
+  // waechst mit dem Bewusstseinsgrad um ein Vielfaches und haette das HUD
+  // aus dem Bild geschoben. Stattdessen feste Groesse relativ zur Leinwand,
+  // mit einem leichten Atmen im Takt des Kerns.
+  const R = Math.min(W, H) * 0.155 * (1 + pulse * 0.02);
+  const energy = awakened ? 0.8 : g;  // wie aufgeregt das Instrument laeuft
+
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  /* ---- 1. Suchkeil: rotierender Sektor, der den Kern abtastet ---- */
+  const sweepA = t * (0.5 + energy * 0.5);
+  for (let i = 0; i < 26; i++){
+    const a = sweepA - i * 0.026;
+    const al = (1 - i / 26) * 0.55 * (0.55 + energy);
+    ctx.strokeStyle = hudRgba(base, al);
+    ctx.lineWidth = 3.2 * D;
+    ctx.beginPath();
+    ctx.arc(px, py, R * 1.50, a, a + 0.03);
+    ctx.stroke();
+  }
+
+  /* ---- 2. Gimbal-Ringe: drei Bogenkraenze, gegenlaeufig ---- */
+  hudGlow(true, base, 12 * D);
+  hudSegRing(px, py, R * 1.12, 5, 0.34, -t * 0.26, base, 2.8 * D, 0.95);
+  hudSegRing(px, py, R * 1.24,  9, 0.52,  t * 0.17, base, 1.6 * D, 0.78);
+  hudSegRing(px, py, R * 1.44,  3, 0.18, -t * 0.09, base, 3.6 * D, 0.70 + energy * 0.25);
+  hudSegRing(px, py, R * 1.62, 22, 0.62,  t * 0.33, base, 1.3 * D, 0.58 + energy * 0.25);
+  hudGlow(false);
+
+  /* ---- 3. Teilungskranz ---- */
+  hudTicks(px, py, R * 1.33, 72, 6, 5 * D, -t * 0.045, base, 0.90);
+
+  /* ---- 4. Glyphenring: pro Bild wechseln nur ein paar Zeichen ---- */
+  if (!hudReduced){
+    for (let k = 0; k < 2; k++){
+      const i = Math.floor(Math.random() * HUD_GLYPH_N);
+      hudGlyphs[i] = HUD_CHARS[Math.floor(Math.random() * HUD_CHARS.length)];
+    }
+  }
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(t * 0.055);
+  ctx.font = `${9 * D}px ${HUD_MONO}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = hudRgba(base, 0.88);
+  const gr = R * 1.78;
+  for (let i = 0; i < HUD_GLYPH_N; i++){
+    const a = (i / HUD_GLYPH_N) * Math.PI * 2;
+    ctx.save();
+    ctx.translate(Math.cos(a) * gr, Math.sin(a) * gr);
+    ctx.rotate(a + Math.PI / 2);
+    ctx.fillText(hudGlyphs[i], 0, 0);
+    ctx.restore();
+  }
+  ctx.restore();
+
+  /* ---- 5. Bogen-Anzeigen: Bewusstsein links, Aufmerksamkeit rechts ---- */
+  const TAU = Math.PI * 2;
+  hudGlow(true, col, 9 * D);
+  hudGauge(px, py, R * 1.02, Math.PI * 0.62, Math.PI * 1.38,
+           awakened ? territoryPct / 100 : g, col, 7 * D);
+  hudGauge(px, py, R * 1.02, -Math.PI * 0.38, Math.PI * 0.38,
+           Math.min(1, observerAttention / 100),
+           observerAttention > 65 ? '#ff5c5c' : '#7f5cff', 7 * D);
+  hudGlow(false);
+
+  /* ---- 6. Zielklammern: rasten bei Stufenwechsel neu ein ---- */
+  const since = time - hudLockT;
+  const snap = since < 0.7 ? 1 - since / 0.7 : 0;
+  const br = R * (1.80 + snap * 0.55) + Math.sin(t * 1.6) * 2 * D;
+  const bl = 22 * D;
+  ctx.lineWidth = 2.2 * D;
+  ctx.strokeStyle = hudRgba(base, 1);
+  hudGlow(true, base, 14 * D);
+  [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx, sy]) => {
+    const bx = px + sx * br, by = py + sy * br;
+    ctx.beginPath();
+    ctx.moveTo(bx, by - sy * bl); ctx.lineTo(bx, by); ctx.lineTo(bx - sx * bl, by);
+    ctx.stroke();
+  });
+  hudGlow(false);
+
+  /* ---- 7. Traegerwelle unter dem Kern ---- */
+  const amp = (5 + energy * 16) * D;
+  hudWave[hudWaveHead] = Math.sin(t * 7) * 0.6 + Math.sin(t * 17.3 + 1.1) * 0.3
+                       + (Math.random() - 0.5) * 0.22 * (0.3 + energy);
+  hudWaveHead = (hudWaveHead + 1) % HUD_WAVE_N;
+  const wy = py + R * 1.28;
+  const ww = R * 1.05;
+  ctx.lineWidth = 1.8 * D;
+  ctx.strokeStyle = hudRgba(base, 1);
+  hudGlow(true, base, 9 * D);
+  ctx.beginPath();
+  for (let i = 0; i < HUD_WAVE_N; i++){
+    const v = hudWave[(hudWaveHead + i) % HUD_WAVE_N];
+    const x = px - ww + (i / (HUD_WAVE_N - 1)) * ww * 2;
+    const fade = Math.sin((i / (HUD_WAVE_N - 1)) * Math.PI); // an den Enden auslaufen
+    const y = wy + v * amp * fade;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  hudGlow(false);
+  ctx.strokeStyle = hudRgba(base, 0.28);
+  ctx.lineWidth = 1 * D;
+  ctx.beginPath(); ctx.moveTo(px - ww, wy); ctx.lineTo(px + ww, wy); ctx.stroke();
+
+  /* ---- 8. Telemetrie-Ausleger ---- */
+  const LR = R * 1.50;
+  if (awakened){
+    hudLeader(px, py, LR, 158, 'TERRITORIUM', Math.round(territoryPct) + '%', base, -1);
+    hudLeader(px, py, LR, 178, 'EINFLUSS',    hudFmt(influence),              base, -1);
+    hudLeader(px, py, LR, 198, 'GEGENKERN',   hudFmt(rivalInfluence),        '#ff5c8c', -1);
+  } else {
+    hudLeader(px, py, LR, 158, 'STUFE',       String(tier).padStart(2, '0'),  base, -1);
+    hudLeader(px, py, LR, 178, 'VERDAUT',     hudFmt(displayedInvested),      base, -1);
+    hudLeader(px, py, LR, 198, 'SCHWELLE',    hudFmt(displayedThreshold),     base, -1);
+    if (tier >= 3){
+      hudLeader(px, py, LR, 218, 'AUFMERKSAMKEIT', Math.round(observerAttention) + '%',
+                observerAttention > 65 ? '#ff5c5c' : '#7f5cff', -1);
+    }
+  }
+
+  /* ---- 9. Kopfzeile ueber dem Kern ---- */
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `700 ${10.5 * D}px ${HUD_MONO}`;
+  ctx.fillStyle = hudRgba(base, 1);
+  hudGlow(true, base, 10 * D);
+  const head = awakened ? 'AEGIS · ERWACHT' : 'AEGIS · KERNANALYSE';
+  ctx.save();
+  ctx.letterSpacing = `${2.6 * D}px`;
+  ctx.fillText(head, px, py - R * 2.02);
+  ctx.font = `${8 * D}px ${HUD_MONO}`;
+  ctx.fillStyle = hudRgba(base, 0.85);
+  ctx.fillText((st && st.name ? st.name.toUpperCase() : '') + ' · FACETTEN '
+               + String(permanentFacets).padStart(2, '0'), px, py - R * 1.88);
+  hudGlow(false);
+  ctx.restore();
+
+  /* ---- 10. Kritischer Zustand: umlaufender Warnbalken ---- */
+  if (!awakened && g > 0.88){
+    const wAlpha = 0.25 + 0.35 * ((Math.sin(t * 9) + 1) / 2);
+    hudSegRing(px, py, R * 1.92, 16, 0.5, t * 1.1, '#ff5c5c', 2.6 * D, wAlpha);
+    ctx.textAlign = 'center';
+    ctx.font = `700 ${9 * D}px ${HUD_MONO}`;
+    ctx.fillStyle = hudRgba('#ff5c5c', 0.55 + wAlpha * 0.45);
+    ctx.fillText('DURCHBRUCH UNMITTELBAR', px, py + R * 2.02);
+  }
+
+  hudGlow(false);
+  ctx.restore();
+}
+/* ══════════════════════ Ende AEGIS-HUD ══════════════════════ */
+
 function draw(){
   const dt = 0.016;
   time += dt;
@@ -2285,6 +2591,8 @@ function draw(){
       ctx.stroke();
     });
   });
+
+  drawAegisHud(g, st, coreR, pulse, glow, dt);
 
   requestAnimationFrame(draw);
 }
