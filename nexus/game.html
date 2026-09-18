@@ -2170,6 +2170,35 @@
           <span></span><span></span><span></span>
         </button>
         <div class="burger-panel" id="burgerPanel">
+        <!-- BUGFIX: Musik-/SFX-Steuerung war seit jeher nur als JS+CSS angelegt
+             (siehe Kommentare "Steuerung liegt jetzt im Buergermenue" bei
+             #bgMusic weiter unten), das dazugehoerige HTML im Buergermenue hat
+             aber gefehlt -- getElementById('musicVolume') etc. liefen seit
+             Anbeginn ins Leere, ohne Fehler zu werfen. Betrifft laut Gegenpruefung
+             alle sieben MC-ORCA-Spiele mit derselben Musik/SFX-Vorlage, hier erstmal
+             fuer NEXUS nachgezogen, weil das die gemeldete Stelle ist. -->
+        <div class="burger-group">
+          <div class="mp-title">Musik <span class="mp-state" id="musicToggleState">an</span></div>
+          <div class="mp-track" id="musicTrackName">–</div>
+          <div class="mp-row">
+            <input type="range" id="musicVolume" min="0" max="100" value="5" step="1" aria-label="Musiklautstärke">
+            <span class="mp-val" id="musicVolumeVal">5%</span>
+          </div>
+          <div class="mp-actions">
+            <button type="button" id="musicPlayPause">Play</button>
+            <button type="button" id="musicNext">Weiter</button>
+          </div>
+        </div>
+        <div class="burger-group">
+          <div class="mp-title">Soundeffekte <span class="mp-state" id="sfxToggleState">an</span></div>
+          <div class="mp-row">
+            <input type="range" id="sfxVolume" min="0" max="100" value="40" step="1" aria-label="Soundeffekt-Lautstärke">
+            <span class="mp-val" id="sfxVolumeVal">40%</span>
+          </div>
+          <div class="mp-actions">
+            <button type="button" id="sfxMuteBtn">Stumm</button>
+          </div>
+        </div>
         <div class="burger-group">
           <div class="burger-label">Seiten</div>
           <a href="../index.html">Hub</a>
@@ -4782,7 +4811,13 @@ async function applyFullGameState(gs){
   /* Skillbaum-Katalog kommt seit v4.2 mit im gebuendelten gs-Objekt
      (platform.get_full_game_state liefert skill_nodes) -- kein zweiter Request
      mehr, und Aeste/Tiers sind damit vollstaendig datengetrieben. */
-  if (Array.isArray(gs.skill_nodes) && gs.skill_nodes.length) skillNodes = gs.skill_nodes;
+  /* BUGFIX (500er get_full_game_state, "cannot pass more than 100 arguments"):
+     Postgres' json_build_object() nimmt maximal 100 Argumente = 50 Schluessel-
+     Wert-Paare an. Ein eigener Top-Level-Key 'skill_nodes' haette die Grenze
+     gerissen -- der Katalog steckt deshalb im Payload des ohnehin schon
+     vorhandenen Keys 'player_skills' (jetzt {owned, catalog} statt nackter
+     Liste), kostet also keinen zusaetzlichen Platz. */
+  if (Array.isArray(gs.player_skills?.catalog) && gs.player_skills.catalog.length) skillNodes = gs.player_skills.catalog;
   const marketHistOrdered = (marketHist || []).slice().reverse(); // wieder chronologisch (älteste zuerst) fürs Chart
   const marketStatus = gs.market_status || null;
 
@@ -4794,7 +4829,7 @@ async function applyFullGameState(gs){
   currentRate = rigTypes.reduce((sum, rt) => sum + (playerRigs[rt.id] || 0) * Number(rt.base_rate), 0);
   shopItems = shop || [];
   inventoryItemIds = new Set(gs.player_inventory || []);
-  ownedSkillIds = new Set(gs.player_skills || []);
+  ownedSkillIds = new Set(gs.player_skills?.owned || []);
   prestigePoints = Number(wallet?.prestige_points ?? 0);
   prestigeLevel = Number(wallet?.prestige_level ?? 0);
 
@@ -5651,7 +5686,7 @@ function fluxCurvePct(hours){
 }
 
 function applyFluxState(gs){
-  const fs = gs.flux_status || null;
+  const fs = gs.flux?.status || null;
   fluxBalance = Number(fs?.flux_balance ?? 0);
   fluxVaultBalance = Number(fs?.fvlt_balance ?? 0);
   fluxOwnRate = Number(fs?.own_rate ?? 0);
@@ -5685,9 +5720,9 @@ function applyFluxState(gs){
   const hint = document.getElementById('fluxHint');
   if (hint) hint.style.display = fluxOwnRate > 0 ? 'none' : 'block';
 
-  fluxRigTypes = gs.flux_rig_types || [];
+  fluxRigTypes = gs.flux?.rig_types || [];
   fluxPlayerRigs = {};
-  (gs.flux_player_rigs || []).forEach(r => { fluxPlayerRigs[r.rig_type_id] = r.quantity; });
+  (gs.flux?.player_rigs || []).forEach(r => { fluxPlayerRigs[r.rig_type_id] = r.quantity; });
   renderFluxRigs();
 }
 
@@ -5695,8 +5730,8 @@ function applyFluxState(gs){
    Kursbildung invers zur globalen Foerderrate, exakt nach dem Muster von
    platform.tick_ionx_market(): viel Flux im Umlauf -> Kurs faellt. */
 function applyFluxMarket(gs){
-  const st = gs.flux_market || null;
-  const hist = (gs.flux_price_history || []).slice().reverse();
+  const st = gs.flux?.market || null;
+  const hist = (gs.flux?.price_history || []).slice().reverse();
   const last = hist.length ? hist[hist.length - 1].price : null;
   const prev = hist.length > 1 ? hist[hist.length - 2].price : last;
   const up = last != null && prev != null && last >= prev;
