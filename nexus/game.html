@@ -2,6 +2,12 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.5: Flux-Umtausch 100:1. Bei Kursindex 100 bringt 1 Flux jetzt 0,01 NRC (vorher 1:1); Kurs-Spanne 0,12-6,00 ->
+    0,0012-0,06 NRC je Flux. Server: platform.flux_nrc_factor() wird von buy_flux/sell_flux genutzt, Betraege auf 8
+    Nachkommastellen gerundet. Kurs-Feed (tick_flux_market) misst jetzt die Foerderrate der in den letzten 48 h aktiven
+    Spieler statt der Abhol-Zeitpunkte im Log (seit v4.2.3 wird nicht mehr automatisch abgeholt -> Kurs lief sonst
+    Richtung Maximum) und rundet den Kurs auf 4 Stellen. Frontend: Umtausch-Vorschau rechnet mit dem Faktor.
+    Ausserdem: Check der Tabelle market_trades um das Symbol FLUX ergaenzt (Kauf/Verkauf gaben 400/23514).
   - v4.2.4: Foerder-Boni gelten jetzt fuer ALLE Foerderlinien. Prestige-Skill "Uebertakten" (Beschreibung: "aller
     Rigs") und Corp-"Foerdermengen-Boost" wirkten bisher nur auf NRC; PULSE, FLUX und Relay hatten keinen Bonus.
     Neu: crypto_farm.production_bonus_mult(player_id) = (1+Skill)*(1+Corp), eingerechnet in
@@ -5740,6 +5746,9 @@ let fluxOwnRate = 0;
 let fluxResonance = 0;
 let fluxHoursSince = 0;
 let fluxLatestPrice = null;
+// Umtauschfaktor Flux -> NRC bei Kursindex 100 (Server: platform.flux_nrc_factor(), 0,01 = 100 Flux je 1 NRC).
+const FLUX_NRC_FACTOR = 0.01;
+const fluxNrcPerFlux = () => (fluxLatestPrice / 100) * FLUX_NRC_FACTOR;
 
 /* Position des Markers auf der Kurve: 0-6 h auf den ersten 25 % der Breite,
    6-24 h auf den restlichen 75 % -- passend zur CSS-Verlaufsfuellung. */
@@ -5809,7 +5818,7 @@ function applyFluxMarket(gs){
     : 'Kurs: –';
   const rateEl = document.getElementById('fluxRateDisplay');
   if (rateEl) rateEl.textContent = st
-    ? `Förderrate-Index: ${Number(st.flux_rate_index).toFixed(2)}× (relativ zum 24h-Schnitt) — hoch = Kurs sinkt`
+    ? `Förderrate-Index: ${Number(st.flux_rate_index).toFixed(2)}× (Förderrate aktiver Spieler, relativ zum 24h-Schnitt) — hoch = Kurs sinkt`
     : 'Förderrate-Index: –';
 
   if (fluxChart) { updateChart(fluxChart, hist, 'price'); setChartTrendColor([fluxChart], up); }
@@ -5821,9 +5830,12 @@ function updateFluxTradePreview(){
   if (!el || !fluxLatestPrice) return;
   const buy = Number(document.getElementById('fluxBuyInput')?.value) || 0;
   const sell = Number(document.getElementById('fluxSellInput')?.value) || 0;
-  const parts = [`1 Flux = ${(fluxLatestPrice / 100).toFixed(4)} Nova-Rift`];
-  if (buy > 0) parts.push(`${fmtCoin(buy)} NRC → ca. ${fmtCoin(buy / (fluxLatestPrice / 100))} FLUX`);
-  if (sell > 0) parts.push(`${fmtCoin(sell)} FLUX → ca. ${fmtCoin(sell * (fluxLatestPrice / 100))} NRC`);
+  const nrcPerFlux = fluxNrcPerFlux();
+  // fmtCoin zeigt nur 2 Stellen; bei 100:1 sind kleine NRC-Betraege sonst 0,00.
+  const fmtNrc = (n) => (n > 0 && n < 1) ? n.toFixed(4) : fmtCoin(n);
+  const parts = [`100 Flux = ${fmtNrc(nrcPerFlux * 100)} Nova-Rift`];
+  if (buy > 0) parts.push(`${fmtCoin(buy)} NRC → ca. ${fmtCoin(buy / nrcPerFlux)} FLUX`);
+  if (sell > 0) parts.push(`${fmtCoin(sell)} FLUX → ca. ${fmtNrc(sell * nrcPerFlux)} NRC`);
   el.textContent = parts.join(' · ');
 }
 
