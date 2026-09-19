@@ -2,6 +2,9 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.1: Wallet-Tab um FLUX und FVLT ergaenzt (Kachelreihen + Chart-Karten im Grid "Alle
+    Sprungmaerkte & Ressourcen"). Waren mit v4.2 zwar im Spiel, aber nirgends im Wallet zu sehen.
+    Bestandsverlauf laeuft ueber get_my_currency_history('FLUX'/'FVLT') wie bei den anderen.
   - v4.2: Fuenf Baustellen in einem Rutsch (Jens' Auftrag). Reihenfolge wie dort.
     (1) CORP-SKILLBAUM statt Kette. platform.guild_upgrades bekam branch/
     requires_key/effect_key/effect_value; die vier bestehenden Zeilen
@@ -2388,6 +2391,14 @@
           <div class="kc-label">SIGIL <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2H10V5.5C10 7.5 8.5 9 7 9C5.5 9 4 7.5 4 5.5V2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M4 3H2.5C2.5 5 3.5 6 4.5 6" fill="none" stroke="currentColor" stroke-width="1"/><path d="M10 3H11.5C11.5 5 10.5 6 9.5 6" fill="none" stroke="currentColor" stroke-width="1"/><line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="12.5" x2="9.5" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="7" y1="11" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1"/></svg></span> Erfolge</span></div>
           <div class="kc-value js-balance-sigil">–</div>
         </div>
+        <div class="sm-card sm-ionx">
+          <div class="kc-label">FLUX</div>
+          <div class="kc-value js-balance-flux">–</div>
+        </div>
+        <div class="sm-card sm-stable">
+          <div class="kc-label">FVLT</div>
+          <div class="kc-value js-balance-fvlt">–</div>
+        </div>
       </div>
     </div>
 
@@ -2489,6 +2500,14 @@
           <div class="kc-label">SIGIL <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2H10V5.5C10 7.5 8.5 9 7 9C5.5 9 4 7.5 4 5.5V2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M4 3H2.5C2.5 5 3.5 6 4.5 6" fill="none" stroke="currentColor" stroke-width="1"/><path d="M10 3H11.5C11.5 5 10.5 6 9.5 6" fill="none" stroke="currentColor" stroke-width="1"/><line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="12.5" x2="9.5" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="7" y1="11" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1"/></svg></span> Erfolge</span></div>
           <div class="kc-value js-balance-sigil">–</div>
         </div>
+        <div class="sm-card sm-ionx">
+          <div class="kc-label">FLUX</div>
+          <div class="kc-value js-balance-flux">–</div>
+        </div>
+        <div class="sm-card sm-stable">
+          <div class="kc-label">FVLT</div>
+          <div class="kc-value js-balance-fvlt">–</div>
+        </div>
       </div>
     </div>
 
@@ -2583,6 +2602,16 @@
           <h4><i class="dot-nova"></i> GRID <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="7" y1="3.5" x2="7" y2="10.5" stroke="currentColor" stroke-width="1"/></svg></span> Markt</span></h4>
           <div class="kc-value js-balance-grid" style="font-size:15px; margin-bottom:6px;">–</div>
           <div class="chart-box"><canvas id="walletGridChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-nova"></i> FLUX</h4>
+          <div class="kc-value js-balance-flux" style="font-size:15px; margin-bottom:6px;">–</div>
+          <div class="chart-box"><canvas id="walletFluxChart"></canvas></div>
+        </div>
+        <div class="mc-item">
+          <h4><i class="dot-nova"></i> FVLT</h4>
+          <div class="kc-value js-balance-fvlt" style="font-size:15px; margin-bottom:6px;">–</div>
+          <div class="chart-box"><canvas id="walletFvltChart"></canvas></div>
         </div>
       </div>
     </div>
@@ -4054,6 +4083,8 @@ let walletIonxChart = null;
 let walletAnchChart = null;
 let walletNvltChart = null;
 let walletGridChart = null;
+let walletFluxChart = null;
+let walletFvltChart = null;
 
 /* ---------- Live-Balance-Ticker ---------- */
 let displayedBalance = 0;
@@ -4325,7 +4356,7 @@ function enterGame(){
       if (novaChart) novaChart.resize();
       if (scChart) scChart.resize();
       [walletStblChart, walletVoltChart, walletGovChart, walletQntmChart, walletDriftChart,
-       walletCycleChart, walletSigilChart, walletPulseChart, walletRelayChart, walletIonxChart, walletAnchChart, walletNvltChart, walletGridChart]
+       walletCycleChart, walletSigilChart, walletPulseChart, walletRelayChart, walletIonxChart, walletAnchChart, walletNvltChart, walletGridChart, walletFluxChart, walletFvltChart]
         .forEach(c => { if (c) c.resize(); });
       // NEU (Egress-Fix): loadWalletHistory()/loadAllWalletCurrencyCharts() laufen
       // nicht mehr automatisch bei jedem 5s-Tick, sondern nur noch on-demand beim
@@ -4668,6 +4699,8 @@ function initCharts(){
   walletAnchChart = makeCompact('walletAnchChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
   walletNvltChart = makeCompact('walletNvltChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
   walletGridChart = makeCompact('walletGridChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletFluxChart = makeCompact('walletFluxChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
+  walletFvltChart = makeCompact('walletFvltChart', '#2F8CFF', 'rgba(47,140,255,0.14)', zeroFloor(commonOpts));
 
   novaChartMini = new Chart(document.getElementById('novaChartMini'), {
     type: 'line',
@@ -8390,7 +8423,9 @@ async function loadAllWalletCurrencyCharts(){
     loadCurrencyBalanceChart('IONX', [walletIonxChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('ANCH', [walletAnchChart], currentWalletHours, currentWalletBucket),
     loadCurrencyBalanceChart('NVLT', [walletNvltChart], currentWalletHours, currentWalletBucket),
-    loadCurrencyBalanceChart('GRID', [walletGridChart], currentWalletHours, currentWalletBucket)
+    loadCurrencyBalanceChart('GRID', [walletGridChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('FLUX', [walletFluxChart], currentWalletHours, currentWalletBucket),
+    loadCurrencyBalanceChart('FVLT', [walletFvltChart], currentWalletHours, currentWalletBucket)
   ]);
 }
 
