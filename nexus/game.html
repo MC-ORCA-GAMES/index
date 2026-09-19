@@ -5735,6 +5735,18 @@ function showMarketplaceCategory(catId){
   if (cat.id === 'sigil' && typeof loadSigilMarket === 'function') loadSigilMarket();
   if (cat.id === 'spielermarkt' && typeof loadBarterMarket === 'function') loadBarterMarket();
   if (cat.id === 'aktien' && typeof loadAktienmarkt === 'function') loadAktienmarkt();
+  /* Kosmetik- und Event-Shop wurden beim Handelsplatz-Umbau (v4.2/v4.3) per
+     mpMove() aus dem alten "Kometen-Event"-Tab hierher verschoben -- die
+     zugehoerige Lade-Logik (bisher nur an activateTab()'s tabId === 'event'
+     gehaengt) ist dabei nicht mitgewandert. Ohne diese Trigger bleiben die
+     Panels bei direkter Navigation zu Handelsplatz -> Kosmetik/Event-Shop
+     dauerhaft auf "Lade ...". Kosmetik hat eigene, leichte RPCs; Event-Shop
+     haengt am vollen Seasonal-Event-Payload. */
+  if (cat.id === 'kosmetik') {
+    if (typeof loadCosmeticShop === 'function') loadCosmeticShop();
+    if (typeof loadMyCosmetics === 'function') loadMyCosmetics();
+  }
+  if (cat.id === 'event' && typeof loadSeasonalEvent === 'function') loadSeasonalEvent();
 }
 
 /* Loest catId in eine konkrete Kategorie auf: explizite Vorgabe zuerst,
