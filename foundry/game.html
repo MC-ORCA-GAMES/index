@@ -400,6 +400,30 @@
   börsennotierter Firmen über den Aktienkurs — das würde direkt in die
   bestehende platform.stock_*-Mechanik eingreifen und ist als eigenes,
   größeres Feature zu betrachten, falls gewünscht.
+
+  v1.21: Konsum & Unterhaltung bekommt einen Pflicht-Input (Migration
+  foundry_konsum_pflicht_input). Der Sektor war als einziger der 8 ohne
+  Verbrauch: v1.16 hatte die Pflicht-Ressource aus dem staerksten
+  'efficiency'-Input jedes Sektors abgeleitet, Konsum hat nur
+  'reputation'-Inputs und ging leer aus -- kein Design-Grund, nur ein Nebeneffekt.
+  Jetzt verbraucht Konsum & Unterhaltung Frachtkapazitaet (Vertrieb/Logistik),
+  0,3 pro Kapazitaet und Quartal, bei Mangel -35% Umsatz -- gleiche Werte wie alle
+  anderen Sektoren. Frachtkapazitaet war bisher am wenigsten umkaempft
+  (Raumfahrt produziert 0,4, bisher nur Finanzen verbraucht 0,3). Reine
+  Datenzeile in foundry.sector_requirements, der Tick liest sie generisch.
+  Frontend: SECTOR_REQUIREMENTS um den Sektor ergaenzt (Statuskarte
+  "Pflicht-Input" + Badge im Ressourcen-Tab erscheinen damit automatisch).
+  Konsum & Unterhaltung produziert weiterhin kein eigenes Gut.
+
+  v1.22: Beschreibungen im Entscheidungen-Tab hinter einem kleinen "i"
+  (reine Frontend-Aenderung, Nutzerwunsch: die meisten Texte kennt man schon
+  und sie nehmen Platz weg). Jede Karte (Auf-/Abbau, Wachstum, Ressourcen)
+  zeigt nur noch Titel, Kosten bzw. Lagerbestand und Button; Beschreibung,
+  Nachteil-Hinweis und Kredit-/Vertragsvorschau klappen per "i" im Kartenkopf
+  auf. Aufgeklappte Karten bleiben beim Neuzeichnen offen (openDecisionInfo).
+  Dasselbe fuer die Quartalsregeln (Steuer/Lohn) oben und den Text bei
+  "Kapital einzahlen". Das Badge "Pflicht jedes Quartal" bleibt im Titel
+  sichtbar. Der jeweilige Aktions-Button hat jetzt die Klasse dc-act.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -1116,6 +1140,21 @@
   }
   /* ════════════════════ Ende ORCA-LINK v1.0 (CSS) ════════════════════ */
 
+
+  /* ---------- Entscheidungen: Beschreibung hinter kleinem "i" (v1.22) ---------- */
+  .decision-card .dc-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .decision-card .dc-head h4{ flex:1; min-width:0; }
+  button.dc-i{ display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; flex:none;
+    width:22px; height:22px; min-width:22px; padding:0; margin:0 0 0 6px; border-radius:50%;
+    font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; font-size:13px; line-height:1;
+    letter-spacing:0; color:var(--fg-dim); border:1px solid var(--line); background:transparent; box-shadow:none; }
+  .decision-card .dc-head button.dc-i{ margin:1px 0 0; }
+  button.dc-i:hover:not(:disabled), button.dc-i.open{ color:var(--accent); border-color:var(--accent);
+    background:var(--accent-dim); box-shadow:none; }
+  .decision-card .dc-info{ display:flex; flex-direction:column; gap:8px; }
+  .decision-card .dc-info[hidden]{ display:none; }
+  .decision-card .dc-info p{ flex:none; }
+  .decision-card .dc-cost{ margin-top:auto; }
 </style>
 </head>
 <body>
@@ -1285,7 +1324,8 @@
 
       <div class="tab-page active" id="tabPage-entscheidungen">
         <div class="panel">
-          <h3>Quartals-Entscheidung <span class="tag">— eine pro Quartal, Quartale enden zur vollen Stunde. Bei Gewinn: erst 15% Unternehmenssteuer, vom Rest bleiben 75% in der Rücklage, 25% gehen als Lohn direkt an dich (private Wallet).</span></h3>
+          <h3>Quartals-Entscheidung <button type="button" class="dc-i" data-info-toggle="quarterRulesInfo" aria-expanded="false" aria-label="Regeln ein-/ausblenden" title="Regeln ein-/ausblenden">i</button></h3>
+          <p id="quarterRulesInfo" hidden style="font-size:13.5px; color:var(--fg-dim); margin:-2px 0 8px; line-height:1.5;">Eine Entscheidung pro Quartal, Quartale enden zur vollen Stunde. Bei Gewinn: erst 15% Unternehmenssteuer, vom Rest bleiben 75% in der Rücklage, 25% gehen als Lohn direkt an dich (private Wallet).</p>
           <p id="quarterCountdown" style="font-family:var(--mono); font-size:13.5px; color:var(--fg-dim); margin:-6px 0 6px;"></p>
           <p id="bankStatus" style="font-family:var(--mono); font-size:13.5px; color:var(--accent); margin:0 0 14px;"></p>
           <div class="sub-tab-row" id="decisionSubTabs">
@@ -1303,8 +1343,8 @@
             <div class="decision-grid" id="decisionGridResources"></div>
           </div>
           <div class="panel" style="margin-top:14px; margin-bottom:0; background:var(--bg-alt);">
-            <h3 style="margin-bottom:10px;">Kapital einzahlen</h3>
-            <p style="font-size:13.5px; color:var(--fg-dim); margin:0 0 10px;">
+            <h3 style="margin-bottom:10px;">Kapital einzahlen <button type="button" class="dc-i" data-info-toggle="reserveInfo" aria-expanded="false" aria-label="Beschreibung ein-/ausblenden" title="Beschreibung ein-/ausblenden">i</button></h3>
+            <p id="reserveInfo" hidden style="font-size:13.5px; color:var(--fg-dim); margin:0 0 10px;">
               Überweist MOGC aus deiner privaten Wallet auf das Firmenkonto (Rücklage). Alle
               operativen Entscheidungen oben werden aus dieser Rücklage bezahlt — nicht direkt
               aus deiner Wallet. Zählt selbst als Quartals-Entscheidung — danach ist bis zum
@@ -1708,6 +1748,7 @@ const SECTOR_REQUIREMENTS = {
   'Raumfahrt & Logistik':      { resource:'Bauteile',         perCapacity:0.3, penaltyPct:35 },
   'Technologie & Halbleiter':  { resource:'Rohstoffe',        perCapacity:0.3, penaltyPct:35 },
   'Verteidigung & Sicherheit': { resource:'Bauteile',         perCapacity:0.3, penaltyPct:35 },
+  'Konsum & Unterhaltung':     { resource:'Frachtkapazität',  perCapacity:0.3, penaltyPct:35 },
 };
 
 let companies = [];
@@ -2752,6 +2793,38 @@ function renderGalaxyTransporters(){
 // ohne auf den 60s-Datenabruf warten zu muessen.
 setInterval(renderGalaxyTransporters, 2000);
 
+/* Beschreibungen der Entscheidungs-Karten stehen hinter einem kleinen "i" (v1.22). Welche Karte offen ist,
+   merkt sich openDecisionInfo, damit sie beim naechsten Neuzeichnen nicht wieder zuklappt. */
+const INFO_BTN = '<button type="button" class="dc-i" aria-expanded="false" aria-label="Beschreibung ein-/ausblenden" title="Beschreibung ein-/ausblenden">i</button>';
+const openDecisionInfo = new Set();
+function wireDecisionInfo(card, key){
+  const btn = card.querySelector('button.dc-i');
+  const box = card.querySelector('.dc-info');
+  if (!btn || !box) return;
+  const setOpen = open => {
+    box.hidden = !open;
+    btn.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  setOpen(openDecisionInfo.has(key));
+  btn.addEventListener('click', () => {
+    const open = box.hidden;
+    if (open) openDecisionInfo.add(key); else openDecisionInfo.delete(key);
+    setOpen(open);
+  });
+}
+// Statische Textbloecke im Entscheidungen-Tab (Quartalsregeln, Kapital einzahlen): Button mit data-info-toggle="<id>"
+document.addEventListener('click', e => {
+  const btn = e.target.closest('button[data-info-toggle]');
+  if (!btn) return;
+  const el = document.getElementById(btn.dataset.infoToggle);
+  if (!el) return;
+  const open = el.hidden;
+  el.hidden = !open;
+  btn.classList.toggle('open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+
 function renderDecisions(company){
   const gridAusbau = document.getElementById('decisionGrid');
   const gridWachstum = document.getElementById('decisionGridGrowth');
@@ -2784,11 +2857,13 @@ function renderDecisions(company){
     else if (active && !affordable) label = 'Rücklage reicht nicht';
     const card = document.createElement('div');
     card.className = 'decision-card';
-    card.innerHTML = '<h4>' + d.title + '</h4><p>' + d.desc + '</p>' +
-      '<p class="dc-downside" style="color:var(--fg-dim); font-size:13px; margin:-4px 0 8px;">' + ICON_WARNING_SM + d.downside + '</p>' +
+    card.innerHTML = '<div class="dc-head"><h4>' + d.title + '</h4>' + INFO_BTN + '</div>' +
+      '<div class="dc-info" hidden><p>' + d.desc + '</p>' +
+      '<p class="dc-downside" style="color:var(--fg-dim); font-size:13px; margin:0;">' + ICON_WARNING_SM + d.downside + '</p></div>' +
       '<div class="dc-cost">' + fmt(cost) + ' MOGC <span style="color:var(--fg-dim); font-weight:normal;">aus Firmen-Rücklage</span></div>' +
-      '<button type="button" data-kind="' + d.kind + '"' + (canClick ? '' : ' disabled') + '>' + label + '</button>';
-    card.querySelector('button').addEventListener('click', () => makeDecision(company.id, d.kind));
+      '<button type="button" class="dc-act" data-kind="' + d.kind + '"' + (canClick ? '' : ' disabled') + '>' + label + '</button>';
+    card.querySelector('button.dc-act').addEventListener('click', () => makeDecision(company.id, d.kind));
+    wireDecisionInfo(card, 'd:' + d.kind);
     (d.cat === 'wachstum' ? gridWachstum : gridAusbau).appendChild(card);
   });
   (SECTOR_INPUTS[company.sector] || []).forEach(inp => {
@@ -2824,11 +2899,13 @@ function renderDecisions(company){
       : '';
     const card = document.createElement('div');
     card.className = 'decision-card';
-    card.innerHTML = '<h4>' + inp.resource + ' verwenden' + mandatoryBadge + '</h4><p>' + effectText + suffix + ' — verbraucht ' + inp.units +
-      ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' + mandatoryNote +
+    card.innerHTML = '<div class="dc-head"><h4>' + inp.resource + ' verwenden' + mandatoryBadge + '</h4>' + INFO_BTN + '</div>' +
+      '<div class="dc-info" hidden><p>' + effectText + suffix + ' — verbraucht ' + inp.units +
+      ' Einheiten aus dem eigenen Lager (im „Markt"-Tab kaufen).</p>' + mandatoryNote + '</div>' +
       '<div class="dc-cost" style="color:' + (enough ? 'var(--up)' : 'var(--down)') + '">Im Lager: ' + fmt2(have) + ' / ' + inp.units + '</div>' +
-      '<button type="button"' + (active && enough && !usedUp ? '' : ' disabled') + '>' + (!iCanDecide ? 'Nur Leiter/Offiziere' : usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben entscheiden' : 'Entscheiden')) + '</button>';
-    card.querySelector('button').addEventListener('click', () => makeDecision(company.id, 'use_input', null, inp.resource));
+      '<button type="button" class="dc-act"' + (active && enough && !usedUp ? '' : ' disabled') + '>' + (!iCanDecide ? 'Nur Leiter/Offiziere' : usedUp ? 'Quartal bereits verbraucht' : (willUseBank ? 'Aus Bank-Guthaben entscheiden' : 'Entscheiden')) + '</button>';
+    card.querySelector('button.dc-act').addEventListener('click', () => makeDecision(company.id, 'use_input', null, inp.resource));
+    wireDecisionInfo(card, 'r:' + inp.resource);
     gridRessourcen.appendChild(card);
   });
   if (!gridRessourcen.children.length) {
