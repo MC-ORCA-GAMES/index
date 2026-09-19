@@ -1280,19 +1280,24 @@
   .prestige-points-row .label{ font-size:12.5px; color:var(--fg-dim); }
   .prestige-points-row .value{ font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:var(--violet); }
 
-  /* ---------- Handelsplatz-Overlay (v4.2) ----------
-     Loest die frueheren Einzelfenster ab: eine Flaeche, links Kategorien,
-     rechts der Produktbereich. Die Panels werden beim Start per JS aus ihren
-     alten Tabs HIERHER VERSCHOBEN (nicht kopiert), damit saemtliche IDs,
-     Listener und Render-Funktionen unveraendert weiterlaufen. */
-  .mp-overlay{ position:fixed; inset:0; z-index:9000; display:none; background:rgba(3,7,15,0.72);
-    backdrop-filter:blur(4px); padding:24px; }
-  .mp-overlay.open{ display:flex; align-items:center; justify-content:center; }
-  .mp-shell{ display:flex; width:min(1180px,100%); height:min(820px,100%); background:var(--bg);
-    border:1px solid rgba(var(--acc,47,140,255),0.4); overflow:hidden;
+  /* ---------- Handelsplatz-Seite (v4.3) ----------
+     Kein Overlay mehr. Der Handelsplatz ist jetzt eine normale Tab-Seite
+     (#tabPage-handelsplatz), die ganz normal mit der Seite scrollt. Links
+     (Desktop) bzw. oben (Handy) eine sticky Kategorienleiste, rechts bzw.
+     darunter der Produktbereich im normalen Textfluss -- kein
+     position:fixed-Container mit verschachteltem overflow:auto mehr. Genau
+     diese Kombination war der Grund, warum die Seite auf dem Handy
+     "verschwand" und sich nicht scrollen liess (bekannte iOS-Falle bei
+     Scroll-Containern innerhalb von position:fixed). Die Panels werden nach
+     wie vor beim Start per JS aus ihren alten Tabs HIERHER VERSCHOBEN (nicht
+     kopiert), damit saemtliche IDs, Listener und Render-Funktionen
+     unveraendert weiterlaufen. */
+  .mp-shell{ display:flex; align-items:flex-start; background:var(--bg);
+    border:1px solid rgba(var(--acc,47,140,255),0.4);
     clip-path:polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px); }
   .mp-side{ flex:0 0 218px; display:flex; flex-direction:column; border-right:1px solid var(--line);
-    background:var(--bg-alt); padding:14px 0; overflow-y:auto; }
+    background:var(--bg-alt); padding:14px 0; align-self:stretch;
+    position:sticky; top:60px; }
   .mp-side-title{ font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
     color:var(--fg-faint); padding:0 16px 10px; }
   .mp-cat{ display:flex; align-items:center; gap:9px; width:100%; text-align:left; background:none; border:none;
@@ -1302,24 +1307,28 @@
     border-left-color:rgb(var(--acc,47,140,255)); }
   .mp-cat .mp-cat-sub{ display:block; font-family:var(--mono); font-size:10px; color:var(--fg-faint); margin-top:2px; }
   .mp-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
-  .mp-head{ display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); }
+  .mp-head{ display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line);
+    position:sticky; top:60px; background:var(--bg); z-index:2; }
   .mp-head h2{ margin:0; font-size:15px; font-weight:600; flex:1; }
   .mp-head .mp-bal{ font-family:var(--mono); font-size:12px; color:var(--fg-dim); }
-  .mp-close{ background:none; border:none; color:var(--fg-faint); font-size:24px; line-height:1; cursor:pointer; padding:0 4px; }
-  .mp-close:hover{ color:var(--fg); }
-  .mp-content{ flex:1; min-height:0; overflow-y:auto; padding:16px 18px; }
+  .mp-content{ padding:16px 18px; }
   .mp-pane{ display:none; }
   .mp-pane.active{ display:block; animation:mpFade .18s ease; }
   @keyframes mpFade{ from{ opacity:0; transform:translateY(4px);} to{ opacity:1; transform:none; } }
   @media (prefers-reduced-motion: reduce){ .mp-pane.active{ animation:none; } }
   @media (max-width:860px){
-    .mp-overlay{ padding:0; }
-    .mp-shell{ flex-direction:column; width:100%; height:100%; clip-path:none; }
-    .mp-side{ flex:none; flex-direction:row; overflow-x:auto; border-right:none; border-bottom:1px solid var(--line); padding:8px; }
+    .mp-shell{ flex-direction:column; clip-path:none; border-left:none; border-right:none; }
+    .mp-side{ flex:none; flex-direction:row; overflow-x:auto; -webkit-overflow-scrolling:touch;
+      border-right:none; border-bottom:1px solid var(--line); padding:8px;
+      position:sticky; top:0; z-index:5; }
     .mp-side-title{ display:none; }
     .mp-cat{ white-space:nowrap; width:auto; border-left:none; border-bottom:2px solid transparent; }
     .mp-cat.active{ border-left-color:transparent; border-bottom-color:rgb(var(--acc,47,140,255)); }
     .mp-cat .mp-cat-sub{ display:none; }
+    /* Nur die Kategorienleiste bleibt beim Scrollen sichtbar, nicht auch noch
+       der Titel-/Guthaben-Balken -- zwei gestapelte sticky-Leisten muessten
+       sich sonst gegenseitig ihren top-Versatz ausrechnen. */
+    .mp-head{ position:static; }
   }
 
   /* ---------- Flux-Resonanzkurve ---------- */
@@ -3339,19 +3348,16 @@
       </div>
     </div>
 
-    <div class="mp-overlay" id="mpOverlay" role="dialog" aria-modal="true" aria-label="Handelsplatz">
-      <div class="mp-shell">
-        <div class="mp-side" id="mpSide">
-          <div class="mp-side-title">Handelsplatz</div>
+    <div class="mp-shell" id="mpShell">
+      <div class="mp-side" id="mpSide">
+        <div class="mp-side-title">Handelsplatz</div>
+      </div>
+      <div class="mp-main">
+        <div class="mp-head">
+          <h2 id="mpTitle">Handelsplatz</h2>
+          <span class="mp-bal" id="mpBalance">–</span>
         </div>
-        <div class="mp-main">
-          <div class="mp-head">
-            <h2 id="mpTitle">Handelsplatz</h2>
-            <span class="mp-bal" id="mpBalance">–</span>
-            <button type="button" class="mp-close" id="mpCloseBtn" aria-label="Schließen">&times;</button>
-          </div>
-          <div class="mp-content" id="mpContent"></div>
-        </div>
+        <div class="mp-content" id="mpContent"></div>
       </div>
     </div>
 
@@ -4351,17 +4357,34 @@ function enterGame(){
   const btns = Array.from(nav.querySelectorAll('.main-tab-btn'));
 
   function activateTab(tabId, opts){
-    /* Handelsplatz und Shop sind seit v4.2 keine eigenen Seiten mehr, sondern
-       Kategorien im Handelsplatz-Overlay. Der Tab-Button oeffnet das Overlay
-       und laesst die darunterliegende Seite stehen. */
-    if (tabId === 'handelsplatz' || tabId === 'shop') {
-      openMarketplace(tabId === 'shop' ? 'rigs' : null);
-      return;
-    }
+    opts = opts || {};
+    /* Shop ist seit v4.2 keine eigene Seite mehr, sondern die Kategorie
+       "Rigs & Items" auf der Handelsplatz-Seite. Seit v4.3 ist der
+       Handelsplatz selbst wieder eine ganz normale Tab-Seite (kein Overlay
+       mehr) -- der Shop-Button landet also einfach dort, mit "rigs" als
+       Startkategorie. */
+    let realTab = tabId, mpCat = opts.mpCat || null;
+    if (tabId === 'shop') { realTab = 'handelsplatz'; mpCat = mpCat || 'rigs'; }
+
     btns.forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
     document.querySelectorAll('.tab-page').forEach(p => {
-      p.classList.toggle('active', p.id === 'tabPage-' + tabId);
+      p.classList.toggle('active', p.id === 'tabPage-' + realTab);
     });
+
+    if (realTab === 'handelsplatz') {
+      initMarketplace();
+      showMarketplaceCategory(mpStartCat(mpCat));
+      updateMarketplaceBalance();
+      if (cycleTradeChart) cycleTradeChart.resize();
+      if (sigilTradeChart) sigilTradeChart.resize();
+      /* Handelsplatz/Shop werden bewusst NICHT als nexusActiveTab gespeichert:
+         MP_CATEGORIES und die Handelsplatz-Funktionen stehen erst weiter unten
+         im Skript, ein Reload direkt auf diesem Tab wuerde also versuchen, sie
+         vor ihrer eigenen Definition zu lesen. Ein Reload landet stattdessen
+         wieder auf dem zuletzt gespeicherten "echten" Tab -- das war schon vor
+         diesem Umbau so. */
+      return;
+    }
     // Chart.js baut/misst Canvases beim Erstellen falsch, wenn ihr Tab gerade
     // display:none ist -- nach dem Sichtbarmachen einmal aktiv neu vermessen.
     if (tabId === 'markt') {
@@ -4413,10 +4436,6 @@ function enterGame(){
       if (stblChart) stblChart.resize();
       if (anchChart) anchChart.resize();
     }
-    if (tabId === 'handelsplatz') {
-      if (cycleTradeChart) cycleTradeChart.resize();
-      if (sigilTradeChart) sigilTradeChart.resize();
-    }
     if (tabId === 'uebersicht') {
       if (novaChartMini) novaChartMini.resize();
       if (scChartMini) scChartMini.resize();
@@ -4437,6 +4456,9 @@ function enterGame(){
     if (window.nexusSfx) window.nexusSfx.click();
     activateTab(btn.dataset.tab);
   });
+
+  // Von aussen (z.B. openMarketplace() fuer die alten "Zum Handelsplatz"-Stub-Buttons) aufrufbar.
+  window.activateTab = activateTab;
 
   let savedTab = null;
   try { savedTab = localStorage.getItem('nexusActiveTab'); } catch (e) {}
@@ -5674,14 +5696,6 @@ function initMarketplace(){
     fluxSrc.remove();
   }
 
-  document.getElementById('mpCloseBtn').addEventListener('click', closeMarketplace);
-  document.getElementById('mpOverlay').addEventListener('click', (e) => {
-    if (e.target.id === 'mpOverlay') closeMarketplace();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && document.getElementById('mpOverlay').classList.contains('open')) closeMarketplace();
-  });
-
   mpInitialized = true;
 }
 
@@ -5695,7 +5709,7 @@ function showMarketplaceCategory(catId){
     pane.classList.toggle('active', pane.id === 'mpPane-' + cat.id);
   });
   document.getElementById('mpTitle').textContent = cat.title;
-  document.getElementById('mpContent').scrollTop = 0;
+  document.getElementById('mpShell').scrollIntoView({ block: 'nearest' });
   try { localStorage.setItem('nexusMarketCat', cat.id); } catch (e) {}
 
   /* Chart.js misst ein Canvas falsch, solange dessen Container display:none ist
@@ -5720,18 +5734,29 @@ function showMarketplaceCategory(catId){
   if (cat.id === 'aktien' && typeof loadAktienmarkt === 'function') loadAktienmarkt();
 }
 
-window.openMarketplace = function(catId){
-  initMarketplace();
-  document.getElementById('mpOverlay').classList.add('open');
+/* Loest catId in eine konkrete Kategorie auf: explizite Vorgabe zuerst,
+   sonst die zuletzt benutzte Kategorie aus localStorage, sonst die aktuell
+   gemerkte. Wird sowohl von openMarketplace() als auch von activateTab()
+   fuer den 'handelsplatz'-Tab benutzt. */
+function mpStartCat(catId){
   let start = catId;
   if (!start) { try { start = localStorage.getItem('nexusMarketCat'); } catch (e) {} }
-  showMarketplaceCategory(start || mpActiveCat);
-  updateMarketplaceBalance();
-};
-
-function closeMarketplace(){
-  document.getElementById('mpOverlay').classList.remove('open');
+  return start || mpActiveCat;
 }
+
+/* Frueher oeffnete das ein Overlay ueber der aktuellen Seite. Seit v4.3 ist
+   der Handelsplatz eine normale Tab-Seite, also schaltet das hier einfach
+   auf den 'handelsplatz'-Tab um (Stub-Buttons wie "Zum Handelsplatz" rufen
+   das weiterhin genauso auf). */
+window.openMarketplace = function(catId){
+  if (typeof window.activateTab === 'function') {
+    window.activateTab('handelsplatz', catId ? { mpCat: catId } : {});
+  } else {
+    initMarketplace();
+    showMarketplaceCategory(mpStartCat(catId));
+    updateMarketplaceBalance();
+  }
+};
 
 function updateMarketplaceBalance(){
   const el = document.getElementById('mpBalance');

@@ -415,6 +415,12 @@
   "Pflicht-Input" + Badge im Ressourcen-Tab erscheinen damit automatisch).
   Konsum & Unterhaltung produziert weiterhin kein eigenes Gut.
 
+  v1.23: Zahlenformat. Betraege (Wallet, Ruecklage, Kosten, Kredite, Preise, Lager) werden ueberall mit genau 2
+  Nachkommastellen ABGERUNDET angezeigt (floor2/fmt2), vorher kaufmaennisch gerundet -> angezeigter Wert konnte ueber
+  dem echten Bestand liegen. fmt() (nur ganze Zahlen: Kapazitaet, Personal) schneidet ab. Kosten, Kreditsumme,
+  Ruecklage im Insolvenzhinweis und Bewertung laufen jetzt ueber fmt2. Prozent-, Multiplikator- und Grafikwerte
+  bleiben unveraendert.
+
   v1.22: Beschreibungen im Entscheidungen-Tab hinter einem kleinen "i"
   (reine Frontend-Aenderung, Nutzerwunsch: die meisten Texte kennt man schon
   und sie nehmen Platz weg). Jede Karte (Auf-/Abbau, Wachstum, Ressourcen)
@@ -1985,13 +1991,21 @@ function showMsg(elId, text, ok, kind){
   }
 }
 function clearMsg(elId){ const el = document.getElementById(elId); if(el) el.innerHTML=''; }
+// Zahlenformat (v1.23): Betraege IMMER mit genau 2 Nachkommastellen und IMMER abgerundet (Richtung 0), nie aufgerundet --
+// aufgerundete Anzeigewerte lagen sonst ueber dem echten Bestand. fmt() ist nur fuer ganze Zahlen (Kapazitaet, Personal),
+// schneidet aber ebenfalls ab statt zu runden.
+function floor2(n){
+  n = Number(n);
+  if (!isFinite(n)) return 0;
+  return Math.trunc(n * 100 + Math.sign(n) * 1e-7) / 100;   // 1e-7 faengt Fliesskomma-Fehler ab
+}
 function fmt(n){
-  n = Number(n) || 0;
-  return n.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+  n = Number(n);
+  if (!isFinite(n)) n = 0;
+  return Math.trunc(n).toLocaleString('de-DE', { maximumFractionDigits: 0 });
 }
 function fmt2(n){
-  n = Number(n) || 0;
-  return n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+  return floor2(n).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function enterGame(){
   document.getElementById('loginView').classList.add('hidden');
@@ -2112,7 +2126,7 @@ function renderSectorGrid(gridId, selectedKeyGetter, onSelect){
     const card = document.createElement('div');
     card.className = 'sector-card' + (selectedKeyGetter() === s.key ? ' selected' : '');
     card.innerHTML = '<div class="sc-name">' + s.key + '</div><div class="sc-cost">' +
-      (s.cost != null ? fmt(s.cost) + ' MOGC' : '…') + '</div>';
+      (s.cost != null ? fmt2(s.cost) + ' MOGC' : '…') + '</div>';
     card.addEventListener('click', () => onSelect(s.key));
     grid.appendChild(card);
   });
@@ -2860,7 +2874,7 @@ function renderDecisions(company){
     card.innerHTML = '<div class="dc-head"><h4>' + d.title + '</h4>' + INFO_BTN + '</div>' +
       '<div class="dc-info" hidden><p>' + d.desc + '</p>' +
       '<p class="dc-downside" style="color:var(--fg-dim); font-size:13px; margin:0;">' + ICON_WARNING_SM + d.downside + '</p></div>' +
-      '<div class="dc-cost">' + fmt(cost) + ' MOGC <span style="color:var(--fg-dim); font-weight:normal;">aus Firmen-Rücklage</span></div>' +
+      '<div class="dc-cost">' + fmt2(cost) + ' MOGC <span style="color:var(--fg-dim); font-weight:normal;">aus Firmen-Rücklage</span></div>' +
       '<button type="button" class="dc-act" data-kind="' + d.kind + '"' + (canClick ? '' : ' disabled') + '>' + label + '</button>';
     card.querySelector('button.dc-act').addEventListener('click', () => makeDecision(company.id, d.kind));
     wireDecisionInfo(card, 'd:' + d.kind);
@@ -2885,7 +2899,7 @@ function renderDecisions(company){
       const rate = Math.min(0.40, Math.max(0.10, 0.10 + (Number(company.risk_score) / 100) * 0.30));
       const total = Math.round(principal * (1 + rate) * 100) / 100;
       const installment = Math.round((total / term) * 100) / 100;
-      effectText = 'Kredit: ' + fmt(principal) + ' sofort, ' + fmt2(total) + ' in ' + term + ' Q.-Raten à ' + fmt2(installment) +
+      effectText = 'Kredit: ' + fmt2(principal) + ' sofort, ' + fmt2(total) + ' in ' + term + ' Q.-Raten à ' + fmt2(installment) +
         ' (Zinssatz ' + (rate * 100).toFixed(1) + '% bei aktuellem Risiko-Score ' + Math.round(Number(company.risk_score)) + ')';
     }
     const reqForSector = SECTOR_REQUIREMENTS[company.sector];
@@ -3408,7 +3422,7 @@ function renderIpoPanel(company){
     const mins = Math.max(0, Math.floor((msLeft % 3600000) / 60000));
     panel.innerHTML = '<div class="bankrupt-callout"><h4 style="color:#D4AF37; margin:0 0 6px;">Insolvenzverfahren</h4>' +
       'Rücklage negativ oder zu viele Verlust-Quartale in Folge. Noch <b>' + hrs + ' Std ' + mins + ' Min</b> Zeit, um die Firma per Kapitalspritze zu sanieren ' +
-      '(aktuelle Rücklage: ' + fmt(company.cash_reserve) + ' MOGC — muss auf mindestens 0 gebracht werden). ' +
+      '(aktuelle Rücklage: ' + fmt2(company.cash_reserve) + ' MOGC — muss auf mindestens 0 gebracht werden). ' +
       'Danach ist die Firma endgültig insolvent, das Kapital ist verloren. Bei erfolgreicher Sanierung: Kapazität/Personal -30%, Reputation -10 (Restrukturierungskosten), sonst bleibt alles erhalten.' +
       '<div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
       '<input type="number" id="rescueAmount" placeholder="Betrag in MOGC" style="max-width:180px;" min="1" step="1"' + (iCanDecide ? '' : ' disabled') + '>' +
@@ -3439,7 +3453,7 @@ function renderIpoPanel(company){
     const estYield = Math.max(1, Math.min(8, 2 + margin * 15)).toFixed(2);
     panel.innerHTML = '<h3>Bereit für den Börsengang</h3>' +
       '<div class="ipo-callout"><h4>Geschätzte Bewertung</h4>' +
-      '<div style="font-family:var(--mono); font-size:25.5px; color:#D4AF37; margin-bottom:6px;">≈ ' + fmt(marketCap) + ' MOGC</div>' +
+      '<div style="font-family:var(--mono); font-size:25.5px; color:#D4AF37; margin-bottom:6px;">≈ ' + fmt2(marketCap) + ' MOGC</div>' +
       '<div style="font-size:14.5px; color:var(--fg-dim); line-height:1.6;">Erstnotiz ≈ ' + fmt2(ipoPrice) + ' MOGC je Aktie · 10.000 Aktien gesamt · ' +
       'du behältst 2.500 (25%, 14 Tage gesperrt) · der Rest geht sofort in den freien Markt-Float. Geschätzte Dividendenrendite bei Erstnotiz ≈ ' + estYield + ' %/Jahr (wächst danach mit deiner Marge mit). Die tatsächliche Bewertung wird beim Börsengang final aus deinen Fundamentaldaten berechnet.</div></div>' +
       '<button type="button" class="btn-block" id="ipoBtn" style="max-width:260px; margin-top:14px;"' + (iCanDecide ? '' : ' disabled') + '>' + (iCanDecide ? 'Jetzt an die Börse gehen' : 'Nur Leiter/Offiziere') + '</button>' +
