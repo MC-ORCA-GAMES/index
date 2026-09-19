@@ -2,6 +2,21 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.4: Foerder-Boni gelten jetzt fuer ALLE Foerderlinien. Prestige-Skill "Uebertakten" (Beschreibung: "aller
+    Rigs") und Corp-"Foerdermengen-Boost" wirkten bisher nur auf NRC; PULSE, FLUX und Relay hatten keinen Bonus.
+    Neu: crypto_farm.production_bonus_mult(player_id) = (1+Skill)*(1+Corp), eingerechnet in
+    get_pulse_production_rate, get_flux_production_rate (Resonanz multipliziert weiter obendrauf) und in beiden
+    Relay-Auszahlungen (collect_relay_earnings + Cron collect_all_relay_earnings) -- bei Relay nur auf den eigenen
+    Anteil, Netz-Topf und Anteilsberechnung sind unveraendert. Anzeige der Boni bei PULSE/Relay/FLUX ergaenzt,
+    FLUX-Label "Basisrate" -> "Rate (inkl. Boni)". Gemeinsamer Frontend-Helper prodBonusInfo().
+  - v4.2.3: Foerderrate zeigt jetzt Prestige- und Corp-Bonus. Vorher summierte das Frontend nur die Basisraten der
+    Rigs; Server (get_production_rate) rechnete die Boni laengst mit -- Anzeige und laufende Guthaben-Schaetzung
+    lagen deshalb zu niedrig. Neu: player_state.production_base/_skill_bonus/_guild_bonus/_rate (RPC
+    crypto_farm.get_production_breakdown, im get_full_game_state gebuendelt). Zusaetzlich: get_full_game_state hat
+    bei jedem Abruf Flux abgeholt (Resonanz-Reset) -- entfernt.
+  - v4.2.2: Corp-Tab um das "Corp-Depot" ergaenzt (platform.get_my_corp_stock_holdings). Corp-Firmen aus
+    FOUNDRY halten ihre Gruenderanteile jetzt als Corp; Lohn, Dividenden und Ruecklagen-Ausschuettung
+    gehen in die Corp-Kasse.
   - v4.2.1: Wallet-Tab um FLUX und FVLT ergaenzt (Kachelreihen + Chart-Karten im Grid "Alle
     Sprungmaerkte & Ressourcen"). Waren mit v4.2 zwar im Spiel, aber nirgends im Wallet zu sehen.
     Bestandsverlauf laeuft ueber get_my_currency_history('FLUX'/'FVLT') wie bei den anderen.
@@ -3596,6 +3611,17 @@
           <div id="guildContributionsList" style="margin-top:6px;"><div class="sm-hint">Lade Beiträge…</div></div>
         </div>
 
+        <div class="panel" id="guildStockDepotPanel">
+          <h3>Corp-Depot</h3>
+          <div class="sm-hint" style="margin-bottom:8px;">Aktien der Corp-Firmen aus FOUNDRY. Gründeranteile gehören der Corp; Dividenden fließen täglich in die Corp-Kasse.</div>
+          <div class="am-table-wrap">
+            <table class="am-table">
+              <thead><tr><th>Ticker</th><th>Menge</th><th>Ø Kurs</th><th>Kurs</th><th>Wert</th><th>Gewinn/Verlust</th><th>Dividenden</th></tr></thead>
+              <tbody id="guildStockDepotBody"><tr><td colspan="7" class="am-loading">Lädt…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="panel">
           <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5L7 2L11.5 6.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="2.5" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Corp-Upgrades <span class="tag">— verzweigter Skillbaum aus der Kasse finanziert: Förderung, Schatzkammer, Mitgliederausbau, Ruhm &amp; Prestige. Ist der Förder-Ast komplett, zahlt die Corp zusätzlich eine tägliche Dividende</span></h3>
           <div class="guild-upgrade-grid" id="guildUpgradesList"><div class="sm-hint">Lade Upgrades…</div></div>
@@ -4836,7 +4862,19 @@ async function applyFullGameState(gs){
   rigTypes = rigs || [];
   playerRigs = {};
   (playerRigRows || []).forEach(r => { playerRigs[r.rig_type_id] = r.quantity; });
-  currentRate = rigTypes.reduce((sum, rt) => sum + (playerRigs[rt.id] || 0) * Number(rt.base_rate), 0);
+  const baseRateLocal = rigTypes.reduce((sum, rt) => sum + (playerRigs[rt.id] || 0) * Number(rt.base_rate), 0);
+  /* Foerderrate inkl. Boni: kommt seit v4.2.3 vom Server (player_state.production_*), identisch zu
+     crypto_farm.get_production_rate(). Frueher wurde hier nur die Basis der Rigs summiert -- Prestige-
+     (production_mult) und Corp-Bonus (production_boost_bp) wirkten zwar im Ertrag, waren aber nie sichtbar. */
+  const prodBase  = Number(state?.production_base ?? baseRateLocal);
+  const prodSkill = Number(state?.production_skill_bonus ?? 0);
+  const prodGuild = Number(state?.production_guild_bonus ?? 0);
+  currentRate = Number(state?.production_rate ?? baseRateLocal);
+  const rateBonusParts = prodBonusInfo(gs).parts;
+  const rateBonusHtml = rateBonusParts.length
+    ? `<div class="rate-bonus-line" style="font-size:11px;opacity:.85;margin-top:2px;">Basis ${fmtCoin(prodBase)}/s · ${rateBonusParts.join(' · ')}</div>`
+    : '';
+  const rateBonusTitle = rateBonusParts.length ? `Basis ${fmtCoin(prodBase)}/s, ${rateBonusParts.join(', ')}` : 'Keine Boni aktiv';
   shopItems = shop || [];
   inventoryItemIds = new Set(gs.player_inventory || []);
   ownedSkillIds = new Set(gs.player_skills?.owned || []);
@@ -4846,7 +4884,8 @@ async function applyFullGameState(gs){
   animateBalanceTo(currentBalance);
   if (!tickInterval) startBalanceTicking();
   document.querySelectorAll('.js-rate-nova').forEach(el => {
-    el.innerHTML = `+${fmtCoin(currentRate)} <span class="coin-icon-sm" aria-hidden="true"><svg viewBox="0 0 32 32" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 6.5L9 17H12.5L10.5 25.5L20 15H15.5L17.5 6.5Z" fill="currentColor"/><circle cx="22.5" cy="9.5" r="1.7" fill="currentColor"/></svg></span>/s`;
+    el.innerHTML = `+${fmtCoin(currentRate)} <span class="coin-icon-sm" aria-hidden="true"><svg viewBox="0 0 32 32" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 6.5L9 17H12.5L10.5 25.5L20 15H15.5L17.5 6.5Z" fill="currentColor"/><circle cx="22.5" cy="9.5" r="1.7" fill="currentColor"/></svg></span>/s${rateBonusHtml}`;
+    el.title = rateBonusTitle;
   });
   document.querySelectorAll('.js-balance-mogc').forEach(el => { el.textContent = fmtCoin(storeBalance); });
   document.querySelectorAll('.js-lifetime-mined').forEach(el => { el.textContent = fmtCoin(state?.total_mined ?? 0); });
@@ -5373,6 +5412,19 @@ async function loadPulse(){
   await loadEverything({ light: true });
 }
 
+/* Foerder-Boni (Prestige-Skill production_mult, Corp production_boost_bp) -- gelten seit v4.2.4 fuer ALLE
+   Foerderlinien (NRC, PULSE, FLUX, Relay-Anteil). Werte kommen vom Server aus player_state.production_*. */
+function prodBonusInfo(gs){
+  const st = gs?.player_state || {};
+  const sk = Number(st.production_skill_bonus ?? 0);
+  const gd = Number(st.production_guild_bonus ?? 0);
+  const pct = v => Number((v * 100).toFixed(1));
+  const parts = [];
+  if (sk > 0) parts.push(`Prestige +${pct(sk)} %`);
+  if (gd > 0) parts.push(`Corp +${pct(gd)} %`);
+  return { mult: (1 + sk) * (1 + gd), parts, text: parts.join(' · ') };
+}
+
 function applyPulseState(gs){
   const pulseStatus = gs.pulse_status || null;
   pulseBalance = Number(pulseStatus?.pulse_balance ?? 0);
@@ -5381,8 +5433,9 @@ function applyPulseState(gs){
   pulseBoostExpiresAt = pulseStatus?.boost_expires_at ?? null;
 
   document.querySelectorAll('.js-balance-pulse').forEach(el => { el.textContent = fmtCoin(pulseBalance) + ' PULSE'; });
+  const pulseBonus = prodBonusInfo(gs);
   const pulseRateEl = document.getElementById('pulseRateDisplay');
-  if (pulseRateEl) pulseRateEl.innerHTML = `+${pulseRate.toFixed(4)} PULSE/s${pulseBoostActive ? ' (<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 3,8 6,8 5,13 10,6 7,6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Boost aktiv)' : ''}`;
+  if (pulseRateEl) pulseRateEl.innerHTML = `+${pulseRate.toFixed(4)} PULSE/s${pulseBoostActive ? ' (<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 3,8 6,8 5,13 10,6 7,6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Boost aktiv)' : ''}${pulseBonus.parts.length ? `<div style="font-size:11px;opacity:.85;margin-top:2px;">inkl. ${pulseBonus.text}</div>` : ''}`;
   const boostEl = document.getElementById('pulseBoostDisplay');
   if (boostEl) {
     if (pulseBoostActive && pulseBoostExpiresAt) {
@@ -5464,7 +5517,8 @@ function applyRelayState(gs){
 
   document.querySelectorAll('.js-balance-relay').forEach(el => { el.textContent = fmtCoin(relayBalance) + ' RELAY'; });
   const ownRateEl = document.getElementById('relayOwnRateDisplay');
-  if (ownRateEl) ownRateEl.textContent = `+${relayOwnRate.toFixed(4)} Relay/s eigene Rate`;
+  const relayBonus = prodBonusInfo(gs);
+  if (ownRateEl) ownRateEl.textContent = `+${relayOwnRate.toFixed(4)} Relay/s eigene Rate${relayBonus.parts.length ? ` · Bonus auf deinen Anteil: ${relayBonus.text}` : ''}`;
   const netRateEl = document.getElementById('relayNetworkRateDisplay');
   if (netRateEl) netRateEl.textContent = `${relayNetworkRate.toFixed(3)} Relay/s`;
   const shareEl = document.getElementById('relayShareDisplay');
@@ -5707,7 +5761,8 @@ function applyFluxState(gs){
   document.querySelectorAll('.js-balance-fvlt').forEach(el => { el.textContent = fmtCoin(fluxVaultBalance) + ' FVLT'; });
 
   const rateEl = document.getElementById('fluxOwnRateDisplay');
-  if (rateEl) rateEl.textContent = `Basisrate ${fluxOwnRate.toFixed(4)} Flux/s · aktuell ${(fluxOwnRate * fluxResonance).toFixed(4)} Flux/s`;
+  const fluxBonus = prodBonusInfo(gs);
+  if (rateEl) rateEl.textContent = `Rate ${fluxOwnRate.toFixed(4)} Flux/s${fluxBonus.parts.length ? ` (inkl. ${fluxBonus.text})` : ''} · aktuell ${(fluxOwnRate * fluxResonance).toFixed(4)} Flux/s`;
 
   const resEl = document.getElementById('fluxResonanceDisplay');
   if (resEl) resEl.textContent = fluxResonance ? `${fluxResonance.toFixed(2)}×` : '–';
@@ -5842,7 +5897,8 @@ window.buyFluxRig = async function(rigTypeId, qty, btnEl){
   await loadEverything({ light: true });
 };
 
-/* Abholen: laeuft zusaetzlich zum 5-Min-Cron collect_all_flux_earnings(). */
+/* Abholen: nur noch manuell. Der frueher parallel laufende 5-Min-Cron collect_all_flux_earnings()
+   ist deaktiviert (er hat die Resonanz staendig zurueckgesetzt, das 6-h-Maximum war unerreichbar). */
 document.getElementById('fluxCollectBtn').addEventListener('click', async () => {
   const btn = document.getElementById('fluxCollectBtn');
   if (fluxHoursSince < 6 && fluxOwnRate > 0) {
@@ -7186,6 +7242,32 @@ document.getElementById('guildCreateBtn').addEventListener('click', async () => 
   await loadGuildTab();
 });
 
+async function renderGuildStockDepot(){
+  const body = document.getElementById('guildStockDepotBody');
+  if (!body) return;
+  const { data, error } = await sb.schema('platform').rpc('get_my_corp_stock_holdings');
+  if (error) { body.innerHTML = '<tr><td colspan="7" class="am-loading">Fehler beim Laden.</td></tr>'; return; }
+  const rows = data || [];
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="7" class="am-loading">Noch keine Aktien im Corp-Depot. Sie entstehen beim Börsengang einer Corp-Firma in FOUNDRY.</td></tr>'; return; }
+  const now = Date.now();
+  body.innerHTML = rows.map(r => {
+    const cost = Number(r.shares) * Number(r.avg_buy_price);
+    const pct = cost > 0 ? (Number(r.pl_abs) / cost) * 100 : 0;
+    const locked = r.vested_until && new Date(r.vested_until).getTime() > now && Number(r.locked_shares) > 0;
+    const lockTxt = locked ? ` <span class="sm-hint" title="Gesperrt bis ${new Date(r.vested_until).toLocaleDateString('de-DE')}">🔒</span>` : '';
+    return `
+    <tr>
+      <td>${r.ticker}${lockTxt}</td>
+      <td>${fmtCoin(r.shares)}</td>
+      <td>${Number(r.avg_buy_price).toFixed(2)}</td>
+      <td>${Number(r.current_price).toFixed(2)}</td>
+      <td>${fmtCoin(r.current_value)} MOGC</td>
+      <td style="color:${r.pl_abs >= 0 ? 'var(--up)' : 'var(--down)'}">${r.pl_abs >= 0 ? '+' : ''}${fmtCoin(r.pl_abs)} MOGC (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)</td>
+      <td style="color:var(--up)">+${fmtCoin(r.dividends_total)} MOGC</td>
+    </tr>`;
+  }).join('');
+}
+
 async function renderGuildMine(guild){
   document.getElementById('guildMineTitle').innerHTML = `<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> [${guild.tag}] ${guild.name}`;
   document.getElementById('guildMineJoinMode').textContent = GUILD_JOIN_MODE_LABEL[guild.join_mode] || guild.join_mode;
@@ -7291,7 +7373,8 @@ async function renderGuildMine(guild){
     renderGuildMembers(guild.id, isOfficer),
     isOfficer && guild.join_mode === 'request' ? renderGuildJoinRequests(guild.id) : Promise.resolve(),
     renderGuildUpgrades(guild.id, isOfficer),
-    renderGuildContributions(guild.id)
+    renderGuildContributions(guild.id),
+    renderGuildStockDepot()
   ]);
 }
 
