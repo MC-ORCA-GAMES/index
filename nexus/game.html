@@ -2,6 +2,23 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.6: Handelsplatz-Fix + neue Booster-Kategorie (Backend siehe
+    HANDOFF_boost_items.md). (1) Kosmetik- und Event-Shop luden im Handelsplatz
+    nie, wenn man nicht vorher ueber den alten "Kometen-Event"-Tab gegangen war --
+    showMarketplaceCategory() hat die Lade-Trigger (loadCosmeticShop/
+    loadMyCosmetics/loadSeasonalEvent) beim v4.2-Umbau nie bekommen, sie hingen
+    noch an activateTab()'s tabId === 'event'. Nachgetragen. (2) Neue Kategorie
+    "Booster": generisches System fuer aktivierbare, per Vorrat kaufbare Items
+    (platform.player_activatable_items/player_active_boosts, RPCs
+    purchase_activatable_item/activate_boost_item/get_my_activatable_items).
+    Erster Konsument: PULSE-Foerderrate (crypto_farm.get_pulse_production_rate)
+    liest jetzt player_active_boosts (scope 'pulse_rate') statt der alten, nie
+    befuellten pulse_player_state.boost_expires_at-Spalte -- die Boost-Anzeige im
+    Farm-Tab (#pulseBoostDisplay) gab es zwar schon laenger, sie war aber tot,
+    weil nichts sie je ausloeste. Neuer Helper fmtCurrencyAmount() fuer
+    Nicht-MOGC-Preise (Booster-Preise stehen in beliebiger Waehrung, price_currency
+    pro Item). Weitere Waehrungslinien (NRC/FLUX/Relay) und Offline-Cap als
+    moegliche naechste scope-Konsumenten dokumentiert, noch nicht angebunden.
   - v4.2.5: Flux-Umtausch 100:1. Bei Kursindex 100 bringt 1 Flux jetzt 0,01 NRC (vorher 1:1); Kurs-Spanne 0,12-6,00 ->
     0,0012-0,06 NRC je Flux. Server: platform.flux_nrc_factor() wird von buy_flux/sell_flux genutzt, Betraege auf 8
     Nachkommastellen gerundet. Kurs-Feed (tick_flux_market) misst jetzt die Foerderrate der in den letzten 48 h aktiven
@@ -5617,7 +5634,8 @@ const MP_CATEGORIES = [
   { id: 'sigil',       label: 'SIGIL',          sub: 'Orderbuch',         title: 'SIGIL-Orderbuch' },
   { id: 'aktien',      label: 'Aktienmarkt',    sub: 'Firmen & Depot',    title: 'Aktienmarkt' },
   { id: 'flux',        label: 'Flux-Linie',     sub: 'Umtausch & Bank',   title: 'Flux — Umtausch & Speicher' },
-  { id: 'spielermarkt',label: 'Spieler-Markt',  sub: 'Tauschangebote',    title: 'Spieler-Markt' }
+  { id: 'spielermarkt',label: 'Spieler-Markt',  sub: 'Tauschangebote',    title: 'Spieler-Markt' },
+  { id: 'booster',     label: 'Booster',        sub: 'Aktivierbar',       title: 'Booster' }
 ];
 
 let mpInitialized = false;
@@ -5699,6 +5717,18 @@ function initMarketplace(){
     fluxSrc.remove();
   }
 
+  // Booster: komplett neue Kategorie ohne altes Vorgaenger-Panel, deshalb kein
+  // mpMove() -- die Pane bekommt ihr Grundgeruest direkt hier, renderBoosterShop()
+  // (ausgeloest ueber showMarketplaceCategory()) befuellt #boosterShopList.
+  const boosterPane = paneOf('booster');
+  if (boosterPane) {
+    boosterPane.innerHTML = `
+      <div class="panel">
+        <h3><span class="live-dot"></span>Booster <span class="tag">— aktivierbare Items, verschiedene Währungen je nach Item</span></h3>
+        <div class="ach-grid" id="boosterShopList"><div class="sm-hint">Lade Booster…</div></div>
+      </div>`;
+  }
+
   mpInitialized = true;
 }
 
@@ -5747,6 +5777,10 @@ function showMarketplaceCategory(catId){
     if (typeof loadMyCosmetics === 'function') loadMyCosmetics();
   }
   if (cat.id === 'event' && typeof loadSeasonalEvent === 'function') loadSeasonalEvent();
+  /* Booster-Kategorie: eigenstaendiges Panel, keine mpMove()-Verschiebung noetig
+     (kein altes Vorgaenger-Panel), wird bei jedem Kategorie-Wechsel frisch
+     befuellt, siehe renderBoosterShop() weiter unten. */
+  if (cat.id === 'booster' && typeof renderBoosterShop === 'function') renderBoosterShop();
 }
 
 /* Loest catId in eine konkrete Kategorie auf: explizite Vorgabe zuerst,
@@ -8769,6 +8803,74 @@ window.buyShopItem = async function(itemId, price, btnEl){
   if (error) { showMsg('statusMsg', error.message, false); btnEl.disabled = false; return; }
   showMsg('statusMsg', 'Kauf erfolgreich.', true);
   spawnFly('-' + fmtCoin(price) + ' <span class="coin-icon-sm" aria-hidden="true"><svg viewBox="0 0 32 32" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="1.6"/><ellipse cx="16" cy="16" rx="12" ry="5.2" fill="none" stroke="currentColor" stroke-width="1" transform="rotate(-18 16 16)"/><path d="M16 9.5L17.6 13.7L22 13.9L18.5 16.6L19.7 21L16 18.5L12.3 21L13.5 16.6L10 13.9L14.4 13.7Z" fill="#E5484D"/></svg></span>', btnEl, false);
+  await loadEverything({ light: true });
+};
+
+/* ---------- Booster (aktivierbare Items, siehe HANDOFF_boost_items.md) ----------
+   Katalog + eigener Vorrat kommen gebuendelt aus platform.get_my_activatable_items().
+   Anders als beim Premium-Shop ist der Preis NICHT zwingend MOGC -- price_currency
+   pro Item entscheidet, daher hier eigener Formatter statt des MOGC-Coin-Icons aus
+   fmtCoin()/buyShopItem(). Kaufen erhoeht den Vorrat, Aktivieren verbraucht ihn und
+   startet den Effekt serverseitig (activate_boost_item) -- die Laufrate/-anzeige des
+   jeweiligen scope (z.B. PULSE-Foerderrate) liest das automatisch mit, kein separater
+   Refresh-Pfad noetig ausser loadEverything(). */
+let boosterItems = [];
+
+function fmtCurrencyAmount(amount, symbol){
+  return `${fmtCoin(amount)} ${symbol}`;
+}
+
+function boosterEffectLabel(payload){
+  const scope = payload?.scope;
+  const pct = payload?.boost_pct;
+  const mins = Number(payload?.duration_minutes) || 0;
+  const hours = mins / 60;
+  const durText = hours >= 1 ? `${hours % 1 === 0 ? hours : hours.toFixed(1)} h` : `${mins} Min`;
+  const SCOPE_LABELS = { pulse_rate: 'PULSE-Förderrate', nrc_rate: 'NRC-Förderrate', flux_rate: 'FLUX-Förderrate', relay_rate: 'Relay-Anteil', offline_cap: 'Offline-Cap', quest_speed: 'Quest-Fortschritt' };
+  const label = SCOPE_LABELS[scope] || scope;
+  return `+${pct}% ${label} für ${durText}`;
+}
+
+async function renderBoosterShop(){
+  const wrap = document.getElementById('boosterShopList');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="sm-hint">Lade Booster…</div>';
+  const { data, error } = await sb.schema('platform').rpc('get_my_activatable_items');
+  if (error) { wrap.innerHTML = '<div class="sm-hint">Konnte Booster nicht laden.</div>'; return; }
+  boosterItems = data || [];
+  if (!boosterItems.length) {
+    wrap.innerHTML = '<div class="sm-hint">Aktuell keine Booster im Angebot.</div>';
+    return;
+  }
+  wrap.innerHTML = boosterItems.map(it => `
+    <div class="ach-card" style="opacity:1;">
+      <div class="ach-name">${it.name}${it.owned_quantity > 0 ? ` <span class="tag">×${it.owned_quantity} auf Lager</span>` : ''}</div>
+      <div class="ach-desc">${it.description ?? boosterEffectLabel(it.effect_payload)}</div>
+      <div class="ach-meta">
+        <span class="ach-reward">${fmtCurrencyAmount(it.price, it.price_currency)}</span>
+        <button type="button" class="btn btn-ghost" data-buy-booster="${it.item_id}">Kaufen</button>
+        ${it.owned_quantity > 0 ? `<button type="button" class="btn btn-primary" data-activate-booster="${it.item_id}">Aktivieren</button>` : ''}
+      </div>
+    </div>`).join('');
+
+  wrap.querySelectorAll('[data-buy-booster]').forEach(btn => btn.addEventListener('click', () => buyBoosterItem(btn.dataset.buyBooster, btn)));
+  wrap.querySelectorAll('[data-activate-booster]').forEach(btn => btn.addEventListener('click', () => activateBoosterItem(btn.dataset.activateBooster, btn)));
+}
+
+window.buyBoosterItem = async function(itemId, btnEl){
+  btnEl.disabled = true;
+  const { error } = await sb.schema('platform').rpc('purchase_activatable_item', { p_item_id: itemId, p_qty: 1 });
+  if (error) { showMsg('statusMsg', error.message, false); btnEl.disabled = false; return; }
+  showMsg('statusMsg', 'Kauf erfolgreich.', true);
+  await renderBoosterShop();
+};
+
+window.activateBoosterItem = async function(itemId, btnEl){
+  btnEl.disabled = true;
+  const { error } = await sb.schema('platform').rpc('activate_boost_item', { p_item_id: itemId });
+  if (error) { showMsg('statusMsg', error.message, false); btnEl.disabled = false; return; }
+  showMsg('statusMsg', 'Booster aktiviert.', true, 'levelup');
+  await renderBoosterShop();
   await loadEverything({ light: true });
 };
 
