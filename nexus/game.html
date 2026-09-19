@@ -8,6 +8,10 @@
     Spieler statt der Abhol-Zeitpunkte im Log (seit v4.2.3 wird nicht mehr automatisch abgeholt -> Kurs lief sonst
     Richtung Maximum) und rundet den Kurs auf 4 Stellen. Frontend: Umtausch-Vorschau rechnet mit dem Faktor.
     Ausserdem: Check der Tabelle market_trades um das Symbol FLUX ergaenzt (Kauf/Verkauf gaben 400/23514).
+    Zahlenformat: Betraege und Kurse werden ueberall auf genau 2 Nachkommastellen ABGERUNDET (fl2()/floor2(), fmtCoin,
+    fmtCredits). Vorher wurde kaufmaennisch aufgerundet -> angezeigter Bestand lag ueber dem echten Bestand und der
+    Verkauf scheiterte mit "zu wenig ...". Alle "Alles"-Buttons tragen den abgerundeten Bestand ein. Foerderraten
+    pro Sekunde (4 Stellen) und CYCLE/SIGIL-Orderbuchpreise (3 Stellen) bleiben bewusst unveraendert.
   - v4.2.4: Foerder-Boni gelten jetzt fuer ALLE Foerderlinien. Prestige-Skill "Uebertakten" (Beschreibung: "aller
     Rigs") und Corp-"Foerdermengen-Boost" wirkten bisher nur auf NRC; PULSE, FLUX und Relay hatten keinen Bonus.
     Neu: crypto_farm.production_bonus_mult(player_id) = (1+Skill)*(1+Corp), eingerechnet in
@@ -4301,11 +4305,21 @@ function showMsg(elId, text, ok, kind){
 }
 function clearMsg(elId){ document.getElementById(elId).innerHTML = ''; }
 
+// Zahlenformat: IMMER genau 2 Nachkommastellen und IMMER abgerundet (Richtung 0), nie aufgerundet.
+// Grund: Aufgerundete Anzeigewerte lagen ueber dem echten Bestand -> "zu wenig ..." beim Verkauf/Einzahlen.
+// fl2() liefert einen String, floor2() eine Zahl (fuer die "Alles"-Buttons).
+function floor2(n){
+  n = Number(n);
+  if (!isFinite(n)) return 0;
+  // +-1e-7 faengt Fliesskomma-Fehler ab (1.15*100 = 114.99999999999999).
+  return Math.trunc(n * 100 + Math.sign(n) * 1e-7) / 100;
+}
+function fl2(n){ return floor2(n).toFixed(2); }
 function fmtCoin(n){
   n = Number(n) || 0;
-  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(2) + 'k';
-  return n.toFixed(2);
+  if (n >= 1e6) return fl2(n / 1e6) + 'M';
+  if (n >= 1e3) return fl2(n / 1e3) + 'k';
+  return fl2(n);
 }
 
 // NEU (Wallet-Chart-Fix NVLT/GRID): Chart.js-Achsen-Ticks nutzten bisher die Roh-Zahl
@@ -4946,7 +4960,7 @@ async function applyFullGameState(gs){
     incidentHtml = `
       <div class="bb-incident">
         <span class="bb-inc-label">${isBonus ? '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 3,8 6,8 5,13 10,6 7,6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span>' : '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L13 12.5H1L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="7" y1="5.5" x2="7" y2="8.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="7" cy="10.7" r="0.7" fill="currentColor"/></svg></span>'} ${marketStatus.event_label} <span style="opacity:.7">(Netzwerk-Zwischenfall, endet in ${mins}:${String(secs).padStart(2,'0')})</span></span>
-        <span style="color:${isBonus ? 'var(--up)' : 'var(--down)'}">×${Number(marketStatus.event_multiplier).toFixed(2)} Ertrag</span>
+        <span style="color:${isBonus ? 'var(--up)' : 'var(--down)'}">×${fl2(Number(marketStatus.event_multiplier))} Ertrag</span>
       </div>`;
   } else {
     incidentHtml = `<div class="bb-incident"><span class="bb-inc-label">Kein aktiver Netzwerk-Zwischenfall · starke Kursausschläge können jederzeit einen Bonus- oder Malus-Zwischenfall auslösen</span></div>`;
@@ -5048,8 +5062,8 @@ async function applyFullGameState(gs){
   if (lastPrice != null) latestPrice = Number(lastPrice);
   document.getElementById('marketPriceDisplay').innerHTML =
     lastPrice != null
-      ? `Kurs: ${Number(lastPrice).toFixed(2)} <span style="color:${trendUp ? 'var(--up)' : 'var(--down)'}">${trendUp ? '▲' : '▼'}</span>` +
-        (priceMult != null ? ` <span class="mpb-sub">· ×${priceMult.toFixed(2)} Umtausch</span>` : '')
+      ? `Kurs: ${fl2(Number(lastPrice))} <span style="color:${trendUp ? 'var(--up)' : 'var(--down)'}">${trendUp ? '▲' : '▼'}</span>` +
+        (priceMult != null ? ` <span class="mpb-sub">· ×${fl2(priceMult)} Umtausch</span>` : '')
       : 'Kurs: –';
 
   setMarketChartTrend(trendUp);
@@ -5098,7 +5112,7 @@ function applyForgeState(gs){
       .filter(bt => bt.resource_symbol === sym)
       .reduce((sum, bt) => sum + Number(bt.base_rate) * (forgePlayerBuildings[bt.id] || 0), 0);
     const rateEl = document.querySelector('.js-forge-rate-' + sym);
-    if (rateEl) rateEl.textContent = `+${rate.toFixed(2)} ${sym}/min`;
+    if (rateEl) rateEl.textContent = `+${fl2(rate)} ${sym}/min`;
   });
 
   forgeExportTargets = gs.forge_export_targets || [];
@@ -5254,7 +5268,7 @@ function renderForgeStorageModal(){
       </div>`;
     }).join('');
     return `<div class="panel" style="padding:14px 16px; margin-bottom:12px;">
-      <h3 style="margin-bottom:10px;">${sym} <span class="tag">${fmtCoin(forgeBalances[sym] || 0)} im Lager · +${rate.toFixed(2)}/min</span></h3>
+      <h3 style="margin-bottom:10px;">${sym} <span class="tag">${fmtCoin(forgeBalances[sym] || 0)} im Lager · +${fl2(rate)}/min</span></h3>
       ${rows}
       <div class="sm-hint forge-alloc-total" data-forgeresource="${sym}" style="margin-top:4px;">${totalPct}&nbsp;% vergeben · ${Math.max(0, 100 - totalPct)}&nbsp;% bleiben im Lager</div>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
@@ -5478,10 +5492,10 @@ function applyPulseState(gs){
   else if (ionxStatus) ionxLatestPrice = Number(ionxStatus.price);
   document.getElementById('ionxPriceDisplay').innerHTML =
     lastIonx != null
-      ? `Kurs: ${Number(lastIonx).toFixed(2)} <span style="color:${ionxTrendUp ? 'var(--up)' : 'var(--down)'}">${ionxTrendUp ? '▲' : '▼'}</span>`
+      ? `Kurs: ${fl2(Number(lastIonx))} <span style="color:${ionxTrendUp ? 'var(--up)' : 'var(--down)'}">${ionxTrendUp ? '▲' : '▼'}</span>`
       : 'Kurs: –';
   document.getElementById('ionxRateDisplay').textContent =
-    ionxStatus ? `Förderrate-Index: ${Number(ionxStatus.pulse_rate_index).toFixed(2)}× (relativ zum 24h-Schnitt) — hoch = Kurs sinkt` : 'Förderrate-Index: –';
+    ionxStatus ? `Förderrate-Index: ${fl2(Number(ionxStatus.pulse_rate_index))}× (relativ zum 24h-Schnitt) — hoch = Kurs sinkt` : 'Förderrate-Index: –';
   updateChart(ionxChart, ionxHistOrdered, 'price');
   setChartTrendColor([ionxChart], ionxTrendUp);
 
@@ -5495,7 +5509,7 @@ function applyPulseState(gs){
   else if (gridStatus) gridLatestPrice = Number(gridStatus.price);
   document.getElementById('gridPriceDisplay').innerHTML =
     lastGrid != null
-      ? `Kurs: ${Number(lastGrid).toFixed(2)} <span style="color:${gridTrendUp ? 'var(--up)' : 'var(--down)'}">${gridTrendUp ? '▲' : '▼'}</span>`
+      ? `Kurs: ${fl2(Number(lastGrid))} <span style="color:${gridTrendUp ? 'var(--up)' : 'var(--down)'}">${gridTrendUp ? '▲' : '▼'}</span>`
       : 'Kurs: –';
   updateChart(gridChart, gridHistOrdered, 'price');
   setChartTrendColor([gridChart], gridTrendUp);
@@ -5528,7 +5542,7 @@ function applyRelayState(gs){
   const netRateEl = document.getElementById('relayNetworkRateDisplay');
   if (netRateEl) netRateEl.textContent = `${relayNetworkRate.toFixed(3)} Relay/s`;
   const shareEl = document.getElementById('relayShareDisplay');
-  if (shareEl) shareEl.textContent = `${relaySharePct.toFixed(2)} % Anteil · Exponent ${relayExponent.toFixed(2)}`;
+  if (shareEl) shareEl.textContent = `${fl2(relaySharePct)} % Anteil · Exponent ${fl2(relayExponent)}`;
   const boostEl = document.getElementById('relayBoostDisplay');
   if (boostEl) {
     if (relayBoostActive && relayBoostExpiresAt) {
@@ -5774,7 +5788,7 @@ function applyFluxState(gs){
   if (rateEl) rateEl.textContent = `Rate ${fluxOwnRate.toFixed(4)} Flux/s${fluxBonus.parts.length ? ` (inkl. ${fluxBonus.text})` : ''} · aktuell ${(fluxOwnRate * fluxResonance).toFixed(4)} Flux/s`;
 
   const resEl = document.getElementById('fluxResonanceDisplay');
-  if (resEl) resEl.textContent = fluxResonance ? `${fluxResonance.toFixed(2)}×` : '–';
+  if (resEl) resEl.textContent = fluxResonance ? `${fl2(fluxResonance)}×` : '–';
   const resSub = document.getElementById('fluxResonanceSub');
   if (resSub) {
     const rising = fluxHoursSince < 6;
@@ -5786,7 +5800,7 @@ function applyFluxState(gs){
   const peakSecs = Number(fs?.peak_in_seconds ?? 0);
   if (peakEl) peakEl.textContent = peakSecs > 0 ? 'in ' + fmtDuration(peakSecs * 1000) : 'erreicht';
   const bestEl = document.getElementById('fluxBestDisplay');
-  if (bestEl) bestEl.textContent = `bester Faktor bisher: ${Number(fs?.best_resonance ?? 0).toFixed(2)}×`;
+  if (bestEl) bestEl.textContent = `bester Faktor bisher: ${fl2(Number(fs?.best_resonance ?? 0))}×`;
 
   const marker = document.getElementById('fluxCurveMarker');
   if (marker) marker.style.left = fluxCurvePct(fluxHoursSince).toFixed(1) + '%';
@@ -5814,11 +5828,11 @@ function applyFluxMarket(gs){
 
   const priceEl = document.getElementById('fluxPriceDisplay');
   if (priceEl) priceEl.innerHTML = last != null
-    ? `Kurs: ${Number(last).toFixed(2)} <span style="color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲' : '▼'}</span>`
+    ? `Kurs: ${fl2(Number(last))} <span style="color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲' : '▼'}</span>`
     : 'Kurs: –';
   const rateEl = document.getElementById('fluxRateDisplay');
   if (rateEl) rateEl.textContent = st
-    ? `Förderrate-Index: ${Number(st.flux_rate_index).toFixed(2)}× (Förderrate aktiver Spieler, relativ zum 24h-Schnitt) — hoch = Kurs sinkt`
+    ? `Förderrate-Index: ${fl2(Number(st.flux_rate_index))}× (Förderrate aktiver Spieler, relativ zum 24h-Schnitt) — hoch = Kurs sinkt`
     : 'Förderrate-Index: –';
 
   if (fluxChart) { updateChart(fluxChart, hist, 'price'); setChartTrendColor([fluxChart], up); }
@@ -5831,11 +5845,9 @@ function updateFluxTradePreview(){
   const buy = Number(document.getElementById('fluxBuyInput')?.value) || 0;
   const sell = Number(document.getElementById('fluxSellInput')?.value) || 0;
   const nrcPerFlux = fluxNrcPerFlux();
-  // fmtCoin zeigt nur 2 Stellen; bei 100:1 sind kleine NRC-Betraege sonst 0,00.
-  const fmtNrc = (n) => (n > 0 && n < 1) ? n.toFixed(4) : fmtCoin(n);
-  const parts = [`100 Flux = ${fmtNrc(nrcPerFlux * 100)} Nova-Rift`];
+  const parts = [`100 Flux = ${fmtCoin(nrcPerFlux * 100)} Nova-Rift`];
   if (buy > 0) parts.push(`${fmtCoin(buy)} NRC → ca. ${fmtCoin(buy / nrcPerFlux)} FLUX`);
-  if (sell > 0) parts.push(`${fmtCoin(sell)} FLUX → ca. ${fmtNrc(sell * nrcPerFlux)} NRC`);
+  if (sell > 0) parts.push(`${fmtCoin(sell)} FLUX → ca. ${fmtCoin(sell * nrcPerFlux)} NRC`);
   el.textContent = parts.join(' · ');
 }
 
@@ -5844,10 +5856,10 @@ function wireFluxMarket(){
   const onInput = (id) => { const el = document.getElementById(id); if (el) el.addEventListener('input', updateFluxTradePreview); };
   onInput('fluxBuyInput'); onInput('fluxSellInput');
 
-  on('fluxBuyMaxBtn', () => { document.getElementById('fluxBuyInput').value = currentBalance; updateFluxTradePreview(); });
-  on('fluxSellMaxBtn', () => { document.getElementById('fluxSellInput').value = fluxBalance; updateFluxTradePreview(); });
-  on('fvltDepositMaxBtn', () => { document.getElementById('fvltDepositInput').value = fluxBalance; });
-  on('fvltWithdrawMaxBtn', () => { document.getElementById('fvltWithdrawInput').value = fluxVaultBalance; });
+  on('fluxBuyMaxBtn', () => { document.getElementById('fluxBuyInput').value = floor2(currentBalance); updateFluxTradePreview(); });
+  on('fluxSellMaxBtn', () => { document.getElementById('fluxSellInput').value = floor2(fluxBalance); updateFluxTradePreview(); });
+  on('fvltDepositMaxBtn', () => { document.getElementById('fvltDepositInput').value = floor2(fluxBalance); });
+  on('fvltWithdrawMaxBtn', () => { document.getElementById('fvltWithdrawInput').value = floor2(fluxVaultBalance); });
 
   async function run(rpcName, argName, inputId, btnId, okText){
     const input = document.getElementById(inputId);
@@ -5915,7 +5927,7 @@ document.getElementById('fluxCollectBtn').addEventListener('click', async () => 
   const btn = document.getElementById('fluxCollectBtn');
   if (fluxHoursSince < 6 && fluxOwnRate > 0) {
     const missing = fmtDuration(Math.max((6 - fluxHoursSince) * 3600000, 0));
-    if (!confirm(`Die Resonanz steht erst bei ${fluxResonance.toFixed(2)}× und erreicht in ${missing} ihr Maximum von 2,00×. Trotzdem jetzt abholen?`)) return;
+    if (!confirm(`Die Resonanz steht erst bei ${fl2(fluxResonance)}× und erreicht in ${missing} ihr Maximum von 2,00×. Trotzdem jetzt abholen?`)) return;
   }
   btn.disabled = true;
   const { data, error } = await sb.schema('crypto_farm').rpc('collect_flux_earnings');
@@ -6018,7 +6030,7 @@ document.getElementById('relayBoostBtn').addEventListener('click', async () => {
 
 /* ---------- Relay verkaufen (fixer 100:1-Kurs, siehe crypto_farm.sell_relay) ---------- */
 document.getElementById('relaySellMaxBtn').addEventListener('click', () => {
-  document.getElementById('relaySellInput').value = relayBalance > 0 ? relayBalance : '';
+  document.getElementById('relaySellInput').value = floor2(relayBalance) > 0 ? floor2(relayBalance) : '';
 });
 document.getElementById('relaySellBtn').addEventListener('click', async () => {
   const input = document.getElementById('relaySellInput');
@@ -6129,10 +6141,10 @@ window.buyPulseRig = async function(rigTypeId, qty, btnEl){
 
 /* ---------- IONX: Kauf/Verkauf (gegen Pulse) ---------- */
 document.getElementById('ionxBuyMaxBtn').addEventListener('click', () => {
-  document.getElementById('ionxBuyInput').value = pulseBalance > 0 ? pulseBalance : '';
+  document.getElementById('ionxBuyInput').value = floor2(pulseBalance) > 0 ? floor2(pulseBalance) : '';
 });
 document.getElementById('ionxSellMaxBtn').addEventListener('click', () => {
-  document.getElementById('ionxSellInput').value = ionxBalance > 0 ? ionxBalance : '';
+  document.getElementById('ionxSellInput').value = floor2(ionxBalance) > 0 ? floor2(ionxBalance) : '';
 });
 
 document.getElementById('ionxBuyBtn').addEventListener('click', async () => {
@@ -6145,7 +6157,7 @@ document.getElementById('ionxBuyBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} PULSE → IONX (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer IONX-Bestand: ${fmtCoin(row?.ionx_balance ?? 0)}.`, true);
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} PULSE → IONX (Kurs ${fl2(Number(row?.price ?? 0))}). Neuer IONX-Bestand: ${fmtCoin(row?.ionx_balance ?? 0)}.`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
@@ -6160,17 +6172,17 @@ document.getElementById('ionxSellBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} IONX → ${fmtCoin(row?.pulse_balance ?? 0)} PULSE-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} IONX → ${fmtCoin(row?.pulse_balance ?? 0)} PULSE-Gesamtbestand (Kurs ${fl2(Number(row?.price ?? 0))}).`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
 
 /* ---------- GRID: Kauf/Verkauf (gegen MOGC) + Boost ---------- */
 document.getElementById('gridBuyMaxBtn').addEventListener('click', () => {
-  document.getElementById('gridBuyInput').value = storeBalance > 0 ? storeBalance : '';
+  document.getElementById('gridBuyInput').value = floor2(storeBalance) > 0 ? floor2(storeBalance) : '';
 });
 document.getElementById('gridSellMaxBtn').addEventListener('click', () => {
-  document.getElementById('gridSellInput').value = gridBalance > 0 ? gridBalance : '';
+  document.getElementById('gridSellInput').value = floor2(gridBalance) > 0 ? floor2(gridBalance) : '';
 });
 
 document.getElementById('gridBuyBtn').addEventListener('click', async () => {
@@ -6183,7 +6195,7 @@ document.getElementById('gridBuyBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → GRID (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer GRID-Bestand: ${fmtCoin(row?.grid_balance ?? 0)}.`, true);
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → GRID (Kurs ${fl2(Number(row?.price ?? 0))}). Neuer GRID-Bestand: ${fmtCoin(row?.grid_balance ?? 0)}.`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
@@ -6198,7 +6210,7 @@ document.getElementById('gridSellBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} GRID → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} GRID → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${fl2(Number(row?.price ?? 0))}).`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
@@ -6243,11 +6255,11 @@ document.getElementById('anchWithdrawBtn').addEventListener('click', async () =>
 });
 
 document.getElementById('anchDepositAllBtn').addEventListener('click', () => {
-  document.getElementById('anchDepositInput').value = pulseBalance > 0 ? pulseBalance : '';
+  document.getElementById('anchDepositInput').value = floor2(pulseBalance) > 0 ? floor2(pulseBalance) : '';
 });
 
 document.getElementById('anchWithdrawAllBtn').addEventListener('click', () => {
-  document.getElementById('anchWithdrawInput').value = anchBalance > 0 ? anchBalance : '';
+  document.getElementById('anchWithdrawInput').value = floor2(anchBalance) > 0 ? floor2(anchBalance) : '';
 });
 
 /* ---------- NVLT: Ein-/Auszahlen (Nova-Rift-Sparkonto) ---------- */
@@ -6280,11 +6292,11 @@ document.getElementById('nvltWithdrawBtn').addEventListener('click', async () =>
 });
 
 document.getElementById('nvltDepositAllBtn').addEventListener('click', () => {
-  document.getElementById('nvltDepositInput').value = currentBalance > 0 ? currentBalance : '';
+  document.getElementById('nvltDepositInput').value = floor2(currentBalance) > 0 ? floor2(currentBalance) : '';
 });
 
 document.getElementById('nvltWithdrawAllBtn').addEventListener('click', () => {
-  document.getElementById('nvltWithdrawInput').value = nvltBalance > 0 ? nvltBalance : '';
+  document.getElementById('nvltWithdrawInput').value = floor2(nvltBalance) > 0 ? floor2(nvltBalance) : '';
 });
 
 /* ---------- Sprungmärkte-Tab: STBL/VOLT/GOV/QNTM/DRIFT/CYCLE ---------- */
@@ -6322,7 +6334,7 @@ function applySprungmaerkteState(gs){
   else if (voltStatus) voltLatestPrice = Number(voltStatus.price);
   document.getElementById('voltPriceDisplay').innerHTML =
     lastVolt != null
-      ? `Kurs: ${Number(lastVolt).toFixed(2)} <span style="color:${voltTrendUp ? 'var(--up)' : 'var(--down)'}">${voltTrendUp ? '▲' : '▼'}</span>`
+      ? `Kurs: ${fl2(Number(lastVolt))} <span style="color:${voltTrendUp ? 'var(--up)' : 'var(--down)'}">${voltTrendUp ? '▲' : '▼'}</span>`
       : 'Kurs: –';
   updateChart(voltChart, voltHistOrdered, 'price');
   updateChart(voltChartMini, voltHistOrdered, 'price');
@@ -6338,7 +6350,7 @@ function applySprungmaerkteState(gs){
   else if (qntmStatus) qntmLatestPrice = Number(qntmStatus.price);
   document.getElementById('qntmPriceDisplay').innerHTML =
     lastQntm != null
-      ? `Kurs: ${Number(lastQntm).toFixed(2)} <span style="color:${qntmTrendUp ? 'var(--up)' : 'var(--down)'}">${qntmTrendUp ? '▲' : '▼'}</span>`
+      ? `Kurs: ${fl2(Number(lastQntm))} <span style="color:${qntmTrendUp ? 'var(--up)' : 'var(--down)'}">${qntmTrendUp ? '▲' : '▼'}</span>`
       : 'Kurs: –';
   qntmLatestState = qntmStatus ? qntmStatus.state_index : null;
   document.getElementById('qntmStateDisplay').textContent =
@@ -6370,10 +6382,10 @@ function applySprungmaerkteState(gs){
   else if (driftStatus) driftLatestPrice = Number(driftStatus.price);
   document.getElementById('driftPriceDisplay').innerHTML =
     lastDrift != null
-      ? `Kurs: ${Number(lastDrift).toFixed(2)} <span style="color:${driftTrendUp ? 'var(--up)' : 'var(--down)'}">${driftTrendUp ? '▲' : '▼'}</span>`
+      ? `Kurs: ${fl2(Number(lastDrift))} <span style="color:${driftTrendUp ? 'var(--up)' : 'var(--down)'}">${driftTrendUp ? '▲' : '▼'}</span>`
       : 'Kurs: –';
   document.getElementById('driftRateDisplay').textContent =
-    driftStatus ? `Förderrate-Index: ${Number(driftStatus.mining_rate_index).toFixed(2)}× (relativ zum 24h-Schnitt)` : 'Förderrate-Index: –';
+    driftStatus ? `Förderrate-Index: ${fl2(Number(driftStatus.mining_rate_index))}× (relativ zum 24h-Schnitt)` : 'Förderrate-Index: –';
   updateChart(driftChart, driftHistOrdered, 'price');
   updateChart(driftChartMini, driftHistOrdered, 'price');
   setChartTrendColor([driftChart, driftChartMini], driftTrendUp);
@@ -7271,8 +7283,8 @@ async function renderGuildStockDepot(){
     <tr>
       <td>${r.ticker}${lockTxt}</td>
       <td>${fmtCoin(r.shares)}</td>
-      <td>${Number(r.avg_buy_price).toFixed(2)}</td>
-      <td>${Number(r.current_price).toFixed(2)}</td>
+      <td>${fl2(Number(r.avg_buy_price))}</td>
+      <td>${fl2(Number(r.current_price))}</td>
       <td>${fmtCoin(r.current_value)} MOGC</td>
       <td style="color:${r.pl_abs >= 0 ? 'var(--up)' : 'var(--down)'}">${r.pl_abs >= 0 ? '+' : ''}${fmtCoin(r.pl_abs)} MOGC (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)</td>
       <td style="color:var(--up)">+${fmtCoin(r.dividends_total)} MOGC</td>
@@ -7284,7 +7296,7 @@ async function renderGuildMine(guild){
   document.getElementById('guildMineTitle').innerHTML = `<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> [${guild.tag}] ${guild.name}`;
   document.getElementById('guildMineJoinMode').textContent = GUILD_JOIN_MODE_LABEL[guild.join_mode] || guild.join_mode;
   document.getElementById('guildMineMeta').innerHTML =
-    `${guild.member_count}/${guild.member_cap} Mitglieder${guild.member_cap > guild.base_member_cap ? ` (${guild.base_member_cap} + ${guild.member_cap - guild.base_member_cap} aus dem Mitglieder-Ast)` : ''} · deine Rolle: ${guild.my_role === 'leader' ? 'Leiter' : guild.my_role === 'officer' ? 'Offizier' : 'Mitglied'} · gegründet ${new Date(guild.created_at).toLocaleDateString('de-DE')} · Corp-Steuer: ${guild.tax_percent}% · Dividendensatz ${(guild.dividend_rate_bp/100).toFixed(2)}%/Tag${guild.treasury_interest_bp > 0 ? ` · Kassenzins ${(guild.treasury_interest_bp/100).toFixed(2)}%/Tag` : ''}${guild.prestige_bonus_bp > 0 ? ` · +${(guild.prestige_bonus_bp/100).toFixed(0)}% Prestige` : ''} · ${guild.dividend_unlocked ? 'tägliche Dividende aktiv <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.3 7.2L6.2 9.1L9.8 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' : 'Dividende ab vollem Förder-Ast <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 6V4a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span>'}`;
+    `${guild.member_count}/${guild.member_cap} Mitglieder${guild.member_cap > guild.base_member_cap ? ` (${guild.base_member_cap} + ${guild.member_cap - guild.base_member_cap} aus dem Mitglieder-Ast)` : ''} · deine Rolle: ${guild.my_role === 'leader' ? 'Leiter' : guild.my_role === 'officer' ? 'Offizier' : 'Mitglied'} · gegründet ${new Date(guild.created_at).toLocaleDateString('de-DE')} · Corp-Steuer: ${guild.tax_percent}% · Dividendensatz ${fl2((guild.dividend_rate_bp/100))}%/Tag${guild.treasury_interest_bp > 0 ? ` · Kassenzins ${fl2((guild.treasury_interest_bp/100))}%/Tag` : ''}${guild.prestige_bonus_bp > 0 ? ` · +${(guild.prestige_bonus_bp/100).toFixed(0)}% Prestige` : ''} · ${guild.dividend_unlocked ? 'tägliche Dividende aktiv <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.3 7.2L6.2 9.1L9.8 5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' : 'Dividende ab vollem Förder-Ast <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 6V4a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span>'}`;
 
   const isLeader = guild.my_role === 'leader';
   const isOfficer = guild.my_role === 'officer' || isLeader;
@@ -7499,7 +7511,7 @@ function guildEffectLabel(u){
   switch (u.effect_key) {
     case 'production_boost_bp':  return `+${(v / 100).toFixed(1)}% Fördermenge`;
     case 'dividend_rate_bp':     return `+${(v / 100).toFixed(1)}% Tagesdividende`;
-    case 'treasury_interest_bp': return `+${(v / 100).toFixed(2)}% Kassenzins/Tag`;
+    case 'treasury_interest_bp': return `+${fl2((v / 100))}% Kassenzins/Tag`;
     case 'member_cap_bonus':     return `+${v} Mitgliederplätze`;
     case 'prestige_bonus_bp':    return `+${(v / 100).toFixed(1)}% Prestige-Punkte`;
     default:                     return `Stufe ${u.tier}`;
@@ -8248,10 +8260,10 @@ document.getElementById('bondList').addEventListener('click', async (ev) => {
 });
 
 document.getElementById('voltBuyMaxBtn').addEventListener('click', () => {
-  document.getElementById('voltBuyInput').value = storeBalance > 0 ? storeBalance : '';
+  document.getElementById('voltBuyInput').value = floor2(storeBalance) > 0 ? floor2(storeBalance) : '';
 });
 document.getElementById('voltSellMaxBtn').addEventListener('click', () => {
-  document.getElementById('voltSellInput').value = voltBalance > 0 ? voltBalance : '';
+  document.getElementById('voltSellInput').value = floor2(voltBalance) > 0 ? floor2(voltBalance) : '';
 });
 
 document.getElementById('voltBuyBtn').addEventListener('click', async () => {
@@ -8264,7 +8276,7 @@ document.getElementById('voltBuyBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → VOLT (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer VOLT-Bestand: ${fmtCoin(row?.volt_balance ?? 0)}.`, true);
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → VOLT (Kurs ${fl2(Number(row?.price ?? 0))}). Neuer VOLT-Bestand: ${fmtCoin(row?.volt_balance ?? 0)}.`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
@@ -8279,7 +8291,7 @@ document.getElementById('voltSellBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} VOLT → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} VOLT → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${fl2(Number(row?.price ?? 0))}).`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
@@ -8291,7 +8303,7 @@ document.getElementById('qntmBuyMaxBtn').addEventListener('click', () => {
   // wenn nur ein kleiner Teil ueber dem Limit liegt.
   const restBuy = Math.max(0, (Number(qntmTradeStatus.daily_limit) || 0) - (Number(qntmTradeStatus.bought_today) || 0));
   const amount = Math.min(storeBalance, restBuy);
-  document.getElementById('qntmBuyInput').value = amount > 0 ? amount : '';
+  document.getElementById('qntmBuyInput').value = floor2(amount) > 0 ? floor2(amount) : '';
 });
 document.getElementById('qntmSellMaxBtn').addEventListener('click', () => {
   // Tageslimit gilt fuer den Premium-GEGENWERT des Trades, nicht fuer die
@@ -8302,7 +8314,7 @@ document.getElementById('qntmSellMaxBtn').addEventListener('click', () => {
   const price = Number(qntmLatestPrice) || 100;
   const restSellQntm = (restSellPremium / (price / 100)) * 0.999; // Sicherheitsmarge gegen Rundungsdifferenzen
   const amount = Math.min(qntmBalance, restSellQntm);
-  document.getElementById('qntmSellInput').value = amount > 0 ? amount : '';
+  document.getElementById('qntmSellInput').value = floor2(amount) > 0 ? floor2(amount) : '';
 });
 
 document.getElementById('qntmBuyBtn').addEventListener('click', async () => {
@@ -8316,7 +8328,7 @@ document.getElementById('qntmBuyBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → QNTM (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer QNTM-Bestand: ${fmtCoin(row?.qntm_balance ?? 0)}.`, true);
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → QNTM (Kurs ${fl2(Number(row?.price ?? 0))}). Neuer QNTM-Bestand: ${fmtCoin(row?.qntm_balance ?? 0)}.`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
@@ -8331,17 +8343,17 @@ document.getElementById('qntmSellBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} QNTM → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} QNTM → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${fl2(Number(row?.price ?? 0))}).`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
 
 /* ---------- DRIFT: Kauf/Verkauf ---------- */
 document.getElementById('driftBuyMaxBtn').addEventListener('click', () => {
-  document.getElementById('driftBuyInput').value = storeBalance > 0 ? storeBalance : '';
+  document.getElementById('driftBuyInput').value = floor2(storeBalance) > 0 ? floor2(storeBalance) : '';
 });
 document.getElementById('driftSellMaxBtn').addEventListener('click', () => {
-  document.getElementById('driftSellInput').value = driftBalance > 0 ? driftBalance : '';
+  document.getElementById('driftSellInput').value = floor2(driftBalance) > 0 ? floor2(driftBalance) : '';
 });
 
 document.getElementById('driftBuyBtn').addEventListener('click', async () => {
@@ -8354,7 +8366,7 @@ document.getElementById('driftBuyBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → DRIFT (Kurs ${Number(row?.price ?? 0).toFixed(2)}). Neuer DRIFT-Bestand: ${fmtCoin(row?.drift_balance ?? 0)}.`, true);
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(amount)} MOGC → DRIFT (Kurs ${fl2(Number(row?.price ?? 0))}). Neuer DRIFT-Bestand: ${fmtCoin(row?.drift_balance ?? 0)}.`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
@@ -8369,7 +8381,7 @@ document.getElementById('driftSellBtn').addEventListener('click', async () => {
   btn.disabled = false;
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} DRIFT → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} DRIFT → ${fmtCoin(row?.premium_balance ?? 0)} MOGC-Gesamtbestand (Kurs ${fl2(Number(row?.price ?? 0))}).`, true);
   input.value = '';
   await loadEverything({ light: true });
 });
@@ -8415,11 +8427,11 @@ document.getElementById('stblWithdrawBtn').addEventListener('click', async () =>
 });
 
 document.getElementById('stblDepositAllBtn').addEventListener('click', () => {
-  document.getElementById('stblDepositInput').value = storeBalance > 0 ? storeBalance : '';
+  document.getElementById('stblDepositInput').value = floor2(storeBalance) > 0 ? floor2(storeBalance) : '';
 });
 
 document.getElementById('stblWithdrawAllBtn').addEventListener('click', () => {
-  document.getElementById('stblWithdrawInput').value = stblBalance > 0 ? stblBalance : '';
+  document.getElementById('stblWithdrawInput').value = floor2(stblBalance) > 0 ? floor2(stblBalance) : '';
 });
 
 document.getElementById('govClaimBtn').addEventListener('click', async () => {
@@ -8620,7 +8632,7 @@ function updateSellPreview(){
   const raw = parseFloat(input.value);
   const preview = document.getElementById('sellPreview');
   if (!raw || raw <= 0) {
-    preview.textContent = `Kurs gerade: ${latestPrice.toFixed(2)} → 1 Nova-Rift ≈ ${fmtCoin(latestPrice / 100)} MOGC`;
+    preview.textContent = `Kurs gerade: ${fl2(latestPrice)} → 1 Nova-Rift ≈ ${fmtCoin(latestPrice / 100)} MOGC`;
     return;
   }
   const amount = Math.min(raw, currentBalance);
@@ -8629,7 +8641,7 @@ function updateSellPreview(){
 }
 document.getElementById('sellAmountInput').addEventListener('input', updateSellPreview);
 document.getElementById('sellMaxBtn').addEventListener('click', () => {
-  document.getElementById('sellAmountInput').value = currentBalance > 0 ? currentBalance : '';
+  document.getElementById('sellAmountInput').value = floor2(currentBalance) > 0 ? floor2(currentBalance) : '';
   updateSellPreview();
 });
 document.getElementById('sellBtn').addEventListener('click', () => sellNovaRift());
@@ -8645,7 +8657,7 @@ window.sellNovaRift = async function(){
   if (error) { showMsg('statusMsg', error.message, false); return; }
   const row = Array.isArray(data) ? data[0] : data;
   showMsg('statusMsg',
-    `Verkauft: ${fmtCoin(amount)} Nova-Rift für ${fmtCoin(row?.premium_gained ?? 0)} MOGC (Kurs ${Number(row?.price ?? 0).toFixed(2)}).`, true);
+    `Verkauft: ${fmtCoin(amount)} Nova-Rift für ${fmtCoin(row?.premium_gained ?? 0)} MOGC (Kurs ${fl2(Number(row?.price ?? 0))}).`, true);
   spawnFly('+' + fmtCoin(row?.premium_gained ?? 0) + ' <span class="coin-icon-sm" aria-hidden="true"><svg viewBox="0 0 32 32" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="1.6"/><ellipse cx="16" cy="16" rx="12" ry="5.2" fill="none" stroke="currentColor" stroke-width="1" transform="rotate(-18 16 16)"/><path d="M16 9.5L17.6 13.7L22 13.9L18.5 16.6L19.7 21L16 18.5L12.3 21L13.5 16.6L10 13.9L14.4 13.7Z" fill="#E5484D"/></svg></span>', getVisibleBalanceEl('.js-balance-mogc'), true);
   input.value = '';
   await loadEverything({ light: true });
@@ -9035,7 +9047,7 @@ function renderAmTable(){
       <td><span class="am-star${c.in_watchlist ? ' active' : ''}" data-id="${c.company_id}">★</span></td>
       <td>${c.ticker}${c.trading_halted_until && new Date(c.trading_halted_until) > new Date() ? ' <span class="nx-icon" title="Handelsstopp aktiv" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;color:var(--down)" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 2L12.5 11.5H1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><line x1="7" y1="5.5" x2="7" y2="8.3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="7" cy="10" r="0.6" fill="currentColor"/></svg></span>' : ''}</td>
       <td>${c.name}</td>
-      <td>${Number(c.current_price).toFixed(2)}</td>
+      <td>${fl2(Number(c.current_price))}</td>
       <td style="color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.change_24h_pct >= 0 ? '+' : ''}${Number(c.change_24h_pct).toFixed(1)}%</td>
       <td>${amSparkSvg(amSparklines[c.company_id])}</td>
       <td><button type="button" class="am-buy-mini" data-id="${c.company_id}">Kaufen</button></td>
@@ -9064,7 +9076,7 @@ function renderAmWatchlistTable(){
       <td><span class="am-star active" data-id="${c.company_id}">★</span></td>
       <td>${c.ticker}</td>
       <td>${c.name}</td>
-      <td>${Number(c.current_price).toFixed(2)}</td>
+      <td>${fl2(Number(c.current_price))}</td>
       <td style="color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.change_24h_pct >= 0 ? '+' : ''}${Number(c.change_24h_pct).toFixed(1)}%</td>
       <td>${amSparkSvg(amSparklines[c.company_id])}</td>
       <td><button type="button" class="am-buy-mini" data-id="${c.company_id}">Kaufen</button></td>
@@ -9117,7 +9129,7 @@ function renderAmPlayerTable(){
       <td>${c.ticker}${c.is_own ? '<span class="am-own-tag">DU</span>' : ''}</td>
       <td>${c.name}</td>
       <td>${statusHtml}</td>
-      <td>${Number(c.current_price).toFixed(2)}</td>
+      <td>${fl2(Number(c.current_price))}</td>
       <td style="color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.active ? `${c.change_24h_pct >= 0 ? '+' : ''}${Number(c.change_24h_pct).toFixed(1)}%` : '–'}</td>
       <td>${amSparkSvg(amPlayerSparklines[c.company_id])}</td>
       <td>${c.active ? `<button type="button" class="am-buy-mini" data-id="${c.company_id}">Kaufen</button>` : ''}</td>
@@ -9154,8 +9166,8 @@ async function loadAmPortfolio(){
       <td>${r.ticker}</td>
       <td>${r.name}</td>
       <td>${fmtCoin(r.shares)}</td>
-      <td>${Number(r.avg_buy_price).toFixed(2)}</td>
-      <td>${Number(r.current_price).toFixed(2)}</td>
+      <td>${fl2(Number(r.avg_buy_price))}</td>
+      <td>${fl2(Number(r.current_price))}</td>
       <td>${fmtCoin(r.current_value)} MOGC</td>
       <td style="color:${r.pl_abs >= 0 ? 'var(--up)' : 'var(--down)'}">${r.pl_abs >= 0 ? '+' : ''}${fmtCoin(r.pl_abs)} MOGC (${r.pl_pct >= 0 ? '+' : ''}${Number(r.pl_pct).toFixed(1)}%)</td>
     </tr>`).join('');
@@ -9190,7 +9202,7 @@ async function loadAmTrades(){
       <td>${r.name}</td>
       <td style="color:${r.side === 'buy' ? 'var(--up)' : 'var(--down)'}">${r.side === 'buy' ? 'Kauf' : 'Verkauf'}</td>
       <td>${fmtCoin(r.amount)}</td>
-      <td>${Number(r.price_per_unit).toFixed(2)}</td>
+      <td>${fl2(Number(r.price_per_unit))}</td>
       <td>${fmtCoin(r.total)} MOGC</td>
     </tr>`).join('');
 }
@@ -9213,8 +9225,8 @@ async function loadAmDetailChart(companyId, since){
   updateChart(amDetailChart, points, 'price');
   if (points.length){
     const prices = points.map(p => Number(p.price));
-    document.getElementById('amDetailHigh').textContent = Math.max(...prices).toFixed(2) + ' MOGC';
-    document.getElementById('amDetailLow').textContent = Math.min(...prices).toFixed(2) + ' MOGC';
+    document.getElementById('amDetailHigh').textContent = fl2(Math.max(...prices)) + ' MOGC';
+    document.getElementById('amDetailLow').textContent = fl2(Math.min(...prices)) + ' MOGC';
   } else {
     document.getElementById('amDetailHigh').textContent = '–';
     document.getElementById('amDetailLow').textContent = '–';
@@ -9236,13 +9248,13 @@ async function openAmDetail(companyId){
   document.getElementById('amDetailSector').textContent = c.sector;
   document.getElementById('amDetailName').textContent = `${c.ticker} — ${c.name}`;
   document.getElementById('amDetailPrice').innerHTML =
-    `${Number(c.current_price).toFixed(2)} MOGC <span style="font-size:14px; color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.change_24h_pct >= 0 ? '▲' : '▼'} ${Math.abs(c.change_24h_pct).toFixed(1)}%</span>`;
+    `${fl2(Number(c.current_price))} MOGC <span style="font-size:14px; color:${c.change_24h_pct >= 0 ? 'var(--up)' : 'var(--down)'}">${c.change_24h_pct >= 0 ? '▲' : '▼'} ${Math.abs(c.change_24h_pct).toFixed(1)}%</span>`;
   document.getElementById('amDetailDesc').textContent = c.description || '';
   document.getElementById('amDetailMcap').textContent = fmtCoin(c.market_cap) + ' MOGC';
   document.getElementById('amDetailShares').textContent = Number(c.shares_outstanding).toLocaleString('de-DE');
   document.getElementById('amDetailVol').textContent = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }[c.volatility_class] || c.volatility_class;
   document.getElementById('amDetailYear').textContent = c.founded_year || '–';
-  document.getElementById('amDetailDividend').textContent = c.dividend_yield_pct > 0 ? `${Number(c.dividend_yield_pct).toFixed(2)} %/Jahr` : '–';
+  document.getElementById('amDetailDividend').textContent = c.dividend_yield_pct > 0 ? `${fl2(Number(c.dividend_yield_pct))} %/Jahr` : '–';
   document.getElementById('amDetailMyShares').textContent = fmtCoin(c.my_shares || 0);
   document.getElementById('amDetailStar').classList.toggle('active', !!c.in_watchlist);
   document.getElementById('amMarketAmountInput').value = '';
@@ -9328,10 +9340,10 @@ async function amRefreshOrderBook(){
   const buys = rows.filter(r => r.side === 'buy');
   const sells = rows.filter(r => r.side === 'sell');
   document.getElementById('amOrderBookBuy').innerHTML = buys.length
-    ? buys.map(r => `<div class="am-ob-row buy"><span>${Number(r.price_per_unit).toFixed(2)}</span><span>${fmtCoin(r.amount_remaining)}</span></div>`).join('')
+    ? buys.map(r => `<div class="am-ob-row buy"><span>${fl2(Number(r.price_per_unit))}</span><span>${fmtCoin(r.amount_remaining)}</span></div>`).join('')
     : '<div class="am-loading">Keine Gebote.</div>';
   document.getElementById('amOrderBookSell').innerHTML = sells.length
-    ? sells.map(r => `<div class="am-ob-row sell"><span>${Number(r.price_per_unit).toFixed(2)}</span><span>${fmtCoin(r.amount_remaining)}</span></div>`).join('')
+    ? sells.map(r => `<div class="am-ob-row sell"><span>${fl2(Number(r.price_per_unit))}</span><span>${fmtCoin(r.amount_remaining)}</span></div>`).join('')
     : '<div class="am-loading">Keine Gebote.</div>';
 }
 
@@ -9347,7 +9359,7 @@ document.getElementById('amOrderSubmitBtn').addEventListener('click', async () =
   const filled = Number(row?.filled_amount ?? 0);
   showMsg('statusMsg', filled > 0
     ? `Order platziert: ${fmtCoin(filled)} sofort ausgeführt (Ø ${Number(row?.avg_fill_price ?? 0).toFixed(3)} MOGC), ${fmtCoin(row?.remaining_amount ?? 0)} bleibt offen.`
-    : `Order ins Buch gestellt: ${fmtCoin(amount)} @ ${price.toFixed(2)} MOGC.`, true);
+    : `Order ins Buch gestellt: ${fmtCoin(amount)} @ ${fl2(price)} MOGC.`, true);
   document.getElementById('amOrderAmountInput').value = '';
   document.getElementById('amOrderPriceInput').value = '';
   await amRefreshOrderBook();
@@ -9431,9 +9443,9 @@ document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListene
 
   function fmtCredits(n){
     n = Number(n) || 0;
-    if(n >= 1e6) return (n/1e6).toLocaleString('de-DE',{maximumFractionDigits:2}) + 'M';
-    if(n >= 1e3) return (n/1e3).toLocaleString('de-DE',{maximumFractionDigits:2}) + 'k';
-    return n.toLocaleString('de-DE',{maximumFractionDigits:2});
+    if(n >= 1e6) return floor2(n/1e6).toLocaleString('de-DE',{maximumFractionDigits:2}) + 'M';
+    if(n >= 1e3) return floor2(n/1e3).toLocaleString('de-DE',{maximumFractionDigits:2}) + 'k';
+    return floor2(n).toLocaleString('de-DE',{maximumFractionDigits:2});
   }
 
   var nexusTapValue = 0;
