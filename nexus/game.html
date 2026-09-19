@@ -3964,7 +3964,9 @@ let seasonalEventLoading = false;
 let seasonalEventData = null;
 let seasonalEventEndsAt = null;
 let seasonalEventCountdownTimer = null;
-const PRESTIGE_THRESHOLD = 100000;
+// Steigt pro Stufe linear um 100k (100k, 200k, 300k, ...) statt fix zu
+// bleiben -- muss exakt zur Formel in crypto_farm.do_prestige() passen.
+function getPrestigeThreshold() { return 100000 * (prestigeLevel + 1); }
 let refreshTimer = null;
 // NEU (Egress-Fix): Poll-Intervall deutlich hochgesetzt (5s -> 20s) und im
 // Hintergrund-Tab nochmal drastisch verlangsamt (-> 90s). Ein Tab, der im
@@ -4942,13 +4944,14 @@ async function applyFullGameState(gs){
   document.getElementById('prestigePointsDisplay').textContent = fmtCoin(prestigePoints);
 
   const runMined = Number(state?.total_mined ?? 0);
-  const pct = Math.min(100, (runMined / PRESTIGE_THRESHOLD) * 100);
+  const prestigeThreshold = getPrestigeThreshold();
+  const pct = Math.min(100, (runMined / prestigeThreshold) * 100);
   document.getElementById('prestigeProgressFill').style.width = pct + '%';
   document.getElementById('prestigeProgressLabel').textContent =
-    `${fmtCoin(runMined)} / ${fmtCoin(PRESTIGE_THRESHOLD)} Coins im aktuellen Durchlauf`;
+    `${fmtCoin(runMined)} / ${fmtCoin(prestigeThreshold)} Coins im aktuellen Durchlauf`;
   const prestigeBtn = document.getElementById('prestigeBtn');
-  prestigeBtn.disabled = runMined < PRESTIGE_THRESHOLD;
-  prestigeBtn.innerHTML = runMined >= PRESTIGE_THRESHOLD ? '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1.7L8.7 3.9L6.5 6.1" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8.7 3.9H5.2C4 3.9 3.2 5 3.8 6.1L4.6 7.6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M3.7 8.7L1 9.4L2.6 11.7" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M1 9.4L3 6.2C3.6 5.2 5.1 5.2 5.7 6.2L6.3 7.3" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M11 11L12.5 9L10.2 7.6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M12.5 9L9.6 9C8.4 9 7.7 7.8 8.3 6.7L9 5.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Jetzt prestigen' : '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1.7L8.7 3.9L6.5 6.1" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8.7 3.9H5.2C4 3.9 3.2 5 3.8 6.1L4.6 7.6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M3.7 8.7L1 9.4L2.6 11.7" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M1 9.4L3 6.2C3.6 5.2 5.1 5.2 5.7 6.2L6.3 7.3" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M11 11L12.5 9L10.2 7.6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M12.5 9L9.6 9C8.4 9 7.7 7.8 8.3 6.7L9 5.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Prestigen';
+  prestigeBtn.disabled = runMined < prestigeThreshold;
+  prestigeBtn.innerHTML = runMined >= prestigeThreshold ? '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1.7L8.7 3.9L6.5 6.1" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8.7 3.9H5.2C4 3.9 3.2 5 3.8 6.1L4.6 7.6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M3.7 8.7L1 9.4L2.6 11.7" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M1 9.4L3 6.2C3.6 5.2 5.1 5.2 5.7 6.2L6.3 7.3" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M11 11L12.5 9L10.2 7.6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M12.5 9L9.6 9C8.4 9 7.7 7.8 8.3 6.7L9 5.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Jetzt prestigen' : '<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1.7L8.7 3.9L6.5 6.1" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M8.7 3.9H5.2C4 3.9 3.2 5 3.8 6.1L4.6 7.6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M3.7 8.7L1 9.4L2.6 11.7" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M1 9.4L3 6.2C3.6 5.2 5.1 5.2 5.7 6.2L6.3 7.3" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M11 11L12.5 9L10.2 7.6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/><path d="M12.5 9L9.6 9C8.4 9 7.7 7.8 8.3 6.7L9 5.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Prestigen';
 
   renderSkillTree();
 
@@ -4961,7 +4964,7 @@ async function applyFullGameState(gs){
   // von Netzwerk-Zwischenfaellen) + Netzwerk-Zwischenfall (Bonus/Malus,
   // wirkt nur auf die Ertragsrate, hat mit der Bank nichts zu tun)
   const reserveVal = Number(bank?.reserve_balance ?? 0);
-  const BANK_THRESHOLD = 500000;
+  const BANK_THRESHOLD = Number(bank?.nrc_threshold ?? 500000);
   const bankPct = Math.min(100, (reserveVal / BANK_THRESHOLD) * 100);
 
   const bankRowHtml = `
@@ -4999,7 +5002,7 @@ async function applyFullGameState(gs){
   // + 1% jeder ANCH-Auszahlungsgebühr, eigener
   // Kreislauf getrennt von der NRC-Reserve oben, da andere Währung)
   const pulseReserveVal = Number(bank?.pulse_reserve_balance ?? 0);
-  const PULSE_BANK_THRESHOLD = 500000;
+  const PULSE_BANK_THRESHOLD = Number(bank?.pulse_threshold ?? 500000);
   const pulseBankPct = Math.min(100, (pulseReserveVal / PULSE_BANK_THRESHOLD) * 100);
   const pulsePayouts = gs.pulse_bank_recent_payouts || [];
   const pulsePayoutsHtml = pulsePayouts.length
@@ -5022,7 +5025,7 @@ async function applyFullGameState(gs){
   // Dritter Reiter: RELAY-Reserve (Netzwerk-Skim aus der kooperativen Mine,
   // gestuft an die echten Top-10-RELAY-Halter ausgeschüttet, siehe relay_konzept.md §4.3)
   const relayReserveVal = Number(bank?.relay_reserve_balance ?? 0);
-  const RELAY_BANK_THRESHOLD = 20000;
+  const RELAY_BANK_THRESHOLD = Number(bank?.relay_threshold ?? 20000);
   const relayBankPct = Math.min(100, (relayReserveVal / RELAY_BANK_THRESHOLD) * 100);
   const relayPayouts = gs.relay_bank_recent_payouts || [];
   const relayPayoutsHtml = relayPayouts.length
