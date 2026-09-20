@@ -2,6 +2,18 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.13: BUGFIX -- NRC-Foerderrate zeigte ueberall "+0.00/s", obwohl Rigs/Prestige/Corp/Booster
+    aktiv waren (Basis-Zeile darunter stimmte, nur die Hauptzahl war 0). Ursache: die globale
+    Variable currentRate wird seit v4.2.3 (Umstellung auf Server-Rate) nirgendwo mehr zugewiesen --
+    applyFullGameState() liest prodBase/prodSkill/prodGuild/prodBoost zwar korrekt aus dem gs-Objekt,
+    schreibt das Ergebnis aber nie zurueck in currentRate, das dadurch dauerhaft auf seinem
+    Initialwert 0 stehen blieb. Betraf sowohl die Anzeige (.js-rate-nova) als auch den weichen
+    Balance-Ticker (animateBalanceTo/startBalanceTicking rechnen mit currentRate). Fix: currentRate
+    wird jetzt aus state.production_rate gesetzt (Server-Feld aus
+    crypto_farm.get_production_breakdown(), effective_rate = Basis * (1+Skill) * (1+Corp) *
+    (1+Booster)), mit lokalem Fallback in derselben Formel falls das Feld mal fehlt. Reine
+    Frontend-Aenderung, kein Backend-Change noetig -- die Rate wurde serverseitig immer schon
+    korrekt gutgeschrieben, nur nicht angezeigt.
   - v4.2.12: "Aktive Booster"-Uebersicht (reines Frontend, kein Backend-Change). Neue Panel-Zeile
     im Uebersicht-Tab, gespeist aus platform.get_my_active_boosts(): pro laufendem Booster ein Chip mit
     Bezeichnung, Staerke (+25 % bzw. +12 Std. bei offline_cap) und Live-Restlaufzeit (1-Sek.-Ticker).
@@ -5013,6 +5025,13 @@ async function applyFullGameState(gs){
      lokaler Part nur fuer die NRC-Ratenzeile. */
   const prodBoost = Number(state?.production_boost_bonus ?? 0);
   const nrcBoostActive = prodBoost > 0;
+  /* BUGFIX v4.2.13: currentRate wurde seit Einfuehrung der Server-Rate (v4.2.3) nirgendwo mehr
+     zugewiesen -- nur die Basis/Bonus-Teile wurden gelesen, der fertige Wert nie in die globale
+     Variable geschrieben. Dadurch stand die Rate ueberall dauerhaft auf ihrem Initialwert 0
+     (Wallet-Panel "+0.00/s" trotz aktiver Foerderung, und der weiche Balance-Ticker lief nicht).
+     Server liefert effective_rate bereits fertig multipliziert (production_rate); Fallback
+     rechnet identisch zu crypto_farm.get_production_breakdown() falls das Feld mal fehlt. */
+  currentRate = Number(state?.production_rate ?? (prodBase * (1 + prodSkill) * (1 + prodGuild) * (1 + prodBoost)));
   const rateBonusParts = prodBonusInfo(gs).parts.slice();
   if (nrcBoostActive) rateBonusParts.push(`Booster +${Number((prodBoost * 100).toFixed(1))} %`);
   const rateBonusHtml = rateBonusParts.length

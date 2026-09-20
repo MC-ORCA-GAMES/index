@@ -442,11 +442,16 @@
   weiter (andere Leiter/Offiziere koennen sie fuehren). Frontend: Panel "Urlaubsmodus" im
   Einstellungen-Tab + Banner ueber dem Dashboard, RPCs get_my_vacation_status()/start_vacation(p_days).
 
+  v1.27: Corp-Urlaub Abstimmungsfrist von 48 auf 24 Stunden verkuerzt (Migration
+  corp_vacation_deadline_24h). Einzel-Corp braucht weiterhin keine echte Wartezeit: die Ja-Stimme
+  des Vorschlagenden ist bei einem Mitglied bereits die Mehrheit, die Abstimmung loest sich noch in
+  derselben Transaktion auf.
+
   v1.26: Corp-Urlaub per Abstimmung (Migration foundry_corp_vacation_with_vote). Nutzerwunsch: auch Corps sollen
   Urlaub bekommen (u.a. wegen Einzel-Corps, die nur fuer mehr Firmen gegruendet werden). Eigenes Kontingent pro
   Corp (30 Tage/Kalenderjahr, unabhaengig vom persoenlichen Urlaub), nicht abbrechbar. Vorschlag: Leiter/Offizier.
   Abstimmung: jedes aktuelle Mitglied eine Stimme, einfache Mehrheit ALLER Mitglieder (members/2 + 1, bei 7 also 4),
-  48 h Frist, Vorschlagender stimmt automatisch Ja -> Einzel-Corp startet sofort. Bei Annahme startet der Urlaub
+  24 h Frist, Vorschlagender stimmt automatisch Ja -> Einzel-Corp startet sofort. Bei Annahme startet der Urlaub
   sofort: alle Corp-Firmen (guild_id) eingefroren wie beim persoenlichen Urlaub (Tick, Lieferungen, Insolvenzfristen,
   Aktionen gesperrt). Voraussetzung: keine offenen Markt-Verkaufsangebote/Firmen-Verkaufsinserate der Corp-Firmen.
   Frontend: Panel "Corp-Urlaub" im Einstellungen-Tab (Abstimmung, Ja/Nein, Vorschlag), Banner ueber dem Dashboard.
@@ -1649,7 +1654,7 @@
           <p style="font-size:13.5px; color:var(--fg-dim); margin:0 0 10px;">
             Jede Corp hat ein eigenes Kontingent von 30 Urlaubstagen pro Kalenderjahr, unabhängig vom persönlichen
             Urlaub. Leiter und Offiziere schlagen einen Corp-Urlaub vor, alle Mitglieder stimmen ab. Es braucht die
-            einfache Mehrheit aller Mitglieder innerhalb von 48 Stunden. Bei Annahme startet der Urlaub sofort und
+            einfache Mehrheit aller Mitglieder innerhalb von 24 Stunden. Bei Annahme startet der Urlaub sofort und
             <strong>lässt sich nicht abbrechen</strong>: Alle Corp-Firmen sind eingefroren (keine Einnahmen, keine
             Ausgaben, keine Aktionen, Insolvenzfristen laufen nicht ab). Offene Verkaufsangebote der Corp-Firmen
             müssen vorher zurückgezogen sein.
