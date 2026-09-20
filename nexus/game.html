@@ -2,6 +2,51 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.11: Quest-Speed- und Prestige-Points-Booster (scopes 'quest_speed'/'prestige_points',
+    siehe HANDOFF_boost_items.md). Zwei neue Items: "Chronoschlüssel" (300 MOGC, +25% auf
+    zaehlbare Tages-Quest-Metriken fuer 24 Std. -- wirkt NUR auf Betraege/Stueckzahlen wie
+    mining_amount_today/rigs_bought_today, NICHT auf boolesche "einmal getan"-Quests wie
+    barter_trade_today, die kann man nicht schneller erledigen). "Aufstiegs-Katalysator"
+    (1000 MOGC, +50% Prestige-Punkte beim naechsten crypto_farm.do_prestige(), 24 Std.
+    gueltig). Beide je EINE zentrale Funktion geaendert: platform.tick_daily_quests()
+    (schreibt progress = raw_summe * quest_speed_mult()) bzw. crypto_farm.do_prestige()
+    (v_points bekommt den Boost multiplikativ dazu, wie Skill-/Corp-Bonus, VOR dem floor()).
+    Formel isoliert mit echten Live-Werten verifiziert (12 Punkte ohne, 19 mit Booster bei
+    1133310 total_mined) -- do_prestige() selbst wurde bewusst NICHT als Test aufgerufen,
+    weil das den Account real zuruecksetzen wuerde (Rigs weg, NRC/PULSE/RELAY/FLUX genullt).
+  - v4.2.10: Offline-Cap-Booster (scope 'offline_cap', siehe HANDOFF_boost_items.md). Neues
+    Item "Temporal-Puffer" (750 MOGC, +12 Std. Offline-Cap fuer 24 Std. Gueltigkeit). Additiv,
+    nicht multiplikativ -- effect_payload.boost_pct traegt hier eine Stundenzahl statt Prozent.
+    Backend brauchte nur EINE Aenderung statt fuenf: platform.player_offline_cap_seconds()
+    ist die zentrale Funktion, die von allen fuenf Foerderlinien (NRC/PULSE/FLUX/RELAY, je
+    Einzel- und Sammel-Collect) aufgerufen wird -- der Boost gilt jetzt automatisch ueberall.
+    Live verifiziert: Cap ging von 48+6 (Prestige-Skill) auf 66 Std. nach Aktivierung. Frontend:
+    boosterEffectLabel() zeigt fuer diesen scope jetzt "+12 Std. Offline-Cap" statt
+    faelschlich "+12% Offline-Cap".
+  - v4.2.9: Relay-Booster (scope 'relay_rate', siehe HANDOFF_boost_items.md). Neues Item
+    "Relais-Kondensator" (150 RELAY, +25% fuer 6 Std.). Wichtig: wirkt bewusst NUR auf den
+    eigenen Auszahlungsanteil (crypto_farm.relay_item_boost_mult(), analog zu
+    production_bonus_mult() in collect_relay_earnings/collect_all_relay_earnings), NICHT auf
+    die Netzwerk-Rate -- das bleibt exklusiv der bestehende Signal-Verstaerker
+    (trigger_relay_boost/relay_boost_state, netzwerkweit, RELAY-Kosten, Cooldown). Beide
+    Mechaniken laufen unabhaengig nebeneinander, mit Live-Werten verifiziert:
+    boost_multiplier (Signal-Verstaerker) blieb bei 1.5 stehen, waehrend item_boost_active/
+    item_boost_pct (neuer Booster) unabhaengig auf true/25 sprangen. get_relay_status()
+    liefert dafuer drei neue Felder (item_boost_pct/item_boost_active/item_boost_expires_at),
+    komplett getrennt von boost_multiplier/boost_expires_at. Frontend: relayOwnRateDisplay
+    zeigt den Booster jetzt in der "Bonus auf deinen Anteil"-Zeile, wieder als eigener,
+    lokaler Part statt in der geteilten prodBonusInfo() (die auch NRC/PULSE/FLUX versorgt).
+  - v4.2.8: NRC-Booster sichtbar. Backend war bereits verdrahtet (get_production_rate/
+    get_production_breakdown lesen scope 'nrc_rate' aus player_active_boosts, siehe
+    HANDOFF_boost_items.md) und mit Live-Werten verifiziert (Basis 23.86/s, Prestige
+    +35%, Corp +57%, Booster +25% -> 63.23/s effektiv). Frontend zeigte den Booster-
+    Anteil bisher nicht an: die Hauptzeile (.js-rate-nova) bekommt jetzt bei aktivem
+    Boost "(Boost aktiv)" inline, analog zu Pulse/Relay, und die Bonus-Unterzeile zeigt
+    zusaetzlich "Booster +X%". Bewusst NICHT in die geteilte prodBonusInfo() eingebaut
+    (die versorgt auch PULSE/FLUX/Relay-Anzeige) -- der NRC-Booster ist ein eigener,
+    lokaler Part nur in applyFullGameState(). FLUX-Anzeige (fluxOwnRateDisplay) brauchte
+    keine Aenderung: crypto_farm.get_flux_status().own_rate ruft bereits
+    get_flux_production_rate() auf, ist also automatisch schon geboostet.
   - v4.2.7: Relay-Boost-Sichtbarkeit. Nach Nachfrage geprüft, ob der Signal-
     Verstärker (trigger_relay_boost) wirklich wirkt -- Backend-Check mit echten
     Live-Werten bestätigt: er wird korrekt angewendet (get_relay_network_rate
@@ -4944,8 +4989,14 @@ async function applyFullGameState(gs){
   const prodBase  = Number(state?.production_base ?? baseRateLocal);
   const prodSkill = Number(state?.production_skill_bonus ?? 0);
   const prodGuild = Number(state?.production_guild_bonus ?? 0);
-  currentRate = Number(state?.production_rate ?? baseRateLocal);
-  const rateBonusParts = prodBonusInfo(gs).parts;
+  /* NRC-Booster (scope 'nrc_rate', siehe HANDOFF_boost_items.md) -- bewusst NICHT in
+     prodBonusInfo() eingehaengt, weil diese Funktion auch fuer PULSE/FLUX/Relay die
+     Bonus-Zeile liefert und der NRC-Booster dort nicht mit auftauchen darf. Eigener,
+     lokaler Part nur fuer die NRC-Ratenzeile. */
+  const prodBoost = Number(state?.production_boost_bonus ?? 0);
+  const nrcBoostActive = prodBoost > 0;
+  const rateBonusParts = prodBonusInfo(gs).parts.slice();
+  if (nrcBoostActive) rateBonusParts.push(`Booster +${Number((prodBoost * 100).toFixed(1))} %`);
   const rateBonusHtml = rateBonusParts.length
     ? `<div class="rate-bonus-line" style="font-size:11px;opacity:.85;margin-top:2px;">Basis ${fmtCoin(prodBase)}/s · ${rateBonusParts.join(' · ')}</div>`
     : '';
@@ -4959,7 +5010,7 @@ async function applyFullGameState(gs){
   animateBalanceTo(currentBalance);
   if (!tickInterval) startBalanceTicking();
   document.querySelectorAll('.js-rate-nova').forEach(el => {
-    el.innerHTML = `+${fmtCoin(currentRate)} <span class="coin-icon-sm" aria-hidden="true"><svg viewBox="0 0 32 32" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 6.5L9 17H12.5L10.5 25.5L20 15H15.5L17.5 6.5Z" fill="currentColor"/><circle cx="22.5" cy="9.5" r="1.7" fill="currentColor"/></svg></span>/s${rateBonusHtml}`;
+    el.innerHTML = `+${fmtCoin(currentRate)} <span class="coin-icon-sm" aria-hidden="true"><svg viewBox="0 0 32 32" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 6.5L9 17H12.5L10.5 25.5L20 15H15.5L17.5 6.5Z" fill="currentColor"/><circle cx="22.5" cy="9.5" r="1.7" fill="currentColor"/></svg></span>/s${nrcBoostActive ? ' (<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 3,8 6,8 5,13 10,6 7,6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Boost aktiv)' : ''}${rateBonusHtml}`;
     el.title = rateBonusTitle;
   });
   document.querySelectorAll('.js-balance-mogc').forEach(el => { el.textContent = fmtCoin(storeBalance); });
@@ -5594,7 +5645,16 @@ function applyRelayState(gs){
   document.querySelectorAll('.js-balance-relay').forEach(el => { el.textContent = fmtCoin(relayBalance) + ' RELAY'; });
   const ownRateEl = document.getElementById('relayOwnRateDisplay');
   const relayBonus = prodBonusInfo(gs);
-  if (ownRateEl) ownRateEl.textContent = `+${relayOwnRate.toFixed(4)} Relay/s eigene Rate${relayBonus.parts.length ? ` · Bonus auf deinen Anteil: ${relayBonus.text}` : ''}`;
+  /* Relais-Kondensator (scope 'relay_rate', siehe HANDOFF_boost_items.md) -- wirkt NUR auf den
+     eigenen Auszahlungsanteil (crypto_farm.relay_item_boost_mult), NICHT auf die Netzwerk-Rate
+     (relayBoostDisplay/relayNetworkRateDisplay = Signal-Verstaerker, getrennte Mechanik).
+     Bewusst nicht in prodBonusInfo() eingebaut -- die versorgt auch NRC/PULSE/FLUX, dort darf
+     der Relay-Item-Booster nicht auftauchen. */
+  const relayItemBoostPct = Number(rs?.item_boost_pct ?? 0);
+  const relayItemBoostActive = !!rs?.item_boost_active;
+  const ownRateBonusParts = relayBonus.parts.slice();
+  if (relayItemBoostActive) ownRateBonusParts.push(`Booster +${relayItemBoostPct} %`);
+  if (ownRateEl) ownRateEl.textContent = `+${relayOwnRate.toFixed(4)} Relay/s eigene Rate${ownRateBonusParts.length ? ` · Bonus auf deinen Anteil: ${ownRateBonusParts.join(' · ')}` : ''}`;
   const netRateEl = document.getElementById('relayNetworkRateDisplay');
   if (netRateEl) {
     netRateEl.innerHTML = `${relayNetworkRate.toFixed(3)} Relay/s${relayBoostActive ? ' (<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="3" cy="4" r="1.1" fill="currentColor"/><circle cx="11" cy="4" r="1.1" fill="currentColor"/><circle cx="7" cy="11" r="1.1" fill="currentColor"/><line x1="3" y1="4" x2="11" y2="4" stroke="currentColor" stroke-width="0.9"/><line x1="3" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/><line x1="11" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/></svg></span> Boost aktiv)' : ''}`;
@@ -8842,8 +8902,12 @@ function boosterEffectLabel(payload){
   const mins = Number(payload?.duration_minutes) || 0;
   const hours = mins / 60;
   const durText = hours >= 1 ? `${hours % 1 === 0 ? hours : hours.toFixed(1)} h` : `${mins} Min`;
-  const SCOPE_LABELS = { pulse_rate: 'PULSE-Förderrate', nrc_rate: 'NRC-Förderrate', flux_rate: 'FLUX-Förderrate', relay_rate: 'Relay-Anteil', offline_cap: 'Offline-Cap', quest_speed: 'Quest-Fortschritt' };
+  const SCOPE_LABELS = { pulse_rate: 'PULSE-Förderrate', nrc_rate: 'NRC-Förderrate', flux_rate: 'FLUX-Förderrate', relay_rate: 'Relay-Anteil', offline_cap: 'Offline-Cap', quest_speed: 'Quest-Fortschritt', prestige_points: 'Prestige-Punkte' };
   const label = SCOPE_LABELS[scope] || scope;
+  /* offline_cap ist additiv (Stunden), nicht multiplikativ (Prozent) -- effect_payload.boost_pct
+     traegt hier eine Stundenzahl (siehe HANDOFF_boost_items.md). Eigene Formatierung, sonst
+     zeigt der Shop faelschlich "+12% Offline-Cap" statt "+12 Std. Offline-Cap". */
+  if (scope === 'offline_cap') return `+${pct} Std. ${label} für ${durText}`;
   return `+${pct}% ${label} für ${durText}`;
 }
 
