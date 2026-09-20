@@ -2,6 +2,13 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.12: "Aktive Booster"-Uebersicht (reines Frontend, kein Backend-Change). Neue Panel-Zeile
+    im Uebersicht-Tab, gespeist aus platform.get_my_active_boosts(): pro laufendem Booster ein Chip mit
+    Bezeichnung, Staerke (+25 % bzw. +12 Std. bei offline_cap) und Live-Restlaufzeit (1-Sek.-Ticker).
+    Panel ist ausgeblendet, solange kein Booster laeuft. Wird bei jedem loadEverything() neu geladen
+    (also auch nach Aktivieren im Handelsplatz) und laedt sich selbst neu, sobald ein Booster ablaeuft.
+    Scope-Bezeichnungen sind jetzt eine gemeinsame Konstante (BOOSTER_SCOPE_LABELS) statt lokal in
+    boosterEffectLabel().
   - v4.2.11: Quest-Speed- und Prestige-Points-Booster (scopes 'quest_speed'/'prestige_points',
     siehe HANDOFF_boost_items.md). Zwei neue Items: "Chronoschlüssel" (300 MOGC, +25% auf
     zaehlbare Tages-Quest-Metriken fuer 24 Std. -- wirkt NUR auf Betraege/Stueckzahlen wie
@@ -1241,6 +1248,11 @@
   .ach-category h4{ font-size:14px; color:var(--fg-dim); text-transform:uppercase; letter-spacing:0.04em; margin:0 0 10px; }
   .ach-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
   .ach-card{ border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; background:var(--bg-alt); position:relative; }
+  .boost-chips{ display:flex; flex-wrap:wrap; gap:10px; }
+  .boost-chip{ display:flex; flex-direction:column; gap:2px; border:1px solid rgba(212,175,55,0.35); border-radius:var(--radius); padding:8px 12px; background:var(--bg-alt); min-width:150px; }
+  .boost-chip .bc-name{ font-size:12px; color:var(--fg-faint); }
+  .boost-chip .bc-pct{ font-weight:600; font-size:15px; }
+  .boost-chip .bc-time{ font-family:var(--mono); font-size:11px; color:var(--fg-faint); }
   .ach-card.locked{ opacity:0.5; }
   .ach-card.unlocked{ border-color:rgba(212,175,55,0.35); }
   .ach-card .ach-name{ font-weight:600; font-size:14px; margin-bottom:4px; }
@@ -2414,6 +2426,11 @@
           <div class="sub js-prestige-level" id="prestigeLevelDisplay">–</div>
         </div>
       </div>
+    </div>
+
+    <div class="panel hidden" id="activeBoostsPanel">
+      <h3><span class="live-dot"></span>Aktive Booster <span class="tag">— laufende Effekte</span></h3>
+      <div class="boost-chips" id="activeBoostsList"></div>
     </div>
 
     <div class="panel">
@@ -4952,6 +4969,7 @@ async function loadEverything(opts){
   reconcileHistories(safeGs, wantLight);
   fullStateLoaded = true;
   await applyFullGameState(safeGs);
+  refreshActiveBoosts(); // Uebersicht-Zeile "Aktive Booster" (v4.2.12), bewusst nicht awaited
 }
 
 async function applyFullGameState(gs){
@@ -8896,14 +8914,81 @@ function fmtCurrencyAmount(amount, symbol){
   return `${fmtCoin(amount)} ${symbol}`;
 }
 
+const BOOSTER_SCOPE_LABELS = { pulse_rate: 'PULSE-Förderrate', nrc_rate: 'NRC-Förderrate', flux_rate: 'FLUX-Förderrate', relay_rate: 'Relay-Anteil', offline_cap: 'Offline-Cap', quest_speed: 'Quest-Fortschritt', prestige_points: 'Prestige-Punkte' };
+
+/* ---------- Aktive Booster (Uebersicht-Tab) ----------
+   platform.get_my_active_boosts() liefert [{scope, boost_pct, expires_at}] nur fuer laufende Boosts.
+   Die Restlaufzeit wird clientseitig per Ticker heruntergezaehlt (kein Polling); laeuft ein Booster
+   ab, wird die Liste einmal frisch geladen und die Produktionsanzeige per loadEverything aktualisiert. */
+let activeBoosts = [];
+let activeBoostTicker = null;
+
+function fmtBoostRemaining(ms){
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  if (h >= 1) return `${h} Std. ${String(m).padStart(2, '0')} Min`;
+  return `${m}:${String(sec).padStart(2, '0')} Min`;
+}
+
+function escBoostText(v){
+  return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderActiveBoosts(){
+  const panel = document.getElementById('activeBoostsPanel');
+  const list = document.getElementById('activeBoostsList');
+  if (!panel || !list) return;
+  const now = Date.now();
+  const live = activeBoosts.filter(b => new Date(b.expires_at).getTime() > now);
+  if (!live.length) { panel.classList.add('hidden'); list.innerHTML = ''; return; }
+  panel.classList.remove('hidden');
+  list.innerHTML = live.map(b => {
+    const pct = Number(Number(b.boost_pct).toFixed(1));
+    const pctText = b.scope === 'offline_cap' ? `+${pct} Std.` : `+${pct} %`;
+    const name = BOOSTER_SCOPE_LABELS[b.scope] || b.scope;
+    return `<div class="boost-chip" data-boost-scope="${escBoostText(b.scope)}">
+      <span class="bc-name">${escBoostText(name)}</span>
+      <span class="bc-pct">${pctText}</span>
+      <span class="bc-time" data-expires="${escBoostText(b.expires_at)}">${fmtBoostRemaining(new Date(b.expires_at).getTime() - now)}</span>
+    </div>`;
+  }).join('');
+}
+
+function tickActiveBoosts(){
+  const now = Date.now();
+  let expired = false;
+  document.querySelectorAll('#activeBoostsList .bc-time').forEach(el => {
+    const left = new Date(el.dataset.expires).getTime() - now;
+    if (left <= 0) { expired = true; return; }
+    el.textContent = fmtBoostRemaining(left);
+  });
+  if (expired) {
+    // Abgelaufenen Booster sofort ausblenden, dann Server-Stand + Foerderraten nachziehen
+    renderActiveBoosts();
+    if (typeof loadEverything === 'function') loadEverything({ light: true }); // ruft refreshActiveBoosts() mit auf
+  }
+}
+
+async function refreshActiveBoosts(){
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_active_boosts');
+    if (error) { console.error('get_my_active_boosts fehlgeschlagen:', error); return; }
+    activeBoosts = Array.isArray(data) ? data : [];
+  } catch (e) { console.error('get_my_active_boosts fehlgeschlagen:', e); return; }
+  renderActiveBoosts();
+  if (activeBoostTicker) { clearInterval(activeBoostTicker); activeBoostTicker = null; }
+  if (activeBoosts.length) activeBoostTicker = setInterval(tickActiveBoosts, 1000);
+}
+
 function boosterEffectLabel(payload){
   const scope = payload?.scope;
   const pct = payload?.boost_pct;
   const mins = Number(payload?.duration_minutes) || 0;
   const hours = mins / 60;
   const durText = hours >= 1 ? `${hours % 1 === 0 ? hours : hours.toFixed(1)} h` : `${mins} Min`;
-  const SCOPE_LABELS = { pulse_rate: 'PULSE-Förderrate', nrc_rate: 'NRC-Förderrate', flux_rate: 'FLUX-Förderrate', relay_rate: 'Relay-Anteil', offline_cap: 'Offline-Cap', quest_speed: 'Quest-Fortschritt', prestige_points: 'Prestige-Punkte' };
-  const label = SCOPE_LABELS[scope] || scope;
+  const label = BOOSTER_SCOPE_LABELS[scope] || scope;
   /* offline_cap ist additiv (Stunden), nicht multiplikativ (Prozent) -- effect_payload.boost_pct
      traegt hier eine Stundenzahl (siehe HANDOFF_boost_items.md). Eigene Formatierung, sonst
      zeigt der Shop faelschlich "+12% Offline-Cap" statt "+12 Std. Offline-Cap". */

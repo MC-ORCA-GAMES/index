@@ -430,6 +430,17 @@
   Dasselbe fuer die Quartalsregeln (Steuer/Lohn) oben und den Text bei
   "Kapital einzahlen". Das Badge "Pflicht jedes Quartal" bleibt im Titel
   sichtbar. Der jeweilige Aktions-Button hat jetzt die Klasse dc-act.
+
+  v1.25: Urlaubsmodus (Migrationen foundry_vacation_mode, foundry_vacation_guest_guard_and_grants).
+  Nutzerwunsch, angelehnt ans deutsche Arbeitsrecht: 30 Urlaubstage pro Kalenderjahr (Europe/Berlin), am
+  Stueck oder aufgeteilt, neuer Anspruch ab 1. Januar, nach dem Start NICHT abbrechbar. Persoenliche Firmen
+  (guild_id is null) sind waehrend des Urlaubs komplett eingefroren: tick_foundry() ueberspringt sie -> kein
+  Umsatz, keine Kosten/Loehne, keine Kreditraten, Schutzvertrag-Laufzeit und Entscheidungs-Vorrat stehen
+  still; Lieferungen bleiben liegen, Insolvenzfristen werden beim Start um die Urlaubsdauer verschoben,
+  Firmen sind nicht uebernehmbar. Der Spieler selbst kann keine Foundry-Aktionen ausfuehren (11 RPCs
+  gesperrt). Start nur ohne offene Markt-Verkaufsangebote/Firmen-Verkaufsinserate. Corp-Firmen laufen
+  weiter (andere Leiter/Offiziere koennen sie fuehren). Frontend: Panel "Urlaubsmodus" im
+  Einstellungen-Tab + Banner ueber dem Dashboard, RPCs get_my_vacation_status()/start_vacation(p_days).
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -554,6 +565,7 @@
 
   .main-tabs{ display:flex; gap:8px; margin:4px 0 18px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   .main-tabs.guest-limited .main-tab-btn:not([data-tab="galaxie"]):not([data-tab="einstellungen"]){ display:none; }
+  #vacationBanner{ font-size:13.5px; color:var(--fg); background:var(--bg-alt); border:1px solid var(--accent, var(--line)); border-radius:10px; padding:10px 14px; margin:0 0 14px; }
   #guestSpectatorBanner{ font-size:13.5px; color:var(--fg-dim); background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:0 0 14px; }
   .main-tabs::-webkit-scrollbar{ display:none; }
   .main-tab-btn{ font-family:'Space Grotesk'; font-weight:600; font-size:15px; white-space:nowrap; padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim); cursor:pointer; flex:0 0 auto; }
@@ -1309,6 +1321,8 @@
 
     <div id="dashboardArea" class="hidden">
 
+      <div id="vacationBanner" class="hidden"></div>
+
       <div id="guestSpectatorBanner" class="hidden">Gast-Beobachtermodus — du siehst die Galaxie live mit allen Firmen aller Spieler, kannst aber nichts aktiv tun. Mit E-Mail-Code einloggen, um selbst eine Firma zu gründen.</div>
 
       <div class="panel" id="overviewPanel">
@@ -1598,6 +1612,26 @@
           <p id="sleepStatus" style="font-size:13.5px; color:var(--fg-dim); margin:8px 0 0;"></p>
           <div id="sleepMsg"></div>
         </div>
+
+        <div class="panel" id="vacationPanel">
+          <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px; flex-shrink:0;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>Urlaubsmodus</h3>
+          <p style="font-size:13.5px; color:var(--fg-dim); margin:0 0 10px;">
+            Du hast 30 Urlaubstage pro Kalenderjahr, am Stück oder aufgeteilt. Neuer Anspruch ab dem 1. Januar.
+            Während des Urlaubs sind deine persönlichen Firmen komplett eingefroren: keine Einnahmen, keine
+            Ausgaben, keine Kreditraten, keine Ereignisse. Insolvenzfristen laufen nicht ab, und niemand kann
+            deine Firmen übernehmen. Du selbst kannst in dieser Zeit keine Foundry-Aktionen ausführen.
+            <strong>Ein gestarteter Urlaub lässt sich nicht abbrechen.</strong> Vorher müssen offene
+            Verkaufsangebote am Markt und Firmen-Verkaufsinserate zurückgezogen sein. Corp-Firmen laufen weiter.
+          </p>
+          <div class="reserve-row" id="vacationStartRow">
+            <label style="font-size:13.5px; color:var(--fg-dim);">Tage
+              <input type="number" id="vacationDays" min="1" max="30" step="1" value="7" style="margin-left:4px; width:80px;">
+            </label>
+            <button type="button" id="vacationStartBtn">Urlaub starten</button>
+          </div>
+          <p id="vacationStatus" style="font-size:13.5px; color:var(--fg-dim); margin:8px 0 0;"></p>
+          <div id="vacationMsg"></div>
+        </div>
       </div>
 
     </div>
@@ -1861,6 +1895,71 @@ async function loadCompanySaleListings(){
   } catch(e){ console.error(e); }
 }
 
+/* ---------- Urlaubsmodus (v1.25) ---------- */
+let myVacation = null;
+async function loadVacationStatus(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_my_vacation_status');
+    if (error) { console.error(error); return; }
+    myVacation = data || null;
+  } catch(e){ console.error(e); }
+}
+function fmtVacationDate(iso){
+  return new Date(iso).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function vacationActiveNow(){
+  return !!(myVacation && myVacation.active && myVacation.ends_at && new Date(myVacation.ends_at).getTime() > Date.now());
+}
+function renderVacation(){
+  const banner = document.getElementById('vacationBanner');
+  const panel = document.getElementById('vacationPanel');
+  if (!banner || !panel) return;
+  // Gast hat keinen Urlaubsmodus (kein eigener Fortschritt) -- Panel und Banner ausblenden
+  if (isGuest()) { banner.classList.add('hidden'); panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+  const status = document.getElementById('vacationStatus');
+  const daysInput = document.getElementById('vacationDays');
+  const startBtn = document.getElementById('vacationStartBtn');
+  if (!myVacation) { status.textContent = 'Urlaubsstatus wird geladen …'; startBtn.disabled = true; daysInput.disabled = true; banner.classList.add('hidden'); return; }
+
+  const active = vacationActiveNow();
+  const left = Number(myVacation.days_left || 0);
+  const used = Number(myVacation.days_used || 0);
+  const total = Number(myVacation.days_total || 30);
+  banner.classList.toggle('hidden', !active);
+  if (active) banner.textContent = 'Urlaubsmodus aktiv bis ' + fmtVacationDate(myVacation.ends_at) + ' — deine persönlichen Firmen sind eingefroren (keine Einnahmen, keine Ausgaben), Aktionen sind gesperrt.';
+
+  daysInput.max = String(Math.max(1, left));
+  daysInput.disabled = active || left < 1;
+  startBtn.disabled = active || left < 1;
+  const budget = used + ' von ' + total + ' Urlaubstagen in ' + myVacation.year + ' genutzt, ' + left + ' übrig.';
+  if (active) status.textContent = 'Urlaub läuft bis ' + fmtVacationDate(myVacation.ends_at) + '. ' + budget;
+  else if (left < 1) status.textContent = budget + ' Neuer Anspruch ab ' + new Date(myVacation.next_reset).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' }) + '.';
+  else status.textContent = budget;
+}
+async function startVacation(){
+  clearMsg('vacationMsg');
+  const days = parseInt(document.getElementById('vacationDays').value, 10);
+  if (!Number.isInteger(days) || days < 1) { showMsg('vacationMsg', 'Bitte eine ganze Zahl ab 1 eingeben.', false); return; }
+  if (myVacation && days > Number(myVacation.days_left)) { showMsg('vacationMsg', 'Du hast nur noch ' + myVacation.days_left + ' Urlaubstag(e) übrig.', false); return; }
+  const endsPreview = fmtVacationDate(new Date(Date.now() + days * 86400000).toISOString());
+  if (!confirm(days + ' Urlaubstag(e) jetzt starten?\n\nBis ca. ' + endsPreview + ' sind deine persönlichen Firmen komplett eingefroren und du kannst keine Aktionen ausführen.\n\nDer Urlaub lässt sich NICHT abbrechen, und die Tage werden sofort vom Jahreskontingent abgezogen.')) return;
+  const btn = document.getElementById('vacationStartBtn');
+  btn.disabled = true;
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('start_vacation', { p_days: days });
+    if (error) { showMsg('vacationMsg', error.message, false); btn.disabled = false; return; }
+    myVacation = data || myVacation;
+    showMsg('vacationMsg', 'Urlaub gestartet — schönen Urlaub!', true);
+    await Promise.all([loadVacationStatus(), loadCompanies()]);
+    render();
+  } catch (err) {
+    showMsg('vacationMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+    btn.disabled = false;
+  }
+}
+document.getElementById('vacationStartBtn').addEventListener('click', startVacation);
+
 let mySleepSettings = null;
 async function loadSleepSettings(){
   try {
@@ -2071,9 +2170,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadVacationStatus(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadVacationStatus(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -2158,6 +2257,7 @@ function render(){
   }
 
   if (hasCompanies) renderSleepWindow();
+  renderVacation();
 
   document.getElementById('galaxyIndexTag').textContent = '— Galaxie-Index: ' + galaxyIndex.toFixed(2) + '×';
   document.getElementById('galaxyIndexTag2').textContent = '— Galaxie-Index: ' + galaxyIndex.toFixed(2) + '×';
@@ -3562,7 +3662,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId, corpCheckId){
 }
 document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg', 'corpFundCheck'));
 document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2', 'corpFundCheck2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); });
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadVacationStatus(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){
