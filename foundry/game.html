@@ -1275,6 +1275,7 @@
       <button type="button" id="refreshBtn" style="margin:0;">Aktualisieren</button>
     </div>
 
+    <div id="companyGroupTabs" class="sub-tab-row hidden" style="margin-bottom:10px;"></div>
     <div id="companyTabsWrap" class="company-tabs hidden"></div>
 
     <div id="noCompanyState" class="empty-state hidden">
@@ -1759,6 +1760,7 @@ const SECTOR_REQUIREMENTS = {
 
 let companies = [];
 let selectedCompanyId = null;
+let companyGroupFilter = 'own'; // 'own' | 'corp' -- s. render()/loadCompanies()
 let galaxyIndex = 1.0;
 let selectedSector = null;
 let selectedSector2 = null;
@@ -2103,6 +2105,10 @@ async function loadCompanies(){
     if (selectedCompanyId && !companies.some(c => c.id === selectedCompanyId)) {
       selectedCompanyId = companies.length ? companies[0].id : null;
     }
+    // Toggle passend zur (moeglicherweise frisch gesetzten) Auswahl vorbelegen,
+    // damit der aktive Chip beim ersten Render auch im sichtbaren Sub-Tab liegt.
+    const selected = companies.find(c => c.id === selectedCompanyId);
+    if (selected) companyGroupFilter = selected.guild_id ? 'corp' : 'own';
   } catch(e){ console.error(e); }
 }
 
@@ -2163,8 +2169,40 @@ function render(){
   renderCorpFundingBlock('corpFundingRow2', 'corpFundCheck2', 'corpFundLabel2');
 
   const companyTabsWrap = document.getElementById('companyTabsWrap');
+  const groupTabsWrap = document.getElementById('companyGroupTabs');
+  // Firma vs. Corp-Firma (v1.24): get_my_companies() liefert beides gemischt (eigene
+  // UND alle Firmen der eigenen Corp, s. foundry.get_my_companies -- guild_id ist der
+  // Trenner, nicht player_id, weil auch selbst gegruendete Corp-finanzierte Firmen
+  // guild_id gesetzt haben). Ab dem ersten Corp-Firma-Eintrag zeigen wir einen
+  // Sub-Tab-Umschalter wie beim Entscheidungen-Tab; ohne Corp-Firmen bleibt die
+  // Leiste unveraendert (kein zusaetzlicher Klick fuer Solo-Spieler noetig).
+  const ownCompanies = companies.filter(c => !c.guild_id);
+  const corpCompanies = companies.filter(c => c.guild_id);
+  const hasCorpCompanies = corpCompanies.length > 0;
+  if (!hasCorpCompanies) companyGroupFilter = 'own';
+
+  groupTabsWrap.classList.toggle('hidden', !hasCorpCompanies);
+  if (hasCorpCompanies) {
+    groupTabsWrap.innerHTML = '';
+    [['own', 'Firma', ownCompanies.length], ['corp', 'Corp-Firma', corpCompanies.length]].forEach(([key, label, count]) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sub-tab-btn' + (companyGroupFilter === key ? ' active' : '');
+      btn.textContent = label + ' (' + count + ')';
+      btn.addEventListener('click', () => {
+        if (window.foundrySfx) window.foundrySfx.click();
+        companyGroupFilter = key;
+        const groupList = key === 'own' ? ownCompanies : corpCompanies;
+        if (groupList.length && !groupList.some(c => c.id === selectedCompanyId)) selectedCompanyId = groupList[0].id;
+        render();
+      });
+      groupTabsWrap.appendChild(btn);
+    });
+  }
+
+  const visibleCompanies = hasCorpCompanies ? (companyGroupFilter === 'corp' ? corpCompanies : ownCompanies) : companies;
   companyTabsWrap.innerHTML = '';
-  companies.forEach(c => {
+  visibleCompanies.forEach(c => {
     const chip = document.createElement('div');
     chip.className = 'company-chip' + (c.id === selectedCompanyId ? ' active' : '');
     const dotColor = c.stage === 'insolvent' ? 'var(--down)' : (c.stage === 'insolvenzverfahren' ? '#D4AF37' : (c.stage === 'ipo' ? 'var(--up)' : (c.stage === 'boersenreif' ? '#D4AF37' : 'var(--accent)')));

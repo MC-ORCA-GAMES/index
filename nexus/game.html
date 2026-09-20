@@ -2,6 +2,20 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.7: Relay-Boost-Sichtbarkeit. Nach Nachfrage geprüft, ob der Signal-
+    Verstärker (trigger_relay_boost) wirklich wirkt -- Backend-Check mit echten
+    Live-Werten bestätigt: er wird korrekt angewendet (get_relay_network_rate
+    multipliziert, beide collect_relay_earnings-Funktionen nutzen die geboostete
+    Rate fuer die tatsaechliche Auszahlung) UND korrekt angezeigt
+    (#relayBoostDisplay rechnet richtig, mit jsdom gegen echte Produktionsdaten
+    verifiziert). Der eigentliche Haken: "eigene Rate" (relayOwnRateDisplay,
+    die Zahl direkt neben dem Relay-Bestand, auf die man zuerst schaut) bleibt
+    bewusst unboostet (roh Rig-Summe) -- der Boost wirkt nur auf "Netzwerk-Rate",
+    eine dritte, kleinere Kachel daneben. Anders als bei PULSE
+    (#pulseRateDisplay zeigt "(Boost aktiv)" direkt inline in der Hauptzeile)
+    hatte Relay dafuer keinen Inline-Hinweis -- daher leicht zu uebersehen.
+    Jetzt nachgezogen: #relayNetworkRateDisplay zeigt bei aktivem Boost
+    ebenfalls "(Boost aktiv)" inline, analog zu Pulse.
   - v4.2.6: Handelsplatz-Fix + neue Booster-Kategorie (Backend siehe
     HANDOFF_boost_items.md). (1) Kosmetik- und Event-Shop luden im Handelsplatz
     nie, wenn man nicht vorher ueber den alten "Kometen-Event"-Tab gegangen war --
@@ -5582,7 +5596,9 @@ function applyRelayState(gs){
   const relayBonus = prodBonusInfo(gs);
   if (ownRateEl) ownRateEl.textContent = `+${relayOwnRate.toFixed(4)} Relay/s eigene Rate${relayBonus.parts.length ? ` · Bonus auf deinen Anteil: ${relayBonus.text}` : ''}`;
   const netRateEl = document.getElementById('relayNetworkRateDisplay');
-  if (netRateEl) netRateEl.textContent = `${relayNetworkRate.toFixed(3)} Relay/s`;
+  if (netRateEl) {
+    netRateEl.innerHTML = `${relayNetworkRate.toFixed(3)} Relay/s${relayBoostActive ? ' (<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="3" cy="4" r="1.1" fill="currentColor"/><circle cx="11" cy="4" r="1.1" fill="currentColor"/><circle cx="7" cy="11" r="1.1" fill="currentColor"/><line x1="3" y1="4" x2="11" y2="4" stroke="currentColor" stroke-width="0.9"/><line x1="3" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/><line x1="11" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/></svg></span> Boost aktiv)' : ''}`;
+  }
   const shareEl = document.getElementById('relayShareDisplay');
   if (shareEl) shareEl.textContent = `${fl2(relaySharePct)} % Anteil · Exponent ${fl2(relayExponent)}`;
   const boostEl = document.getElementById('relayBoostDisplay');
