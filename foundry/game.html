@@ -441,6 +441,16 @@
   gesperrt). Start nur ohne offene Markt-Verkaufsangebote/Firmen-Verkaufsinserate. Corp-Firmen laufen
   weiter (andere Leiter/Offiziere koennen sie fuehren). Frontend: Panel "Urlaubsmodus" im
   Einstellungen-Tab + Banner ueber dem Dashboard, RPCs get_my_vacation_status()/start_vacation(p_days).
+
+  v1.26: Corp-Urlaub per Abstimmung (Migration foundry_corp_vacation_with_vote). Nutzerwunsch: auch Corps sollen
+  Urlaub bekommen (u.a. wegen Einzel-Corps, die nur fuer mehr Firmen gegruendet werden). Eigenes Kontingent pro
+  Corp (30 Tage/Kalenderjahr, unabhaengig vom persoenlichen Urlaub), nicht abbrechbar. Vorschlag: Leiter/Offizier.
+  Abstimmung: jedes aktuelle Mitglied eine Stimme, einfache Mehrheit ALLER Mitglieder (members/2 + 1, bei 7 also 4),
+  48 h Frist, Vorschlagender stimmt automatisch Ja -> Einzel-Corp startet sofort. Bei Annahme startet der Urlaub
+  sofort: alle Corp-Firmen (guild_id) eingefroren wie beim persoenlichen Urlaub (Tick, Lieferungen, Insolvenzfristen,
+  Aktionen gesperrt). Voraussetzung: keine offenen Markt-Verkaufsangebote/Firmen-Verkaufsinserate der Corp-Firmen.
+  Frontend: Panel "Corp-Urlaub" im Einstellungen-Tab (Abstimmung, Ja/Nein, Vorschlag), Banner ueber dem Dashboard.
+  RPCs get_my_corp_vacation()/propose_corp_vacation(p_days)/vote_corp_vacation(p_proposal_id, p_yes).
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -565,7 +575,7 @@
 
   .main-tabs{ display:flex; gap:8px; margin:4px 0 18px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   .main-tabs.guest-limited .main-tab-btn:not([data-tab="galaxie"]):not([data-tab="einstellungen"]){ display:none; }
-  #vacationBanner{ font-size:13.5px; color:var(--fg); background:var(--bg-alt); border:1px solid var(--accent, var(--line)); border-radius:10px; padding:10px 14px; margin:0 0 14px; }
+  #vacationBanner, #corpVacationBanner{ font-size:13.5px; color:var(--fg); background:var(--bg-alt); border:1px solid var(--accent, var(--line)); border-radius:10px; padding:10px 14px; margin:0 0 14px; }
   #guestSpectatorBanner{ font-size:13.5px; color:var(--fg-dim); background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:0 0 14px; }
   .main-tabs::-webkit-scrollbar{ display:none; }
   .main-tab-btn{ font-family:'Space Grotesk'; font-weight:600; font-size:15px; white-space:nowrap; padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--fg-dim); cursor:pointer; flex:0 0 auto; }
@@ -1322,6 +1332,7 @@
     <div id="dashboardArea" class="hidden">
 
       <div id="vacationBanner" class="hidden"></div>
+      <div id="corpVacationBanner" class="hidden"></div>
 
       <div id="guestSpectatorBanner" class="hidden">Gast-Beobachtermodus — du siehst die Galaxie live mit allen Firmen aller Spieler, kannst aber nichts aktiv tun. Mit E-Mail-Code einloggen, um selbst eine Firma zu gründen.</div>
 
@@ -1631,6 +1642,27 @@
           </div>
           <p id="vacationStatus" style="font-size:13.5px; color:var(--fg-dim); margin:8px 0 0;"></p>
           <div id="vacationMsg"></div>
+        </div>
+
+        <div class="panel hidden" id="corpVacationPanel">
+          <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px; flex-shrink:0;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>Corp-Urlaub <span class="tag">— per Abstimmung</span></h3>
+          <p style="font-size:13.5px; color:var(--fg-dim); margin:0 0 10px;">
+            Jede Corp hat ein eigenes Kontingent von 30 Urlaubstagen pro Kalenderjahr, unabhängig vom persönlichen
+            Urlaub. Leiter und Offiziere schlagen einen Corp-Urlaub vor, alle Mitglieder stimmen ab. Es braucht die
+            einfache Mehrheit aller Mitglieder innerhalb von 48 Stunden. Bei Annahme startet der Urlaub sofort und
+            <strong>lässt sich nicht abbrechen</strong>: Alle Corp-Firmen sind eingefroren (keine Einnahmen, keine
+            Ausgaben, keine Aktionen, Insolvenzfristen laufen nicht ab). Offene Verkaufsangebote der Corp-Firmen
+            müssen vorher zurückgezogen sein.
+          </p>
+          <div id="corpVacationVote"></div>
+          <div class="reserve-row" id="corpVacationProposeRow">
+            <label style="font-size:13.5px; color:var(--fg-dim);">Tage
+              <input type="number" id="corpVacationDays" min="1" max="30" step="1" value="7" style="margin-left:4px; width:80px;">
+            </label>
+            <button type="button" id="corpVacationProposeBtn">Abstimmung starten</button>
+          </div>
+          <p id="corpVacationStatus" style="font-size:13.5px; color:var(--fg-dim); margin:8px 0 0;"></p>
+          <div id="corpVacationMsg"></div>
         </div>
       </div>
 
@@ -1960,6 +1992,134 @@ async function startVacation(){
 }
 document.getElementById('vacationStartBtn').addEventListener('click', startVacation);
 
+/* ---------- Corp-Urlaub (v1.26) ---------- */
+let myCorpVacation = null;
+async function loadCorpVacation(){
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('get_my_corp_vacation');
+    if (error) { console.error(error); return; }
+    myCorpVacation = data || null;
+  } catch(e){ console.error(e); }
+}
+function corpVacationActiveNow(){
+  return !!(myCorpVacation && myCorpVacation.active && myCorpVacation.ends_at && new Date(myCorpVacation.ends_at).getTime() > Date.now());
+}
+function renderCorpVacation(){
+  const panel = document.getElementById('corpVacationPanel');
+  const banner = document.getElementById('corpVacationBanner');
+  if (!panel || !banner) return;
+  const cv = myCorpVacation;
+  if (!cv || !cv.in_guild || isGuest()) { panel.classList.add('hidden'); banner.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+
+  const active = corpVacationActiveNow();
+  const prop = (!active && cv.proposal && new Date(cv.proposal.closes_at).getTime() > Date.now()) ? cv.proposal : null;
+  const canPropose = cv.my_role === 'leader' || cv.my_role === 'officer';
+  const left = Number(cv.days_left || 0);
+
+  // Banner: laufender Corp-Urlaub oder offene Abstimmung, ueber die man noch nicht abgestimmt hat
+  if (active) {
+    banner.textContent = 'Corp-Urlaub (' + cv.guild_name + ') aktiv bis ' + fmtVacationDate(cv.ends_at) + ' — alle Corp-Firmen sind eingefroren (keine Einnahmen, keine Ausgaben), Aktionen sind gesperrt.';
+    banner.classList.remove('hidden');
+  } else if (prop && prop.my_vote === null) {
+    banner.textContent = 'Abstimmung offen: Corp-Urlaub für ' + prop.days + ' Tag(e) — bitte im Einstellungen-Tab abstimmen (noch bis ' + fmtVacationDate(prop.closes_at) + ').';
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+
+  // Offene Abstimmung
+  const voteBox = document.getElementById('corpVacationVote');
+  voteBox.innerHTML = '';
+  if (prop) {
+    const box = document.createElement('div');
+    box.style.cssText = 'border:1px solid var(--line); border-radius:10px; background:var(--bg-alt); padding:10px 12px; margin:0 0 12px; font-size:13.5px;';
+    const head = document.createElement('div');
+    head.style.marginBottom = '8px';
+    head.textContent = 'Abstimmung: ' + prop.days + ' Tag(e) Corp-Urlaub — Ja ' + prop.yes + ', Nein ' + prop.no + ' (nötig: ' + prop.needed + ' von ' + prop.members + ' Mitgliedern). Frist bis ' + fmtVacationDate(prop.closes_at) + '.';
+    box.appendChild(head);
+    const row = document.createElement('div');
+    row.className = 'reserve-row';
+    [['Ja, Urlaub', true], ['Nein', false]].forEach(([label, yes]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label + (prop.my_vote === yes ? ' ✓' : '');
+      b.addEventListener('click', () => voteCorpVacation(prop.id, yes, b));
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+    if (prop.my_vote !== null) {
+      const hint = document.createElement('div');
+      hint.style.cssText = 'margin-top:6px; color:var(--fg-dim);';
+      hint.textContent = 'Deine Stimme: ' + (prop.my_vote ? 'Ja' : 'Nein') + ' — bis zur Entscheidung änderbar.';
+      box.appendChild(hint);
+    }
+    voteBox.appendChild(box);
+  }
+
+  const proposeRow = document.getElementById('corpVacationProposeRow');
+  const showPropose = canPropose && !active && !prop && left >= 1;
+  proposeRow.classList.toggle('hidden', !showPropose);
+  const daysInput = document.getElementById('corpVacationDays');
+  daysInput.max = String(Math.max(1, left));
+  document.getElementById('corpVacationProposeBtn').disabled = left < 1;
+
+  const budget = cv.days_used + ' von ' + cv.days_total + ' Corp-Urlaubstagen in ' + cv.year + ' genutzt, ' + left + ' übrig.';
+  let text = budget;
+  if (active) text = 'Corp-Urlaub läuft bis ' + fmtVacationDate(cv.ends_at) + '. ' + budget;
+  else if (left < 1) text = budget + ' Neuer Anspruch ab ' + new Date(cv.next_reset).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' }) + '.';
+  else if (!canPropose && !prop) text = budget + ' Nur Leiter und Offiziere können einen Corp-Urlaub vorschlagen.';
+  if (!active && !prop && cv.last_result) {
+    const LR = { approved: 'angenommen', rejected: 'abgelehnt', expired: 'ohne Mehrheit abgelaufen', failed: 'nicht gestartet' };
+    text += ' Letzte Abstimmung (' + cv.last_result.days + ' Tage): ' + (LR[cv.last_result.status] || cv.last_result.status) + (cv.last_result.status === 'failed' && cv.last_result.note ? ' — ' + cv.last_result.note.replace(/\.$/, '') : '') + '.';
+  }
+  document.getElementById('corpVacationStatus').textContent = text;
+}
+async function afterCorpVacationChange(result){
+  await Promise.all([loadCorpVacation(), loadCompanies()]);
+  render();
+  return result;
+}
+async function proposeCorpVacation(){
+  clearMsg('corpVacationMsg');
+  const days = parseInt(document.getElementById('corpVacationDays').value, 10);
+  if (!Number.isInteger(days) || days < 1) { showMsg('corpVacationMsg', 'Bitte eine ganze Zahl ab 1 eingeben.', false); return; }
+  if (myCorpVacation && days > Number(myCorpVacation.days_left)) { showMsg('corpVacationMsg', 'Die Corp hat nur noch ' + myCorpVacation.days_left + ' Urlaubstag(e) übrig.', false); return; }
+  if (!confirm('Abstimmung für ' + days + ' Tag(e) Corp-Urlaub starten?\n\nDu stimmst automatisch mit Ja. Bei Annahme startet der Urlaub sofort, alle Corp-Firmen sind dann eingefroren, und er lässt sich NICHT abbrechen. Die Tage werden sofort vom Corp-Kontingent abgezogen.')) return;
+  const btn = document.getElementById('corpVacationProposeBtn');
+  btn.disabled = true;
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('propose_corp_vacation', { p_days: days });
+    if (error) { showMsg('corpVacationMsg', error.message, false); btn.disabled = false; return; }
+    if (data && data.status === 'approved') showMsg('corpVacationMsg', 'Corp-Urlaub gestartet — schönen Urlaub!', true);
+    else if (data && data.status === 'failed') showMsg('corpVacationMsg', 'Corp-Urlaub konnte nicht gestartet werden.', false);
+    else showMsg('corpVacationMsg', 'Abstimmung gestartet — alle Mitglieder können jetzt abstimmen.', true);
+    await afterCorpVacationChange(data);
+  } catch (err) {
+    showMsg('corpVacationMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+    btn.disabled = false;
+  }
+}
+async function voteCorpVacation(proposalId, yes, btnEl){
+  clearMsg('corpVacationMsg');
+  if (btnEl) btnEl.disabled = true;
+  try {
+    const { data, error } = await sb.schema('foundry').rpc('vote_corp_vacation', { p_proposal_id: proposalId, p_yes: yes });
+    if (error) { showMsg('corpVacationMsg', error.message, false); if (btnEl) btnEl.disabled = false; return; }
+    const st = data && data.status;
+    if (st === 'approved') showMsg('corpVacationMsg', 'Mehrheit erreicht — der Corp-Urlaub läuft jetzt.', true);
+    else if (st === 'rejected') showMsg('corpVacationMsg', 'Abstimmung abgelehnt — keine Mehrheit mehr möglich.', false);
+    else if (st === 'expired') showMsg('corpVacationMsg', 'Die Frist dieser Abstimmung ist abgelaufen.', false);
+    else if (st === 'failed') showMsg('corpVacationMsg', 'Mehrheit erreicht, aber der Urlaub konnte nicht starten' + (data.last_result && data.last_result.note ? ': ' + data.last_result.note : '.'), false);
+    else showMsg('corpVacationMsg', 'Stimme gespeichert.', true);
+    await afterCorpVacationChange(data);
+  } catch (err) {
+    showMsg('corpVacationMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+    if (btnEl) btnEl.disabled = false;
+  }
+}
+document.getElementById('corpVacationProposeBtn').addEventListener('click', proposeCorpVacation);
+
 let mySleepSettings = null;
 async function loadSleepSettings(){
   try {
@@ -2170,9 +2330,9 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
 async function afterLogin(){
   enterGame();
   try { await sb.schema('platform').rpc('ensure_player_ready'); } catch(e){ console.error(e); }
-  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadVacationStatus(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]);
+  await Promise.all([loadWallet(), loadSectorCosts(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadVacationStatus(), loadCorpVacation(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]);
   render();
-  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadVacationStatus(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); }, 60000);
+  setInterval(async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadVacationStatus(), loadCorpVacation(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); }, 60000);
 }
 
 /* ---------- Daten laden ---------- */
@@ -2258,6 +2418,7 @@ function render(){
 
   if (hasCompanies) renderSleepWindow();
   renderVacation();
+  renderCorpVacation();
 
   document.getElementById('galaxyIndexTag').textContent = '— Galaxie-Index: ' + galaxyIndex.toFixed(2) + '×';
   document.getElementById('galaxyIndexTag2').textContent = '— Galaxie-Index: ' + galaxyIndex.toFixed(2) + '×';
@@ -3662,7 +3823,7 @@ async function doFound(tickerId, nameId, sectorGetter, msgId, corpCheckId){
 }
 document.getElementById('foundBtn').addEventListener('click', () => doFound('tickerInput', 'nameInput', () => selectedSector, 'foundMsg', 'corpFundCheck'));
 document.getElementById('foundBtn2').addEventListener('click', () => doFound('tickerInput2', 'nameInput2', () => selectedSector2, 'foundMsg2', 'corpFundCheck2'));
-document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadVacationStatus(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); });
+document.getElementById('refreshBtn').addEventListener('click', async () => { await Promise.all([loadWallet(), loadCompanies(), loadInventory(), loadMarketOrders(), loadLoans(), loadLastDecisions(), loadContracts(), loadDeliveries(), loadGalaxyMap(), loadSleepSettings(), loadVacationStatus(), loadCorpVacation(), loadMyGuild(), loadAcquisitionTargets(), loadCompanySaleListings()]); render(); });
 
 /* ---------- Haupt-Tabs ---------- */
 (function initMainTabs(){
