@@ -201,7 +201,7 @@
 </script>
 <!-- ============ Ende Zugriffs-Gate ============ -->
 <div id="stage">
-  <canvas id="view" width="320" height="200"></canvas>
+  <canvas id="view" width="960" height="600"></canvas>
   <div id="scan"></div>
   <div id="hurt"></div><div id="heal"></div>
   <div id="xh"></div>
@@ -225,7 +225,7 @@
 /* ============================================================
    Konstanten & Grundlagen
    ============================================================ */
-const W=320, H=200, HALF=H/2;
+const W=960, H=600, HALF=H/2;
 const PLANE_LEN=0.66;
 const PROJ=(W/2)/PLANE_LEN;         // Projektionsabstand in Pixeln (quadratische Pixel)
 const MAXD=17;                      // Sichtweite für Nebel
@@ -1016,6 +1016,7 @@ function renderSprites(time){
   }
 }
 function drawWeapon(time){
+  ctx.save(); ctx.scale(W/320,H/200);   // Waffen-Sprites sind im alten 320x200-Raster gezeichnet
   const bx=Math.sin(P.bob)*4*P.moving, by=Math.abs(Math.cos(P.bob))*3*P.moving;
   const rc=P.recoil*9;
   ctx.save(); ctx.translate(bx,by+rc-19);
@@ -1047,6 +1048,7 @@ function drawWeapon(time){
     gr.addColorStop(0,'rgba(255,255,255,.95)'); gr.addColorStop(.4,'rgba(255,190,80,.8)'); gr.addColorStop(1,'rgba(255,120,40,0)');
     ctx.fillStyle=gr; ctx.fillRect(cx-r,cy-r,r*2,r*2);
   }
+  ctx.restore();
   ctx.restore();
 }
 function render(time){
