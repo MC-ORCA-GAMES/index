@@ -2,6 +2,22 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.15: BUGFIX -- get_full_game_state() schlug mit "cannot pass more than 100 arguments
+    to a function" (Postgres-Fehler 54023) fehl, kein Zustand mehr ladbar. Ursache: durch
+    v4.2.14 (AXIOM-Bundling core_status/core_bank_status) kam die aeussere json_build_object()
+    im RPC auf 52 Schluessel-Wert-Paare = 104 Argumente -- ueber Postgres' harter 100-Argumente-
+    Grenze. Backend-Fix (bereits in der DB angewendet, siehe HANDOFF_core_2026-09-21.md-Addendum):
+    zwei Paare bestehender Top-Level-Keys zu je einem Key gebuendelt (macht wieder netto 50 Paare
+    = 100 Argumente): core_status + core_bank_status -> axiom {status, bank_status}; sowie
+    pulse_bank_recent_payouts + relay_bank_recent_payouts -> bank_recent_payouts {pulse, relay}.
+    Dieser Fix hier zieht das Frontend nach (war in der Vorgaenger-Session am gleichen Tag
+    unterbrochen worden, bevor game.html aktualisiert wurde): applyAxiomState() liest jetzt
+    gs.axiom?.status / gs.axiom?.bank_status statt gs.core_status / gs.core_bank_status; die
+    PULSE-/RELAY-Bank-Auszahlungslisten lesen jetzt gs.bank_recent_payouts?.pulse bzw. ?.relay.
+    Programmatisch nachgezaehlt: aeussere json_build_object() hat jetzt wieder exakt 100
+    Argumente (50 Paare). Alle 12 Script-Bloecke per node --check geprueft, HTML-Tag-Balance
+    automatisiert verifiziert (beides fehlerfrei). Bilanz (core_check_balance) unveraendert
+    exakt (21.000.000, diff=0) -- noch keine Spieler-Rigs gekauft, daher noch keine Emission.
   - v4.2.14: AXIOM-Tab (Schritt 4 aus HANDOFF_core_2026-09-21.md). Neuer Sub-Tab "AXIOM" im
     Farm-Bereich, nach dem Muster von Relay/Pulse gebaut. Backend-seitig zwei rein additive
     Migrationen: get_core_status() liefert jetzt zusaetzlich base_cost/cost_growth pro Rig
@@ -5277,7 +5293,7 @@ async function applyFullGameState(gs){
   const pulseReserveVal = Number(bank?.pulse_reserve_balance ?? 0);
   const PULSE_BANK_THRESHOLD = Number(bank?.pulse_threshold ?? 500000);
   const pulseBankPct = Math.min(100, (pulseReserveVal / PULSE_BANK_THRESHOLD) * 100);
-  const pulsePayouts = gs.pulse_bank_recent_payouts || [];
+  const pulsePayouts = gs.bank_recent_payouts?.pulse || [];
   const pulsePayoutsHtml = pulsePayouts.length
     ? pulsePayouts.map(p => `
       <div class="bb-payout-row">
@@ -5300,7 +5316,7 @@ async function applyFullGameState(gs){
   const relayReserveVal = Number(bank?.relay_reserve_balance ?? 0);
   const RELAY_BANK_THRESHOLD = Number(bank?.relay_threshold ?? 20000);
   const relayBankPct = Math.min(100, (relayReserveVal / RELAY_BANK_THRESHOLD) * 100);
-  const relayPayouts = gs.relay_bank_recent_payouts || [];
+  const relayPayouts = gs.bank_recent_payouts?.relay || [];
   const relayPayoutsHtml = relayPayouts.length
     ? relayPayouts.map(p => `
       <div class="bb-payout-row">
@@ -5883,9 +5899,11 @@ function applyRelayState(gs){
 
 /* ---------- AXIOM-Tab: knappe Leitwaehrung (Netzwerk-Topf + Bank), siehe
    HANDOFF_core_2026-09-21.md. Liest komplett aus dem gebuendelten gs-Objekt
-   (core_status/core_bank_status), genau wie Pulse/Relay. */
+   (gs.axiom.status/gs.axiom.bank_status -- umbenannt wegen der 100-Argumente-
+   Grenze von json_build_object() in get_full_game_state(), siehe Changelog),
+   genau wie Pulse/Relay. */
 function applyAxiomState(gs){
-  axiomStatus = gs.core_status || null;
+  axiomStatus = gs.axiom?.status || null;
   const cs = axiomStatus;
   const enabled = !!cs?.enabled;
 
@@ -5928,7 +5946,7 @@ function applyAxiomState(gs){
 
   renderAxiomRigs();
 
-  axiomBankStatus = gs.core_bank_status || null;
+  axiomBankStatus = gs.axiom?.bank_status || null;
   renderAxiomBank();
 }
 
