@@ -1142,6 +1142,7 @@
           <a href="nexus/nexus_singularity/game.html">Nexus Singularity</a>
           <a href="foundry/game.html">FOUNDRY</a>
           <a href="domus-prime/game.html">Domus Prime: Verdantis</a>
+          <a href="nexus-breach/game.html" id="breachGameLink" style="display:none;">NEXUS: BREACH <small style="opacity:.6;">(Test)</small></a>
         </div>
         <div class="burger-group">
           <div class="burger-label">Info</div>
@@ -1152,6 +1153,7 @@
           <a href="nexus/index.html">NEXUS</a>
           <a href="nexus/nexus_singularity/index.html">Nexus Singularity</a>
           <a href="foundry/index.html">FOUNDRY</a>
+          <a href="nexus-breach/index.html" id="breachInfoLink" style="display:none;">NEXUS: BREACH <small style="opacity:.6;">(Test)</small></a>
         </div>
         <div class="burger-group">
           <div class="burger-label">Rechtliches</div>
@@ -1585,6 +1587,13 @@
       }
     }
     if(nameEl) nameEl.textContent = profileName || (window.__cloudUser ? window.__cloudUser.email : '—');
+    /* NEXUS: BREACH ist ein internes Testspiel — Link im Buergermenue bleibt fuer alle
+       anderen Accounts unsichtbar, unabhaengig davon ob eingeloggt oder nicht. */
+    var __breachOk = !!(window.__cloudUser && window.__cloudUser.email &&
+      window.__cloudUser.email.toLowerCase() === 'xspx110@live.de');
+    var __bg = document.getElementById('breachGameLink'), __bi = document.getElementById('breachInfoLink');
+    if(__bg) __bg.style.display = __breachOk ? '' : 'none';
+    if(__bi) __bi.style.display = __breachOk ? '' : 'none';
   }
   async function loadProfile(){
     window.__cloudProfile = null;

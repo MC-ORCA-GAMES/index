@@ -1,0 +1,283 @@
+<!--
+  NEXUS: BREACH — Landingpage (Testspiel)
+  Datei-Version: v0.1
+  Eigenständige, schlanke Startseite im MC-ORCA-Look (dunkles Space-Theme,
+  Cyan/Amber-Akzente wie game.html), KEIN Kopieren der großen Hub-CSS —
+  bewusst kompakt gehalten, da reines Testspiel.
+
+  Zugriffs-Gate: die gesamte Seite bleibt hinter einem Login verborgen und
+  wird erst sichtbar, wenn die eingeloggte Supabase-Session zu
+  xspx110@live.de gehört. Für alle anderen (auch eingeloggt, andere Mail,
+  oder gar nicht eingeloggt) bleibt nur ein neutraler Hinweis sichtbar —
+  kein Titel, kein Screenshot, keine Spielinhalte.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>NEXUS: BREACH — MC ORCA Games (Test)</title>
+<style>
+  :root{
+    --bg:#04060C; --panel:#0B1220; --panel2:#0E1728; --line:rgba(220,246,255,0.09);
+    --fg:#DCF6FF; --dim:#7B9AB4; --faint:#47657C;
+    --cyan:#35E4FF; --amber:#FFAE3D; --up:#0ECB81; --down:#FF3D6E;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  a{ color:inherit; }
+  h1,h2,h3{ font-family:"Bahnschrift","DIN Alternate","Segoe UI Semibold",system-ui,sans-serif; margin:0 0 .4em; }
+  p{ line-height:1.6; color:#B9D3E4; margin:0 0 1em; }
+  .wrap{ max-width:960px; margin:0 auto; padding:0 20px; }
+
+  /* ---------- Nav ---------- */
+  .nav{ position:sticky; top:0; z-index:30; background:rgba(4,6,12,.85); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:960px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  .brand{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; letter-spacing:.02em; }
+  .brand b{ color:var(--cyan); }
+  .back{ font-size:13px; font-weight:600; padding:8px 14px; border-radius:999px; border:1px solid var(--line); color:var(--dim); text-decoration:none; transition:.15s; }
+  .back:hover{ border-color:var(--faint); color:var(--fg); }
+
+  /* ---------- Gate ---------- */
+  #gate{ min-height:calc(100vh - 60px); display:flex; align-items:center; justify-content:center; padding:40px 20px; }
+  .gate-card{ max-width:420px; width:100%; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px 26px; text-align:center; }
+  .gate-icon{ font-size:32px; margin-bottom:10px; }
+  .gate-card h2{ font-size:19px; }
+  .gate-card p{ font-size:13.5px; }
+  .gate-form{ margin-top:18px; text-align:left; }
+  .gate-form .lbl{ font-size:12px; color:var(--dim); margin-bottom:8px; }
+  .gate-form input{ width:100%; box-sizing:border-box; padding:10px 12px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; color:var(--fg); font-size:14px; margin-bottom:9px; }
+  .gate-form input#gCode{ letter-spacing:4px; text-align:center; }
+  .gate-btn{ width:100%; padding:10px; border-radius:8px; border:1px solid rgba(53,228,255,.5); background:transparent; color:var(--fg); font-size:13.5px; font-weight:600; cursor:pointer; transition:.15s; }
+  .gate-btn:hover{ background:rgba(53,228,255,.12); }
+  .gate-btn.primary{ background:var(--cyan); color:#02131a; border-color:var(--cyan); }
+  .gate-btn.primary:hover{ background:#7CF0FF; }
+  .gate-status{ display:block; margin-top:10px; font-size:12px; min-height:1.4em; }
+  .gate-status.ok{ color:#7fd18f; }
+  .gate-status.err{ color:#e37b7b; }
+  #gate.hidden{ display:none; }
+
+  /* ---------- Content ---------- */
+  #content{ display:none; }
+  #content.visible{ display:block; }
+  .hero{ padding:56px 0 36px; text-align:center; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--amber);
+    border:1px solid rgba(255,174,61,.35); background:rgba(255,174,61,.08); padding:6px 14px; border-radius:999px; margin-bottom:18px; }
+  .hero h1{ font-size:clamp(32px,6vw,54px); line-height:1.05; }
+  .hero h1 em{ font-style:normal; color:var(--cyan); text-shadow:0 0 22px rgba(53,228,255,.35); }
+  .hero p{ max-width:56ch; margin:14px auto 26px; font-size:16px; }
+  .cta-row{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .btn{ font-weight:700; font-size:15px; padding:13px 26px; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:8px; transition:.15s; }
+  .btn-primary{ background:var(--cyan); color:#02131a; }
+  .btn-primary:hover{ background:#7CF0FF; transform:translateY(-1px); }
+  .btn-ghost{ border:1px solid var(--line); color:var(--fg); }
+  .btn-ghost:hover{ border-color:var(--faint); background:rgba(255,255,255,.03); }
+
+  .hud-mock{ margin:36px auto 0; max-width:720px; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    background:radial-gradient(120% 140% at 50% 0%,#0d2130 0%,#04060c 70%); position:relative; aspect-ratio:16/9; }
+  .hud-mock .scan{ position:absolute; inset:0; background:repeating-linear-gradient(to bottom,rgba(0,0,0,.18) 0 1px,transparent 1px 3px); }
+  .hud-mock .cross{ position:absolute; left:50%; top:50%; width:26px; height:26px; transform:translate(-50%,-50%); }
+  .hud-mock .cross::before,.hud-mock .cross::after{ content:""; position:absolute; background:var(--cyan); box-shadow:0 0 6px var(--cyan); }
+  .hud-mock .cross::before{ left:50%; top:0; bottom:0; width:2px; margin-left:-1px; }
+  .hud-mock .cross::after{ top:50%; left:0; right:0; height:2px; margin-top:-1px; }
+  .hud-mock .bar{ position:absolute; left:0; right:0; bottom:0; height:22%; background:linear-gradient(to bottom,rgba(8,14,24,.4),rgba(4,6,12,.92));
+    border-top:1px solid rgba(53,228,255,.3); display:flex; align-items:center; justify-content:space-around; font:700 13px/1 ui-monospace,Consolas,monospace; color:var(--fg); }
+  .hud-mock .bar span small{ display:block; font:600 9px/1 sans-serif; color:var(--dim); margin-bottom:4px; letter-spacing:.06em; }
+
+  section.block{ padding:44px 0; border-top:1px solid var(--line); }
+  section.block h2{ font-size:22px; margin-bottom:14px; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+  @media (max-width:680px){ .grid2{ grid-template-columns:1fr; } }
+
+  .keys{ display:grid; grid-template-columns:auto 1fr; gap:8px 16px; font-size:14px; }
+  .keys dt{ color:var(--amber); font-family:ui-monospace,Consolas,Menlo,monospace; font-weight:700; }
+  .keys dd{ margin:0; color:#B9D3E4; }
+
+  .sectors{ list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  .sectors li{ display:flex; align-items:baseline; gap:12px; padding:12px 14px; background:var(--panel); border:1px solid var(--line); border-radius:10px; }
+  .sectors .n{ font:700 13px/1 ui-monospace,Consolas,monospace; color:var(--cyan); flex-shrink:0; }
+  .sectors .t{ font-weight:600; }
+  .sectors .d{ color:var(--dim); font-size:13px; }
+
+  .notice{ background:rgba(255,174,61,.07); border:1px solid rgba(255,174,61,.3); border-radius:12px; padding:16px 18px; font-size:13.5px; color:#E4C89A; }
+  .notice b{ color:var(--amber); }
+
+  footer{ border-top:1px solid var(--line); padding:26px 0 40px; text-align:center; font-size:12.5px; color:var(--faint); }
+  footer a{ color:var(--dim); text-decoration:none; margin:0 8px; }
+  footer a:hover{ color:var(--fg); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">MC ORCA GAMES <span style="opacity:.4;">·</span> <b>NEXUS: BREACH</b></div>
+    <a class="back" href="../index.html">← Zurück zum Hub</a>
+  </div>
+</nav>
+
+<!-- ============ Gate: sichtbar bis Login geprüft ist ============ -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-icon">🔒</div>
+    <h2 id="gateTitle">Zugriff wird geprüft …</h2>
+    <p id="gateText">Dieser Bereich ist ein internes Testspiel und aktuell nicht öffentlich verfügbar.</p>
+    <div class="gate-form" id="gateForm" style="display:none;">
+      <div id="gStepEmail">
+        <div class="lbl">Login per Code — kein Passwort.</div>
+        <input type="email" id="gEmail" placeholder="deine@email.de" autocomplete="email">
+        <button class="gate-btn primary" id="gSend" type="button">Code senden</button>
+      </div>
+      <div id="gStepCode" style="display:none;">
+        <div class="lbl">Code aus der E-Mail eingeben:</div>
+        <input type="text" id="gCode" placeholder="123456" inputmode="numeric" maxlength="6">
+        <button class="gate-btn primary" id="gVerify" type="button">Bestätigen</button>
+      </div>
+      <span class="gate-status" id="gStatus"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Inhalt: nur sichtbar für die freigegebene Mail ============ -->
+<div id="content">
+
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">⚠ Interner Test — noch nicht öffentlich</div>
+      <h1>NEXUS: <em>BREACH</em></h1>
+      <p>Rogue-Prozesse sind ins NEXUS-Netz eingebrochen, seit der AXIOM-Kern hochgefahren wurde.
+         Du bist das Wächter-Programm: ein Ego-Shooter im MC-ORCA-Universum, geradewegs zwischen
+         Farm-Hallen, Bank-Tresoren und dem Kern selbst.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="game.html">▶ Jetzt spielen</a>
+        <a class="btn btn-ghost" href="#steuerung">Steuerung ansehen</a>
+      </div>
+
+      <div class="hud-mock" aria-hidden="true">
+        <div class="scan"></div>
+        <div class="cross"></div>
+        <div class="bar">
+          <span><small>INTEGRITÄT</small>100</span>
+          <span><small>LADUNG</small>36</span>
+          <span><small>SPLITTER</small>0</span>
+          <span><small>SEKTOR</small>1/5</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="grid2">
+        <div>
+          <h2>Worum geht's?</h2>
+          <p>Ein Raycast-Shooter im Stil klassischer 90er-Ego-Shooter — komplett im Browser, ohne
+             Framework und ohne Bilddateien: Texturen und Sprites werden beim Start per Code
+             gezeichnet, alle Sounds per WebAudio erzeugt. Du säuberst Sektor für Sektor,
+             sammelst MOGC-Splitter und AXIOM-Zellen, und trittst am Ende gegen Kern-Wächter an.</p>
+          <p>Bewusst <b>nicht</b> mit Konto, Spielstand-Sync oder MOGC-Wirtschaft verbunden — reines
+             Testspiel, losgelöst von den anderen MC-ORCA-Titeln.</p>
+        </div>
+        <div>
+          <h2 id="steuerung">Steuerung</h2>
+          <dl class="keys">
+            <dt>W A S D</dt><dd>Bewegen</dd>
+            <dt>Maus</dt><dd>Umsehen</dd>
+            <dt>Klick / Strg</dt><dd>Feuern</dd>
+            <dt>1 / 2</dt><dd>Waffe wechseln</dd>
+            <dt>Esc</dt><dd>Pause</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>Sektoren</h2>
+      <ul class="sectors" id="sectorList">
+        <li><span class="n">01</span><span class="t">Farm-Halle</span><span class="d">Rogue-Prozesse haben die Farm-Halle übernommen.</span></li>
+        <li><span class="n">02</span><span class="t">Bank-Tresor</span><span class="d">Der Tresor ist kompromittiert — irgendwo liegt eine Streu-Kanone.</span></li>
+        <li><span class="n">03</span><span class="t">AXIOM-Kern</span><span class="d">Ein Kern-Wächter blockiert den Ausgang.</span></li>
+        <li><span class="n">04</span><span class="t">Docking-Ring</span><span class="d">Der Docking-Ring ist überrannt.</span></li>
+        <li><span class="n">05</span><span class="t">Relay-Kern</span><span class="d">Zwei Kern-Wächter halten den Relay besetzt — der Finalsektor.</span></li>
+      </ul>
+    </section>
+
+    <section class="block">
+      <div class="notice"><b>Test-Hinweis:</b> Dieser Bereich ist noch in Arbeit — neue Sektoren,
+        Gegner und Feinschliff kommen laufend dazu. Feedback ist jederzeit willkommen.</div>
+    </section>
+  </div>
+
+  <footer>
+    <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>·
+    <a href="../impressum.html">Impressum &amp; Datenschutz</a>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var ALLOWED = 'xspx110@live.de';
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  var sb = (typeof window.supabase !== 'undefined') ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+  var gate = document.getElementById('gate'), content = document.getElementById('content');
+  var gateTitle = document.getElementById('gateTitle'), gateText = document.getElementById('gateText'), gateForm = document.getElementById('gateForm');
+  var stepEmail = document.getElementById('gStepEmail'), stepCode = document.getElementById('gStepCode');
+  var statusEl = document.getElementById('gStatus');
+  var pendingEmail = '';
+
+  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.className = 'gate-status' + (isErr ? ' err' : (msg ? ' ok' : '')); }
+
+  function unlock(){
+    gate.classList.add('hidden');
+    content.classList.add('visible');
+  }
+  function lock(loggedInButWrong){
+    gate.classList.remove('hidden');
+    content.classList.remove('visible');
+    gateTitle.textContent = loggedInButWrong ? 'Kein Zugriff' : 'Nicht öffentlich';
+    gateText.textContent = loggedInButWrong
+      ? 'Dieser Account hat keinen Zugriff auf dieses Testspiel.'
+      : 'Dieser Bereich ist ein internes Testspiel und aktuell nicht öffentlich verfügbar. Falls du Zugriff haben solltest, logg dich ein.';
+    gateForm.style.display = '';
+  }
+
+  function handleSession(user){
+    if(user && user.email && user.email.toLowerCase() === ALLOWED){ unlock(); }
+    else{ lock(!!user); }
+  }
+
+  if(!sb){
+    lock(false);
+    gateForm.style.display = 'none';
+  } else {
+    sb.auth.getSession().then(function(res){ handleSession(res.data.session ? res.data.session.user : null); });
+    sb.auth.onAuthStateChange(function(event, session){ handleSession(session ? session.user : null); });
+
+    document.getElementById('gSend').addEventListener('click', async function(){
+      var email = document.getElementById('gEmail').value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      var res = await sb.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      stepEmail.style.display = 'none'; stepCode.style.display = '';
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+    document.getElementById('gVerify').addEventListener('click', async function(){
+      var code = document.getElementById('gCode').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      var res = await sb.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Eingeloggt!', false);
+    });
+  }
+})();
+</script>
+</body>
+</html>

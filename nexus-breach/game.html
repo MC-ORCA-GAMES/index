@@ -89,6 +89,84 @@
 </style>
 </head>
 <body>
+<!-- ============ Zugriffs-Gate: Testspiel, nur fuer xspx110@live.de ============ -->
+<style>
+  #breachGate{ position:fixed; inset:0; z-index:99999; background:#04060C; color:#DCF6FF;
+    font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif; display:flex; align-items:center; justify-content:center; padding:24px; }
+  #breachGate.unlocked{ display:none; }
+  #breachGate .bgcard{ max-width:380px; width:100%; background:#0B1220; border:1px solid rgba(220,246,255,.09); border-radius:16px; padding:26px; text-align:center; }
+  #breachGate .bgcard h2{ margin:8px 0 6px; font-size:18px; }
+  #breachGate .bgcard p{ margin:0 0 14px; font-size:13px; line-height:1.55; color:#B9D3E4; }
+  #breachGate input{ width:100%; box-sizing:border-box; padding:9px 11px; background:#0E1728; border:1px solid rgba(220,246,255,.09); border-radius:8px; color:#DCF6FF; font-size:13.5px; margin-bottom:8px; }
+  #breachGate input#bgCode{ letter-spacing:4px; text-align:center; }
+  #breachGate button{ width:100%; padding:9px; border-radius:8px; border:1px solid rgba(53,228,255,.5); background:#35E4FF; color:#02131a; font-size:13px; font-weight:700; cursor:pointer; }
+  #breachGate .bgstatus{ display:block; margin-top:8px; font-size:11.5px; min-height:1.4em; }
+</style>
+<div id="breachGate">
+  <div class="bgcard">
+    <div style="font-size:26px;">🔒</div>
+    <h2 id="bgTitle">Zugriff wird geprüft …</h2>
+    <p id="bgText">Dieser Bereich ist ein internes Testspiel und aktuell nicht öffentlich verfügbar.</p>
+    <div id="bgForm" style="display:none; text-align:left;">
+      <div id="bgStepEmail">
+        <input type="email" id="bgEmail" placeholder="deine@email.de" autocomplete="email">
+        <button type="button" id="bgSend">Code senden</button>
+      </div>
+      <div id="bgStepCode" style="display:none;">
+        <input type="text" id="bgCode" placeholder="123456" inputmode="numeric" maxlength="6">
+        <button type="button" id="bgVerify">Bestätigen</button>
+      </div>
+      <span class="bgstatus" id="bgStatus"></span>
+    </div>
+    <p style="margin-top:14px;"><a href="index.html" style="color:#7B9AB4;">← Zurück zur Startseite</a></p>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  var ALLOWED='xspx110@live.de';
+  var sb=(typeof window.supabase!=='undefined')?window.supabase.createClient(
+    'https://iuvckfoikhifywayuwkj.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc'
+  ):null;
+  var gate=document.getElementById('breachGate'), title=document.getElementById('bgTitle'),
+    text=document.getElementById('bgText'), form=document.getElementById('bgForm'),
+    stepEmail=document.getElementById('bgStepEmail'), stepCode=document.getElementById('bgStepCode'),
+    status=document.getElementById('bgStatus'), pendingEmail='';
+  function setStatus(m,err){ status.textContent=m||''; status.style.color=err?'#e37b7b':'#7fd18f'; }
+  function handle(user){
+    if(user && user.email && user.email.toLowerCase()===ALLOWED){ gate.classList.add('unlocked'); return; }
+    gate.classList.remove('unlocked');
+    title.textContent = user ? 'Kein Zugriff' : 'Nicht öffentlich';
+    text.textContent = user ? 'Dieser Account hat keinen Zugriff auf dieses Testspiel.' : 'Dieser Bereich ist ein internes Testspiel. Falls du Zugriff haben solltest, logg dich ein.';
+    form.style.display='';
+  }
+  if(!sb){ handle(null); form.style.display='none'; }
+  else{
+    sb.auth.getSession().then(function(res){ handle(res.data.session?res.data.session.user:null); });
+    sb.auth.onAuthStateChange(function(e,session){ handle(session?session.user:null); });
+    document.getElementById('bgSend').addEventListener('click', async function(){
+      var email=document.getElementById('bgEmail').value.trim();
+      if(!email||email.indexOf('@')===-1){ setStatus('Bitte gültige E-Mail eingeben.',true); return; }
+      setStatus('Sende Code …',false);
+      var res=await sb.auth.signInWithOtp({ email:email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: '+res.error.message,true); return; }
+      pendingEmail=email; stepEmail.style.display='none'; stepCode.style.display='';
+      setStatus('Code an '+email+' geschickt (auch im Spam-Ordner nachsehen).',false);
+    });
+    document.getElementById('bgVerify').addEventListener('click', async function(){
+      var code=document.getElementById('bgCode').value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.',true); return; }
+      setStatus('Prüfe Code …',false);
+      var res=await sb.auth.verifyOtp({ email:pendingEmail, token:code, type:'email' });
+      if(res.error){ setStatus('Fehler: '+res.error.message,true); return; }
+      setStatus('Eingeloggt!',false);
+    });
+  }
+})();
+</script>
+<!-- ============ Ende Zugriffs-Gate ============ -->
 <div id="stage">
   <canvas id="view" width="320" height="200"></canvas>
   <div id="scan"></div>
@@ -342,6 +420,62 @@ const LEVELS=[
       "#######H.hd....h..d..H######",
       "#######H.m...........H######",
       "#######HHHHHHHHHHHHHHH######"
+    ] },
+  { name:'Sektor 4: Docking-Ring',
+    intro:'Der Docking-Ring ist überrannt. Halte durch — der Relay ruft von tiefer unten.',
+    angle:3*Math.PI/4, lock:false,
+    map:[
+      "##########################",
+      "#.m.......#########......#",
+      "#....d....#########.a..P.#",
+      "#.r.h....................#",
+      "#.........H.HHHHHH#...h..#",
+      "####H............H#......#",
+      "####Hm...........H####.###",
+      "#...H..R......R.aH####.###",
+      "#...H....r.......H####.###",
+      "#.r.H........r...H#......#",
+      "#.........HH.....H#.s..r.#",
+      "X...H.....HH.....H#......#",
+      "#...H.d..............d...#",
+      "#...H..........m.H#......#",
+      "#.h.H..R......R..H#.m....#",
+      "#...H.a..m..h..d.H#....a.#",
+      "####H............H####.###",
+      "RRRRHHHH.HHHHHHHH........#",
+      "R.............###........#",
+      "R.a..d......a.....h.d...m#",
+      "Rm............###........#",
+      "RRRRRRRRRRRRRR############"
+    ] },
+  { name:'Sektor 5: Relay-Kern',
+    intro:'Zwei Kern-Wächter halten den Relay besetzt. Beide müssen fallen, bevor das Portal sich öffnet.',
+    angle:5*Math.PI/4, lock:'boss',
+    map:[
+      "######HHHHHHHHHHHHHHH#######",
+      "######H...........m.H#######",
+      "######H..d..h....dh.H#######",
+      "######H.a....r.m..a.....####",
+      "######Hm............H##.####",
+      "#####RRRRRRR.RRRRRRHH##.####",
+      "#####R............R####.####",
+      "#####R.a.d.m..d...R####.####",
+      "HHHHHR..R......R..R........#",
+      "H...HR.r.......r..R.r...a.m#",
+      "H.m.HR............R........#",
+      "X.h....h...K....h.....K..h.#",
+      "H..aHR............R........#",
+      "H...HR.r.......r..R........#",
+      "HHHHHR..R......R..R#####.###",
+      "#####R....dm.d..a.R#####.###",
+      "#####R............R#####.###",
+      "#####R.RRRRRRRRRRRR#####.###",
+      "##.........##########......#",
+      "##..d......##########......#",
+      "##.r...d.................h.#",
+      "##..h...a..##########.a..P.#",
+      "##.m.......##########m.....#",
+      "############################"
     ] }
 ];
 
