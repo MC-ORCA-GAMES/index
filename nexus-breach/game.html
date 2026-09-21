@@ -535,14 +535,137 @@ const WEAPONS=[
 let MW=0, MH=0, grid=null, flow=null, exitCell=null, lvIdx=0, lvl=null;
 let enemies=[], pickups=[], shots=[], totals={foes:0,shards:0};
 let miniStatic=null;
+let seen=null, visible=null;
+
+/* ============================================================
+   Prozedurale Sektoren (Zufallslauf) + Nebel des Krieges
+   ============================================================ */
+function shuffleArr(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function carveMaze(size){
+  // 0=Flur, 1=Wand. Klassischer Recursive-Backtracker auf ungeradem Raster.
+  const g=new Uint8Array(size*size).fill(1);
+  const idx=(x,y)=>y*size+x;
+  g[idx(1,1)]=0;
+  const stack=[[1,1]];
+  while(stack.length){
+    const [cx,cy]=stack[stack.length-1];
+    const dirs=shuffleArr([[2,0],[-2,0],[0,2],[0,-2]]);
+    let carved=false;
+    for(const [dx,dy] of dirs){
+      const nx=cx+dx, ny=cy+dy;
+      if(nx>0&&ny>0&&nx<size-1&&ny<size-1&&g[idx(nx,ny)]===1){
+        g[idx(nx,ny)]=0; g[idx(cx+dx/2,cy+dy/2)]=0;
+        stack.push([nx,ny]); carved=true; break;
+      }
+    }
+    if(!carved) stack.pop();
+  }
+  // ein paar Extra-Durchbrüche, damit nicht alles reine Sackgassen sind
+  const extra=Math.floor(size*size*0.02);
+  for(let i=0;i<extra;i++){
+    const x=1+2*((Math.random()*((size-3)/2))|0), y=1+2*((Math.random()*((size-3)/2))|0);
+    if(Math.random()<0.5){ const wx=x+1; if(wx<size-1&&g[idx(wx,y)]===1&&g[idx(x,y)]===0&&g[idx(wx+1,y)]===0) g[idx(wx,y)]=0; }
+    else { const wy=y+1; if(wy<size-1&&g[idx(x,wy)]===1&&g[idx(x,y)]===0&&g[idx(x,wy+1)]===0) g[idx(x,wy)]=0; }
+  }
+  return g;
+}
+function bfsFarthest(g,size,sx,sy){
+  const idx=(x,y)=>y*size+x;
+  const dist=new Int32Array(size*size).fill(-1);
+  dist[idx(sx,sy)]=0;
+  const q=[[sx,sy]]; let qi=0, far={x:sx,y:sy,d:0};
+  while(qi<q.length){
+    const [x,y]=q[qi++]; const d=dist[idx(x,y)];
+    if(d>far.d) far={x,y,d};
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx, ny=y+dy;
+      if(nx<0||ny<0||nx>=size||ny>=size) continue;
+      if(g[idx(nx,ny)]!==0||dist[idx(nx,ny)]!==-1) continue;
+      dist[idx(nx,ny)]=d+1; q.push([nx,ny]);
+    }
+  }
+  return far;
+}
+function generateProceduralLevel(depth){
+  let size=9+Math.floor(depth*1.6); size+= (1-(size%2)); size=Math.min(size,29);
+  const g=carveMaze(size);
+  const idx=(x,y)=>y*size+x;
+  const wallChars=['#','R','H'], wallW=[0.62,0.28,0.10];
+  function pickWall(){ const r=Math.random(); let acc=0; for(let i=0;i<wallChars.length;i++){ acc+=wallW[i]; if(r<=acc) return wallChars[i]; } return '#'; }
+  const grid2=[];
+  for(let y=0;y<size;y++){ const row=[]; for(let x=0;x<size;x++) row.push(g[idx(x,y)]===1?pickWall():'.'); grid2.push(row); }
+  grid2[1][1]='P';
+  const far=bfsFarthest(g,size,1,1);
+  const nbrs=shuffleArr([[1,0],[-1,0],[0,1],[0,-1]]);
+  let placedExit=false;
+  for(const [dx,dy] of nbrs){
+    const wx=far.x+dx, wy=far.y+dy;
+    if(wx<=0||wy<=0||wx>=size-1||wy>=size-1) continue;
+    if(g[idx(wx,wy)]===1){ grid2[wy][wx]='X'; placedExit=true; break; }
+  }
+  if(!placedExit) grid2[far.y][far.x]='X';
+  const floorCells=[];
+  for(let y=1;y<size-1;y++) for(let x=1;x<size-1;x++) if(g[idx(x,y)]===0 && !(x===1&&y===1) && grid2[y][x]==='.') floorCells.push([x,y]);
+  shuffleArr(floorCells);
+  let ci=0;
+  function place(ch,count){ for(let i=0;i<count&&ci<floorCells.length;i++){ const [x,y]=floorCells[ci++]; grid2[y][x]=ch; } }
+  const hasBoss=depth%3===0;
+  place('d',4+Math.min(10,depth));
+  place('r',Math.min(6,Math.floor(depth/2)));
+  if(hasBoss) place('K',1);
+  place('h',2+Math.floor(depth/3));
+  place('a',3+Math.floor(depth/3));
+  place('m',4+Math.floor(depth/2));
+  if(depth===1) place('s',1);
+  let angle=Math.PI/4;
+  if(g[idx(2,1)]===0) angle=0; else if(g[idx(1,2)]===0) angle=Math.PI/2;
+  return {
+    name:'Prozedur-Sektor · Tiefe '+depth,
+    intro:'Automatisch generierter Sektor — unbekanntes Terrain. Die Karte deckt sich erst auf, während du erkundest.',
+    angle, lock:hasBoss?'boss':false, fog:true, procedural:true, depth,
+    map: grid2.map(r=>r.join(''))
+  };
+}
+function startProceduralRun(){ newRun(); startLevel(generateProceduralLevel(1),true); }
+function restartCurrent(){ startLevel(lvIdx>=0?lvIdx:lvl,true); }
+function finishRun(){
+  state='gamewin'; releaseLock();
+  const depth=(lvl&&lvl.procedural)?lvl.depth:0;
+  let best=0;
+  try{ best=+localStorage.getItem('orca_breach_bestdepth')||0; if(depth>best){ localStorage.setItem('orca_breach_bestdepth',String(depth)); best=depth; } }catch(e){}
+  const st=[['Erreichte Tiefe',String(depth)],['Kills gesamt',String(run.kills)],['Splitter gesamt',String(run.shards)],['Zeit gesamt',fmt(run.time)]];
+  if(best) st.push(['Beste Tiefe (dieser Browser)',String(best)]);
+  showOverlay({title:'Lauf beendet',text:'Prozeduraler Lauf abgeschlossen.',stats:st,
+    buttons:[{label:'Neuer Lauf',primary:true,fn:startProceduralRun},{label:'Zum Titel',fn:showTitle}]});
+}
+function resetFog(){
+  if(lvl.fog){ seen=new Uint8Array(MW*MH); visible=new Uint8Array(MW*MH); } else { seen=null; visible=null; }
+}
+function updateFog(){
+  if(!lvl.fog) return;
+  visible.fill(0);
+  const R=5.5, px=P.x, py=P.y;
+  const minx=Math.max(0,Math.floor(px-R)), maxx=Math.min(MW-1,Math.ceil(px+R));
+  const miny=Math.max(0,Math.floor(py-R)), maxy=Math.min(MH-1,Math.ceil(py+R));
+  for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
+    const cx=x+.5, cy=y+.5, dx=cx-px, dy=cy-py, dist=Math.hypot(dx,dy);
+    if(dist>R) continue;
+    const steps=Math.max(4,Math.ceil(dist*6));
+    let clear=true;
+    for(let s=1;s<steps;s++){ const t=s/steps; if(solidAt(px+dx*t,py+dy*t)){ clear=false; break; } }
+    if(clear){ const k=y*MW+x; visible[k]=1; seen[k]=1; }
+  }
+  const pk=(py|0)*MW+(px|0); if(pk>=0&&pk<seen.length){ seen[pk]=1; visible[pk]=1; }
+}
 
 const P={x:2,y:2,a:0,pitch:0,hp:100,ammo:36,weapon:0,hasSG:false,fireCd:0,recoil:0,flash:0,bob:0,moving:0};
 const stats={kills:0,shards:0,time:0};
 const run={kills:0,shards:0,time:0,foes:0,shardsMax:0};
 let snap={hp:100,ammo:36,hasSG:false};
 
-function parseLevel(i){
-  lvIdx=i; lvl=LEVELS[i];
+function parseLevel(src){
+  if(typeof src==='number'){ lvIdx=src; lvl=LEVELS[src]; } else { lvIdx=-1; lvl=src; }
   const rows=lvl.map; MH=rows.length; MW=rows[0].length;
   grid=new Uint8Array(MW*MH); enemies=[]; pickups=[]; shots=[];
   totals={foes:0,shards:0};
@@ -561,6 +684,7 @@ function parseLevel(i){
   stats.kills=0; stats.shards=0; stats.time=0;
   flow=new Int16Array(MW*MH); flowT=0;
   buildMini();
+  resetFog();
 }
 
 /* ---- Kollision, Sicht ---- */
@@ -726,13 +850,17 @@ function hurtPlayer(n){
 }
 function die(){
   state='dead'; releaseLock(); sfx.die();
-  setTimeout(()=>showOverlay({
-    title:'Prozess beendet',
-    text:'Die Rogue-Prozesse waren schneller. '+lvl.name+' wird neu gestartet, sobald du bereit bist.',
-    stats:[['Feinde erledigt',stats.kills+' / '+totals.foes],['Zeit',fmt(stats.time)]],
-    buttons:[{label:'Sektor neu starten',primary:true,fn:()=>{ P.hp=100; P.ammo=Math.max(snap.ammo,30); P.hasSG=snap.hasSG; startLevel(lvIdx,true); }},
-             {label:'Zum Titel',fn:showTitle}]
-  }),900);
+  setTimeout(()=>{
+    const buttons=[{label:'Sektor neu starten',primary:true,fn:()=>{ P.hp=100; P.ammo=Math.max(snap.ammo,30); P.hasSG=snap.hasSG; restartCurrent(); }}];
+    if(lvl.procedural) buttons.push({label:'Lauf beenden',fn:finishRun});
+    buttons.push({label:'Zum Titel',fn:showTitle});
+    showOverlay({
+      title:'Prozess beendet',
+      text:'Die Rogue-Prozesse waren schneller. '+lvl.name+' wird neu gestartet, sobald du bereit bist.',
+      stats:[['Feinde erledigt',stats.kills+' / '+totals.foes],['Zeit',fmt(stats.time)]],
+      buttons
+    });
+  },900);
 }
 function fmt(t){ const s=t|0; return ((s/60)|0)+':'+String(s%60).padStart(2,'0'); }
 
@@ -848,6 +976,13 @@ function finishLevel(){
   run.kills+=stats.kills; run.shards+=stats.shards; run.time+=stats.time; run.foes+=totals.foes; run.shardsMax+=totals.shards;
   const last=lvIdx>=LEVELS.length-1;
   const st=[['Feinde erledigt',stats.kills+' / '+totals.foes],['MOGC-Splitter',stats.shards+' / '+totals.shards],['Zeit',fmt(stats.time)]];
+  if(lvl.procedural){
+    const nextDepth=lvl.depth+1;
+    showOverlay({title:'Sektor gesäubert',text:lvl.name+' ist wieder online.',stats:st,
+      buttons:[{label:'Weiter — Tiefe '+nextDepth,primary:true,fn:()=>startLevel(generateProceduralLevel(nextDepth),false)},
+               {label:'Lauf beenden',fn:finishRun}]});
+    return;
+  }
   if(!last){
     showOverlay({title:'Sektor gesäubert',text:lvl.name+' ist wieder online.',stats:st,
       buttons:[{label:'Weiter zu '+LEVELS[lvIdx+1].name.split(':')[0],primary:true,fn:()=>startLevel(lvIdx+1,false)}]});
@@ -878,10 +1013,11 @@ function startLevel(i,fresh){
 function pauseGame(){
   if(state!=='play') return;
   state='pause'; releaseLock();
-  showOverlay({title:'Pausiert',text:'Klick auf „Weiterspielen“ fängt die Maus wieder ein.',showKeys:true,
-    buttons:[{label:'Weiterspielen',primary:true,fn:resumeGame},
-             {label:muted?'Ton an':'Ton aus',fn:()=>{ muted=!muted; pauseRefresh(); }},
-             {label:'Zum Titel',fn:showTitle}]});
+  const buttons=[{label:'Weiterspielen',primary:true,fn:resumeGame},
+                 {label:muted?'Ton an':'Ton aus',fn:()=>{ muted=!muted; pauseRefresh(); }}];
+  if(lvl.procedural) buttons.push({label:'Lauf beenden',fn:finishRun});
+  buttons.push({label:'Zum Titel',fn:showTitle});
+  showOverlay({title:'Pausiert',text:'Klick auf „Weiterspielen“ fängt die Maus wieder ein.',showKeys:true,buttons});
 }
 function pauseRefresh(){ state='play'; pauseGame(); }
 function resumeGame(){ hideOverlay(); state='play'; requestLock(); lastT=performance.now(); }
@@ -894,15 +1030,19 @@ function showTitle(){
     '<h1><span>NEXUS:</span> <em>BREACH</em></h1>'+
     '<p>Rogue-Prozesse sind ins NEXUS-Netz eingebrochen und blockieren die Farmen. Du bist das Wächter-Programm: räum die Sektoren auf, sammle MOGC-Splitter und erreiche den Kern — mit Waffen, oder notfalls mit bloßen Fäusten.</p>'+
     '<div class="row"><button class="primary" id="b-go">Sektor 1 starten</button>'+
+      '<button id="b-run" type="button">Zufallslauf (Beta)</button>'+
       '<button class="infobtn" id="b-info" type="button" title="Steuerung &amp; Sektorauswahl" aria-expanded="false">i</button></div>'+
     '<div class="infopanel" id="infoPanel">'+
       '<div class="subhead">Steuerung</div>'+KEYS_HTML+
-      '<div class="subhead">Direkt zu Sektor</div>'+
+      '<div class="subhead">Zufallslauf</div>'+
+      '<p style="margin:0 0 1.2cqw">Prozedural generiertes Labyrinth, unbekannt bis erkundet — die Karte deckt sich per Nebel des Krieges auf. Jeder gesäuberte Sektor führt zu einem größeren, härteren.</p>'+
+      '<div class="subhead">Direkt zu Story-Sektor</div>'+
       '<div class="row">'+chips+'</div>'+
     '</div>'+
     '<p class="small">Testspiel. Läuft ohne Konto und ohne Verbindung zum NEXUS-Backend.</p>',
     onMount:box=>{
       box.querySelector('#b-go').onclick=()=>{ newRun(); startLevel(0,true); };
+      box.querySelector('#b-run').onclick=()=>{ startProceduralRun(); };
       box.querySelectorAll('[data-lv]').forEach(b=>b.onclick=()=>{ newRun(); P.ammo=36+ (+b.dataset.lv)*10; if(+b.dataset.lv>0) P.hasSG=true; startLevel(+b.dataset.lv,true); });
       const infoBtn=box.querySelector('#b-info'), infoPanel=box.querySelector('#infoPanel');
       infoBtn.onclick=()=>{ const open=infoPanel.classList.toggle('show'); infoBtn.setAttribute('aria-expanded', open ? 'true':'false'); };
@@ -1088,9 +1228,26 @@ function buildMini(){
   miniStatic=c;
 }
 function drawMini(){
+  if(lvl.fog){ drawFogMini(); return; }
   mctx.clearRect(0,0,miniCv.width,miniCv.height);
   mctx.drawImage(miniStatic,0,0);
   if(exitLocked()&&exitCell){ mctx.fillStyle='#FF3D6E'; mctx.fillRect(exitCell.x*MS,exitCell.y*MS,MS,MS); }
+  const px_=P.x*MS, py_=P.y*MS;
+  mctx.fillStyle='#FFAE3D'; mctx.beginPath(); mctx.arc(px_,py_,2,0,7); mctx.fill();
+  mctx.strokeStyle='#FFAE3D'; mctx.lineWidth=1; mctx.beginPath(); mctx.moveTo(px_,py_); mctx.lineTo(px_+Math.cos(P.a)*6,py_+Math.sin(P.a)*6); mctx.stroke();
+}
+function drawFogMini(){
+  mctx.clearRect(0,0,miniCv.width,miniCv.height);
+  const col=['','#1f2c3f','#26364b','#4a3a1a','#35E4FF'];
+  for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
+    const k=y*MW+x; if(!seen[k]) continue;
+    const v=grid[k];
+    mctx.globalAlpha=visible[k]?1:0.42;
+    mctx.fillStyle=v?col[v]:'#141f2c';
+    mctx.fillRect(x*MS,y*MS,MS,MS);
+  }
+  mctx.globalAlpha=1;
+  if(exitLocked()&&exitCell&&seen[exitCell.y*MW+exitCell.x]){ mctx.fillStyle='#FF3D6E'; mctx.fillRect(exitCell.x*MS,exitCell.y*MS,MS,MS); }
   const px_=P.x*MS, py_=P.y*MS;
   mctx.fillStyle='#FFAE3D'; mctx.beginPath(); mctx.arc(px_,py_,2,0,7); mctx.fill();
   mctx.strokeStyle='#FFAE3D'; mctx.lineWidth=1; mctx.beginPath(); mctx.moveTo(px_,py_); mctx.lineTo(px_+Math.cos(P.a)*6,py_+Math.sin(P.a)*6); mctx.stroke();
@@ -1152,6 +1309,7 @@ function update(dt){
   P.fireCd=Math.max(0,P.fireCd-dt); P.recoil=Math.max(0,P.recoil-dt*5); P.flash=Math.max(0,P.flash-dt);
   if(keys.Space||mouseDown) tryFire();
   // Welt
+  if(lvl.fog) updateFog();
   flowT-=dt; if(flowT<=0){ computeFlow(); flowT=.3; }
   for(const e of enemies) updateEnemy(e,dt);
   updateShots(dt); updatePickups(); checkExit(dt);
