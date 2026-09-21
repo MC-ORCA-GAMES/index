@@ -86,6 +86,39 @@
   button.chip{ padding:.4cqw 1.2cqw; font-size:clamp(11px,1.5cqw,17px); color:var(--dim); border-color:#25384e; }
   .small{ font-size:clamp(10px,1.35cqw,15px); color:var(--faint); margin-top:1.2cqw; }
   @media (prefers-reduced-motion:reduce){ #msg{ transition:none; } #hpfill{ transition:none; } }
+
+  /* ---- Titel-Bildschirm: Cinematic Overhaul ---- */
+  button.primary{ clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+    box-shadow:0 0 0 rgba(53,228,255,0); }
+  button.primary:hover{ box-shadow:0 0 22px rgba(53,228,255,.45); transform:translateY(-1px); }
+  button.chip{ clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px); }
+  #overlay.title-mode{ background:linear-gradient(100deg,rgba(4,6,12,.32) 0%,rgba(4,6,12,.88) 48%,rgba(4,6,12,.97) 100%); }
+  #overlay.title-mode::after{ content:''; position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; opacity:.55;
+    background:linear-gradient(100deg,transparent 40%,rgba(53,228,255,.10) 48%,rgba(53,228,255,.20) 50%,rgba(53,228,255,.10) 52%,transparent 60%);
+    background-size:260% 260%; animation:beamSweep 7s linear infinite; }
+  @keyframes beamSweep{ 0%{ background-position:0% 0%; } 100%{ background-position:100% 100%; } }
+  .title-box{ position:relative; }
+  .title-box::before{ content:''; position:absolute; left:-3cqw; top:-3cqw; right:-3cqw; bottom:-3cqw; z-index:-1;
+    background:radial-gradient(closest-side,rgba(53,228,255,.14),transparent 70%); filter:blur(6px); pointer-events:none; }
+  .title-box .eyebrow{ display:inline-flex; align-items:center; gap:.6cqw; font:700 clamp(10px,1.3cqw,14px)/1 ui-monospace,Consolas,Menlo,monospace;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--amber); border:1px solid rgba(255,174,61,.4);
+    background:rgba(255,174,61,.08); padding:.5cqw 1.2cqw; border-radius:999px; margin-bottom:1.2cqw; }
+  .title-box .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber); animation:pulseDot 1.6s ease-in-out infinite; }
+  @keyframes pulseDot{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
+  .title-box h1{ position:relative; animation:titleIn .7s cubic-bezier(.2,.8,.3,1) both; }
+  .title-box h1 em{ position:relative; }
+  .title-box h1 em::after{ content:''; position:absolute; left:0; right:0; bottom:-.12em; height:.06em; background:linear-gradient(90deg,var(--cyan),transparent);
+    box-shadow:0 0 12px var(--cyan); animation:underlineGrow .9s .3s cubic-bezier(.2,.8,.3,1) both; }
+  @keyframes titleIn{ from{ opacity:0; transform:translateY(14px); filter:blur(6px); } to{ opacity:1; transform:none; filter:none; } }
+  @keyframes underlineGrow{ from{ transform:scaleX(0); transform-origin:left; } to{ transform:scaleX(1); transform-origin:left; } }
+  .title-box p{ animation:fadeUp .6s .15s both; }
+  .title-box .keys{ animation:fadeUp .6s .25s both; }
+  .title-box .row{ animation:fadeUp .6s .35s both; }
+  @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+  @media (prefers-reduced-motion:reduce){
+    #overlay.title-mode::after{ animation:none; }
+    .title-box h1, .title-box h1 em::after, .title-box p, .title-box .keys, .title-box .row, .title-box .eyebrow .dot{ animation:none; }
+  }
 </style>
 </head>
 <body>
@@ -486,7 +519,8 @@ const ETYPES={
 };
 const WEAPONS=[
   {name:'Puls-Pistole', cost:1, rate:.30},
-  {name:'Streu-Kanone', cost:2, rate:.80}
+  {name:'Streu-Kanone', cost:2, rate:.80},
+  {name:'Fäuste', cost:0, rate:.42}
 ];
 
 let MW=0, MH=0, grid=null, flow=null, exitCell=null, lvIdx=0, lvl=null;
@@ -635,6 +669,7 @@ window.addEventListener('keydown',e=>{
   if(state==='play'){
     if(e.code==='Digit1') setWeapon(0);
     else if(e.code==='Digit2') setWeapon(1);
+    else if(e.code==='Digit3') setWeapon(2);
     else if(e.code==='KeyM') { $('mini').style.display=$('mini').style.display==='none'?'block':'none'; }
     else if(e.code==='KeyP'){ pauseGame(); }
   } else if(state==='pause' && (e.code==='KeyP'||e.code==='Enter')){ resumeGame(); }
@@ -699,15 +734,16 @@ function tryFire(){
   if(P.fireCd>0) return;
   const w=WEAPONS[P.weapon];
   if(P.ammo<w.cost){ sfx.empty(); P.fireCd=.35; showMsg('Keine Ladung',1200); return; }
-  P.ammo-=w.cost; P.fireCd=w.rate; P.recoil=1; P.flash=.09;
+  P.ammo-=w.cost; P.fireCd=w.rate; P.recoil=1; P.flash=P.weapon===2?.12:.09;
   if(P.weapon===0){ sfx.pistol(); hitscan(0,12); }
-  else { sfx.shotgun(); for(let i=0;i<7;i++) hitscan((Math.random()-.5)*.2,9); }
+  else if(P.weapon===1){ sfx.shotgun(); for(let i=0;i<7;i++) hitscan((Math.random()-.5)*.2,9); }
+  else { sfx.melee(); hitscan((Math.random()-.5)*.04,26,1.65); }
   alertNear();
 }
-function hitscan(off,dmg){
+function hitscan(off,dmg,maxRange){
   const a=P.a+off, dx=Math.cos(a), dy=Math.sin(a);
   const wd=rayWallDist(P.x,P.y,dx,dy);
-  let best=null, bd=wd;
+  let best=null, bd=maxRange?Math.min(wd,maxRange):wd;
   for(const e of enemies){
     if(!e.alive) continue;
     const ex=e.x-P.x, ey=e.y-P.y, along=ex*dx+ey*dy;
@@ -842,10 +878,12 @@ function pauseRefresh(){ state='play'; pauseGame(); }
 function resumeGame(){ hideOverlay(); state='play'; requestLock(); lastT=performance.now(); }
 function showTitle(){
   state='title'; releaseLock();
+  parseLevel(0); P.a=Math.PI/4;   // frische Szene als Kulisse, Kamera dreht langsam (siehe frame())
   const chips=LEVELS.map((l,i)=>'<button class="chip" data-lv="'+i+'">Sektor '+(i+1)+'</button>').join('');
-  showOverlay({html:
+  showOverlay({titleMode:true, html:
+    '<div class="eyebrow"><span class="dot"></span> Testspiel — Wächter-Programm aktiv</div>'+
     '<h1><span>NEXUS:</span> <em>BREACH</em></h1>'+
-    '<p>Rogue-Prozesse sind ins NEXUS-Netz eingebrochen und blockieren die Farmen. Du bist das Wächter-Programm: räum die Sektoren auf, sammle MOGC-Splitter und erreiche den Kern.</p>'+
+    '<p>Rogue-Prozesse sind ins NEXUS-Netz eingebrochen und blockieren die Farmen. Du bist das Wächter-Programm: räum die Sektoren auf, sammle MOGC-Splitter und erreiche den Kern — mit Waffen, oder notfalls mit bloßen Fäusten.</p>'+
     KEYS_HTML+
     '<div class="row"><button class="primary" id="b-go">Sektor 1 starten</button></div>'+
     '<div class="row" style="margin-top:1.2cqw"><span class="small" style="margin:0">Direkt zu:</span>'+chips+'</div>'+
@@ -858,13 +896,15 @@ function showTitle(){
 const KEYS_HTML='<dl class="keys">'+
   '<dt>W A S D</dt><dd>Bewegen (Umschalt = Sprint)</dd>'+
   '<dt>Maus</dt><dd>Umsehen. Alternativ Pfeiltasten oder Q / E</dd>'+
-  '<dt>Linksklick / Leertaste</dt><dd>Feuern</dd>'+
-  '<dt>1 / 2</dt><dd>Waffe wechseln</dd>'+
+  '<dt>Linksklick / Leertaste</dt><dd>Feuern / Schlagen</dd>'+
+  '<dt>1 / 2 / 3</dt><dd>Puls-Pistole / Streu-Kanone / Fäuste</dd>'+
   '<dt>M</dt><dd>Karte ein und aus</dd>'+
   '<dt>Esc</dt><dd>Pause</dd></dl>';
 
 function showOverlay(o){
   const box=$('obox');
+  $('overlay').classList.toggle('title-mode', !!o.titleMode);
+  box.classList.toggle('title-box', !!o.titleMode);
   if(o.html){ box.innerHTML=o.html; }
   else{
     let h='<h2>'+o.title+'</h2><p>'+(o.text||'')+'</p>';
@@ -984,12 +1024,22 @@ function drawWeapon(time){
     poly(ctx,'#1f2c3f',[137,235,150,172,170,172,183,235]);
     px(ctx,'#2b3b4f',150,138,20,38); px(ctx,'#0d141c',150,138,20,4);
     px(ctx,'#35E4FF',158,144,4,26); px(ctx,'#FFAE3D',142,190,36,3);
-  } else {
+  } else if(P.weapon===1){
     poly(ctx,'#0d141c',[110,235,132,166,188,166,210,235]);
     poly(ctx,'#1f2c3f',[118,235,138,170,182,170,202,235]);
     px(ctx,'#2b3b4f',130,124,26,52); px(ctx,'#2b3b4f',164,124,26,52);
     px(ctx,'#0d141c',130,124,26,4); px(ctx,'#0d141c',164,124,26,4);
     px(ctx,'#FFAE3D',130,170,60,4); px(ctx,'#35E4FF',140,132,2,32); px(ctx,'#35E4FF',178,132,2,32);
+  } else {
+    const lunge=P.flash>0?16:0;
+    poly(ctx,'#1f2c3f',[92,235,84,186,108,164,132,186,124,235]);
+    poly(ctx,'#2b3b4f',[97,225,90,190,110,172,126,190,119,225]);
+    px(ctx,'#FFAE3D',94,222,12,4);
+    ctx.save(); ctx.translate(0,-lunge);
+    poly(ctx,'#1f2c3f',[192,235,184,182,208,156,236,182,228,235]);
+    poly(ctx,'#2b3b4f',[197,225,190,186,210,164,224,186,217,225]);
+    px(ctx,'#35E4FF',194,220,14,4);
+    ctx.restore();
   }
   if(P.flash>0){
     const cx=160, cy=P.weapon===0?134:120, r=P.weapon===0?18:28;
@@ -1097,6 +1147,7 @@ function update(dt){
 function frame(now){
   const dt=Math.min(.05,(now-lastT)/1000); lastT=now;
   if(state==='play') update(dt);
+  else if(state==='title'){ P.a+=dt*0.045; }
   else if(state==='dead'||state==='levelwin'||state==='gamewin'){ hurtT=Math.max(0,hurtT-dt); $('hurt').style.opacity=state==='dead'?.55:0; }
   if(lvl){ render(now/1000); if(state==='play'||state==='pause') drawMini(); updateHud(); }
   requestAnimationFrame(frame);
@@ -1104,9 +1155,7 @@ function frame(now){
 
 /* ---- Start ---- */
 drawFace(0);
-parseLevel(0);          // Hintergrund für den Titelbildschirm
-P.a=Math.PI/4; computeFlow();
-showTitle();
+showTitle();          // parst Sektor 1 selbst als Kulisse für den Titelbildschirm
 requestAnimationFrame(frame);
 
 window.__breach={P,get state(){return state;},get enemies(){return enemies;},get pickups(){return pickups;},startLevel,newRun,stats,get lvIdx(){return lvIdx;},keys};
