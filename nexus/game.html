@@ -5654,11 +5654,13 @@ function prodBonusInfo(gs){
   const st = gs?.player_state || {};
   const sk = Number(st.production_skill_bonus ?? 0);
   const gd = Number(st.production_guild_bonus ?? 0);
+  const fk = Number(st.production_fork_bonus ?? 0);
   const pct = v => Number((v * 100).toFixed(1));
   const parts = [];
   if (sk > 0) parts.push(`Prestige +${pct(sk)} %`);
   if (gd > 0) parts.push(`Corp +${pct(gd)} %`);
-  return { mult: (1 + sk) * (1 + gd), parts, text: parts.join(' · ') };
+  if (fk > 0) parts.push(`Stabilitäts-Siegel +${pct(fk)} %`);
+  return { mult: (1 + sk) * (1 + gd) * (1 + fk), parts, text: parts.join(' · ') };
 }
 
 function applyPulseState(gs){
@@ -6488,9 +6490,17 @@ function renderForkGateAndChoices(status){
     gatePanel.style.display = 'none';
     completePanel.style.display = 'block';
     const last = forkTreeByKey[status.locked_path[4]];
+    const isStabilitaet = status.locked_path[4] && status.locked_path[4].endsWith('.stabilitaet');
+    let extra = '';
+    if (isStabilitaet) {
+      const globalActive = status.total_mined >= 1000000;
+      extra = globalActive
+        ? `<p style="margin-top:10px;">Globaler Produktionsbonus <b>+3 % auf NRC/Pulse/Relay/Flux</b> ist aktiv.</p>`
+        : `<p style="margin-top:10px;">Globaler Produktionsbonus (+3 % auf NRC/Pulse/Relay/Flux) schaltet sich frei, sobald du insgesamt 1.000.000 FORK gefördert hast — aktuell ${fmtCoin(status.total_mined)} / 1.000.000.</p>`;
+    }
     document.getElementById('forkCompleteBox').innerHTML = `
       <h3>Pfad vollständig verlötet</h3>
-      <p>Du hast dich für <b>${last ? last.name : '?'}</b> entschieden. Dein Baum ist abgeschlossen — alle anderen Äste bleiben für immer durchtrennt.</p>`;
+      <p>Du hast dich für <b>${last ? last.name : '?'}</b> entschieden. Dein Baum ist abgeschlossen — alle anderen Äste bleiben für immer durchtrennt.</p>${extra}`;
     return;
   }
   completePanel.style.display = 'none';
@@ -6498,16 +6508,30 @@ function renderForkGateAndChoices(status){
 
   const rigsOk = status.current_rigs_owned >= status.next_gate_min_rigs;
   const minedOk = status.mined_since_branch >= status.next_gate_min_mined;
-  const ready = rigsOk && minedOk;
+  /* Bug-Fix: die allererste Gabel (depth 0) ist laut Backend (fork_choose_branch) auch
+     nach 48h seit first_seen freigeschaltet, selbst ohne die 1.000 FORK. Die Anzeige kannte
+     bisher nur die FORK-Bedingung -- wer 48h gewartet hat, sah nie die Auswahlkarten, obwohl
+     das Backend die Wahl laengst erlaubt haette. */
+  const hoursSinceStart = (depth === 0 && status.first_seen)
+    ? (Date.now() - new Date(status.first_seen).getTime()) / 3600000 : 0;
+  const timeGateOk = depth === 0 && hoursSinceStart >= 48;
+  const ready = rigsOk && (minedOk || timeGateOk);
   const rigsPct = status.next_gate_min_rigs > 0 ? Math.min(100, 100 * status.current_rigs_owned / status.next_gate_min_rigs) : 100;
   const minedPct = Math.min(100, 100 * status.mined_since_branch / status.next_gate_min_mined);
+  const timePct = depth === 0 ? Math.min(100, 100 * hoursSinceStart / 48) : 0;
+  const showTimeBar = depth === 0;
 
   gateTitle.textContent = ready ? 'Nächste Gabel ist freigeschaltet' : 'Voraussetzung für die nächste Gabel';
   progressEl.innerHTML = `
-    <div class="prestige-progress" style="margin-bottom:${status.next_gate_min_rigs > 0 ? '10px' : '0'};">
+    <div class="prestige-progress" style="margin-bottom:${(showTimeBar || status.next_gate_min_rigs > 0) ? '10px' : '0'};">
       <div class="prestige-progress-track"><div class="prestige-progress-fill" style="width:${minedPct}%"></div></div>
       <div class="prestige-progress-label">FORK auf diesem Ast gefördert: ${fmtCoin(status.mined_since_branch)} / ${fmtCoin(status.next_gate_min_mined)}</div>
     </div>
+    ${showTimeBar ? `
+    <div class="prestige-progress" style="margin-bottom:${status.next_gate_min_rigs > 0 ? '10px' : '0'};">
+      <div class="prestige-progress-track"><div class="prestige-progress-fill" style="width:${timePct}%"></div></div>
+      <div class="prestige-progress-label">oder: Zeit seit Start: ${hoursSinceStart.toFixed(1)} / 48 Std.</div>
+    </div>` : ''}
     ${status.next_gate_min_rigs > 0 ? `
     <div class="prestige-progress">
       <div class="prestige-progress-track"><div class="prestige-progress-fill" style="width:${rigsPct}%"></div></div>
