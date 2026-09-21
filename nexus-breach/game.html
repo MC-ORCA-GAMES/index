@@ -92,6 +92,15 @@
     box-shadow:0 0 0 rgba(53,228,255,0); }
   button.primary:hover{ box-shadow:0 0 22px rgba(53,228,255,.45); transform:translateY(-1px); }
   button.chip{ clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px); }
+  button.infobtn{ width:2.6cqw; min-width:34px; height:2.6cqw; min-height:34px; padding:0; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    font:800 clamp(13px,1.8cqw,18px)/1 ui-monospace,Consolas,Menlo,monospace; color:var(--dim); border-color:#25384e; }
+  button.infobtn:hover, button.infobtn[aria-expanded="true"]{ border-color:var(--amber); color:var(--amber); background:rgba(255,174,61,.1); }
+  .infopanel{ max-height:0; overflow:hidden; opacity:0; width:100%; transition:max-height .32s ease, opacity .25s ease, margin .32s ease; }
+  .infopanel.show{ max-height:60cqw; opacity:1; margin-top:1.4cqw; }
+  .infopanel .subhead{ font:700 clamp(10px,1.3cqw,14px)/1 ui-monospace,Consolas,Menlo,monospace; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--faint); margin:0 0 .8cqw; }
+  .infopanel .keys{ margin-top:0; }
   #overlay.title-mode{ background:linear-gradient(100deg,rgba(4,6,12,.32) 0%,rgba(4,6,12,.88) 48%,rgba(4,6,12,.97) 100%); }
   #overlay.title-mode::after{ content:''; position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; opacity:.55;
     background:linear-gradient(100deg,transparent 40%,rgba(53,228,255,.10) 48%,rgba(53,228,255,.20) 50%,rgba(53,228,255,.10) 52%,transparent 60%);
@@ -884,13 +893,19 @@ function showTitle(){
     '<div class="eyebrow"><span class="dot"></span> Testspiel — Wächter-Programm aktiv</div>'+
     '<h1><span>NEXUS:</span> <em>BREACH</em></h1>'+
     '<p>Rogue-Prozesse sind ins NEXUS-Netz eingebrochen und blockieren die Farmen. Du bist das Wächter-Programm: räum die Sektoren auf, sammle MOGC-Splitter und erreiche den Kern — mit Waffen, oder notfalls mit bloßen Fäusten.</p>'+
-    KEYS_HTML+
-    '<div class="row"><button class="primary" id="b-go">Sektor 1 starten</button></div>'+
-    '<div class="row" style="margin-top:1.2cqw"><span class="small" style="margin:0">Direkt zu:</span>'+chips+'</div>'+
+    '<div class="row"><button class="primary" id="b-go">Sektor 1 starten</button>'+
+      '<button class="infobtn" id="b-info" type="button" title="Steuerung &amp; Sektorauswahl" aria-expanded="false">i</button></div>'+
+    '<div class="infopanel" id="infoPanel">'+
+      '<div class="subhead">Steuerung</div>'+KEYS_HTML+
+      '<div class="subhead">Direkt zu Sektor</div>'+
+      '<div class="row">'+chips+'</div>'+
+    '</div>'+
     '<p class="small">Testspiel. Läuft ohne Konto und ohne Verbindung zum NEXUS-Backend.</p>',
     onMount:box=>{
       box.querySelector('#b-go').onclick=()=>{ newRun(); startLevel(0,true); };
       box.querySelectorAll('[data-lv]').forEach(b=>b.onclick=()=>{ newRun(); P.ammo=36+ (+b.dataset.lv)*10; if(+b.dataset.lv>0) P.hasSG=true; startLevel(+b.dataset.lv,true); });
+      const infoBtn=box.querySelector('#b-info'), infoPanel=box.querySelector('#infoPanel');
+      infoBtn.onclick=()=>{ const open=infoPanel.classList.toggle('show'); infoBtn.setAttribute('aria-expanded', open ? 'true':'false'); };
     }});
 }
 const KEYS_HTML='<dl class="keys">'+
