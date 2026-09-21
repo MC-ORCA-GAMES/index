@@ -63,6 +63,9 @@
   #overlay{ position:absolute; inset:0; display:none; align-items:center; justify-content:flex-start;
     background:radial-gradient(120% 90% at 20% 30%,rgba(4,6,12,.72),rgba(4,6,12,.93)); padding:0 7cqw; }
   #overlay.on{ display:flex; }
+  #fade{ position:absolute; inset:0; background:#04060C; opacity:0; pointer-events:none; z-index:80;
+    transition:opacity .26s ease; }
+  #fade.on{ opacity:1; }
   .box{ max-width:60cqw; margin-bottom:8cqw; }
   h1{ margin:0 0 1.2cqw; font:800 clamp(28px,6.2cqw,80px)/1 "Bahnschrift","DIN Alternate","Segoe UI Semibold",system-ui,sans-serif;
     letter-spacing:.01em; color:var(--fg); text-shadow:0 0 22px rgba(53,228,255,.35); }
@@ -225,6 +228,7 @@
     <div class="cell"><div class="lab">Rogue-Prozesse</div><div class="val" id="foes">0</div></div>
   </div>
   <div id="overlay"><div class="box" id="obox"></div></div>
+  <div id="fade"></div>
 </div>
 
 <script>
@@ -336,6 +340,166 @@ const texCeil=makeTex(g=>{
 });
 const WALLTEX=[null,texPanel,texRack,texVault,texExit];
 
+/* ============================================================
+   Biome-Texturen (Außensektoren: Schlucht, Wüste, Dschungel)
+   ============================================================ */
+const texCanyonWall=makeTex(g=>{
+  const r=rng(141);
+  px(g,'#3b2113',0,0,64,64);
+  for(let i=0;i<7;i++){ const y=(i*9+((r()*3)|0))%60; px(g,i%2?'#4a2c17':'#2a1609',0,y,64,4); }
+  for(let i=0;i<14;i++) px(g,'#1c0f07',(r()*62)|0,(r()*62)|0,1+((r()*2)|0),1+((r()*2)|0));
+  px(g,'#603a1c',0,0,64,2);
+  speckle(g,r,140,['#4a2c17','#603a1c','#2c180c']);
+});
+const texCanyonGlow=makeTex(g=>{
+  const r=rng(142);
+  px(g,'#2c180c',0,0,64,64);
+  for(let i=0;i<6;i++) px(g,'#1c0f07',0,i*10+((r()*3)|0),64,3);
+  px(g,'#35E4FF',6,50,3,10); px(g,'#35E4FF',9,38,3,14); px(g,'#35E4FF',13,26,3,10);
+  px(g,'#FFAE3D',50,4,3,12); px(g,'#FFAE3D',46,18,3,14); px(g,'#FFAE3D',52,34,3,10);
+  speckle(g,r,120,['#3a2210','#201209']);
+});
+const texCanyonRuin=makeTex(g=>{
+  const r=rng(143);
+  px(g,'#332012',0,0,64,64);
+  px(g,'#1c1006',6,6,52,52);
+  px(g,'#241708',10,10,44,44); px(g,'#1c1006',14,14,36,36);
+  disc(g,'#0f2a30',32,32,8,8); disc(g,'#35E4FF',32,32,5,5);
+  for(const [x,y] of [[10,10],[52,10],[10,52],[52,52]]) px(g,'#0f0a05',x-2,y-2,4,4);
+  speckle(g,r,150,['#241708','#3a2712']);
+});
+const texCanyonFloor=makeTex(g=>{
+  const r=rng(144);
+  px(g,'#241a10',0,0,64,64);
+  for(let i=0;i<10;i++) px(g,'#180f08',(r()*60)|0,(r()*60)|0,3+((r()*4)|0),1);
+  speckle(g,r,160,['#2c2013','#1c130b','#332415']);
+});
+
+const texDesertWall=makeTex(g=>{
+  const r=rng(151);
+  px(g,'#8a6a3c',0,0,64,64);
+  px(g,'#7a5a30',0,0,32,32); px(g,'#8a6a3c',32,0,32,32); px(g,'#8a6a3c',0,32,32,32); px(g,'#7a5a30',32,32,32,32);
+  px(g,'#5c421f',0,0,64,1); px(g,'#5c421f',0,32,64,1); px(g,'#5c421f',0,63,64,1);
+  px(g,'#5c421f',0,0,1,64); px(g,'#5c421f',32,0,1,64);
+  px(g,'#c9a35c',10,10,6,1); px(g,'#c9a35c',20,20,10,1); px(g,'#c9a35c',44,14,8,1); px(g,'#c9a35c',40,44,10,1);
+  speckle(g,r,120,['#7a5a30','#93733f','#6a4d26']);
+});
+const texDesertPanel=makeTex(g=>{
+  const r=rng(152);
+  px(g,'#6a4d26',0,0,64,64);
+  px(g,'#1a2231',6,6,52,40);
+  px(g,'#0f141e',10,10,44,32);
+  for(let i=0;i<4;i++) px(g,r()<.5?'#35E4FF':'#FFAE3D',14+i*10,14,4,4);
+  px(g,'#8a6a3c',0,50,64,14);
+  speckle(g,r,140,['#7a5a30','#5c421f']);
+});
+const texDesertVault=makeTex(g=>{
+  const r=rng(153);
+  px(g,'#5c421f',0,0,64,64);
+  px(g,'#3a2a13',4,4,56,56);
+  for(let i=0;i<6;i++) px(g,'#2a1d0d',4,4+i*9,56,1);
+  px(g,'#c9a35c',0,44,64,20);
+  speckle(g,r,180,['#3a2a13','#4a3618','#6a4d26']);
+});
+const texDesertFloor=makeTex(g=>{
+  const r=rng(154);
+  px(g,'#93733f',0,0,64,64);
+  for(let y=0;y<64;y+=6) px(g,'#7a5a30',0,y,64,1);
+  for(let i=0;i<40;i++) px(g,'#c9a35c',(r()*64)|0,(r()*64)|0,1,1);
+  speckle(g,r,100,['#7a5a30','#8a6a3c']);
+});
+
+const texJungleWall=makeTex(g=>{
+  const r=rng(161);
+  px(g,'#233318',0,0,64,64);
+  for(let i=0;i<8;i++) px(g,'#1a2812',(r()*60)|0,(r()*60)|0,4+((r()*4)|0),4+((r()*4)|0));
+  px(g,'#0e1a0a',0,0,64,1); px(g,'#0e1a0a',0,0,1,64);
+  speckle(g,r,150,['#2c4020','#1a2812','#354a26']);
+});
+const texJungleVines=makeTex(g=>{
+  const r=rng(162);
+  px(g,'#182410',0,0,64,64);
+  for(let x=2;x<64;x+=9){ const w=2+((r()*2)|0); for(let y=0;y<64;y+=4) px(g,r()<.5?'#2f5a1e':'#3d7226',x+((r()*2)|0),y,w,4+((r()*2)|0)); }
+  px(g,'#35E4FF',30,50,3,3);
+  speckle(g,r,90,['#1a2812','#0e1a0a']);
+});
+const texJungleRuin=makeTex(g=>{
+  const r=rng(163);
+  px(g,'#26361a',0,0,64,64);
+  px(g,'#182410',6,6,52,52); px(g,'#0f1a0a',10,10,44,44);
+  disc(g,'#35E4FF',32,32,6,6);
+  for(let i=0;i<10;i++) px(g,'#3d7226',(r()*60)|0,(r()*60)|0,2,6);
+  speckle(g,r,140,['#233318','#1a2812']);
+});
+const texJungleFloor=makeTex(g=>{
+  const r=rng(164);
+  px(g,'#20301a',0,0,64,64);
+  for(let i=0;i<30;i++) px(g,r()<.5?'#2c4020':'#182410',(r()*64)|0,(r()*64)|0,2,2);
+  speckle(g,r,140,['#233318','#1a2812']);
+});
+
+/* ---- Himmel (Außensektoren): Angle-basiertes Sky-Strip, wie beim Doom-Sky-Hack ---- */
+const SKY_W=1440, SKY_H=320;
+function makeWideTex(w,h,draw){
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const g=c.getContext('2d'); g.imageSmoothingEnabled=false; draw(g);
+  return new Uint32Array(g.getImageData(0,0,w,h).data.buffer);
+}
+function paintSkyBase(g,horizonCol,zenithCol){
+  const grad=g.createLinearGradient(0,SKY_H,0,0);
+  grad.addColorStop(0,horizonCol); grad.addColorStop(.4,zenithCol); grad.addColorStop(1,zenithCol);
+  g.fillStyle=grad; g.fillRect(0,0,SKY_W,SKY_H);
+}
+function paintStars(g,seed,n,topBias){
+  const r=rng(seed);
+  for(let i=0;i<n;i++){
+    const y=(Math.pow(r(),topBias)*SKY_H)|0, x=(r()*SKY_W)|0;
+    const b=r();
+    g.fillStyle=b<.1?'#FFFFFF':(b<.45?'#BFE9FF':'#7FD4E8');
+    g.fillRect(x,SKY_H-1-y,1,1);
+  }
+}
+function paintPlanet(g,cx,cy,r,dark,base,light,ring){
+  disc(g,dark,cx,cy,r,r);
+  g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+  g.fillStyle=base; g.fillRect(cx-r,cy-r,r*1.35,r*2);
+  g.fillStyle=light; g.fillRect(cx-r,cy-r,r*.5,r*2);
+  g.restore();
+  if(ring){
+    g.strokeStyle=ring; g.lineWidth=Math.max(2,r*.14);
+    g.beginPath(); g.ellipse(cx,cy,r*1.7,r*.4,-.3,0,Math.PI*2); g.stroke();
+  }
+}
+const skyCanyon=makeWideTex(SKY_W,SKY_H,g=>{
+  paintSkyBase(g,'#4a2410','#160a20');
+  paintStars(g,401,260,2.2);
+  paintPlanet(g,SKY_W*0.16,SKY_H*0.32,50,'#5c2c10','#c96a2e','#ffcf8e','#e0a45c');
+  paintPlanet(g,SKY_W*0.62,SKY_H*0.14,16,'#1e4a4c','#5fd0d4','#c8fbfd',null);
+});
+const skyDesert=makeWideTex(SKY_W,SKY_H,g=>{
+  paintSkyBase(g,'#2a1440','#05040c');
+  paintStars(g,402,420,1.3);
+  paintPlanet(g,SKY_W*0.30,SKY_H*0.20,22,'#3a2a1a','#d8c48a','#fff3d0',null);
+  paintPlanet(g,SKY_W*0.34,SKY_H*0.22,10,'#403020','#c9a35c','#ffe6ad',null);
+  paintPlanet(g,SKY_W*0.80,SKY_H*0.36,34,'#1c2438','#5b6fae','#b7c6f2','#8896d8');
+});
+const skyJungle=makeWideTex(SKY_W,SKY_H,g=>{
+  paintSkyBase(g,'#123024','#0a0620');
+  paintStars(g,403,320,1.8);
+  paintPlanet(g,SKY_W*0.24,SKY_H*0.24,44,'#123020','#3ea06c','#a8f0c8','#35E4FF');
+  paintPlanet(g,SKY_W*0.70,SKY_H*0.42,14,'#241238','#8a5cc0','#d9b8f5',null);
+});
+
+/* ---- Biome-Register ---- */
+const BIOMES={
+  facility:{ name:'Anlage',   outdoor:false, wall:[null,texPanel,texRack,texVault],           floor:texFloor,       ceil:texCeil },
+  canyon:  { name:'Schlucht', outdoor:true,  wall:[null,texCanyonWall,texCanyonGlow,texCanyonRuin], floor:texCanyonFloor, sky:skyCanyon },
+  desert:  { name:'Wüste',    outdoor:true,  wall:[null,texDesertWall,texDesertPanel,texDesertVault], floor:texDesertFloor, sky:skyDesert },
+  jungle:  { name:'Dschungel',outdoor:true,  wall:[null,texJungleWall,texJungleVines,texJungleRuin], floor:texJungleFloor, sky:skyJungle },
+};
+const BIOME_ORDER=['facility','canyon','desert','jungle'];
+function biomeForDepth(depth){ return BIOME_ORDER[Math.floor((depth-1)/3)%BIOME_ORDER.length]; }
+
 /* ---- Sprites ---- */
 function sprDrone(fire,dead){ return makeTex(g=>{
   if(dead){ disc(g,'#1a2330',32,56,21,6); px(g,'#2b3b4f',18,50,28,6); px(g,'#FFAE3D',22,48,3,3); px(g,'#FFAE3D',40,46,3,3); px(g,'#35E4FF',31,44,2,4); return; }
@@ -370,6 +534,32 @@ const SPR={
   K:{idle:sprRig(false,false,PAL_BOSS,bossExtra),atk:sprRig(true,false,PAL_BOSS,bossExtra),dead:sprRig(false,true,PAL_BOSS)}
 };
 const SPR_BALL=makeTex(g=>{ disc(g,'#FF3D6E',32,32,15,15); disc(g,'#FF9FB5',32,32,10,10); disc(g,'#FFF1F4',32,32,5,5); },true);
+
+/* ---- Explosions-Frames (Gegner-Tod) ---- */
+function boomFrame(core,mid,outer,spikes,size,seed){
+  return makeTex(g=>{
+    disc(g,outer,32,32,size,size);
+    disc(g,mid,32,32,size*.7,size*.7);
+    disc(g,core,32,32,size*.35,size*.35);
+    if(spikes){
+      const r=rng(seed);
+      for(let i=0;i<9;i++){
+        const a=(i/9)*Math.PI*2+r()*.4, rr=size*(1+r()*.5), w=.16+r()*.08;
+        poly(g,outer,[32,32,
+          32+Math.cos(a-w)*size*.55,32+Math.sin(a-w)*size*.55,
+          32+Math.cos(a)*rr,32+Math.sin(a)*rr,
+          32+Math.cos(a+w)*size*.55,32+Math.sin(a+w)*size*.55]);
+      }
+    }
+  },true);
+}
+const BOOM_FRAMES=[
+  boomFrame('#FFFFFF','#FFE9A8','#FFAE3D',true,13,501),
+  boomFrame('#FFE9A8','#FFAE3D','#FF6A2E',true,19,502),
+  boomFrame('#FFAE3D','#FF5A38','#5a2010',true,23,503),
+  boomFrame('#8a3418','#4a1c0c','#1e0f08',false,20,504),
+  boomFrame('#2a201a','#160f0c','#0a0806',false,15,505),
+];
 const SPR_HEALTH=makeTex(g=>{ px(g,'#0a1a14',21,13,22,38); px(g,'#0ECB81',23,15,18,34); px(g,'#DCF6FF',27,9,10,5);
   px(g,'#F4FFF9',30,22,4,20); px(g,'#F4FFF9',24,30,16,4); },true);
 const SPR_AMMO=makeTex(g=>{ px(g,'#2a1c08',21,13,22,38); px(g,'#FFAE3D',23,15,18,34); px(g,'#7a4c0b',23,15,18,4);
@@ -533,7 +723,7 @@ const WEAPONS=[
 ];
 
 let MW=0, MH=0, grid=null, flow=null, exitCell=null, lvIdx=0, lvl=null;
-let enemies=[], pickups=[], shots=[], totals={foes:0,shards:0};
+let enemies=[], pickups=[], shots=[], booms=[], totals={foes:0,shards:0};
 let miniStatic=null;
 let seen=null, visible=null;
 
@@ -620,10 +810,13 @@ function generateProceduralLevel(depth){
   if(depth===1) place('s',1);
   let angle=Math.PI/4;
   if(g[idx(2,1)]===0) angle=0; else if(g[idx(1,2)]===0) angle=Math.PI/2;
+  const biomeId=biomeForDepth(depth), biome=BIOMES[biomeId];
+  const introOutdoor='Automatisch generiertes Terrain unter freiem Himmel — die Karte deckt sich erst auf, während du erkundest.';
+  const introIndoor='Automatisch generierter Sektor — unbekanntes Terrain. Die Karte deckt sich erst auf, während du erkundest.';
   return {
-    name:'Prozedur-Sektor · Tiefe '+depth,
-    intro:'Automatisch generierter Sektor — unbekanntes Terrain. Die Karte deckt sich erst auf, während du erkundest.',
-    angle, lock:hasBoss?'boss':false, fog:true, procedural:true, depth,
+    name:biome.name+' · Tiefe '+depth,
+    intro: biome.outdoor?introOutdoor:introIndoor,
+    angle, lock:hasBoss?'boss':false, fog:true, procedural:true, depth, biome:biomeId,
     map: grid2.map(r=>r.join(''))
   };
 }
@@ -664,10 +857,13 @@ const stats={kills:0,shards:0,time:0};
 const run={kills:0,shards:0,time:0,foes:0,shardsMax:0};
 let snap={hp:100,ammo:36,hasSG:false};
 
+let curWall=BIOMES.facility.wall, curFloor=BIOMES.facility.floor, curCeil=BIOMES.facility.ceil, curSky=null, curOutdoor=false;
 function parseLevel(src){
   if(typeof src==='number'){ lvIdx=src; lvl=LEVELS[src]; } else { lvIdx=-1; lvl=src; }
+  const biome=BIOMES[lvl.biome]||BIOMES.facility;
+  curWall=biome.wall; curFloor=biome.floor; curCeil=biome.ceil||null; curSky=biome.sky||null; curOutdoor=!!biome.outdoor;
   const rows=lvl.map; MH=rows.length; MW=rows[0].length;
-  grid=new Uint8Array(MW*MH); enemies=[]; pickups=[]; shots=[];
+  grid=new Uint8Array(MW*MH); enemies=[]; pickups=[]; shots=[]; booms=[];
   totals={foes:0,shards:0};
   const wall={'#':1,'R':2,'H':3,'X':4};
   for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
@@ -893,8 +1089,13 @@ function hitscan(off,dmg,maxRange){
 function damageEnemy(e,dmg){
   e.hp-=dmg; e.flash=.1; hitMarkT=.15; e.awake=true;
   if(e.hp<=0){ e.alive=false; e.bodyT=0; stats.kills++; sfx.kill(Math.hypot(e.x-P.x,e.y-P.y));
+    spawnBoom(e.x,e.y,ETYPES[e.type].sc);
     if(e.type==='K') showMsg('Kern-Wächter besiegt — das Portal ist offen',3000);
   } else sfx.hit();
+}
+function spawnBoom(x,y,scale){ booms.push({x,y,t:0,life:.5,scale:scale||1}); }
+function updateBooms(dt){
+  for(let i=booms.length-1;i>=0;i--){ const b=booms[i]; b.t+=dt; if(b.t>=b.life) booms.splice(i,1); }
 }
 function spawnShot(x,y,ang,dmg){
   shots.push({x,y,dx:Math.cos(ang),dy:Math.sin(ang),dmg,life:4});
@@ -1002,13 +1203,15 @@ function finishLevel(){
    ============================================================ */
 function newRun(){ run.kills=run.shards=run.time=run.foes=run.shardsMax=0; P.hasSG=false; }
 function startLevel(i,fresh){
-  initAudio();
-  if(fresh){ P.hp=100; if(i===0&&!P.hasSG) P.ammo=36; }
-  parseLevel(i);
-  snap={hp:P.hp,ammo:P.ammo,hasSG:P.hasSG};
-  P.weapon=P.hasSG?1:0; $('wname').textContent=WEAPONS[P.weapon].name;
-  hideOverlay(); state='play'; requestLock();
-  showMsg(lvl.intro,4200); flowT=0; lastT=performance.now();
+  fadeTransition(()=>{
+    initAudio();
+    if(fresh){ P.hp=100; if(i===0&&!P.hasSG) P.ammo=36; }
+    parseLevel(i);
+    snap={hp:P.hp,ammo:P.ammo,hasSG:P.hasSG};
+    P.weapon=P.hasSG?1:0; $('wname').textContent=WEAPONS[P.weapon].name;
+    hideOverlay(); state='play'; requestLock();
+    showMsg(lvl.intro,4200); flowT=0; lastT=performance.now();
+  });
 }
 function pauseGame(){
   if(state!=='play') return;
@@ -1079,22 +1282,56 @@ function showOverlay(o){
 }
 function hideOverlay(){ $('overlay').classList.remove('on'); }
 
+/* ---- Sanfter Übergang zwischen Leveln/Sektoren (Fade-to-Black statt Hartschnitt) ---- */
+const FADE_MS=260;
+let fadeBusy=false;
+function fadeTransition(cb){
+  const el=$('fade');
+  if(fadeBusy){ cb(); return; } // Sicherheitsnetz, falls schon mitten im Fade
+  fadeBusy=true;
+  el.classList.add('on');
+  setTimeout(()=>{
+    cb();
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      el.classList.remove('on');
+      setTimeout(()=>{ fadeBusy=false; },FADE_MS);
+    }));
+  },FADE_MS);
+}
+
 /* ============================================================
    Rendering
    ============================================================ */
 let dirX=1,dirY=0,planeX=0,planeY=PLANE_LEN, flashAdd=0, horizon=HALF;
 
+const skyColBuf=new Int32Array(W);
+function computeSkyCols(){
+  for(let x=0;x<W;x++){
+    const camX=2*x/W-1, rdx=dirX+planeX*camX, rdy=dirY+planeY*camX;
+    let ang=Math.atan2(rdy,rdx); if(ang<0) ang+=Math.PI*2;
+    let sx=((ang/(Math.PI*2))*SKY_W)|0; if(sx>=SKY_W) sx=SKY_W-1; if(sx<0) sx=0;
+    skyColBuf[x]=sx;
+  }
+}
 function renderFloorCeil(){
   const rx0=dirX-planeX, ry0=dirY-planeY, rx1=dirX+planeX, ry1=dirY+planeY;
+  if(curOutdoor) computeSkyCols();
   for(let y=0;y<H;y++){
     const p=y-horizon, ap=Math.abs(p), base=y*W;
+    if(curOutdoor && p<0){
+      // Himmel: reine Winkelprojektion (Doom-Sky-Hack), kein Perspektiv-Floorcast, kein Nebel
+      let sy=(-p)|0; if(sy>=SKY_H) sy=SKY_H-1; if(sy<0) sy=0;
+      const row=sy*SKY_W;
+      for(let x=0;x<W;x++) buf[base+x]=curSky[row+skyColBuf[x]];
+      continue;
+    }
     if(ap<.6){ for(let x=0;x<W;x++) buf[base+x]=FOGC; continue; }
     const rd=(.5*PROJ)/ap;
     const f=clamp(((1-rd/MAXD)*256|0)+flashAdd,0,256);
     if(f<=2){ for(let x=0;x<W;x++) buf[base+x]=FOGC; continue; }
     const stx=rd*(rx1-rx0)/W, sty=rd*(ry1-ry0)/W;
     let fx=P.x+rd*rx0, fy=P.y+rd*ry0;
-    const tex=p>0?texFloor:texCeil;
+    const tex=p>0?curFloor:curCeil;
     for(let x=0;x<W;x++){
       buf[base+x]=shade(tex[(((fy*64)|0)&63)<<6|(((fx*64)|0)&63)],f);
       fx+=stx; fy+=sty;
@@ -1125,7 +1362,7 @@ function renderWalls(time){
     const lh=PROJ/perp, top=horizon-lh/2;
     let f=((1-perp/MAXD)*256)|0; if(side===1) f=(f*.74)|0;
     f=clamp(f+flashAdd,0,256);
-    let tex=WALLTEX[hit]||texPanel;
+    let tex=curWall[hit]||curWall[1];
     if(hit===4){ tex=locked_?texExitLocked:texExit; f=clamp(170+((Math.sin(time*4)+1)*43)|0,0,256); }
     const y0=Math.max(0,top|0), y1=Math.min(H-1,(top+lh)|0);
     const step=64/lh; let tp=(y0-top)*step;
@@ -1145,6 +1382,11 @@ function renderSprites(time){
   for(const p of pickups){ if(p.taken) continue;
     drawList.push({x:p.x,y:p.y,tex:PICKUP_SPR[p.kind],sc:.36,vo:.02+(Math.sin(time*3+p.ph)+1)*.03,flash:0}); }
   for(const s of shots) drawList.push({x:s.x,y:s.y,tex:SPR_BALL,sc:.24,vo:.38,flash:0,glow:true});
+  for(const b of booms){
+    const k=Math.min(BOOM_FRAMES.length-1,(b.t/b.life*BOOM_FRAMES.length)|0);
+    const grow=.55+(b.t/b.life)*.9;
+    drawList.push({x:b.x,y:b.y,tex:BOOM_FRAMES[k],sc:(b.scale||1)*grow,vo:.16,flash:0,glow:true});
+  }
   for(const d of drawList){ const dx=d.x-P.x, dy=d.y-P.y; d.d=dx*dx+dy*dy; }
   drawList.sort((a,b)=>b.d-a.d);
 
@@ -1312,7 +1554,7 @@ function update(dt){
   if(lvl.fog) updateFog();
   flowT-=dt; if(flowT<=0){ computeFlow(); flowT=.3; }
   for(const e of enemies) updateEnemy(e,dt);
-  updateShots(dt); updatePickups(); checkExit(dt);
+  updateShots(dt); updatePickups(); updateBooms(dt); checkExit(dt);
   // Effekte
   hurtT=Math.max(0,hurtT-dt); healT=Math.max(0,healT-dt); hitMarkT=Math.max(0,hitMarkT-dt);
   $('hurt').style.opacity=Math.min(1,hurtT*2.4); $('heal').style.opacity=Math.min(1,healT*2.4);
