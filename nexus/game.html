@@ -2,6 +2,20 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.16: 24 neue Achievements fuer die drei bisher nicht abgedeckten Foerderlinien/
+    Waehrungen RELAY, FLUX und AXIOM (je 7-9 Stueck: erstes Sammeln, Lifetime-Meilensteine,
+    erstes Rig, Vollausbau, sowie linienspezifisch Skillbaum-Start/Netzwerk-Boost bei Relay,
+    Resonanzspitze bei Flux, Bank-Trade-Meilensteine bei Axiom). Neue Tick-Funktion
+    platform.tick_achievements_group4() (eigener Cron-Job, gleicher 15-Min-Takt wie die drei
+    bestehenden Achievement-Ticks), damit die produktiv laufenden Bestandsfunktionen
+    unangetastet bleiben. ACH_CATEGORY_LABELS um relay/flux/axiom ergaenzt. Nebenbei Bugfix:
+    'geheim_sammler_der_sammler' zaehlte hart auf 127 (bereits veraltet ggue. den 128
+    Achievements vor diesem Insert, Beschreibungstext sprach sogar noch von 121) -- jetzt
+    dynamisch berechnet (Gesamtzahl minus sich selbst), damit kuenftige Erweiterungen sie
+    nicht wieder veralten lassen; Beschreibung entsprechend ohne feste Zahl. Direkt nach der
+    Migration einmal manuell laufen lassen: mehrere Achievements wurden rueckwirkend korrekt
+    an Bestandsspieler/Bots vergeben (u.a. 8x relay_erster_impuls, 1x axiom_erster_extrakt),
+    SIGIL-Belohnung floss korrekt. Bilanz-Check (core_check_balance) vor/nach exakt gleich.
   - v4.2.15: BUGFIX -- get_full_game_state() schlug mit "cannot pass more than 100 arguments
     to a function" (Postgres-Fehler 54023) fehl, kein Zustand mehr ladbar. Ursache: durch
     v4.2.14 (AXIOM-Bundling core_status/core_bank_status) kam die aeussere json_build_object()
@@ -7845,7 +7859,8 @@ const ACH_CATEGORY_LABELS = {
   cycle_markt: 'CYCLE-Handelsplatz', bank: 'Bank (STBL & BOND)', anch: 'ANCH-Sparen',
   prestige: 'Prestige', gov: 'Governance', vermoegen: 'Vermögens-Meilensteine',
   rigs: 'Rig-Ausbau & Sammlung', streak: 'Streak & Login', meta: 'Meta & Rangliste',
-  geheim: 'Geheime Erfolge', serie: 'Sammelserien'
+  geheim: 'Geheime Erfolge', serie: 'Sammelserien',
+  relay: 'Relay-Netzwerk', flux: 'Flux-Kondensat', axiom: 'AXIOM'
 };
 const ACH_TIER_LABELS = { bronze: 'Bronze', silber: 'Silber', gold: 'Gold', platin: 'Platin', geheim: 'Geheim' };
 
