@@ -1458,6 +1458,21 @@
   .skill-node button:disabled{ opacity:0.4; cursor:default; border-color:var(--line); color:var(--fg-faint); }
   .skill-node .sn-owned-tag{ font-size:11px; color:var(--up); font-weight:700; }
 
+  /* ---------- FORK — Bruchpfad (Farm-Sub-Tab) ---------- */
+  .fork-path-trail{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .fork-path-node{ display:flex; align-items:center; gap:6px; border:1px solid rgba(200,107,255,0.35); background:rgba(200,107,255,0.12); color:var(--violet); border-radius:999px; padding:6px 13px; font-size:12px; font-weight:600; }
+  .fork-path-node.root{ border-color:var(--line); background:var(--bg-alt); color:var(--fg-dim); }
+  .fork-path-arrow{ color:var(--fg-faint); font-size:13px; }
+  .fork-choices{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-top:12px; }
+  .fork-choice-card{ border:1px solid var(--line); border-radius:var(--radius); padding:16px; background:var(--bg-alt); cursor:pointer; transition:border-color .15s, transform .15s; }
+  .fork-choice-card:hover{ border-color:var(--violet); transform:translateY(-2px); }
+  .fork-choice-card h4{ font-family:'Space Grotesk'; font-size:14px; margin:0 0 6px; }
+  .fork-choice-card p{ font-size:11.5px; color:var(--fg-faint); line-height:1.5; margin:0 0 10px; }
+  .fork-choice-card .stats{ font-size:11px; color:var(--fg-dim); font-family:var(--mono); }
+  .fork-complete-box{ text-align:center; border:1px solid rgba(200,107,255,0.35); border-radius:var(--radius); padding:26px; background:rgba(200,107,255,0.06); }
+  .fork-complete-box h3{ font-size:17px; margin:0 0 8px; color:var(--violet); }
+  .fork-complete-box p{ font-size:12.5px; color:var(--fg-dim); }
+
   .rig-row, .shop-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 0; border-bottom:1px solid var(--line); }
   .rig-row:last-child, .shop-row:last-child{ border-bottom:none; }
   .rig-name{ font-family:'Space Grotesk'; font-weight:600; font-size:14px; }
@@ -2762,6 +2777,7 @@
       <button type="button" class="sub-tab" data-subtab="pulse"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 3,8 6,8 5,13 10,6 7,6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Pulse</button>
       <button type="button" class="sub-tab" data-subtab="relay"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="3" cy="4" r="1.1" fill="currentColor"/><circle cx="11" cy="4" r="1.1" fill="currentColor"/><circle cx="7" cy="11" r="1.1" fill="currentColor"/><line x1="3" y1="4" x2="11" y2="4" stroke="currentColor" stroke-width="0.9"/><line x1="3" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/><line x1="11" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/></svg></span> Relay</button>
       <button type="button" class="sub-tab" data-subtab="flux"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2 7C3 3.5 5 3.5 7 7C9 10.5 11 10.5 12 7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="7" r="1" fill="currentColor"/></svg></span> Flux</button>
+      <button type="button" class="sub-tab" data-subtab="fork"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2V6.2C4 7.5 5 8 7 8C9 8 10 7.5 10 6.2V2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="8" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="4" y1="2" x2="4" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="10" y1="2" x2="10" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Fork</button>
     </div>
 
     <div class="sub-tab-page active" id="farmSub-nrc">
@@ -2901,6 +2917,44 @@
         <h3>Umtausch &amp; Speicher <span class="tag">— liegt im Handelsplatz</span></h3>
         <div class="sm-hint">Flux tauschst du gegen Nova-Rift und parkst es verzinst im Flux-Speicher (FVLT). Beides findest du im Handelsplatz unter <b>Flux-Linie</b>.</div>
         <button type="button" class="btn btn-ghost" id="fluxToMarketBtn" style="margin-top:10px;">Zum Handelsplatz</button>
+      </div>
+    </div>
+
+    <div class="sub-tab-page" id="farmSub-fork">
+      <div class="panel">
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2V6.2C4 7.5 5 8 7 8C9 8 10 7.5 10 6.2V2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="8" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="4" y1="2" x2="4" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="10" y1="2" x2="10" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> FORK — Bruchpfad <span class="tag">— permanent, komplett unabhängig von NRC/Pulse/Relay/Flux</span></h3>
+        <div class="top-row">
+          <div class="stat-card">
+            <div class="label">FORK-Guthaben</div>
+            <div class="value coin-value"><span class="js-balance-fork">–</span></div>
+            <div class="sub" id="forkRateDisplay">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Insgesamt gefördert</div>
+            <div class="value coin-value"><span id="forkTotalDisplay">–</span></div>
+          </div>
+        </div>
+        <div class="sm-hint">Jede Gabel verlötet einen Ast und durchtrennt die anderen für immer — wähle mit Bedacht, es gibt kein Zurück. Sammelt automatisch im Hintergrund.</div>
+      </div>
+
+      <div class="panel">
+        <h3>Dein Pfad</h3>
+        <div class="fork-path-trail" id="forkPathTrail"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Deine Rigs <span class="tag">— alle Ebenen deines gewählten Pfads produzieren gleichzeitig</span></h3>
+        <div id="forkRigList"></div>
+      </div>
+
+      <div class="panel" id="forkGatePanel" style="display:none;">
+        <h3 id="forkGateTitle">Nächste Gabel</h3>
+        <div id="forkGateProgress"></div>
+        <div class="fork-choices" id="forkChoices"></div>
+      </div>
+
+      <div class="panel" id="forkCompletePanel" style="display:none;">
+        <div class="fork-complete-box" id="forkCompleteBox"></div>
       </div>
     </div>
     </div>
@@ -3983,6 +4037,21 @@
   </div>
 </div>
 
+<div id="forkChoiceModal" class="offline-modal-backdrop hidden">
+  <div class="offline-modal-card" style="text-align:left;">
+    <h3 id="forkModalTitle" style="text-align:center;">Ast verlöten?</h3>
+    <p id="forkModalDesc" style="font-size:12.5px; color:var(--fg-dim); line-height:1.6; margin:0 0 14px;"></p>
+    <div class="msg err" style="display:block; margin-bottom:14px;">⚡ Sobald du diesen Ast verlötest, schmilzt die Sicherung zu den anderen Pfaden durch. Diese Entscheidung kann <b>nicht rückgängig</b> gemacht werden.</div>
+    <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--fg-dim); margin-bottom:16px; cursor:pointer;">
+      <input type="checkbox" id="forkModalConfirmCheck"> Ich habe verstanden, dass dies endgültig ist.
+    </label>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button type="button" class="btn-ghost" id="forkModalCancelBtn" style="border-radius:8px; padding:9px 16px;">Abbrechen</button>
+      <button type="button" class="btn-block" id="forkModalConfirmBtn" style="width:auto; padding:9px 16px;" disabled>Verlöten</button>
+    </div>
+  </div>
+</div>
+
 <footer>
   <div class="wrap foot-inner">
     <div class="foot-brand">MC ORCA Games — NEXUS (Idle-Mining-Spiel)</div>
@@ -4670,6 +4739,7 @@ document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
     await applyRigSkinTheme();
     await applyCosmeticTheme();
     startPolling();
+    initForkOnce();
   } catch (err) {
     console.error('verifyOtp fehlgeschlagen:', err);
     showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
@@ -4700,6 +4770,7 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
     await applyRigSkinTheme();
     await applyCosmeticTheme();
     startPolling();
+    initForkOnce();
   } catch (err) {
     console.error('Gast-Login fehlgeschlagen:', err);
     showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
@@ -4718,6 +4789,7 @@ document.getElementById('guestLoginBtn').addEventListener('click', async () => {
     await applyRigSkinTheme();
     await applyCosmeticTheme();
     startPolling();
+    initForkOnce();
   }
 })();
 
@@ -6285,6 +6357,241 @@ window.buyRelaySkill = async function(nodeId, btnEl){
   showMsg('statusMsg', 'Relay-Skill freigeschaltet! <span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5C7.3 4 8 5.2 10.5 5.5C8 5.8 7.3 7 7 9.5C6.7 7 6 5.8 3.5 5.5C6 5.2 6.7 4 7 1.5Z" fill="currentColor"/><path d="M11.5 8.5C11.6 9.6 11.9 10 13 10.2C11.9 10.4 11.6 10.8 11.5 11.9C11.4 10.8 11.1 10.4 10 10.2C11.1 10 11.4 9.6 11.5 8.5Z" fill="currentColor" opacity="0.7"/></svg></span>', true);
   await loadEverything({ light: true });
 };
+
+/* ---------- FORK — Bruchpfad (eigener Baum, eigene RPCs unter crypto_farm.fork_*,
+   komplett unabhaengig vom grossen get_full_game_state-Bundle -- siehe FORK-Konzept.
+   Bewusst mit eigenem, leichten Poll-Zyklus statt Einbau in das ohnehin schon an die
+   Postgres-Argumentgrenze stossende gs-Objekt (siehe Kommentar bei applyFullGameState). ---------- */
+let forkTree = [];
+let forkTreeByKey = {};
+let forkStatus = null;
+let forkOwnedRigs = {};
+let forkPendingChoice = null;
+let forkTreeLoaded = false;
+let forkCollectTimer = null;
+
+async function loadForkTree(){
+  if (forkTreeLoaded) return;
+  const { data, error } = await sb.schema('crypto_farm').from('fork_rig_types').select('*').order('sort_order');
+  if (error) { console.warn('fork_rig_types fehlgeschlagen:', error); return; }
+  forkTree = data || [];
+  forkTreeByKey = {};
+  forkTree.forEach(n => { forkTreeByKey[n.path_key] = n; });
+  forkTreeLoaded = true;
+}
+
+function forkChildrenOf(pathKey){
+  return forkTree.filter(n => n.parent_key === pathKey).sort((a, b) => a.sort_order - b.sort_order);
+}
+
+async function loadForkStatus(){
+  const { data, error } = await sb.schema('crypto_farm').rpc('get_fork_status');
+  if (error) { console.warn('get_fork_status fehlgeschlagen:', error); return null; }
+  return data && data[0];
+}
+
+async function loadForkOwnedRigs(){
+  if (!currentUser) return {};
+  const { data, error } = await sb.schema('crypto_farm').from('fork_player_rigs').select('path_key, quantity').eq('player_id', currentUser.id);
+  if (error) { console.warn('fork_player_rigs fehlgeschlagen:', error); return {}; }
+  const map = {};
+  (data || []).forEach(r => { map[r.path_key] = r.quantity; });
+  return map;
+}
+
+function forkCurrentNodeKey(status){
+  const depth = (status.locked_path || []).length;
+  return depth === 0 ? 'root' : status.locked_path[depth - 1];
+}
+
+function renderForkPathTrail(status){
+  const el = document.getElementById('forkPathTrail');
+  if (!el) return;
+  el.innerHTML = '';
+  const rootChip = document.createElement('div');
+  rootChip.className = 'fork-path-node root';
+  rootChip.textContent = 'FORK-Kern';
+  el.appendChild(rootChip);
+  (status.locked_path || []).forEach(pk => {
+    const arrow = document.createElement('span');
+    arrow.className = 'fork-path-arrow';
+    arrow.textContent = '→';
+    el.appendChild(arrow);
+    const chip = document.createElement('div');
+    chip.className = 'fork-path-node';
+    chip.textContent = forkTreeByKey[pk] ? forkTreeByKey[pk].name : pk;
+    el.appendChild(chip);
+  });
+}
+
+function forkRigRowEl(node, qty){
+  const buyable = node.base_cost !== null && node.base_cost !== undefined;
+  const cost1 = buyable ? rigCost(node, qty || 0, 1) : null;
+  const cost10 = buyable ? rigCost(node, qty || 0, 10) : null;
+  const row = document.createElement('div');
+  row.className = 'rig-row';
+  row.innerHTML = `
+    <div class="rig-row-main">
+      <div class="rig-icon-tile"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2V6.2C4 7.5 5 8 7 8C9 8 10 7.5 10 6.2V2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="8" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span></div>
+      <div>
+        <div class="rig-name">${node.name}${buyable ? ` <span class="qty-badge">×${qty || 0}</span>` : ''}</div>
+        <div class="rig-desc">${node.description || ''}</div>
+        <div class="rig-meta">${fmtCoin(node.base_rate)} FORK/s pro Einheit${buyable ? '' : ' (immer aktiv)'}</div>
+      </div>
+    </div>
+    ${buyable ? `
+    <div class="buy-btn-group">
+      <button type="button" data-qty="1">+1 (${fmtCoin(cost1)} FORK)</button>
+      <button type="button" data-qty="10">+10 (${fmtCoin(cost10)} FORK)</button>
+    </div>` : ''}`;
+  if (buyable) {
+    row.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => buyForkRig(node.path_key, parseInt(btn.dataset.qty, 10), btn));
+    });
+  }
+  return row;
+}
+
+function renderForkOwnedRigs(status, owned){
+  const el = document.getElementById('forkRigList');
+  if (!el) return;
+  el.innerHTML = '';
+  el.appendChild(forkRigRowEl({ path_key: 'root', name: 'FORK-Kern (Baseline)', description: 'Automatischer Grundtrickle, kein Kauf nötig.', base_rate: 0.05, base_cost: null }, null));
+  (status.locked_path || []).forEach(pk => {
+    const node = forkTreeByKey[pk];
+    if (!node) return;
+    el.appendChild(forkRigRowEl(node, owned[pk] || 0));
+  });
+}
+
+window.buyForkRig = async function(pathKey, qty, btnEl){
+  btnEl.disabled = true;
+  const { error } = await sb.schema('crypto_farm').rpc('buy_fork_rig', { p_path_key: pathKey, p_quantity: qty });
+  btnEl.disabled = false;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  showMsg('statusMsg', `Gekauft: ${qty}× für den Bruchpfad.`, true);
+  spawnFly('-FORK', btnEl, false);
+  await refreshFork();
+};
+
+function renderForkGateAndChoices(status){
+  const gatePanel = document.getElementById('forkGatePanel');
+  const completePanel = document.getElementById('forkCompletePanel');
+  const gateTitle = document.getElementById('forkGateTitle');
+  const progressEl = document.getElementById('forkGateProgress');
+  const choicesEl = document.getElementById('forkChoices');
+  if (!gatePanel || !completePanel) return;
+
+  const depth = (status.locked_path || []).length;
+
+  if (depth >= 5) {
+    gatePanel.style.display = 'none';
+    completePanel.style.display = 'block';
+    const last = forkTreeByKey[status.locked_path[4]];
+    document.getElementById('forkCompleteBox').innerHTML = `
+      <h3>Pfad vollständig verlötet</h3>
+      <p>Du hast dich für <b>${last ? last.name : '?'}</b> entschieden. Dein Baum ist abgeschlossen — alle anderen Äste bleiben für immer durchtrennt.</p>`;
+    return;
+  }
+  completePanel.style.display = 'none';
+  gatePanel.style.display = 'block';
+
+  const rigsOk = status.current_rigs_owned >= status.next_gate_min_rigs;
+  const minedOk = status.mined_since_branch >= status.next_gate_min_mined;
+  const ready = rigsOk && minedOk;
+  const rigsPct = status.next_gate_min_rigs > 0 ? Math.min(100, 100 * status.current_rigs_owned / status.next_gate_min_rigs) : 100;
+  const minedPct = Math.min(100, 100 * status.mined_since_branch / status.next_gate_min_mined);
+
+  gateTitle.textContent = ready ? 'Nächste Gabel ist freigeschaltet' : 'Voraussetzung für die nächste Gabel';
+  progressEl.innerHTML = `
+    <div class="prestige-progress" style="margin-bottom:${status.next_gate_min_rigs > 0 ? '10px' : '0'};">
+      <div class="prestige-progress-track"><div class="prestige-progress-fill" style="width:${minedPct}%"></div></div>
+      <div class="prestige-progress-label">FORK auf diesem Ast gefördert: ${fmtCoin(status.mined_since_branch)} / ${fmtCoin(status.next_gate_min_mined)}</div>
+    </div>
+    ${status.next_gate_min_rigs > 0 ? `
+    <div class="prestige-progress">
+      <div class="prestige-progress-track"><div class="prestige-progress-fill" style="width:${rigsPct}%"></div></div>
+      <div class="prestige-progress-label">Rigs auf aktuellem Knoten: ${status.current_rigs_owned} / ${status.next_gate_min_rigs}</div>
+    </div>` : ''}`;
+
+  choicesEl.innerHTML = '';
+  if (!ready) return;
+
+  const curKey = forkCurrentNodeKey(status);
+  const kids = forkChildrenOf(curKey);
+  if (kids.length === 0) return;
+
+  kids.forEach(node => {
+    const card = document.createElement('div');
+    card.className = 'fork-choice-card';
+    const isBuyable = node.base_cost !== null && node.base_cost !== undefined;
+    card.innerHTML = `
+      <h4>${node.name}</h4>
+      <p>${node.description || ''}</p>
+      <div class="stats">${isBuyable ? ('Rate ' + fmtCoin(node.base_rate) + ' FORK/s · Kosten ab ' + fmtCoin(node.base_cost) + ' FORK') : 'Permanenter Perk, kein Kauf'}</div>`;
+    card.addEventListener('click', () => forkOpenChoiceModal(node));
+    choicesEl.appendChild(card);
+  });
+}
+
+function forkOpenChoiceModal(node){
+  forkPendingChoice = node;
+  document.getElementById('forkModalTitle').textContent = node.name + ' verlöten?';
+  document.getElementById('forkModalDesc').textContent = node.description || '';
+  document.getElementById('forkModalConfirmCheck').checked = false;
+  document.getElementById('forkModalConfirmBtn').disabled = true;
+  document.getElementById('forkChoiceModal').classList.remove('hidden');
+}
+document.getElementById('forkModalCancelBtn').addEventListener('click', () => {
+  document.getElementById('forkChoiceModal').classList.add('hidden');
+  forkPendingChoice = null;
+});
+document.getElementById('forkModalConfirmCheck').addEventListener('change', e => {
+  document.getElementById('forkModalConfirmBtn').disabled = !e.target.checked;
+});
+document.getElementById('forkModalConfirmBtn').addEventListener('click', async () => {
+  if (!forkPendingChoice) return;
+  const node = forkPendingChoice;
+  const btn = document.getElementById('forkModalConfirmBtn');
+  btn.disabled = true;
+  const { error } = await sb.schema('crypto_farm').rpc('fork_choose_branch', { p_path_key: node.path_key });
+  if (error) { showMsg('statusMsg', error.message, false); btn.disabled = false; return; }
+  showMsg('statusMsg', 'Verlötet: ' + node.name + ' — kein Weg zurück.', true);
+  document.getElementById('forkChoiceModal').classList.add('hidden');
+  forkPendingChoice = null;
+  await refreshFork();
+});
+
+async function refreshFork(){
+  if (!currentUser) return;
+  await loadForkTree();
+  forkStatus = await loadForkStatus();
+  if (!forkStatus) return;
+  forkOwnedRigs = await loadForkOwnedRigs();
+
+  document.querySelectorAll('.js-balance-fork').forEach(el => { el.textContent = fmtCoin(forkStatus.fork_balance) + ' FORK'; });
+  const rateEl = document.getElementById('forkRateDisplay');
+  if (rateEl) rateEl.textContent = '+' + fmtCoin(forkStatus.production_rate * 3600) + ' FORK/Std.';
+  const totalEl = document.getElementById('forkTotalDisplay');
+  if (totalEl) totalEl.textContent = fmtCoin(forkStatus.total_mined) + ' FORK';
+
+  renderForkPathTrail(forkStatus);
+  renderForkOwnedRigs(forkStatus, forkOwnedRigs);
+  renderForkGateAndChoices(forkStatus);
+}
+
+/* Wird einmal pro Login-Session aufgerufen (siehe die drei Login-Pfade oben). Startet
+   danach einen eigenen 20s-Hintergrund-Kreislauf (sammelt automatisch, kein manueller
+   Button noetig -- analog zum Pulse-Ambient-Feld), unabhaengig davon ob der Fork-Sub-Tab
+   gerade sichtbar ist. */
+async function initForkOnce(){
+  if (forkCollectTimer) { refreshFork(); return; }
+  await refreshFork();
+  forkCollectTimer = setInterval(async () => {
+    await sb.schema('crypto_farm').rpc('collect_fork_earnings').catch(() => {});
+    await refreshFork();
+  }, 20000);
+}
 
 /* ---------- Pulse-Rigs (eigener, kleinerer Rig-Baum, separat von Nova-Rift-Rigs) ---------- */
 function renderPulseRigs(){
