@@ -2,6 +2,27 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.14: AXIOM-Tab (Schritt 4 aus HANDOFF_core_2026-09-21.md). Neuer Sub-Tab "AXIOM" im
+    Farm-Bereich, nach dem Muster von Relay/Pulse gebaut. Backend-seitig zwei rein additive
+    Migrationen: get_core_status() liefert jetzt zusaetzlich base_cost/cost_growth pro Rig
+    (fuers +10-Kauf-Preview, wie bei den anderen Foerderlinien ueblich), und
+    get_full_game_state(p_light) buendelt core_status/core_bank_status mit rein (kein
+    separater Request noetig, applyAxiomState() liest wie applyRelayState() direkt aus dem
+    gs-Objekt). Farm-Ansicht: Guthaben, eigener Anteil/Rate, Foerderfortschritt (mined_pct),
+    Halving-Countdown, Vorrat/Reserve -- KEIN Einsammeln-Button, weil crypto_farm.tick_core_
+    emission() serverseitig per 5-Min.-Cron direkt aufs Wallet auszahlt. Ein-Rig-Einstieg
+    "Axiom-Extraktor" (2.000 MOGC, kommt bereits mit owned/next_cost aus get_core_status()
+    gemergt -- anders als bei Relay kein separates rig_types/player_rigs-Paar). Bank-Ansicht:
+    ein Dropdown statt 23 statischer Panels (waere bei sm-trade-box-Pattern viel zu lang
+    geworden), zeigt Kurs/Gebuehr/eigenen Bestand der gewaehlten Waehrung, Kauf/Verkauf ueber
+    platform.core_bank_buy/core_bank_sell. Alles noch UNSICHTBAR fuer Spieler, solange
+    core_config.enabled=false ist (Buttons zeigen "noch nicht freigeschaltet" / sind disabled)
+    -- Schritt 5 (Einschalten) steht noch aus. Ausserdem get_global_currency_totals() um
+    AXIOM ergaenzt (globale Waehrungs-Uebersicht in nexus/global.html), ebenfalls additiv.
+    Alle 12 Script-Bloecke nach der Aenderung per Node-Parse geprueft, HTML-Tag-Balance
+    fuers gesamte File automatisiert verifiziert (beides fehlerfrei). Bilanz-Check
+    (core_check_balance) vor und nach den Migrationen exakt gleich, da beide Aenderungen
+    rein lesende Funktionen betreffen.
   - v4.2.13: BUGFIX -- NRC-Foerderrate zeigte ueberall "+0.00/s", obwohl Rigs/Prestige/Corp/Booster
     aktiv waren (Basis-Zeile darunter stimmte, nur die Hauptzahl war 0). Ursache: die globale
     Variable currentRate wird seit v4.2.3 (Umstellung auf Server-Rate) nirgendwo mehr zugewiesen --
@@ -2778,6 +2799,7 @@
       <button type="button" class="sub-tab" data-subtab="relay"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="3" cy="4" r="1.1" fill="currentColor"/><circle cx="11" cy="4" r="1.1" fill="currentColor"/><circle cx="7" cy="11" r="1.1" fill="currentColor"/><line x1="3" y1="4" x2="11" y2="4" stroke="currentColor" stroke-width="0.9"/><line x1="3" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/><line x1="11" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/></svg></span> Relay</button>
       <button type="button" class="sub-tab" data-subtab="flux"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M2 7C3 3.5 5 3.5 7 7C9 10.5 11 10.5 12 7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="7" r="1" fill="currentColor"/></svg></span> Flux</button>
       <button type="button" class="sub-tab" data-subtab="fork"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2V6.2C4 7.5 5 8 7 8C9 8 10 7.5 10 6.2V2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="8" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="4" y1="2" x2="4" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="10" y1="2" x2="10" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Fork</button>
+      <button type="button" class="sub-tab" data-subtab="axiom"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M7 4L10 7L7 10L4 7Z" fill="currentColor" opacity="0.85"/></svg></span> AXIOM</button>
     </div>
 
     <div class="sub-tab-page active" id="farmSub-nrc">
@@ -2955,6 +2977,56 @@
 
       <div class="panel" id="forkCompletePanel" style="display:none;">
         <div class="fork-complete-box" id="forkCompleteBox"></div>
+      </div>
+    </div>
+
+    <div class="sub-tab-page" id="farmSub-axiom">
+      <div class="panel">
+        <h3><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M7 4L10 7L7 10L4 7Z" fill="currentColor" opacity="0.85"/></svg></span> AXIOM — Netzwerk-Topf <span class="tag">— knappe Leitwährung, harte Obergrenze 21.000.000, nichts wird je vernichtet</span></h3>
+        <div class="top-row">
+          <div class="stat-card">
+            <div class="label">AXIOM</div>
+            <div class="value coin-value"><span class="js-balance-axiom">–</span></div>
+            <div class="sub" id="axiomOwnRateDisplay">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Gefördert</div>
+            <div class="value" id="axiomMinedPctDisplay">–</div>
+            <div class="sub" id="axiomHalvingDisplay">–</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Netzwerk-Rate</div>
+            <div class="value" id="axiomNetworkRateDisplay">–</div>
+            <div class="sub" id="axiomShareDisplay">–</div>
+          </div>
+        </div>
+        <div class="sm-hint" id="axiomSupplyHint">–</div>
+        <div class="sm-hint" id="axiomDisabledHint" style="display:none;">Die AXIOM-Farm ist noch nicht freigeschaltet.</div>
+      </div>
+
+      <div class="panel">
+        <h3>Axiom-Extraktoren <span class="tag">— Kosten in MOGC, Auszahlung läuft automatisch (alle 5 Min.), kein manuelles Einsammeln nötig</span></h3>
+        <div id="axiomRigList"></div>
+      </div>
+
+      <div class="panel">
+        <h3>AXIOM-Bank <span class="tag">— tauschbar gegen alle freigegebenen Währungen, beweglicher Kurs, 3&nbsp;% Gebühr je Richtung</span></h3>
+        <div class="sm-hint">Bank-Reserve: <b><span id="axiomBankReserveDisplay">–</span> AXIOM</b> · dein AXIOM-Guthaben: <b><span id="axiomBankMyAxiomDisplay">–</span></b>. Der Kurs koppelt sich an die aktuelle netzweite AXIOM-Ausgabe — ein Halving verdoppelt ihn automatisch.</div>
+        <div class="sm-trade-box" style="margin-top:10px;">
+          <select id="axiomBankPairSelect" style="flex:1; min-width:200px; background:var(--panel); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px 10px;"></select>
+        </div>
+        <div class="sm-hint" id="axiomBankRateDisplay">–</div>
+        <div class="sm-trade-box">
+          <input type="number" id="axiomBankBuyInput" min="0" step="any" placeholder="AXIOM einsetzen">
+          <button type="button" class="btn btn-ghost" id="axiomBankBuyMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="axiomBankBuyBtn">Kaufen</button>
+        </div>
+        <div class="sm-trade-box">
+          <input type="number" id="axiomBankSellInput" min="0" step="any" placeholder="Menge verkaufen">
+          <button type="button" class="btn btn-ghost" id="axiomBankSellMaxBtn">Alles</button>
+          <button type="button" class="btn btn-primary" id="axiomBankSellBtn">Verkaufen</button>
+        </div>
+        <div class="sm-hint" id="axiomBankDisabledHint" style="display:none;">Die AXIOM-Bank ist noch nicht freigeschaltet.</div>
       </div>
     </div>
     </div>
@@ -4285,6 +4357,16 @@ let relayPlayerRigs = {};
 let relaySkillNodes = [];
 let ownedRelaySkillIds = new Set();
 
+/* ---------- Farm-Tab (Reiter AXIOM): knappe Leitwaehrung, netzweiter Foerder-Topf,
+   siehe HANDOFF_core_2026-09-21.md. Anders als Relay/NRC/Pulse/Flux gibt es hier kein
+   manuelles "Einsammeln" -- die Auszahlung passiert serverseitig direkt beim 5-Min.-Cron
+   (crypto_farm.tick_core_emission), das Frontend zeigt nur den Stand an (get_core_status()).
+   Rig-Liste kommt bereits serverseitig mit owned/next_cost gemergt (kein separates
+   *_rig_types/*_player_rigs-Paar wie bei Relay noetig). */
+let axiomStatus = null;
+let axiomBankStatus = null;
+let axiomBankSelectedSymbol = null;
+
 /* ---------- Wallet-Tab: kompakte Zweit-Charts fuer ALLE Sprungmärkte/Ressourcen
    (gleiche Daten wie oben, nur eigene Canvas-Instanzen, da Chart.js pro
    Canvas genau ein Chart braucht -- daher keine Wiederverwendung moeglich). */
@@ -5305,6 +5387,7 @@ async function applyFullGameState(gs){
 
   applyPulseState(gs);
   applyRelayState(gs);
+  applyAxiomState(gs);
   applyFluxState(gs);
   applyFluxMarket(gs);
   applySprungmaerkteState(gs);
@@ -5797,6 +5880,202 @@ function applyRelayState(gs){
 
   updateRelayBoostCostPreview();
 }
+
+/* ---------- AXIOM-Tab: knappe Leitwaehrung (Netzwerk-Topf + Bank), siehe
+   HANDOFF_core_2026-09-21.md. Liest komplett aus dem gebuendelten gs-Objekt
+   (core_status/core_bank_status), genau wie Pulse/Relay. */
+function applyAxiomState(gs){
+  axiomStatus = gs.core_status || null;
+  const cs = axiomStatus;
+  const enabled = !!cs?.enabled;
+
+  document.querySelectorAll('.js-balance-axiom').forEach(el => { el.textContent = fmtCoin(Number(cs?.my_balance ?? 0)) + ' AXIOM'; });
+
+  const ownRateEl = document.getElementById('axiomOwnRateDisplay');
+  if (ownRateEl) {
+    const myRate = Number(cs?.my_rate_per_hour ?? 0);
+    const sharePct = Number(cs?.my_share ?? 0) * 100;
+    ownRateEl.textContent = enabled
+      ? `+${fmtCoin(myRate)} AXIOM/h · ${fl2(sharePct)} % Netzwerk-Anteil`
+      : 'noch nicht freigeschaltet';
+  }
+
+  const minedPctEl = document.getElementById('axiomMinedPctDisplay');
+  const minedPct = Number(cs?.mined_pct ?? 0);
+  if (minedPctEl) minedPctEl.textContent = `${fl2(minedPct)} %`;
+  const halvingEl = document.getElementById('axiomHalvingDisplay');
+  if (halvingEl) {
+    if (cs?.is_tail_phase) {
+      halvingEl.textContent = 'Tail-Phase (feste Rate)';
+    } else if (cs?.core_until_next_halving != null) {
+      halvingEl.textContent = `${fmtCoin(Number(cs.core_until_next_halving))} AXIOM bis zum nächsten Halving`;
+    } else {
+      halvingEl.textContent = '–';
+    }
+  }
+
+  const netRateEl = document.getElementById('axiomNetworkRateDisplay');
+  if (netRateEl) netRateEl.textContent = enabled ? `${fmtCoin(Number(cs?.rate_per_hour ?? 0))} AXIOM/h netzweit` : 'gestoppt';
+  const shareEl = document.getElementById('axiomShareDisplay');
+  if (shareEl) shareEl.textContent = `Stufe ${cs?.halving_stage ?? 0} · Umlauf ${fmtCoin(Number(cs?.circulating ?? 0))} AXIOM`;
+
+  const supplyHintEl = document.getElementById('axiomSupplyHint');
+  if (supplyHintEl) {
+    supplyHintEl.textContent = `Vorrat: ${fmtCoin(Number(cs?.remaining_supply ?? 0))} von ${fmtCoin(Number(cs?.cap ?? 21000000))} AXIOM übrig · Bank-Reserve: ${fmtCoin(Number(cs?.reserve_balance ?? 0))} AXIOM`;
+  }
+  const disabledHintEl = document.getElementById('axiomDisabledHint');
+  if (disabledHintEl) disabledHintEl.style.display = enabled ? 'none' : 'block';
+
+  renderAxiomRigs();
+
+  axiomBankStatus = gs.core_bank_status || null;
+  renderAxiomBank();
+}
+
+/* ---------- AXIOM-Rig ("Axiom-Extraktor"): einfacher Ein-Rig-Einstieg, kommt bereits
+   mit owned/next_cost/base_cost/cost_growth gemergt aus get_core_status() -- kein
+   separates rig_types/player_rigs-Paar wie bei Relay noetig. */
+function renderAxiomRigs(){
+  const el = document.getElementById('axiomRigList');
+  if (!el) return;
+  el.innerHTML = '';
+  const rigs = axiomStatus?.rigs || [];
+  const enabled = !!axiomStatus?.enabled;
+  rigs.forEach(rt => {
+    const owned = Number(rt.owned || 0);
+    const growth = Number(rt.cost_growth);
+    const cost1 = Number(rt.next_cost);
+    const cost10 = Number(rt.base_cost) * Math.pow(growth, owned) * (Math.pow(growth, 10) - 1) / (growth - 1);
+    const row = document.createElement('div');
+    row.className = 'rig-row';
+    row.innerHTML = `
+      <div class="rig-row-main">
+        <div class="rig-icon-tile"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M7 4L10 7L7 10L4 7Z" fill="currentColor" opacity="0.85"/></svg></span></div>
+        <div>
+          <div class="rig-name">${rt.name} <span class="qty-badge">×${owned}</span></div>
+          <div class="rig-desc">${rt.description ?? ''}</div>
+          <div class="rig-meta">${Number(rt.base_rate)} Gewichtseinheit(en) im Netzwerk-Topf pro Extraktor</div>
+        </div>
+      </div>
+      <div class="buy-btn-group">
+        <button data-qty="1" ${enabled ? '' : 'disabled'}>+1 (${fmtCoin(cost1)} ${rt.cost_symbol})</button>
+        <button data-qty="10" ${enabled ? '' : 'disabled'}>+10 (${fmtCoin(cost10)} ${rt.cost_symbol})</button>
+      </div>`;
+    row.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => buyAxiomRig(rt.id, parseInt(btn.dataset.qty, 10), btn));
+    });
+    el.appendChild(row);
+  });
+}
+
+window.buyAxiomRig = async function(rigTypeId, qty, btnEl){
+  const { data, error } = await sb.schema('crypto_farm').rpc('buy_core_rig', { p_rig_type_id: rigTypeId, p_quantity: qty });
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${qty}× Axiom-Extraktor für ${fmtCoin(row?.total_cost ?? 0)} MOGC.`, true);
+  spawnFly('-' + fmtCoin(row?.total_cost ?? 0) + ' MOGC', btnEl, false);
+  await loadEverything({ light: true });
+};
+
+/* ---------- AXIOM-Bank: ein Dropdown statt 23 statischer Panels, siehe
+   platform.core_bank_buy/core_bank_sell. Kurse/Gebuehr kommen fertig aus
+   get_core_bank_status(), das Frontend rechnet nichts nach. */
+function renderAxiomBank(){
+  const bs = axiomBankStatus;
+  const enabled = !!bs?.enabled;
+  const reserveEl = document.getElementById('axiomBankReserveDisplay');
+  if (reserveEl) reserveEl.textContent = fmtCoin(Number(bs?.bank_reserve ?? 0));
+  const myAxiomEl = document.getElementById('axiomBankMyAxiomDisplay');
+  if (myAxiomEl) myAxiomEl.textContent = fmtCoin(Number(bs?.my_axiom ?? 0)) + ' AXIOM';
+
+  const disabledHintEl = document.getElementById('axiomBankDisabledHint');
+  if (disabledHintEl) disabledHintEl.style.display = enabled ? 'none' : 'block';
+  ['axiomBankBuyBtn', 'axiomBankSellBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = !enabled;
+  });
+
+  const pairs = bs?.pairs || [];
+  const select = document.getElementById('axiomBankPairSelect');
+  if (select) {
+    const prevSelected = axiomBankSelectedSymbol;
+    const wanted = (prevSelected && pairs.some(p => p.symbol === prevSelected)) ? prevSelected : (pairs[0]?.symbol ?? null);
+    if (select.dataset.builtFor !== pairs.map(p => p.symbol).join(',')) {
+      select.innerHTML = pairs.map(p => `<option value="${p.symbol}">${p.symbol} — ${p.name}</option>`).join('');
+      select.dataset.builtFor = pairs.map(p => p.symbol).join(',');
+    }
+    if (wanted) select.value = wanted;
+    axiomBankSelectedSymbol = wanted;
+  }
+  updateAxiomBankRateDisplay();
+}
+
+function currentAxiomBankPair(){
+  const symbol = axiomBankSelectedSymbol || document.getElementById('axiomBankPairSelect')?.value;
+  return (axiomBankStatus?.pairs || []).find(p => p.symbol === symbol) || null;
+}
+
+function updateAxiomBankRateDisplay(){
+  const pair = currentAxiomBankPair();
+  const rateEl = document.getElementById('axiomBankRateDisplay');
+  if (!rateEl) return;
+  if (!pair) { rateEl.textContent = '–'; return; }
+  const feePct = Number(axiomBankStatus?.fee_pct ?? 0) * 100;
+  rateEl.textContent = `1 AXIOM ≈ ${fmtCoin(Number(pair.buy_per_axiom))} ${pair.symbol} beim Kauf · 1 ${pair.symbol} ≈ ${fmtCoin(Number(pair.sell_axiom_per_unit))} AXIOM beim Verkauf (${fl2(feePct)} % Gebühr je Richtung bereits eingerechnet) · dein Bestand: ${fmtCoin(Number(pair.my_balance ?? 0))} ${pair.symbol}`;
+}
+
+const axiomBankPairSelectEl = document.getElementById('axiomBankPairSelect');
+if (axiomBankPairSelectEl) {
+  axiomBankPairSelectEl.addEventListener('change', () => {
+    axiomBankSelectedSymbol = axiomBankPairSelectEl.value;
+    updateAxiomBankRateDisplay();
+  });
+}
+
+document.getElementById('axiomBankBuyMaxBtn').addEventListener('click', () => {
+  const bal = Number(axiomBankStatus?.my_axiom ?? 0);
+  document.getElementById('axiomBankBuyInput').value = floor2(bal) > 0 ? floor2(bal) : '';
+});
+document.getElementById('axiomBankBuyBtn').addEventListener('click', async () => {
+  const pair = currentAxiomBankPair();
+  if (!pair) { showMsg('statusMsg', 'Bitte eine Währung auswählen.', false); return; }
+  const input = document.getElementById('axiomBankBuyInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', 'Bitte einen gültigen AXIOM-Betrag eingeben.', false); return; }
+  const btn = document.getElementById('axiomBankBuyBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('core_bank_buy', { p_symbol: pair.symbol, p_axiom: amount });
+  btn.disabled = !axiomBankStatus?.enabled;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Gekauft: ${fmtCoin(row?.received ?? 0)} ${pair.symbol} für ${fmtCoin(amount)} AXIOM.`, true, 'coin');
+  input.value = '';
+  spawnFly('+' + fmtCoin(row?.received ?? 0) + ' ' + pair.symbol, btn, true);
+  await loadEverything({ light: true });
+});
+
+document.getElementById('axiomBankSellMaxBtn').addEventListener('click', () => {
+  const pair = currentAxiomBankPair();
+  const bal = Number(pair?.my_balance ?? 0);
+  document.getElementById('axiomBankSellInput').value = floor2(bal) > 0 ? floor2(bal) : '';
+});
+document.getElementById('axiomBankSellBtn').addEventListener('click', async () => {
+  const pair = currentAxiomBankPair();
+  if (!pair) { showMsg('statusMsg', 'Bitte eine Währung auswählen.', false); return; }
+  const input = document.getElementById('axiomBankSellInput');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { showMsg('statusMsg', `Bitte eine gültige ${pair.symbol}-Menge eingeben.`, false); return; }
+  const btn = document.getElementById('axiomBankSellBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.schema('platform').rpc('core_bank_sell', { p_symbol: pair.symbol, p_amount: amount });
+  btn.disabled = !axiomBankStatus?.enabled;
+  if (error) { showMsg('statusMsg', error.message, false); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  showMsg('statusMsg', `Verkauft: ${fmtCoin(amount)} ${pair.symbol} für ${fmtCoin(row?.received_axiom ?? 0)} AXIOM.`, true, 'coin');
+  input.value = '';
+  spawnFly('+' + fmtCoin(row?.received_axiom ?? 0) + ' AXIOM', btn, true);
+  await loadEverything({ light: true });
+});
 
 /* ============================================================
    Handelsplatz (v4.2)
