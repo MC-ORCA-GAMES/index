@@ -2,22 +2,34 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
-  - v4.2.17: Wallet-Tab zeigte AXIOM, FORK und COMET nirgends an, obwohl alle drei laengst
-    echte Spieler-Guthaben sind (Jens' Verdacht bestaetigt). Drei neue Karten im kompakten
-    "Sprungmaerkte"-Grid ergaenzt (js-balance-axiom/-fork/-comet, gleiches Markup-Muster wie
-    FLUX/FVLT) -- rein additiv, keine Backend-Migration noetig: AXIOM/FORK haengen bereits an
-    bestehenden Hintergrund-Refreshzyklen (applyAxiomState() laeuft ueber den globalen
-    get_full_game_state-Poll, refreshFork() ueber den eigenen 20s-Fork-Kreislauf), beide
-    unabhaengig vom aktiven Tab. Dabei Bugfix in loadSeasonalEvent(): COMET-Anzeige nutzte
-    document.querySelector('.js-balance-comet') (nur EIN Element), dadurch waere die neue
-    Wallet-Karte leer geblieben -- jetzt querySelectorAll() wie bei den anderen Waehrungen.
-    Ausserdem: Wallet-Tab-Oeffnen stoesst jetzt zusaetzlich loadSeasonalEvent() an, weil das
-    bisher nur beim Oeffnen des Event-Tabs lief und COMET sonst erst nach einem Event-Tab-
-    Besuch aktuell gewesen waere. Bewusst KEINE Verlaufs-Charts fuer die drei ergaenzt, da
-    get_my_wallet_history()/get_my_currency_history() diese Spalten nicht liefern -- waere
-    eine echte Backend-Migration, noch nicht umgesetzt. PRSM bleibt aussen vor: lebt nicht in
-    NEXUS/crypto_farm, sondern komplett im platform-Schema (get_cosmetic_shop() in profil.html)
-    -- gehoert technisch eher zur Skin-Wallet auf der Hub-Seite als zum NEXUS-Wallet-Tab.
+  - v4.2.19: Kontoauszug (Wallet-Ledger) fuer NRC/MOGC/STBL. Neue Tabelle platform.wallet_ledger
+    + zwei Trigger (auf platform.wallets fuer NRC/MOGC, auf platform.wallet_balances generisch
+    fuer alle anderen Waehrungen inkl. STBL) protokollieren ab jetzt jede Saldo-Aenderung mit
+    Richtung (in/aus), Betrag, Saldo danach und Grund. Kein rueckwirkendes Backfill moeglich --
+    nur neue Bewegungen ab Migration. Grund-Text kommt ueber set_config('platform.ledger_reason',
+    ..., true) direkt vor der jeweiligen Buchung (bislang befuellt in sell_nova_rift,
+    buy_core_rig, deposit_to_stable, withdraw_from_stable, core_bank_buy/sell); alle anderen
+    Buchungen fallen auf den generischen Text "Guthabenänderung" zurueck, bis weitere Stellen
+    nachgezogen werden. Neue RPC platform.get_my_wallet_ledger(symbol, limit, before) fuer den
+    eigenen, paginierten Auszug (kein direkter Tabellenzugriff, wie bei core_ledger). Neues Panel
+    "Kontoauszug" im Wallet-Tab mit Waehrungs-Chips (NRC/MOGC/STBL) + "Weitere laden". Technisch
+    erfassen die Trigger bereits ALLE Waehrungen (auch AXIOM/FORK/COMET/PRSM/VOLT/...) -- im
+    Frontend aber bewusst erstmal nur die drei Test-Waehrungen sichtbar, auf Wunsch. Ausweitung
+    auf weitere Coins braucht kein neues Backend mehr, nur weitere Chips + ggf. mehr
+    set_config-Reason-Stellen fuer bessere Buchungstexte.
+  - v4.2.18: Korrektur zu v4.2.17 -- die AXIOM/FORK/COMET-Karten waren versehentlich nur im
+    "Sprungmaerkte"-Grid des UEBERSICHT-Tabs gelandet, nicht im eigentlichen Wallet-Tab
+    (tabPage-wallet). Jetzt im echten Wallet-Tab-Grid nachgetragen (gleiche Karten wie im
+    Uebersicht-Grid). Ausserdem PRSM (Prisma-Splitter) ergaenzt, wie von Jens gewuenscht: PRSM
+    ist zwar technisch eine platform-Schema-Waehrung (Skin-Shop, siehe get_my_wallet_balances()
+    in profil.html) und lebt nicht in crypto_farm wie die anderen NEXUS-Coins -- wird aber laut
+    Jens ausschliesslich in NEXUS verdient (Tagesaufgaben), gehoert also inhaltlich ins NEXUS-
+    Wallet. Neuer schlanker Loader loadPrsmBalance() ruft platform.get_my_wallet_balances() auf
+    und befuellt .js-balance-prsm (Uebersicht- + Wallet-Tab-Karte), angestossen beim Oeffnen von
+    Wallet- und Uebersicht-Tab -- kein Dauerpolling, gleiche Egress-Sparsamkeit wie beim Rest
+    des Wallet-Tabs. Bewusst KEINE Verlaufs-Charts fuer AXIOM/FORK/COMET/PRSM, da
+    get_my_wallet_history()/get_my_currency_history() diese Spalten nicht liefern -- waere eine
+    echte Backend-Migration, noch nicht umgesetzt.
   - v4.2.16: 24 neue Achievements fuer die drei bisher nicht abgedeckten Foerderlinien/
     Waehrungen RELAY, FLUX und AXIOM (je 7-9 Stueck: erstes Sammeln, Lifetime-Meilensteine,
     erstes Rig, Vollausbau, sowie linienspezifisch Skillbaum-Start/Netzwerk-Boost bei Relay,
@@ -1198,6 +1210,20 @@
     border:1px solid rgba(232,230,227,0.14); background:transparent; color:#8b8fa3; cursor:pointer; }
   .wr-tab:hover{ border-color:rgba(232,230,227,0.3); color:#e8e6e3; }
   .wr-tab.active{ background:#2F8CFF; border-color:#2F8CFF; color:#fff; }
+
+  /* Kontoauszug (Wallet-Ledger) -- kompakte Ein/Aus-Liste je Waehrung */
+  .ledger-list{ margin-top:12px; display:flex; flex-direction:column; gap:6px; }
+  .ledger-row{ display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:10px;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); }
+  .ledger-dir{ font-family:'JetBrains Mono', monospace; font-size:12px; font-weight:700; width:20px; flex:none; text-align:center; }
+  .ledger-row.in .ledger-dir{ color:var(--up); }
+  .ledger-row.out .ledger-dir{ color:var(--down); }
+  .ledger-mid{ flex:1; min-width:0; }
+  .ledger-reason{ font-size:12.5px; color:#e8e6e3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ledger-time{ font-size:10.5px; color:rgba(232,230,227,0.45); margin-top:1px; }
+  .ledger-amt{ font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:700; flex:none; }
+  .ledger-row.in .ledger-amt{ color:var(--up); }
+  .ledger-row.out .ledger-amt{ color:var(--down); }
 
   /* ---------- Unter-Tabs (z.B. Farm: NRC / Pulse) ---------- */
   .sub-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 18px; }
@@ -2632,6 +2658,10 @@
           <div class="kc-label">COMET <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="9.5" cy="4.5" r="2" fill="currentColor"/><line x1="8" y1="6" x2="2" y2="12" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.65"/><line x1="9" y1="7.3" x2="4.3" y2="12" stroke="currentColor" stroke-width="0.8" stroke-linecap="round" opacity="0.4"/></svg></span> Event</span></div>
           <div class="kc-value js-balance-comet">–</div>
         </div>
+        <div class="sm-card sm-sigil">
+          <div class="kc-label">PRSM <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L12.5 5V9L7 13L1.5 9V5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M7 1V13M1.5 5H12.5M1.5 9H12.5" stroke="currentColor" stroke-width="0.8" opacity="0.55"/></svg></span> Profil</span></div>
+          <div class="kc-value js-balance-prsm">–</div>
+        </div>
       </div>
     </div>
 
@@ -2676,6 +2706,19 @@
           <div class="value coin-value"><span class="coin-icon" aria-hidden="true"><svg viewBox="0 0 32 32" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="1.6"/><ellipse cx="16" cy="16" rx="12" ry="5.2" fill="none" stroke="currentColor" stroke-width="1" transform="rotate(-18 16 16)"/><path d="M16 9.5L17.6 13.7L22 13.9L18.5 16.6L19.7 21L16 18.5L12.3 21L13.5 16.6L10 13.9L14.4 13.7Z" fill="#E5484D"/></svg></span><span class="js-balance-mogc">–</span></div>
         </div>
       </div>
+    </div>
+
+    <div class="panel">
+      <h3>Kontoauszug <span class="tag">— Ein-/Ausgänge im Detail, aktuell für NRC, MOGC &amp; STBL</span></h3>
+      <div class="wallet-range-tabs" id="ledgerSymbolTabs">
+        <button type="button" class="wr-tab active" data-symbol="NOVA">NRC</button>
+        <button type="button" class="wr-tab" data-symbol="MOGC">MOGC</button>
+        <button type="button" class="wr-tab" data-symbol="STBL">STBL</button>
+      </div>
+      <div id="ledgerList" class="ledger-list">
+        <div class="sm-hint">Lade Kontoauszug …</div>
+      </div>
+      <button type="button" class="btn btn-ghost" id="ledgerLoadMoreBtn" style="margin-top:10px; display:none;">Weitere laden</button>
     </div>
 
     <div class="panel">
@@ -2740,6 +2783,22 @@
         <div class="sm-card sm-stable">
           <div class="kc-label">FVLT</div>
           <div class="kc-value js-balance-fvlt">–</div>
+        </div>
+        <div class="sm-card sm-relay">
+          <div class="kc-label">AXIOM <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M7 4L10 7L7 10L4 7Z" fill="currentColor" opacity="0.85"/></svg></span> Farm</span></div>
+          <div class="kc-value js-balance-axiom">–</div>
+        </div>
+        <div class="sm-card sm-relay">
+          <div class="kc-label">FORK <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2V6.2C4 7.5 5 8 7 8C9 8 10 7.5 10 6.2V2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="8" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="4" y1="2" x2="4" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="10" y1="2" x2="10" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Farm</span></div>
+          <div class="kc-value js-balance-fork">–</div>
+        </div>
+        <div class="sm-card sm-ionx">
+          <div class="kc-label">COMET <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="9.5" cy="4.5" r="2" fill="currentColor"/><line x1="8" y1="6" x2="2" y2="12" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.65"/><line x1="9" y1="7.3" x2="4.3" y2="12" stroke="currentColor" stroke-width="0.8" stroke-linecap="round" opacity="0.4"/></svg></span> Event</span></div>
+          <div class="kc-value js-balance-comet">–</div>
+        </div>
+        <div class="sm-card sm-sigil">
+          <div class="kc-label">PRSM <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L12.5 5V9L7 13L1.5 9V5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M7 1V13M1.5 5H12.5M1.5 9H12.5" stroke="currentColor" stroke-width="0.8" opacity="0.55"/></svg></span> Profil</span></div>
+          <div class="kc-value js-balance-prsm">–</div>
         </div>
       </div>
     </div>
@@ -4739,6 +4798,8 @@ function enterGame(){
     }
     if (tabId === 'wallet') {
       if (typeof loadSeasonalEvent === 'function') loadSeasonalEvent();
+      if (typeof loadPrsmBalance === 'function') loadPrsmBalance();
+      if (typeof loadLedger === 'function') loadLedger(true);
       if (novaChart) novaChart.resize();
       if (scChart) scChart.resize();
       [walletStblChart, walletVoltChart, walletGovChart, walletQntmChart, walletDriftChart,
@@ -4761,6 +4822,8 @@ function enterGame(){
       if (qntmChartMini) qntmChartMini.resize();
       if (driftChartMini) driftChartMini.resize();
       if (cycleChart) cycleChart.resize();
+      if (typeof loadSeasonalEvent === 'function') loadSeasonalEvent();
+      if (typeof loadPrsmBalance === 'function') loadPrsmBalance();
     }
     if (!(opts && opts.skipSave)) {
       try { localStorage.setItem('nexusActiveTab', tabId); } catch (e) {}
@@ -8446,6 +8509,116 @@ async function renderGuildLeaderboard(){
 }
 
 /* ---------- Kometen-Event (Saisonales Event) ---------- */
+/* ---------- Kontoauszug (Wallet-Ledger) -- NRC/MOGC/STBL zum Start ---------- */
+let ledgerState = { symbol: 'NOVA', rows: [], loading: false, hasMore: true };
+const LEDGER_LABELS = { NOVA: 'NRC', MOGC: 'MOGC', STBL: 'STBL' };
+
+function ledgerFmtTime(iso){
+  try{
+    const d = new Date(iso);
+    return d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+  }catch(e){ return '–'; }
+}
+
+function renderLedgerRows(append){
+  const list = document.getElementById('ledgerList');
+  if (!list) return;
+  if (!append) list.innerHTML = '';
+  if (!ledgerState.rows.length){
+    list.innerHTML = '<div class="sm-hint">Noch keine Buchungen für ' + (LEDGER_LABELS[ledgerState.symbol] || ledgerState.symbol) + '.</div>';
+    return;
+  }
+  const startIdx = append ? (ledgerState.rows.length - ledgerState._lastBatchSize) : 0;
+  const rowsToRender = append ? ledgerState.rows.slice(startIdx) : ledgerState.rows;
+  rowsToRender.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'ledger-row ' + (r.direction === 'in' ? 'in' : 'out');
+    const dir = document.createElement('div');
+    dir.className = 'ledger-dir';
+    dir.textContent = r.direction === 'in' ? '+' : '–';
+    const mid = document.createElement('div');
+    mid.className = 'ledger-mid';
+    const reason = document.createElement('div');
+    reason.className = 'ledger-reason';
+    reason.textContent = r.reason || 'Guthabenänderung';
+    const time = document.createElement('div');
+    time.className = 'ledger-time';
+    time.textContent = ledgerFmtTime(r.created_at);
+    mid.appendChild(reason); mid.appendChild(time);
+    const amt = document.createElement('div');
+    amt.className = 'ledger-amt';
+    amt.textContent = (r.direction === 'in' ? '+' : '−') + fmtCoin(r.amount);
+    row.appendChild(dir); row.appendChild(mid); row.appendChild(amt);
+    list.appendChild(row);
+  });
+}
+
+async function loadLedger(reset){
+  if (ledgerState.loading) return;
+  ledgerState.loading = true;
+  const list = document.getElementById('ledgerList');
+  const moreBtn = document.getElementById('ledgerLoadMoreBtn');
+  if (reset){
+    ledgerState.rows = [];
+    ledgerState.hasMore = true;
+    if (list) list.innerHTML = '<div class="sm-hint">Lade Kontoauszug …</div>';
+  }
+  try{
+    const beforeTs = (!reset && ledgerState.rows.length) ? ledgerState.rows[ledgerState.rows.length - 1].created_at : null;
+    const { data, error } = await sb.schema('platform').rpc('get_my_wallet_ledger', {
+      p_symbol: ledgerState.symbol, p_limit: 30, p_before: beforeTs
+    });
+    if (error) throw error;
+    const rows = data || [];
+    ledgerState._lastBatchSize = rows.length;
+    ledgerState.rows = ledgerState.rows.concat(rows);
+    ledgerState.hasMore = rows.length === 30;
+    renderLedgerRows(!reset);
+    if (moreBtn) moreBtn.style.display = ledgerState.hasMore ? '' : 'none';
+  }catch(e){
+    console.warn('Kontoauszug konnte nicht geladen werden', e);
+    if (reset && list) list.innerHTML = '<div class="sm-hint">Kontoauszug konnte nicht geladen werden.</div>';
+  }finally{
+    ledgerState.loading = false;
+  }
+}
+
+(function initLedgerTabs(){
+  const wrap = document.getElementById('ledgerSymbolTabs');
+  const moreBtn = document.getElementById('ledgerLoadMoreBtn');
+  if (!wrap) return;
+  wrap.addEventListener('click', (e) => {
+    const btn = e.target.closest('.wr-tab');
+    if (!btn) return;
+    wrap.querySelectorAll('.wr-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ledgerState.symbol = btn.dataset.symbol;
+    loadLedger(true);
+  });
+  if (moreBtn) moreBtn.addEventListener('click', () => loadLedger(false));
+})();
+
+let prsmLoading = false;
+// NEU: PRSM (Prisma-Splitter) ist eine reine platform-Schema-Waehrung (Skin-Shop
+// in profil.html, ueber get_my_wallet_balances()), lebt technisch nicht im
+// crypto_farm-Schema wie NRC/STBL/etc. Deshalb eigener schlanker Loader statt
+// Huckepack auf eine der crypto_farm-RPCs.
+async function loadPrsmBalance(){
+  if (prsmLoading) return;
+  prsmLoading = true;
+  try {
+    const { data, error } = await sb.schema('platform').rpc('get_my_wallet_balances');
+    if (error) throw error;
+    const row = (data || []).find(r => r.symbol === 'PRSM');
+    const bal = row ? Number(row.balance) || 0 : 0;
+    document.querySelectorAll('.js-balance-prsm').forEach(el => { el.textContent = fmtCoin(bal) + ' PRSM'; });
+  } catch (e) {
+    console.warn('PRSM-Guthaben konnte nicht geladen werden', e);
+  } finally {
+    prsmLoading = false;
+  }
+}
+
 async function loadSeasonalEvent(){
   if (seasonalEventLoading) return;
   seasonalEventLoading = true;
