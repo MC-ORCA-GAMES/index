@@ -2,6 +2,27 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.24: Alle 7 haesslichen nativen confirm()-Dialoge (Browser-Popup, nicht stylebar) durch
+    ein eigenes Bestaetigungs-Modal ersetzt (#nxConfirmModal, Funktion nxConfirm()), das im
+    bestehenden .offline-modal-backdrop/-card-Look (wie das "Willkommen zurueck"-Popup) erscheint
+    -- inkl. Icon, individuellem Titel/Button-Text, roter danger-Variante fuer destruktive
+    Aktionen (Corp auflösen/verlassen, Mitglied entfernen, Bond vorzeitig auflösen, Prestige) und
+    Escape/Enter/Backdrop-Klick zum Abbrechen/Bestaetigen. Betroffen: Flux-Vorzeitig-abholen,
+    Forge-Export, Corp auflösen/verlassen, Mitglied entfernen, Bond vorzeitig auflösen, Prestige.
+  - v4.2.23: Kritischer Fund + Fix: collect_fork_earnings() lief (wie einst NRC) alle 20 Sek.
+    automatisch im Hintergrund (forkCollectTimer im Frontend), sobald der Fork-Tab einmal offen
+    war -- hätte den Kontoauszug für FORK genauso zugespammt. Gleiches Sammelbuchungs-Muster wie
+    bei NRC (v4.2.20): Skip-Sentinel in collect_fork_earnings() UND collect_all_fork_earnings()
+    (Bot-/Idle-Cron), neuer 5-Min-Cron platform.aggregate_fork_mining_ledger() fasst
+    crypto_farm.fork_mining_log pro Spieler zu einer Sammelzeile zusammen. Zusaetzlich:
+    sprechende Kontoauszug-Texte fuer 12 weitere Aktionen nachgezogen (Backend-only) --
+    FORK/PULSE-Rig-Kauf, RELAY-Skill-Kauf/-Verkauf/-Boost, PULSE/RELAY/FLUX-Förderung (manuell
+    + Cron-Tick), AXIOM-Förderung (Cron-Tick), COMET-Questbelohnung, COMET-Shop-Kauf (inkl.
+    Item-Name), sowie "Prestige-Reset" als gemeinsamer Grund für alle Saldo-Aenderungen bei
+    do_prestige() (NVLT/METAL/KRISTALL/DEUT/ENERGIE/PULSE/RELAY/ANCH/IONX/FLUX/FVLT-Reset,
+    VOLT/QNTM/DRIFT/GRID/STBL-Liquidation zu MOGC). Bewusst NICHT angefasst: die generischen
+    Commerce-Systeme (Markt-Listings, Aktien/Stocks, Barter, Gilden-Schatzkammer, Freundes-
+    Geschenke, Kosmetik-Shop) -- eigenes, groesseres Thema falls gewuenscht.
   - v4.2.22: Sprechende Kontoauszug-Texte fuer Markt-Trades & Vaults nachgezogen (Backend-only,
     keine Frontend-Aenderung noetig). 17 RPCs setzen jetzt vor der Buchung
     set_config('platform.ledger_reason', ..., true): buy_volt/sell_volt, buy_drift/sell_drift,
@@ -981,6 +1002,8 @@
   button:disabled{ opacity:0.4; cursor:default; }
   .btn-block{ width:100%; margin-top:8px; background:var(--blue); border-color:var(--blue); color:#061224; }
   .btn-block:hover{ filter:brightness(1.08); background:var(--blue); }
+  .btn-block.danger-btn{ background:var(--down); border-color:var(--down); color:#2a0308; }
+  .btn-block.danger-btn:hover{ filter:brightness(1.08); background:var(--down); }
   .lb-divider{ display:flex; align-items:center; gap:10px; margin:16px 0 10px; font-size:11px; color:var(--fg-faint); }
   .lb-divider::before, .lb-divider::after{ content:''; flex:1; height:1px; background:var(--line); }
   .btn-block-ghost{ width:100%; background:transparent; border-color:var(--line); color:var(--fg-dim); }
@@ -4182,6 +4205,17 @@
   </div>
 </div>
 
+<!-- ---------- EIGENES BESTAETIGUNGS-MODAL (ersetzt native confirm()) ---------- -->
+<div id="nxConfirmModal" class="offline-modal-backdrop hidden">
+  <div class="offline-modal-card">
+    <div class="om-icon"><span style="display:inline-flex;width:60%;height:60%;color:var(--blue)" aria-hidden="true"><svg viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="12" y1="10.5" x2="12" y2="16.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.1" fill="currentColor"/></svg></span></div>
+    <h3 id="nxConfirmTitle">Bist du sicher?</h3>
+    <div class="om-away" id="nxConfirmMsg" style="white-space:pre-line;"></div>
+    <button class="btn-block" id="nxConfirmOkBtn">Bestätigen</button>
+    <button class="btn-ghost" id="nxConfirmCancelBtn" style="width:100%; border-radius:10px; padding:11px 16px; margin-top:8px;">Abbrechen</button>
+  </div>
+</div>
+
 <div id="amDetailModal" class="offline-modal-backdrop hidden">
   <div class="offline-modal-card am-modal-card">
     <button type="button" class="am-modal-close" id="amDetailCloseBtn">&times;</button>
@@ -4730,6 +4764,46 @@ document.getElementById('cycleReminderClaimBtn').addEventListener('click', () =>
 document.getElementById('cycleReminderLaterBtn').addEventListener('click', () => {
   document.getElementById('cycleReminderModal').classList.add('hidden');
 });
+
+// Eigenes Bestaetigungs-Modal statt haesslichem nativen confirm(). Async, per await nutzbar:
+// if (!(await nxConfirm('Text'))) return;  -- optional { title, okText, cancelText, danger }.
+function nxConfirm(message, opts){
+  opts = opts || {};
+  return new Promise(resolve => {
+    const modal = document.getElementById('nxConfirmModal');
+    const okBtn = document.getElementById('nxConfirmOkBtn');
+    const cancelBtn = document.getElementById('nxConfirmCancelBtn');
+    document.getElementById('nxConfirmTitle').textContent = opts.title || 'Bist du sicher?';
+    document.getElementById('nxConfirmMsg').textContent = message;
+    okBtn.textContent = opts.okText || 'Bestätigen';
+    cancelBtn.textContent = opts.cancelText || 'Abbrechen';
+    okBtn.classList.toggle('danger-btn', !!opts.danger);
+    modal.classList.remove('hidden');
+    let done = false;
+    function finish(result){
+      if (done) return;
+      done = true;
+      modal.classList.add('hidden');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      modal.removeEventListener('mousedown', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    }
+    function onOk(){ finish(true); }
+    function onCancel(){ finish(false); }
+    function onBackdrop(e){ if (e.target === modal) finish(false); }
+    function onKey(e){
+      if (e.key === 'Escape') finish(false);
+      else if (e.key === 'Enter') finish(true);
+    }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    modal.addEventListener('mousedown', onBackdrop);
+    document.addEventListener('keydown', onKey);
+    okBtn.focus();
+  });
+}
 
 function showMsg(elId, text, ok, kind){
   document.getElementById(elId).innerHTML = `<div class="msg ${ok ? 'ok' : 'err'}">${text}</div>`;
@@ -5840,7 +5914,7 @@ function renderForgeStorageModal(){
         targetId = forgeExportTargets[idx].id;
       }
       const targetName = forgeExportTargets.find(t => t.id === targetId)?.name || targetId;
-      if (!confirm(`Wirklich den kompletten aktuellen ${sym}-Bestand jetzt einweg Richtung ${targetName} exportieren?`)) return;
+      if (!(await nxConfirm(`Wirklich den kompletten aktuellen ${sym}-Bestand jetzt einweg Richtung ${targetName} exportieren?`, { title: 'Export bestätigen', okText: 'Exportieren' }))) return;
       btn.disabled = true;
       const { data, error } = await sb.schema('forge').rpc('export_now', { p_resource_symbol: sym, p_target_id: targetId });
       btn.disabled = false;
@@ -6647,7 +6721,7 @@ document.getElementById('fluxCollectBtn').addEventListener('click', async () => 
   const btn = document.getElementById('fluxCollectBtn');
   if (fluxHoursSince < 6 && fluxOwnRate > 0) {
     const missing = fmtDuration(Math.max((6 - fluxHoursSince) * 3600000, 0));
-    if (!confirm(`Die Resonanz steht erst bei ${fl2(fluxResonance)}× und erreicht in ${missing} ihr Maximum von 2,00×. Trotzdem jetzt abholen?`)) return;
+    if (!(await nxConfirm(`Die Resonanz steht erst bei ${fl2(fluxResonance)}× und erreicht in ${missing} ihr Maximum von 2,00×. Trotzdem jetzt abholen?`, { title: 'Vorzeitig abholen?', okText: 'Trotzdem abholen' }))) return;
   }
   btn.disabled = true;
   const { data, error } = await sb.schema('crypto_farm').rpc('collect_flux_earnings');
@@ -8289,7 +8363,7 @@ async function renderGuildMine(guild){
 
   const disbandBtn = document.getElementById('guildDisbandBtn');
   if (disbandBtn) disbandBtn.addEventListener('click', async () => {
-    if (!confirm('Wirklich auflösen? Die Corp-Kasse geht dabei an die Zentralbank-Reserve.')) return;
+    if (!(await nxConfirm('Wirklich auflösen? Die Corp-Kasse geht dabei an die Zentralbank-Reserve.', { title: 'Corp auflösen?', okText: 'Auflösen', danger: true }))) return;
     const { error } = await sb.schema('platform').rpc('disband_guild');
     if (error) { showMsg('guildStatusMsg', error.message, false); return; }
     showMsg('guildStatusMsg', 'Corp aufgelöst.', true);
@@ -8297,7 +8371,7 @@ async function renderGuildMine(guild){
   });
   const leaveBtn = document.getElementById('guildLeaveBtn');
   if (leaveBtn) leaveBtn.addEventListener('click', async () => {
-    if (!confirm('Corp wirklich verlassen?')) return;
+    if (!(await nxConfirm('Corp wirklich verlassen?', { title: 'Corp verlassen?', okText: 'Verlassen', danger: true }))) return;
     const { error } = await sb.schema('platform').rpc('leave_guild');
     if (error) { showMsg('guildStatusMsg', error.message, false); return; }
     showMsg('guildStatusMsg', 'Corp verlassen.', true);
@@ -8436,7 +8510,7 @@ async function renderGuildMembers(guildId, isOfficer){
     await loadGuildTab();
   }));
   wrap.querySelectorAll('[data-kick]').forEach(btn => btn.addEventListener('click', async () => {
-    if (!confirm('Mitglied wirklich aus der Corp entfernen?')) return;
+    if (!(await nxConfirm('Mitglied wirklich aus der Corp entfernen?', { title: 'Mitglied entfernen?', okText: 'Entfernen', danger: true }))) return;
     const { error } = await sb.schema('platform').rpc('kick_member', { p_player_id: btn.dataset.kick });
     if (error) { showMsg('guildStatusMsg', error.message, false); return; }
     await loadGuildTab();
@@ -9338,7 +9412,7 @@ document.getElementById('bondList').addEventListener('click', async (ev) => {
   if (!btn) return;
   const bondId = parseInt(btn.dataset.claimId, 10);
   const isReady = btn.dataset.ready === 'true';
-  if (!isReady && !confirm('Vorzeitig auflösen kostet 15% Strafgebühr auf den eingezahlten Betrag und es gibt keinen Zins. Wirklich fortfahren?')) return;
+  if (!isReady && !(await nxConfirm('Vorzeitig auflösen kostet 15% Strafgebühr auf den eingezahlten Betrag und es gibt keinen Zins. Wirklich fortfahren?', { title: 'Vorzeitig auflösen?', okText: 'Trotzdem auflösen', danger: true }))) return;
   btn.disabled = true;
   const { data, error } = await sb.schema('platform').rpc('bond_claim', { p_bond_id: bondId });
   btn.disabled = false;
@@ -9967,7 +10041,7 @@ window.activateBoosterItem = async function(itemId, btnEl){
 /* ---------- Prestige ---------- */
 window.doPrestige = async function(){
   const btn = document.getElementById('prestigeBtn');
-  if (!confirm('Wirklich prestigen? Alle Rigs, dein Nova-Rift-Bestand und die Außenposten werden zurückgesetzt (NVLT/ANCH/PULSE/RELAY/IONX werden genullt). VOLT/QNTM/DRIFT/GRID/CYCLE/SIGIL/STBL werden automatisch in MOGC umgewandelt statt gelöscht. MOGC, Skillbäume und GOV bleiben unangetastet. Du bekommst dauerhafte Prestige-Punkte für den Skillbaum.')) return;
+  if (!(await nxConfirm('Alle Rigs, dein Nova-Rift-Bestand und die Außenposten werden zurückgesetzt (NVLT/ANCH/PULSE/RELAY/IONX werden genullt). VOLT/QNTM/DRIFT/GRID/CYCLE/SIGIL/STBL werden automatisch in MOGC umgewandelt statt gelöscht. MOGC, Skillbäume und GOV bleiben unangetastet. Du bekommst dauerhafte Prestige-Punkte für den Skillbaum.', { title: 'Wirklich prestigen?', okText: 'Prestigen', danger: true }))) return;
   btn.disabled = true; btn.textContent = 'Wird zurückgesetzt …';
   const { data, error } = await sb.schema('crypto_farm').rpc('do_prestige');
   if (error) {
