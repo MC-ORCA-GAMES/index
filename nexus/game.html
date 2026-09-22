@@ -2,6 +2,22 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.17: Wallet-Tab zeigte AXIOM, FORK und COMET nirgends an, obwohl alle drei laengst
+    echte Spieler-Guthaben sind (Jens' Verdacht bestaetigt). Drei neue Karten im kompakten
+    "Sprungmaerkte"-Grid ergaenzt (js-balance-axiom/-fork/-comet, gleiches Markup-Muster wie
+    FLUX/FVLT) -- rein additiv, keine Backend-Migration noetig: AXIOM/FORK haengen bereits an
+    bestehenden Hintergrund-Refreshzyklen (applyAxiomState() laeuft ueber den globalen
+    get_full_game_state-Poll, refreshFork() ueber den eigenen 20s-Fork-Kreislauf), beide
+    unabhaengig vom aktiven Tab. Dabei Bugfix in loadSeasonalEvent(): COMET-Anzeige nutzte
+    document.querySelector('.js-balance-comet') (nur EIN Element), dadurch waere die neue
+    Wallet-Karte leer geblieben -- jetzt querySelectorAll() wie bei den anderen Waehrungen.
+    Ausserdem: Wallet-Tab-Oeffnen stoesst jetzt zusaetzlich loadSeasonalEvent() an, weil das
+    bisher nur beim Oeffnen des Event-Tabs lief und COMET sonst erst nach einem Event-Tab-
+    Besuch aktuell gewesen waere. Bewusst KEINE Verlaufs-Charts fuer die drei ergaenzt, da
+    get_my_wallet_history()/get_my_currency_history() diese Spalten nicht liefern -- waere
+    eine echte Backend-Migration, noch nicht umgesetzt. PRSM bleibt aussen vor: lebt nicht in
+    NEXUS/crypto_farm, sondern komplett im platform-Schema (get_cosmetic_shop() in profil.html)
+    -- gehoert technisch eher zur Skin-Wallet auf der Hub-Seite als zum NEXUS-Wallet-Tab.
   - v4.2.16: 24 neue Achievements fuer die drei bisher nicht abgedeckten Foerderlinien/
     Waehrungen RELAY, FLUX und AXIOM (je 7-9 Stueck: erstes Sammeln, Lifetime-Meilensteine,
     erstes Rig, Vollausbau, sowie linienspezifisch Skillbaum-Start/Netzwerk-Boost bei Relay,
@@ -2604,6 +2620,18 @@
           <div class="kc-label">FVLT</div>
           <div class="kc-value js-balance-fvlt">–</div>
         </div>
+        <div class="sm-card sm-relay">
+          <div class="kc-label">AXIOM <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M7 4L10 7L7 10L4 7Z" fill="currentColor" opacity="0.85"/></svg></span> Farm</span></div>
+          <div class="kc-value js-balance-axiom">–</div>
+        </div>
+        <div class="sm-card sm-relay">
+          <div class="kc-label">FORK <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2V6.2C4 7.5 5 8 7 8C9 8 10 7.5 10 6.2V2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="8" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="4" y1="2" x2="4" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="10" y1="2" x2="10" y2="4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span> Farm</span></div>
+          <div class="kc-value js-balance-fork">–</div>
+        </div>
+        <div class="sm-card sm-ionx">
+          <div class="kc-label">COMET <span class="kc-tab-hint"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="9.5" cy="4.5" r="2" fill="currentColor"/><line x1="8" y1="6" x2="2" y2="12" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.65"/><line x1="9" y1="7.3" x2="4.3" y2="12" stroke="currentColor" stroke-width="0.8" stroke-linecap="round" opacity="0.4"/></svg></span> Event</span></div>
+          <div class="kc-value js-balance-comet">–</div>
+        </div>
       </div>
     </div>
 
@@ -4710,6 +4738,7 @@ function enterGame(){
       loadHolidayEvent();
     }
     if (tabId === 'wallet') {
+      if (typeof loadSeasonalEvent === 'function') loadSeasonalEvent();
       if (novaChart) novaChart.resize();
       if (scChart) scChart.resize();
       [walletStblChart, walletVoltChart, walletGovChart, walletQntmChart, walletDriftChart,
@@ -8428,7 +8457,7 @@ async function loadSeasonalEvent(){
       return;
     }
     seasonalEventData = data;
-    document.querySelector('.js-balance-comet').textContent = fmtCoin(data.comet_balance);
+    document.querySelectorAll('.js-balance-comet').forEach(el => { el.textContent = fmtCoin(data.comet_balance); });
     renderEventTheme(data.theme);
     renderEventCountdown(data.run);
     renderEventQuests(data.quests || []);
