@@ -773,14 +773,13 @@ function carveMaze(size){
   }
   return g;
 }
-function bfsFarthest(g,size,sx,sy){
+function bfsAll(g,size,sx,sy){
   const idx=(x,y)=>y*size+x;
   const dist=new Int32Array(size*size).fill(-1);
   dist[idx(sx,sy)]=0;
-  const q=[[sx,sy]]; let qi=0, far={x:sx,y:sy,d:0};
+  const q=[[sx,sy]]; let qi=0;
   while(qi<q.length){
     const [x,y]=q[qi++]; const d=dist[idx(x,y)];
-    if(d>far.d) far={x,y,d};
     for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
       const nx=x+dx, ny=y+dy;
       if(nx<0||ny<0||nx>=size||ny>=size) continue;
@@ -788,7 +787,55 @@ function bfsFarthest(g,size,sx,sy){
       dist[idx(nx,ny)]=d+1; q.push([nx,ny]);
     }
   }
-  return far;
+  return dist;
+}
+function reachableCount(dist){ let c=0; for(let i=0;i<dist.length;i++) if(dist[i]>=0) c++; return c; }
+const DOOR_SIDES={N:[0,-1],S:[0,1],W:[-1,0],E:[1,0]};
+// Findet die Ausgangs-Innenzelle: immer am Kartenrand, bevorzugt mit nur einem
+// Zugang (echter Flaschenhals statt Durchgangsraum von zwei Seiten begehbar).
+function findDoorCell(g,size,dist){
+  const idx=(x,y)=>y*size+x;
+  let best=null;
+  for(const side of ['N','S','E','W']){
+    const [ox,oy]=DOOR_SIDES[side];
+    for(let y=1;y<size-1;y++) for(let x=1;x<size-1;x++){
+      if(g[idx(x,y)]!==0) continue;
+      const onEdge = side==='N'?y===1 : side==='S'?y===size-2 : side==='W'?x===1 : x===size-2;
+      if(!onEdge) continue;
+      const d=dist[idx(x,y)]; if(d<0) continue;
+      let deg=0;
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        if(dx===ox&&dy===oy) continue;
+        const nx=x+dx, ny=y+dy;
+        if(nx<0||ny<0||nx>=size||ny>=size) continue;
+        if(g[idx(nx,ny)]===0) deg++;
+      }
+      const cand={side,x,y,deg,d};
+      if(!best || cand.deg<best.deg || (cand.deg===best.deg && cand.d>best.d)) best=cand;
+    }
+  }
+  return best;
+}
+// Versiegelt überzählige Zugänge zur Türzelle — aber nur, wenn dadurch nachweislich
+// (per Erreichbarkeits-Check) kein anderer Kartenteil vom Spawn abgeschnitten wird.
+function sealExtraApproaches(g,size,cand){
+  const idx=(x,y)=>y*size+x;
+  const [ox,oy]=DOOR_SIDES[cand.side];
+  const before=reachableCount(bfsAll(g,size,1,1));
+  const neighbors=[];
+  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+    if(dx===ox&&dy===oy) continue;
+    const nx=cand.x+dx, ny=cand.y+dy;
+    if(nx<0||ny<0||nx>=size||ny>=size) continue;
+    if(g[idx(nx,ny)]===0) neighbors.push(idx(nx,ny));
+  }
+  let remaining=neighbors.length;
+  for(const gi of neighbors){
+    if(remaining<=1) break;
+    const save=g[gi]; g[gi]=1;
+    const after=reachableCount(bfsAll(g,size,1,1));
+    if(after>=before-1){ remaining--; } else { g[gi]=save; }
+  }
 }
 const SIZE_TIERS=[1,1.35,1.7,2.1]; // vier zufällige Größen-Varianten pro Sektor
 function generateProceduralLevel(depth){
@@ -796,20 +843,28 @@ function generateProceduralLevel(depth){
   let size=Math.round((11+depth*2.2)*tier); size+= (1-(size%2)); size=Math.max(11,Math.min(size,61));
   const g=carveMaze(size);
   const idx=(x,y)=>y*size+x;
+
+  // Ausgang: immer am Kartenrand, über einen echten Flaschenhals statt von zwei
+  // Seiten begehbar — damit der Kern-Wächter den einzigen Zugang sauber bewacht.
+  const distFromSpawn=bfsAll(g,size,1,1);
+  const doorCand=findDoorCell(g,size,distFromSpawn);
+  let far={x:1,y:1};
+  if(doorCand){
+    if(doorCand.deg>1) sealExtraApproaches(g,size,doorCand);
+    far={x:doorCand.x,y:doorCand.y};
+  }
+
   const wallChars=['#','R','H'], wallW=[0.62,0.28,0.10];
   function pickWall(){ const r=Math.random(); let acc=0; for(let i=0;i<wallChars.length;i++){ acc+=wallW[i]; if(r<=acc) return wallChars[i]; } return '#'; }
   const grid2=[];
   for(let y=0;y<size;y++){ const row=[]; for(let x=0;x<size;x++) row.push(g[idx(x,y)]===1?pickWall():'.'); grid2.push(row); }
   grid2[1][1]='P';
-  const far=bfsFarthest(g,size,1,1);
-  const nbrs=shuffleArr([[1,0],[-1,0],[0,1],[0,-1]]);
-  let placedExit=false;
-  for(const [dx,dy] of nbrs){
-    const wx=far.x+dx, wy=far.y+dy;
-    if(wx<=0||wy<=0||wx>=size-1||wy>=size-1) continue;
-    if(g[idx(wx,wy)]===1){ grid2[wy][wx]='X'; placedExit=true; break; }
+  if(doorCand){
+    const [ox,oy]=DOOR_SIDES[doorCand.side];
+    grid2[far.y+oy][far.x+ox]='X';
+  } else {
+    grid2[far.y][far.x]='X'; // Notfall (praktisch nie): keine Kandidatenzelle gefunden
   }
-  if(!placedExit) grid2[far.y][far.x]='X';
   const floorCells=[];
   for(let y=1;y<size-1;y++) for(let x=1;x<size-1;x++) if(g[idx(x,y)]===0 && !(x===1&&y===1) && grid2[y][x]==='.') floorCells.push([x,y]);
   shuffleArr(floorCells);
