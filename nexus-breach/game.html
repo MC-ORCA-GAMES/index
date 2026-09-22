@@ -745,10 +745,14 @@ let seen=null, visible=null;
    ============================================================ */
 function shuffleArr(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
-function carveMaze(size){
+function carveMaze(size, blockedIdx){
   // 0=Flur, 1=Wand. Klassischer Recursive-Backtracker auf ungeradem Raster.
+  // blockedIdx (optional): Set von g-Indizes, die der Backtracker nie betritt
+  // (Wert 3 = reserviert) — die Maze waechst organisch drumherum. Wird
+  // benutzt, um vorab Platz fuer einen Vorraum freizuhalten.
   const g=new Uint8Array(size*size).fill(1);
   const idx=(x,y)=>y*size+x;
+  if(blockedIdx) for(const gi of blockedIdx) g[gi]=3;
   g[idx(1,1)]=0;
   const stack=[[1,1]];
   while(stack.length){
@@ -837,21 +841,135 @@ function sealExtraApproaches(g,size,cand){
     if(after>=before-1){ remaining--; } else { g[gi]=save; }
   }
 }
+/* ---- Vorraum mit Säulen vor dem Ausgang ("Reservieren, dann drumherum wachsen") ----
+   Statt hinterher Löcher in eine fertige Maze zu stanzen (riskiert immer,
+   irgendwo einen für den Rest der Karte nötigen Gang zu kappen), wird die
+   Fläche des Vorraums (Innenraum + 1 Zelle Pufferring) VOR dem Carven als
+   Sperrzone reserviert. carveMaze() betritt reservierte Zellen nie und wächst
+   organisch drumherum — der Rest der Maze ist dadurch nie auf eine später
+   versiegelte Zelle angewiesen. Danach wird der Innenraum als begehbarer
+   Flur (+ Säulen zum Verstecken) eingetragen; der Pufferring bleibt Wand bis
+   auf genau eine Stelle — der eine echte Zugang, den der Kern-Wächter bewacht. */
+function planAntechamber(size,doorCand){
+  const idx=(x,y)=>y*size+x;
+  const side=doorCand.side;
+  const [ox,oy]=DOOR_SIDES[side];
+  const depthDir=[-ox,-oy]; // von der Kante ins Karteninnere
+  const perp=(side==='N'||side==='S')?[1,0]:[0,1]; // Breitenachse des Raums
+
+  let roomSpan = size<=15?3 : size<=25?5 : size<=41?7 : 9; // ungerade Raumgröße
+  function cell(d,w){ return { x: doorCand.x+perp[0]*w+depthDir[0]*d, y: doorCand.y+perp[1]*w+depthDir[1]*d }; }
+  function fits(span){
+    const half=(span-1)/2;
+    for(let d=0; d<=span; d++) for(let w=-half-1; w<=half+1; w++){
+      const c=cell(d,w);
+      if(c.x<1||c.y<1||c.x>size-2||c.y>size-2) return false;
+    }
+    return true;
+  }
+  while(roomSpan>=3 && !fits(roomSpan)) roomSpan-=2;
+  if(roomSpan<3) return null; // kein Platz -> normale Einzelzellen-Tür (Fallback)
+
+  const half=(roomSpan-1)/2;
+  const interior=new Set(), ring=new Set();
+  for(let d=0; d<roomSpan; d++) for(let w=-half; w<=half; w++) interior.add(idx(cell(d,w).x,cell(d,w).y));
+  for(let d=0; d<=roomSpan; d++) for(let w=-half-1; w<=half+1; w++){
+    const gi=idx(cell(d,w).x,cell(d,w).y);
+    if(!interior.has(gi)) ring.add(gi);
+  }
+  return {roomSpan,half,side,depthDir,perp,cell,interior,ring,blocked:new Set([...interior,...ring]),doorCand};
+}
+function finishAntechamber(g,size,plan){
+  const idx=(x,y)=>y*size+x;
+  const {roomSpan,half,cell,interior,ring,doorCand}=plan;
+  function ringDW(gi){
+    const x=gi%size,y=(gi/size)|0, rx=x-doorCand.x, ry=y-doorCand.y;
+    return {d:rx*plan.depthDir[0]+ry*plan.depthDir[1], w:rx*plan.perp[0]+ry*plan.perp[1]};
+  }
+  // Zugang suchen: Ringzelle mit Aussennachbar, der bereits (um die Sperrzone
+  // herum gewachsener) Flur ist — bevorzugt an der hintersten, zentrierten Stelle.
+  const candidates=[];
+  for(const gi of ring){
+    const x=gi%size,y=(gi/size)|0;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx, ny=y+dy;
+      if(nx<0||ny<0||nx>=size||ny>=size) continue;
+      const ni=idx(nx,ny);
+      if(interior.has(ni)||ring.has(ni)) continue;
+      if(g[ni]===0) candidates.push(gi);
+    }
+  }
+  let entranceRingIdx=null;
+  if(candidates.length){
+    candidates.sort((a,b)=>{ const A=ringDW(a),B=ringDW(b); return B.d!==A.d ? B.d-A.d : Math.abs(A.w)-Math.abs(B.w); });
+    entranceRingIdx=candidates[0];
+  } else {
+    // Extrem selten (winziger Sektor): geraden Gang von der hintersten Wand
+    // aus graben, bis vorhandener Flur erreicht ist.
+    const back=cell(roomSpan,0); let cx=back.x, cy=back.y, gi=idx(cx,cy);
+    for(let step=0; step<10; step++){
+      if(g[gi]===0){ entranceRingIdx=gi; break; }
+      g[gi]=0;
+      const nx=cx+plan.depthDir[0], ny=cy+plan.depthDir[1];
+      if(nx<1||ny<1||nx>size-2||ny>size-2) break;
+      cx=nx; cy=ny; gi=idx(cx,cy);
+    }
+    if(entranceRingIdx===null) entranceRingIdx=gi;
+  }
+  for(const gi of interior) g[gi]=0;
+  for(const gi of ring) g[gi]=(gi===entranceRingIdx)?0:1;
+  // Säulen im Innern (Randreihen/-spalten bleiben frei, damit man an Tür und
+  // Zugang immer vorbeikommt)
+  const pillars=[];
+  if(roomSpan>=5){
+    for(let d=2; d<=roomSpan-3; d+=2) for(let w=-half+2; w<=half-2; w+=2){
+      const c=cell(d,w), gi=idx(c.x,c.y);
+      if(gi===entranceRingIdx) continue;
+      g[gi]=1; pillars.push(gi);
+    }
+  }
+  const doorThreshold=cell(0,0);
+  const entranceCell={x:entranceRingIdx%size,y:(entranceRingIdx/size)|0};
+  const centerCell=cell(Math.floor((roomSpan-1)/2),0);
+  return {
+    roomSpan, side:plan.side,
+    roomCells:[...interior].map(gi=>({x:gi%size,y:(gi/size)|0})),
+    pillarCells: pillars.map(gi=>({x:gi%size,y:(gi/size)|0})),
+    doorThreshold, entranceCell, centerCell,
+  };
+}
 const SIZE_TIERS=[1,1.35,1.7,2.1]; // vier zufällige Größen-Varianten pro Sektor
 function generateProceduralLevel(depth){
   const tier=SIZE_TIERS[(Math.random()*SIZE_TIERS.length)|0];
   let size=Math.round((11+depth*2.2)*tier); size+= (1-(size%2)); size=Math.max(11,Math.min(size,61));
-  const g=carveMaze(size);
   const idx=(x,y)=>y*size+x;
 
-  // Ausgang: immer am Kartenrand, über einen echten Flaschenhals statt von zwei
-  // Seiten begehbar — damit der Kern-Wächter den einzigen Zugang sauber bewacht.
-  const distFromSpawn=bfsAll(g,size,1,1);
-  const doorCand=findDoorCell(g,size,distFromSpawn);
-  let far={x:1,y:1};
+  // Durchlauf 1: normale Maze nur, um eine gute Position für Ausgang+Vorraum
+  // zu finden (weit weg vom Spawn, am Kartenrand, echter Flaschenhals statt
+  // von zwei Seiten begehbar — damit der Kern-Wächter den Zugang bewacht).
+  const gTrial=carveMaze(size);
+  const doorCand=findDoorCell(gTrial,size,bfsAll(gTrial,size,1,1));
+  const plan=doorCand?planAntechamber(size,doorCand):null;
+
+  // Durchlauf 2: die eigentliche Maze — falls ein Vorraum möglich ist, wird
+  // seine Fläche vorab als Sperrzone reserviert, die Maze wächst organisch
+  // drumherum (siehe planAntechamber/finishAntechamber weiter oben).
+  let g = plan ? carveMaze(size, plan.blocked) : gTrial;
+  let far={x:1,y:1}, ante=null;
   if(doorCand){
-    if(doorCand.deg>1) sealExtraApproaches(g,size,doorCand);
     far={x:doorCand.x,y:doorCand.y};
+    if(plan){
+      ante=finishAntechamber(g,size,plan);
+      // Sicherheitsnetz: Karte muss weiterhin aus einem Stück sein.
+      const distFinal=bfsAll(g,size,1,1);
+      let floorCount=0, reach=0;
+      for(let i=0;i<g.length;i++){ if(g[i]===0){ floorCount++; if(distFinal[i]>=0) reach++; } }
+      if(floorCount!==reach){
+        // Sollte praktisch nie vorkommen -> auf die bewährte Einzelzellen-Tür zurückfallen.
+        g=gTrial; ante=null;
+        if(doorCand.deg>1) sealExtraApproaches(g,size,doorCand);
+      }
+    } else if(doorCand.deg>1) sealExtraApproaches(g,size,doorCand);
   }
 
   const wallChars=['#','R','H'], wallW=[0.62,0.28,0.10];
@@ -867,6 +985,11 @@ function generateProceduralLevel(depth){
   }
   const floorCells=[];
   for(let y=1;y<size-1;y++) for(let x=1;x<size-1;x++) if(g[idx(x,y)]===0 && !(x===1&&y===1) && grid2[y][x]==='.') floorCells.push([x,y]);
+  // Zugangs- und Türschwellenzelle des Vorraums von zufälliger Item/Gegner-Platzierung ausnehmen
+  if(ante){
+    const reserved=new Set([ante.entranceCell.x+','+ante.entranceCell.y, ante.doorThreshold.x+','+ante.doorThreshold.y]);
+    for(let i=floorCells.length-1;i>=0;i--){ if(reserved.has(floorCells[i][0]+','+floorCells[i][1])) floorCells.splice(i,1); }
+  }
   shuffleArr(floorCells);
 
   // Gegner werden mit Mindestabstand zueinander verteilt, damit sich nicht
@@ -892,14 +1015,31 @@ function generateProceduralLevel(depth){
   }
   const hasBoss=depth%3===0;
   if(hasBoss){
-    // Kern-Wächter bewacht gezielt den Ausgang, statt zufällig mitten in einer Gegner-Traube zu stehen
-    let bossCell=null, bestD=1e9;
-    for(const [x,y] of floorCells){
-      if(grid2[y][x]!=='.') continue;
-      const d=Math.hypot(x-far.x,y-far.y);
-      if(d<=6 && d<bestD){ bestD=d; bossCell=[x,y]; }
+    let bossCell=null;
+    if(ante){
+      // Kern-Wächter bewacht den Vorraum selbst — Platzierung möglichst zentral,
+      // weicht Säulen, Eingang und Türschwelle aus.
+      const pillarSet=new Set(ante.pillarCells.map(c=>c.x+','+c.y));
+      const skip=new Set([ante.entranceCell.x+','+ante.entranceCell.y, ante.doorThreshold.x+','+ante.doorThreshold.y]);
+      let bestD=1e9;
+      for(const c of ante.roomCells){
+        const key=c.x+','+c.y;
+        if(pillarSet.has(key)||skip.has(key)) continue;
+        const d=Math.hypot(c.x-ante.centerCell.x,c.y-ante.centerCell.y);
+        if(d<bestD){ bestD=d; bossCell=[c.x,c.y]; }
+      }
     }
-    if(!bossCell) bossCell=floorCells.find(([x,y])=>grid2[y][x]==='.');
+    if(!bossCell){
+      // Fallback ohne Vorraum: Kern-Wächter bewacht gezielt den Ausgang, statt
+      // zufällig mitten in einer Gegner-Traube zu stehen.
+      let bestD=1e9;
+      for(const [x,y] of floorCells){
+        if(grid2[y][x]!=='.') continue;
+        const d=Math.hypot(x-far.x,y-far.y);
+        if(d<=6 && d<bestD){ bestD=d; bossCell=[x,y]; }
+      }
+      if(!bossCell) bossCell=floorCells.find(([x,y])=>grid2[y][x]==='.');
+    }
     if(bossCell){ grid2[bossCell[1]][bossCell[0]]='K'; enemyCells.push(bossCell); }
   }
   place('d',3+Math.min(6,Math.floor(depth*0.7)),3);
