@@ -560,6 +560,12 @@ const BOOM_FRAMES=[
   boomFrame('#8a3418','#4a1c0c','#1e0f08',false,20,504),
   boomFrame('#2a201a','#160f0c','#0a0806',false,15,505),
 ];
+/* ---- Einschlag-Funken (Schuss trifft Wand) ---- */
+const SPARK_FRAMES=[
+  boomFrame('#FFFFFF','#FFE9A8','#FFAE3D',true,7,601),
+  boomFrame('#FFE9A8','#FFAE3D','#FF6A2E',true,5,602),
+  boomFrame('#FF6A2E','#7a2c10','#2a1108',false,3,603),
+];
 const SPR_HEALTH=makeTex(g=>{ px(g,'#0a1a14',21,13,22,38); px(g,'#0ECB81',23,15,18,34); px(g,'#DCF6FF',27,9,10,5);
   px(g,'#F4FFF9',30,22,4,20); px(g,'#F4FFF9',24,30,16,4); },true);
 const SPR_AMMO=makeTex(g=>{ px(g,'#2a1c08',21,13,22,38); px(g,'#FFAE3D',23,15,18,34); px(g,'#7a4c0b',23,15,18,4);
@@ -723,7 +729,7 @@ const WEAPONS=[
 ];
 
 let MW=0, MH=0, grid=null, flow=null, exitCell=null, lvIdx=0, lvl=null;
-let enemies=[], pickups=[], shots=[], booms=[], totals={foes:0,shards:0};
+let enemies=[], pickups=[], shots=[], booms=[], sparks=[], totals={foes:0,shards:0};
 let miniStatic=null;
 let seen=null, visible=null;
 
@@ -889,13 +895,14 @@ const stats={kills:0,shards:0,time:0};
 const run={kills:0,shards:0,time:0,foes:0,shardsMax:0};
 let snap={hp:100,ammo:36,hasSG:false};
 
-let curWall=BIOMES.facility.wall, curFloor=BIOMES.facility.floor, curCeil=BIOMES.facility.ceil, curSky=null, curOutdoor=false;
+let curWall=BIOMES.facility.wall, curFloor=BIOMES.facility.floor, curCeil=BIOMES.facility.ceil, curSky=null, curOutdoor=false, curBiome='facility';
 function parseLevel(src){
   if(typeof src==='number'){ lvIdx=src; lvl=LEVELS[src]; } else { lvIdx=-1; lvl=src; }
   const biome=BIOMES[lvl.biome]||BIOMES.facility;
   curWall=biome.wall; curFloor=biome.floor; curCeil=biome.ceil||null; curSky=biome.sky||null; curOutdoor=!!biome.outdoor;
+  curBiome=lvl.biome||'facility';
   const rows=lvl.map; MH=rows.length; MW=rows[0].length;
-  grid=new Uint8Array(MW*MH); enemies=[]; pickups=[]; shots=[]; booms=[];
+  grid=new Uint8Array(MW*MH); enemies=[]; pickups=[]; shots=[]; booms=[]; sparks=[];
   totals={foes:0,shards:0};
   const wall={'#':1,'R':2,'H':3,'X':4};
   for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
@@ -905,10 +912,11 @@ function parseLevel(src){
     if(c==='P'){ P.x=cx; P.y=cy; P.a=lvl.angle; }
     else if(ETYPES[c]){ const t=ETYPES[c];
       enemies.push({type:c,x:cx,y:cy,hp:t.hp,maxhp:t.hp,alive:true,awake:false,hear:false,cd:1+Math.random(),
-        flash:0,atk:0,strafe:Math.random()<.5?-1:1,strT:0,bodyT:0}); totals.foes++; }
+        flash:0,atk:0,strafe:Math.random()<.5?-1:1,strT:0,bodyT:0,stagT:0,stagX:0,stagY:0}); totals.foes++; }
     else if(PICKUP_SPR[c]){ pickups.push({kind:c,x:cx,y:cy,taken:false,ph:Math.random()*6}); if(c==='m') totals.shards++; }
   }
   P.pitch=0; P.fireCd=0; P.recoil=0; P.flash=0; P.bob=0; P.weapon=P.hasSG?1:0;
+  stepPhase=0;
   stats.kills=0; stats.shards=0; stats.time=0;
   flow=new Int16Array(MW*MH); flowT=0;
   buildMini();
@@ -975,7 +983,7 @@ function flowTarget(e){
 /* ============================================================
    Audio (WebAudio-Synthese)
    ============================================================ */
-let ac=null, master=null, muted=false, noiseBuf=null;
+let ac=null, master=null, muted=false, noiseBuf=null, ambNoiseBuf=null;
 function initAudio(){
   if(ac) { if(ac.state==='suspended') ac.resume(); return; }
   try{
@@ -983,7 +991,56 @@ function initAudio(){
     master=ac.createGain(); master.gain.value=.32; master.connect(ac.destination);
     noiseBuf=ac.createBuffer(1,ac.sampleRate*.6,ac.sampleRate);
     const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    ambNoiseBuf=ac.createBuffer(1,ac.sampleRate*4,ac.sampleRate);
+    const ad=ambNoiseBuf.getChannelData(0); for(let i=0;i<ad.length;i++) ad[i]=Math.random()*2-1;
   }catch(e){ ac=null; }
+}
+
+/* ---- Ambient-Loops pro Biome ---- */
+const AMBIENT_VOL={facility:.05,canyon:.08,desert:.09,jungle:.06};
+let ambient=null, ambEventT=0;
+function buildAmbient(biome){
+  if(!ac||!ambNoiseBuf) return null;
+  const src=ac.createBufferSource(); src.buffer=ambNoiseBuf; src.loop=true;
+  const filter=ac.createBiquadFilter();
+  const gain=ac.createGain(); gain.gain.value=0;
+  const lfo=ac.createOscillator(); const lfoGain=ac.createGain();
+  if(biome==='desert'){ filter.type='bandpass'; filter.frequency.value=750; filter.Q.value=.6; lfo.frequency.value=1/7; lfoGain.gain.value=380; }
+  else if(biome==='jungle'){ filter.type='bandpass'; filter.frequency.value=1300; filter.Q.value=.7; lfo.frequency.value=1/5; lfoGain.gain.value=260; }
+  else if(biome==='canyon'){ filter.type='lowpass'; filter.frequency.value=520; filter.Q.value=.4; lfo.frequency.value=1/9; lfoGain.gain.value=140; }
+  else { filter.type='lowpass'; filter.frequency.value=220; filter.Q.value=.3; lfo.frequency.value=1/4; lfoGain.gain.value=45; }
+  lfo.connect(lfoGain); lfoGain.connect(filter.frequency);
+  src.connect(filter); filter.connect(gain); gain.connect(master);
+  src.start(); lfo.start();
+  gain.gain.setTargetAtTime(muted?0:(AMBIENT_VOL[biome]||.06),ac.currentTime,1.2);
+  return {src,filter,gain,lfo,biome};
+}
+function stopAmbient(){
+  if(!ambient) return;
+  try{ ambient.gain.gain.setTargetAtTime(0,ac.currentTime,.15); }catch(e){}
+  const a=ambient;
+  setTimeout(()=>{ try{a.src.stop();}catch(e){} try{a.lfo.stop();}catch(e){} },250);
+  ambient=null;
+}
+function setAmbient(biome){
+  if(!ac) return;
+  if(ambient && ambient.biome===biome) return;
+  stopAmbient();
+  ambient=buildAmbient(biome);
+  ambEventT=1+Math.random()*2;
+}
+function refreshAmbientVolume(){
+  if(!ambient) return;
+  ambient.gain.gain.setTargetAtTime(muted?0:(AMBIENT_VOL[ambient.biome]||.06),ac.currentTime,.3);
+}
+function ambientTick(dt){
+  if(!ambient||muted) return;
+  ambEventT-=dt; if(ambEventT>0) return;
+  const b=ambient.biome;
+  if(b==='jungle'){ const f=2100+Math.random()*900; tone(f,f*.86,.05,'square',.045); tone(f*1.05,f*.9,.05,'square',.03,.09); ambEventT=1.2+Math.random()*2.2; }
+  else if(b==='canyon'){ tone(210,85,.35,'triangle',.05); tone(210,85,.3,'triangle',.025,.3); ambEventT=4+Math.random()*5; }
+  else if(b==='desert'){ noise(.5,.05,1500); ambEventT=3+Math.random()*4; }
+  else { tone(560,560,.05,'square',.025); tone(400,400,.05,'square',.018,.1); ambEventT=3.5+Math.random()*4.5; }
 }
 function tone(f0,f1,dur,type,vol,delay){
   if(!ac||muted) return;
@@ -1013,7 +1070,14 @@ const sfx={
   pickup(){ tone(660,660,.06,'square',.16); tone(990,990,.09,'square',.16,.06); },
   gun(){ tone(300,300,.05,'square',.18); tone(450,450,.05,'square',.18,.07); tone(700,700,.1,'square',.18,.14); },
   win(){ [520,660,780,1040].forEach((f,i)=>tone(f,f,.16,'triangle',.22,i*.12)); },
-  die(){ tone(300,30,1,'sawtooth',.4); noise(.8,.4,500); }
+  die(){ tone(300,30,1,'sawtooth',.4); noise(.8,.4,500); },
+  spark(){ noise(.05,.13,4200); tone(1900,700,.04,'square',.05); },
+  step(biome){
+    if(biome==='desert'){ noise(.09,.1,900); }
+    else if(biome==='jungle'){ noise(.08,.11,650); tone(320,180,.05,'square',.04); }
+    else if(biome==='canyon'){ noise(.11,.12,480); }
+    else { tone(150,90,.05,'square',.07); noise(.05,.07,2200); }
+  }
 };
 
 /* ============================================================
@@ -1065,6 +1129,8 @@ function releaseLock(){ lockWanted=false; try{ if(document.pointerLockElement) d
    Spiellogik
    ============================================================ */
 let msgT=0, hurtT=0, healT=0, hitMarkT=0, faceKind=-1;
+let shakeAmt=0;
+function kick(amt){ shakeAmt=Math.max(shakeAmt,amt); }
 
 function showMsg(t,ms){ const m=$('msg'); m.textContent=t; m.classList.add('on'); msgT=(ms||2200)/1000; }
 function setWeapon(i){
@@ -1073,11 +1139,11 @@ function setWeapon(i){
 }
 function hurtPlayer(n){
   if(P.hp<=0||state!=='play') return;
-  P.hp=Math.max(0,P.hp-n); hurtT=.4; sfx.hurt();
+  P.hp=Math.max(0,P.hp-n); hurtT=.4; sfx.hurt(); kick(Math.min(1,.32+n*.035));
   if(P.hp<=0) die();
 }
 function die(){
-  state='dead'; releaseLock(); sfx.die();
+  state='dead'; releaseLock(); sfx.die(); kick(1);
   setTimeout(()=>{
     const buttons=[{label:'Sektor neu starten',primary:true,fn:()=>{ P.hp=100; P.ammo=Math.max(snap.ammo,30); P.hasSG=snap.hasSG; restartCurrent(); }}];
     if(lvl.procedural) buttons.push({label:'Lauf beenden',fn:finishRun});
@@ -1100,9 +1166,9 @@ function tryFire(){
   const w=WEAPONS[P.weapon];
   if(P.ammo<w.cost){ sfx.empty(); P.fireCd=.35; showMsg('Keine Ladung',1200); return; }
   P.ammo-=w.cost; P.fireCd=w.rate; P.recoil=1; P.flash=P.weapon===2?.12:.09;
-  if(P.weapon===0){ sfx.pistol(); hitscan(0,12); }
-  else if(P.weapon===1){ sfx.shotgun(); for(let i=0;i<7;i++) hitscan((Math.random()-.5)*.2,9); }
-  else { sfx.melee(); hitscan((Math.random()-.5)*.04,26,1.65); }
+  if(P.weapon===0){ sfx.pistol(); hitscan(0,12); kick(.16); }
+  else if(P.weapon===1){ sfx.shotgun(); for(let i=0;i<7;i++) hitscan((Math.random()-.5)*.2,9); kick(.38); }
+  else { sfx.melee(); hitscan((Math.random()-.5)*.04,26,1.65); kick(.2); }
   alertNear();
 }
 function hitscan(off,dmg,maxRange){
@@ -1116,18 +1182,26 @@ function hitscan(off,dmg,maxRange){
     const perp=Math.abs(ex*dy-ey*dx);
     if(perp<ETYPES[e.type].rad){ best=e; bd=along; }
   }
-  if(best) damageEnemy(best,dmg);
+  if(best) damageEnemy(best,dmg,a);
+  else if(wd<1e8 && (!maxRange||wd<=maxRange)) spawnSpark(P.x+dx*wd,P.y+dy*wd);
 }
-function damageEnemy(e,dmg){
+function damageEnemy(e,dmg,ang){
   e.hp-=dmg; e.flash=.1; hitMarkT=.15; e.awake=true;
   if(e.hp<=0){ e.alive=false; e.bodyT=0; stats.kills++; sfx.kill(Math.hypot(e.x-P.x,e.y-P.y));
-    spawnBoom(e.x,e.y,ETYPES[e.type].sc);
+    spawnBoom(e.x,e.y,ETYPES[e.type].sc); kick(e.type==='K'?.9:.48);
     if(e.type==='K') showMsg('Kern-Wächter besiegt — das Portal ist offen',3000);
-  } else sfx.hit();
+  } else {
+    sfx.hit(); kick(.09);
+    if(ang!=null){ const kb=ETYPES[e.type].sc>1?.9:1.6; e.stagT=.16; e.stagX=Math.cos(ang)*kb; e.stagY=Math.sin(ang)*kb; }
+  }
 }
 function spawnBoom(x,y,scale){ booms.push({x,y,t:0,life:.5,scale:scale||1}); }
 function updateBooms(dt){
   for(let i=booms.length-1;i>=0;i--){ const b=booms[i]; b.t+=dt; if(b.t>=b.life) booms.splice(i,1); }
+}
+function spawnSpark(x,y){ sparks.push({x,y,t:0,life:.22}); sfx.spark(); }
+function updateSparks(dt){
+  for(let i=sparks.length-1;i>=0;i--){ const s=sparks[i]; s.t+=dt; if(s.t>=s.life) sparks.splice(i,1); }
 }
 function spawnShot(x,y,ang,dmg){
   shots.push({x,y,dx:Math.cos(ang),dy:Math.sin(ang),dmg,life:4});
@@ -1138,6 +1212,12 @@ function updateEnemy(e,dt){
   if(!e.alive){ e.bodyT+=dt; return; }
   const t=ETYPES[e.type];
   e.flash=Math.max(0,e.flash-dt); e.atk=Math.max(0,e.atk-dt); e.cd-=dt; e.strT-=dt;
+  if(e.stagT>0){
+    e.stagT-=dt;
+    tryMove(e,e.stagX*dt,e.stagY*dt,t.rad*.8);
+    const decay=Math.max(0,1-dt*7); e.stagX*=decay; e.stagY*=decay;
+    return;
+  }
   const dx=P.x-e.x, dy=P.y-e.y, dist=Math.hypot(dx,dy)||.001, ux=dx/dist, uy=dy/dist;
   const los=rayWallDist(e.x,e.y,ux,uy)>=dist-.15;
   if(!e.awake){ if((los&&dist<12)||e.hear) wake(e); else return; }
@@ -1178,7 +1258,8 @@ function updateShots(dt){
   for(let i=shots.length-1;i>=0;i--){
     const s=shots[i];
     s.x+=s.dx*6*dt; s.y+=s.dy*6*dt; s.life-=dt;
-    if(s.life<=0||solidAt(s.x,s.y)){ shots.splice(i,1); continue; }
+    if(s.life<=0){ shots.splice(i,1); continue; }
+    if(solidAt(s.x,s.y)){ spawnSpark(s.x,s.y); shots.splice(i,1); continue; }
     if(Math.hypot(s.x-P.x,s.y-P.y)<.32){ hurtPlayer(s.dmg); shots.splice(i,1); }
   }
 }
@@ -1239,6 +1320,7 @@ function startLevel(i,fresh){
     initAudio();
     if(fresh){ P.hp=100; if(i===0&&!P.hasSG) P.ammo=36; }
     parseLevel(i);
+    setAmbient(curBiome);
     snap={hp:P.hp,ammo:P.ammo,hasSG:P.hasSG};
     P.weapon=P.hasSG?1:0; $('wname').textContent=WEAPONS[P.weapon].name;
     hideOverlay(); state='play'; requestLock();
@@ -1249,7 +1331,7 @@ function pauseGame(){
   if(state!=='play') return;
   state='pause'; releaseLock();
   const buttons=[{label:'Weiterspielen',primary:true,fn:resumeGame},
-                 {label:muted?'Ton an':'Ton aus',fn:()=>{ muted=!muted; pauseRefresh(); }}];
+                 {label:muted?'Ton an':'Ton aus',fn:()=>{ muted=!muted; refreshAmbientVolume(); pauseRefresh(); }}];
   if(lvl.procedural) buttons.push({label:'Lauf beenden',fn:finishRun});
   buttons.push({label:'Zum Titel',fn:showTitle});
   showOverlay({title:'Pausiert',text:'Klick auf „Weiterspielen“ fängt die Maus wieder ein.',showKeys:true,buttons});
@@ -1419,6 +1501,11 @@ function renderSprites(time){
     const grow=.55+(b.t/b.life)*.9;
     drawList.push({x:b.x,y:b.y,tex:BOOM_FRAMES[k],sc:(b.scale||1)*grow,vo:.16,flash:0,glow:true});
   }
+  for(const sp of sparks){
+    const k=Math.min(SPARK_FRAMES.length-1,(sp.t/sp.life*SPARK_FRAMES.length)|0);
+    const shrink=1-(sp.t/sp.life)*.3;
+    drawList.push({x:sp.x,y:sp.y,tex:SPARK_FRAMES[k],sc:.24*shrink,vo:.26,flash:0,glow:true});
+  }
   for(const d of drawList){ const dx=d.x-P.x, dy=d.y-P.y; d.d=dx*dx+dy*dy; }
   drawList.sort((a,b)=>b.d-a.d);
 
@@ -1565,6 +1652,7 @@ function updateHud(){
    Hauptschleife
    ============================================================ */
 let lastT=performance.now();
+let stepPhase=0;
 function update(dt){
   stats.time+=dt;
   // Bewegung
@@ -1578,6 +1666,8 @@ function update(dt){
     const sp=(keys.ShiftLeft||keys.ShiftRight?4.8:3.2)*dt;
     const mv=tryMove(P,vx/vl*sp,vy/vl*sp,.22);
     P.moving=Math.min(1,P.moving+dt*8); P.bob+=mv*2.6;
+    const stepIdx=Math.floor(P.bob/Math.PI);
+    if(stepIdx>stepPhase){ stepPhase=stepIdx; sfx.step(curBiome); }
   } else P.moving=Math.max(0,P.moving-dt*8);
   // Feuern
   P.fireCd=Math.max(0,P.fireCd-dt); P.recoil=Math.max(0,P.recoil-dt*5); P.flash=Math.max(0,P.flash-dt);
@@ -1586,19 +1676,28 @@ function update(dt){
   if(lvl.fog) updateFog();
   flowT-=dt; if(flowT<=0){ computeFlow(); flowT=.3; }
   for(const e of enemies) updateEnemy(e,dt);
-  updateShots(dt); updatePickups(); updateBooms(dt); checkExit(dt);
+  updateShots(dt); updatePickups(); updateBooms(dt); updateSparks(dt); checkExit(dt);
+  ambientTick(dt);
   // Effekte
   hurtT=Math.max(0,hurtT-dt); healT=Math.max(0,healT-dt); hitMarkT=Math.max(0,hitMarkT-dt);
+  shakeAmt=Math.max(0,shakeAmt-dt*3.4);
   $('hurt').style.opacity=Math.min(1,hurtT*2.4); $('heal').style.opacity=Math.min(1,healT*2.4);
   $('xh').classList.toggle('hit',hitMarkT>0);
   if(msgT>0){ msgT-=dt; if(msgT<=0) $('msg').classList.remove('on'); }
+}
+function applyShake(){
+  if(shakeAmt>.003){
+    const m=shakeAmt*shakeAmt;
+    const ox=(Math.random()*2-1)*m*2.2, oy=(Math.random()*2-1)*m*2.2;
+    cv.style.transform='translate('+ox.toFixed(2)+'cqw,'+oy.toFixed(2)+'cqw)';
+  } else if(cv.style.transform){ cv.style.transform=''; }
 }
 function frame(now){
   const dt=Math.min(.05,(now-lastT)/1000); lastT=now;
   if(state==='play') update(dt);
   else if(state==='title'){ P.a+=dt*0.045; }
-  else if(state==='dead'||state==='levelwin'||state==='gamewin'){ hurtT=Math.max(0,hurtT-dt); $('hurt').style.opacity=state==='dead'?.55:0; }
-  if(lvl){ render(now/1000); if(state==='play'||state==='pause') drawMini(); updateHud(); }
+  else if(state==='dead'||state==='levelwin'||state==='gamewin'){ hurtT=Math.max(0,hurtT-dt); shakeAmt=Math.max(0,shakeAmt-dt*3.4); $('hurt').style.opacity=state==='dead'?.55:0; }
+  if(lvl){ render(now/1000); if(state==='play'||state==='pause') drawMini(); updateHud(); applyShake(); }
   requestAnimationFrame(frame);
 }
 
