@@ -979,6 +979,38 @@ function flowTarget(e){
   }
   return bx<0?null:{x:bx+.5,y:by+.5};
 }
+/* ---- Generisches Flow-Feld zu einem beliebigen Ziel (für die Titelbild-Demo) ---- */
+function computeFlowFromCell(tx,ty){
+  if(tx<0||ty<0||tx>=MW||ty>=MH) return null;
+  const f=new Int16Array(MW*MH).fill(-1);
+  const q=[tx,ty]; f[ty*MW+tx]=0;
+  for(let i=0;i<q.length;i+=2){
+    const x=q[i], y=q[i+1], d=f[y*MW+x];
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx, ny=y+dy;
+      if(nx<0||ny<0||nx>=MW||ny>=MH) continue;
+      const k=ny*MW+nx;
+      if(f[k]!==-1||grid[k]>0) continue;
+      f[k]=d+1; q.push(nx,ny);
+    }
+  }
+  return f;
+}
+function fieldTarget(px,py,f){
+  if(!f) return null;
+  const cx=px|0, cy=py|0; let best=f[cy*MW+cx], bx=-1, by=-1;
+  if(best==null||best<0) return null;
+  for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+    if(!dx&&!dy) continue;
+    const nx=cx+dx, ny=cy+dy;
+    if(nx<0||ny<0||nx>=MW||ny>=MH) continue;
+    const v=f[ny*MW+nx];
+    if(v<0||v>=best) continue;
+    if(dx&&dy&&(grid[cy*MW+nx]>0||grid[ny*MW+cx]>0)) continue;
+    best=v; bx=nx; by=ny;
+  }
+  return bx<0?null:{x:bx+.5,y:by+.5};
+}
 
 /* ============================================================
    Audio (WebAudio-Synthese)
@@ -1171,6 +1203,12 @@ function tryFire(){
   else { sfx.melee(); hitscan((Math.random()-.5)*.04,26,1.65); kick(.2); }
   alertNear();
 }
+/* ---- Feuern für die Titelbild-Demo: identisches Waffengefühl, aber ohne Munitionsverbrauch ---- */
+function demoFire(){
+  if(P.fireCd>0) return;
+  P.fireCd=WEAPONS[0].rate; P.recoil=1; P.flash=.09;
+  sfx.pistol(); hitscan(0,12); kick(.16); alertNear();
+}
 function hitscan(off,dmg,maxRange){
   const a=P.a+off, dx=Math.cos(a), dy=Math.sin(a);
   const wd=rayWallDist(P.x,P.y,dx,dy);
@@ -1340,7 +1378,9 @@ function pauseRefresh(){ state='play'; pauseGame(); }
 function resumeGame(){ hideOverlay(); state='play'; requestLock(); lastT=performance.now(); }
 function showTitle(){
   state='title'; releaseLock();
-  parseLevel(0); P.a=Math.PI/4;   // frische Szene als Kulisse, Kamera dreht langsam (siehe frame())
+  demoLvIdx=0; parseLevel(generateProceduralLevel(DEMO_DEPTHS[demoLvIdx])); P.a=lvl.angle; P.weapon=0;
+  demoTarget=null; demoFlowMap=null; demoFlowKey=null; demoIdleT=0; demoAimT=0; demoStuckT=0;
+  setAmbient('facility');   // Kulisse: Wächter-Programm läuft die Story-Sektoren als Demo ab (siehe updateDemo())
   const chips=LEVELS.map((l,i)=>'<button class="chip" data-lv="'+i+'">Sektor '+(i+1)+'</button>').join('');
   showOverlay({titleMode:true, html:
     '<div class="eyebrow"><span class="dot"></span> Testspiel — Wächter-Programm aktiv</div>'+
@@ -1649,6 +1689,88 @@ function updateHud(){
 }
 
 /* ============================================================
+   Titelbild-Demo (Wächter-Programm spielt sich selbst)
+   ============================================================ */
+let demoLvIdx=0, demoTarget=null, demoFlowMap=null, demoFlowKey=null, demoIdleT=0, demoAimT=0, demoStuckT=0;
+const DEMO_DEPTHS=[3,6,9,12]; // je ein Boss-Tiefe-Sprung pro Biome: Anlage, Schlucht, Wüste, Dschungel
+function demoPickTarget(){
+  if(demoTarget && !demoTarget.alive) demoTarget=null;   // Ziel tot -> neu wählen
+  if(!demoTarget){
+    let best=null, bd=1e9;
+    for(const e of enemies){
+      if(!e.alive) continue;
+      const d=(e.x-P.x)*(e.x-P.x)+(e.y-P.y)*(e.y-P.y);
+      if(d<bd){ bd=d; best=e; }
+    }
+    demoTarget=best;   // am gewählten Gegner festhalten, statt jeden Frame neu zu wählen (verhindert Zappeln)
+  }
+  if(demoTarget) return {x:demoTarget.x,y:demoTarget.y,enemy:demoTarget};
+  if(exitCell) return {x:exitCell.x+.5,y:exitCell.y+.5,enemy:null};
+  return null;
+}
+function nextDemoScene(){
+  fadeTransition(()=>{
+    demoLvIdx=(demoLvIdx+1)%DEMO_DEPTHS.length;
+    parseLevel(generateProceduralLevel(DEMO_DEPTHS[demoLvIdx])); P.a=lvl.angle; P.weapon=0;
+    demoTarget=null; demoFlowMap=null; demoFlowKey=null; demoIdleT=0; demoAimT=0; demoStuckT=0;
+    setAmbient(curBiome); lastT=performance.now();
+  });
+}
+function updateDemo(dt){
+  if(fadeBusy) return;   // während des Szenenwechsels nichts bewegen
+  for(const e of enemies) updateEnemy(e,dt);
+  updateShots(dt); updateBooms(dt); updateSparks(dt);
+  P.fireCd=Math.max(0,P.fireCd-dt); P.recoil=Math.max(0,P.recoil-dt*5); P.flash=Math.max(0,P.flash-dt);
+  hitMarkT=Math.max(0,hitMarkT-dt); shakeAmt=Math.max(0,shakeAmt-dt*3.4);
+  flowT-=dt; if(flowT<=0){ computeFlow(); flowT=.3; }
+
+  const target=demoPickTarget();
+  const foesLeft=enemies.some(e=>e.alive);
+  if(!target){
+    P.a+=dt*.12; P.moving=Math.max(0,P.moving-dt*8);
+  } else {
+    const dx=target.x-P.x, dy=target.y-P.y, dist=Math.hypot(dx,dy)||.001;
+    const aimAng=Math.atan2(dy,dx);
+    const los=target.enemy && rayWallDist(P.x,P.y,dx/dist,dy/dist)>=dist-.2;
+    let wantMove=true;
+    if(los){
+      demoAimT=.6;
+      const da=((aimAng-P.a+Math.PI*3)%(Math.PI*2))-Math.PI;
+      P.a+=clamp(da,-3.4*dt,3.4*dt);
+      wantMove=dist>3.1;
+      if(Math.abs(da)<.11) demoFire();
+    } else {
+      demoAimT=Math.max(0,demoAimT-dt);
+      const tk=(target.x|0)+','+(target.y|0);
+      if(tk!==demoFlowKey){ demoFlowMap=computeFlowFromCell(target.x|0,target.y|0); demoFlowKey=tk; }
+      const nx=fieldTarget(P.x,P.y,demoFlowMap);
+      if(nx){
+        const moveAng=Math.atan2(nx.y-P.y,nx.x-P.x);
+        const da=((moveAng-P.a+Math.PI*3)%(Math.PI*2))-Math.PI;
+        P.a+=clamp(da,-2.6*dt,2.6*dt);
+      } else wantMove=false;
+    }
+    if(wantMove){
+      const sp=2.3*dt;
+      const mv=tryMove(P,Math.cos(P.a)*sp,Math.sin(P.a)*sp,.22);
+      P.moving=Math.min(1,P.moving+dt*8); P.bob+=mv*2.6;
+      stepPhase=Math.floor(P.bob/Math.PI);
+      if(mv<sp*.15) demoStuckT+=dt; else demoStuckT=0;
+    } else { P.moving=Math.max(0,P.moving-dt*8); demoStuckT=0; }
+    if(demoStuckT>2){   // Bewegung blockiert (z.B. Engstelle/Ecke) -> Ziel fallen lassen und neu ausrichten
+      demoStuckT=0; demoTarget=null; demoFlowMap=null; demoFlowKey=null;
+      P.a+=(Math.random()<.5?-1:1)*(Math.PI*.5+Math.random()*Math.PI*.5);
+    }
+  }
+
+  if(!foesLeft){
+    demoIdleT+=dt;
+    const atExit=exitCell&&Math.hypot(P.x-(exitCell.x+.5),P.y-(exitCell.y+.5))<1.1;
+    if(!exitCell||atExit||demoIdleT>5) nextDemoScene();
+  } else demoIdleT=0;
+}
+
+/* ============================================================
    Hauptschleife
    ============================================================ */
 let lastT=performance.now();
@@ -1695,7 +1817,7 @@ function applyShake(){
 function frame(now){
   const dt=Math.min(.05,(now-lastT)/1000); lastT=now;
   if(state==='play') update(dt);
-  else if(state==='title'){ P.a+=dt*0.045; }
+  else if(state==='title'){ updateDemo(dt); }
   else if(state==='dead'||state==='levelwin'||state==='gamewin'){ hurtT=Math.max(0,hurtT-dt); shakeAmt=Math.max(0,shakeAmt-dt*3.4); $('hurt').style.opacity=state==='dead'?.55:0; }
   if(lvl){ render(now/1000); if(state==='play'||state==='pause') drawMini(); updateHud(); applyShake(); }
   requestAnimationFrame(frame);
@@ -1706,7 +1828,7 @@ drawFace(0);
 showTitle();          // parst Sektor 1 selbst als Kulisse für den Titelbildschirm
 requestAnimationFrame(frame);
 
-window.__breach={P,get state(){return state;},get enemies(){return enemies;},get pickups(){return pickups;},startLevel,newRun,stats,get lvIdx(){return lvIdx;},keys};
+window.__breach={P,get state(){return state;},get enemies(){return enemies;},get pickups(){return pickups;},startLevel,newRun,stats,get lvIdx(){return lvIdx;},get biome(){return curBiome;},get depth(){return lvl&&lvl.depth;},keys};
 })();
 </script>
 </body>
