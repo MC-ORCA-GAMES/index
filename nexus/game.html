@@ -2,6 +2,31 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.21: Kontoauszug auf alle NEXUS-Waehrungen ausgeweitet (war zuvor nur NRC/MOGC/STBL
+    sichtbar). Kein Backend-Update noetig -- die Trigger auf platform.wallets/wallet_balances
+    protokollieren technisch schon seit v4.2.19 ALLE Waehrungen, und get_my_wallet_ledger(symbol)
+    ist bereits generisch. Reine Frontend-Ergaenzung: 18 weitere Chips im Kontoauszug-Panel
+    (VOLT, GOV, QNTM, DRIFT, CYCLE, PULSE, RELAY, IONX, ANCH, NVLT, GRID, SIGIL, FLUX, FVLT,
+    AXIOM, FORK, COMET, PRSM) + passende Eintraege in LEDGER_LABELS. Stichprobe bestaetigt:
+    Bewegungen fuer AXIOM/FORK/PULSE liegen bereits im Ledger vor. Kein Spam-Risiko wie bei NRC,
+    da AXIOM/FORK/PULSE/COMET nur alle 5 Min. (Cron) bzw. bei manuellen Aktionen (Markt-Trades,
+    Bank-Ein-/Auszahlungen, Vault) je eine Zeile pro Spieler erzeugen -- NRC war der einzige
+    Ausreisser mit Sekunden-Takt (siehe v4.2.20-Fix). Buchungstexte bei den neu sichtbaren
+    Waehrungen sind teils noch der generische "Guthabenänderung"-Fallback, da set_config-Reasons
+    bislang nur fuer NRC/MOGC/STBL-Aktionen gesetzt werden -- kann bei Bedarf Stueck fuer Stueck
+    nachgezogen werden.
+  - v4.2.20: NRC-Sammelbuchung statt Einzel-Log pro Foerder-Tick. collect_earnings() (laeuft alle
+    paar Sekunden ueber get_full_game_state) markiert die NOVA-Gutschrift jetzt mit dem Sentinel
+    '__SKIP_LEDGER_NRC_MINING__' ueber set_config('platform.ledger_reason', ...), wodurch der
+    Wallets-Trigger diese einzelne Aenderung NICHT mehr protokolliert. Stattdessen fasst ein neuer
+    pg_cron-Job platform.aggregate_nrc_mining_ledger() alle 5 Minuten (*/5 * * * *) die
+    zwischenzeitlichen crypto_farm.mining_log-Rohdaten pro Spieler zu EINER Sammelzeile im
+    Kontoauszug zusammen ("NRC-Foerderung (Sammelbuchung, letzte X Min.)"), mit korrektem
+    Saldo-Stand zum Zeitpunkt des Laufs. Fortschritts-Cursor in neuer Tabelle
+    platform.wallet_ledger_cron_state (key 'nrc_mining'). Alle anderen NRC-Bewegungen (Verkauf,
+    Rig-Kauf, Bank-Ein-/Auszahlung) bleiben weiterhin sofort einzeln geloggt, da sie eigene
+    Reason-Texte setzen und dadurch vom Sentinel-Skip nicht betroffen sind. Getestet: manueller
+    Lauf hat 3 Rohbuchungen zu einer einzigen Sammelzeile verdichtet.
   - v4.2.19: Kontoauszug (Wallet-Ledger) fuer NRC/MOGC/STBL. Neue Tabelle platform.wallet_ledger
     + zwei Trigger (auf platform.wallets fuer NRC/MOGC, auf platform.wallet_balances generisch
     fuer alle anderen Waehrungen inkl. STBL) protokollieren ab jetzt jede Saldo-Aenderung mit
@@ -2709,11 +2734,29 @@
     </div>
 
     <div class="panel">
-      <h3>Kontoauszug <span class="tag">— Ein-/Ausgänge im Detail, aktuell für NRC, MOGC &amp; STBL</span></h3>
+      <h3>Kontoauszug <span class="tag">— Ein-/Ausgänge im Detail, für alle NEXUS-Währungen</span></h3>
       <div class="wallet-range-tabs" id="ledgerSymbolTabs">
         <button type="button" class="wr-tab active" data-symbol="NOVA">NRC</button>
         <button type="button" class="wr-tab" data-symbol="MOGC">MOGC</button>
         <button type="button" class="wr-tab" data-symbol="STBL">STBL</button>
+        <button type="button" class="wr-tab" data-symbol="VOLT">VOLT</button>
+        <button type="button" class="wr-tab" data-symbol="GOV">GOV</button>
+        <button type="button" class="wr-tab" data-symbol="QNTM">QNTM</button>
+        <button type="button" class="wr-tab" data-symbol="DRIFT">DRIFT</button>
+        <button type="button" class="wr-tab" data-symbol="CYCLE">CYCLE</button>
+        <button type="button" class="wr-tab" data-symbol="PULSE">PULSE</button>
+        <button type="button" class="wr-tab" data-symbol="RELAY">RELAY</button>
+        <button type="button" class="wr-tab" data-symbol="IONX">IONX</button>
+        <button type="button" class="wr-tab" data-symbol="ANCH">ANCH</button>
+        <button type="button" class="wr-tab" data-symbol="NVLT">NVLT</button>
+        <button type="button" class="wr-tab" data-symbol="GRID">GRID</button>
+        <button type="button" class="wr-tab" data-symbol="SIGIL">SIGIL</button>
+        <button type="button" class="wr-tab" data-symbol="FLUX">FLUX</button>
+        <button type="button" class="wr-tab" data-symbol="FVLT">FVLT</button>
+        <button type="button" class="wr-tab" data-symbol="AXIOM">AXIOM</button>
+        <button type="button" class="wr-tab" data-symbol="FORK">FORK</button>
+        <button type="button" class="wr-tab" data-symbol="COMET">COMET</button>
+        <button type="button" class="wr-tab" data-symbol="PRSM">PRSM</button>
       </div>
       <div id="ledgerList" class="ledger-list">
         <div class="sm-hint">Lade Kontoauszug …</div>
@@ -8511,7 +8554,12 @@ async function renderGuildLeaderboard(){
 /* ---------- Kometen-Event (Saisonales Event) ---------- */
 /* ---------- Kontoauszug (Wallet-Ledger) -- NRC/MOGC/STBL zum Start ---------- */
 let ledgerState = { symbol: 'NOVA', rows: [], loading: false, hasMore: true };
-const LEDGER_LABELS = { NOVA: 'NRC', MOGC: 'MOGC', STBL: 'STBL' };
+const LEDGER_LABELS = {
+  NOVA: 'NRC', MOGC: 'MOGC', STBL: 'STBL', VOLT: 'VOLT', GOV: 'GOV', QNTM: 'QNTM',
+  DRIFT: 'DRIFT', CYCLE: 'CYCLE', PULSE: 'PULSE', RELAY: 'RELAY', IONX: 'IONX',
+  ANCH: 'ANCH', NVLT: 'NVLT', GRID: 'GRID', SIGIL: 'SIGIL', FLUX: 'FLUX', FVLT: 'FVLT',
+  AXIOM: 'AXIOM', FORK: 'FORK', COMET: 'COMET', PRSM: 'PRSM'
+};
 
 function ledgerFmtTime(iso){
   try{
