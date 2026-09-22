@@ -2,6 +2,19 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.22: Sprechende Kontoauszug-Texte fuer Markt-Trades & Vaults nachgezogen (Backend-only,
+    keine Frontend-Aenderung noetig). 17 RPCs setzen jetzt vor der Buchung
+    set_config('platform.ledger_reason', ..., true): buy_volt/sell_volt, buy_drift/sell_drift,
+    buy_grid/sell_grid, buy_ionx/sell_ionx (gegen PULSE statt MOGC), buy_qntm/sell_qntm,
+    deposit_to_anchor/withdraw_from_anchor (ANCH <-> PULSE), deposit_to_nova_vault/
+    withdraw_from_nova_vault (NVLT <-> NRC), deposit_to_flux_vault/withdraw_from_flux_vault
+    (FVLT <-> FLUX), claim_governance_reward (GOV aus Prestige-Punkten). Reason gilt jeweils fuer
+    BEIDE betroffenen Waehrungen einer Buchung (z.B. "VOLT-Kauf" erscheint sowohl bei der
+    MOGC-Abbuchung als auch der VOLT-Gutschrift), da set_config transaktionslokal ist und nicht
+    auf andere Aufrufe abfaerbt. cast_governance_vote aendert keinen Saldo, daher nicht angefasst.
+    Weiterhin generisch ("Guthabenänderung"): SIGIL/CYCLE/PULSE/RELAY/FLUX-Aktionen im
+    crypto_farm-Schema (Farmen/Skills/Rigs) sowie AXIOM/FORK/COMET-Emissionen -- auf Wunsch
+    ebenfalls nachziehbar.
   - v4.2.21: Kontoauszug auf alle NEXUS-Waehrungen ausgeweitet (war zuvor nur NRC/MOGC/STBL
     sichtbar). Kein Backend-Update noetig -- die Trigger auf platform.wallets/wallet_balances
     protokollieren technisch schon seit v4.2.19 ALLE Waehrungen, und get_my_wallet_ledger(symbol)
