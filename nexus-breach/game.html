@@ -59,6 +59,9 @@
   .val small{ font-size:.45em; color:var(--dim); font-weight:600; margin-left:.4em; }
   #hpbar{ height:.7cqw; margin-top:.6cqw; background:#0e1826; border:1px solid #1b2a3e; }
   #hpfill{ height:100%; width:100%; background:var(--up); transition:width .15s, background .2s; }
+  #heatbar{ height:.7cqw; margin-top:.6cqw; background:#0e1826; border:1px solid #1b2a3e; opacity:0; transition:opacity .2s; }
+  #heatbar.show{ opacity:1; }
+  #heatfill{ height:100%; width:0%; background:var(--cyan); transition:width .1s linear, background .2s; }
   #face{ width:8.6cqw; height:8.6cqw; image-rendering:pixelated; justify-self:center; filter:drop-shadow(0 0 6px rgba(53,228,255,.35)); }
   #overlay{ position:absolute; inset:0; display:none; align-items:center; justify-content:flex-start;
     background:radial-gradient(120% 90% at 20% 30%,rgba(4,6,12,.72),rgba(4,6,12,.93)); padding:0 7cqw; }
@@ -222,7 +225,7 @@
   <div id="msg"></div>
   <div id="bar">
     <div class="cell"><div class="lab">Integrität</div><div class="val" id="hp">100</div><div id="hpbar"><div id="hpfill"></div></div></div>
-    <div class="cell"><div class="lab" id="wname">Puls-Pistole</div><div class="val" id="ammo">0</div></div>
+    <div class="cell"><div class="lab" id="wname">Puls-Pistole</div><div class="val" id="ammo">0</div><div id="heatbar"><div id="heatfill"></div></div></div>
     <canvas id="face" width="40" height="40"></canvas>
     <div class="cell"><div class="lab">MOGC-Splitter</div><div class="val" id="shards">0<small>/0</small></div></div>
     <div class="cell"><div class="lab">Rogue-Prozesse</div><div class="val" id="foes">0</div></div>
@@ -574,7 +577,10 @@ const SPR_SHARD=makeTex(g=>{ poly(g,'#35E4FF',[32,6,52,30,32,58,12,30]); poly(g,
   poly(g,'#1aa9c4',[32,30,52,30,32,58]); poly(g,'#DFFCFF',[32,12,40,26,32,26]); },true);
 const SPR_SHOTGUN=makeTex(g=>{ px(g,'#10161f',5,24,50,10); px(g,'#2b3b4f',6,25,48,8); px(g,'#FFAE3D',6,34,48,3);
   px(g,'#10161f',5,36,26,5); poly(g,'#3a2a1a',[44,30,58,30,60,46,48,46]); px(g,'#35E4FF',10,27,20,2); },true);
-const PICKUP_SPR={h:SPR_HEALTH,a:SPR_AMMO,m:SPR_SHARD,s:SPR_SHOTGUN};
+const SPR_AUTO=makeTex(g=>{ px(g,'#10161f',5,26,54,9); px(g,'#2b3b4f',6,27,52,7); px(g,'#FF6A2E',6,30,52,2);
+  px(g,'#10161f',8,35,11,15); px(g,'#2b3b4f',9,36,9,13); poly(g,'#3a2a1a',[48,29,60,29,60,42,50,42]);
+  px(g,'#35E4FF',12,28,22,2); px(g,'#FFC98A',38,26,4,10); },true);
+const PICKUP_SPR={h:SPR_HEALTH,a:SPR_AMMO,m:SPR_SHARD,s:SPR_SHOTGUN,w:SPR_AUTO};
 
 /* ============================================================
    Level
@@ -725,7 +731,8 @@ const ETYPES={
 const WEAPONS=[
   {name:'Puls-Pistole', cost:1, rate:.30},
   {name:'Streu-Kanone', cost:2, rate:.80},
-  {name:'Fäuste', cost:0, rate:.42}
+  {name:'Fäuste', cost:0, rate:.42},
+  {name:'Overclock-Gewehr', cost:1, rate:.07}
 ];
 
 let MW=0, MH=0, grid=null, flow=null, exitCell=null, lvIdx=0, lvl=null;
@@ -846,6 +853,7 @@ function generateProceduralLevel(depth){
   place('a',3+Math.floor(depth/3));
   place('m',4+Math.floor(depth/2));
   if(depth===1) place('s',1);
+  if(depth===6) place('w',1);
   let angle=Math.PI/4;
   if(g[idx(2,1)]===0) angle=0; else if(g[idx(1,2)]===0) angle=Math.PI/2;
   const biomeId=biomeForDepth(depth), biome=BIOMES[biomeId];
@@ -890,7 +898,7 @@ function updateFog(){
   const pk=(py|0)*MW+(px|0); if(pk>=0&&pk<seen.length){ seen[pk]=1; visible[pk]=1; }
 }
 
-const P={x:2,y:2,a:0,pitch:0,hp:100,ammo:36,weapon:0,hasSG:false,fireCd:0,recoil:0,flash:0,bob:0,moving:0};
+const P={x:2,y:2,a:0,pitch:0,hp:100,ammo:36,weapon:0,hasSG:false,hasAuto:false,heat:0,overheatT:0,fireCd:0,recoil:0,flash:0,bob:0,moving:0};
 const stats={kills:0,shards:0,time:0};
 const run={kills:0,shards:0,time:0,foes:0,shardsMax:0};
 let snap={hp:100,ammo:36,hasSG:false};
@@ -915,12 +923,13 @@ function parseLevel(src){
         flash:0,atk:0,strafe:Math.random()<.5?-1:1,strT:0,bodyT:0,stagT:0,stagX:0,stagY:0}); totals.foes++; }
     else if(PICKUP_SPR[c]){ pickups.push({kind:c,x:cx,y:cy,taken:false,ph:Math.random()*6}); if(c==='m') totals.shards++; }
   }
-  P.pitch=0; P.fireCd=0; P.recoil=0; P.flash=0; P.bob=0; P.weapon=P.hasSG?1:0;
+  P.pitch=0; P.fireCd=0; P.recoil=0; P.flash=0; P.bob=0; P.weapon=P.hasSG?1:0; P.heat=0; P.overheatT=0;
   stepPhase=0;
   stats.kills=0; stats.shards=0; stats.time=0;
   flow=new Int16Array(MW*MH); flowT=0;
   buildMini();
   resetFog();
+  updateHeatUI();
 }
 
 /* ---- Kollision, Sicht ---- */
@@ -1092,6 +1101,8 @@ const near=d=>clamp(1-d/16,.08,1);
 const sfx={
   pistol(){ tone(1000,110,.13,'sawtooth',.22); noise(.08,.18,3000); },
   shotgun(){ noise(.3,.55,1400); tone(170,38,.28,'square',.4); },
+  auto(){ tone(650,140,.05,'sawtooth',.14); noise(.05,.13,2600); },
+  overheat(){ noise(.4,.22,5200); tone(900,140,.35,'sawtooth',.16); tone(600,90,.4,'sawtooth',.1,.08); },
   empty(){ tone(140,120,.05,'square',.15); },
   hit(){ tone(240,90,.08,'square',.16); },
   kill(d){ const v=near(d||0); tone(320,45,.4,'sawtooth',.26*v); noise(.3,.3*v,900); },
@@ -1127,6 +1138,7 @@ window.addEventListener('keydown',e=>{
     if(e.code==='Digit1') setWeapon(0);
     else if(e.code==='Digit2') setWeapon(1);
     else if(e.code==='Digit3') setWeapon(2);
+    else if(e.code==='Digit4') setWeapon(3);
     else if(e.code==='KeyM') { $('mini').style.display=$('mini').style.display==='none'?'block':'none'; }
     else if(e.code==='KeyP'){ pauseGame(); }
   } else if(state==='pause' && (e.code==='KeyP'||e.code==='Enter')){ resumeGame(); }
@@ -1167,6 +1179,7 @@ function kick(amt){ shakeAmt=Math.max(shakeAmt,amt); }
 function showMsg(t,ms){ const m=$('msg'); m.textContent=t; m.classList.add('on'); msgT=(ms||2200)/1000; }
 function setWeapon(i){
   if(i===1&&!P.hasSG){ showMsg('Streu-Kanone noch nicht gefunden',1400); return; }
+  if(i===3&&!P.hasAuto){ showMsg('Overclock-Gewehr noch nicht gefunden',1400); return; }
   P.weapon=i; $('wname').textContent=WEAPONS[i].name;
 }
 function hurtPlayer(n){
@@ -1195,11 +1208,17 @@ function alertNear(){
 }
 function tryFire(){
   if(P.fireCd>0) return;
+  if(P.weapon===3&&P.overheatT>0) return;   // gesperrt, kühlt gerade ab
   const w=WEAPONS[P.weapon];
   if(P.ammo<w.cost){ sfx.empty(); P.fireCd=.35; showMsg('Keine Ladung',1200); return; }
   P.ammo-=w.cost; P.fireCd=w.rate; P.recoil=1; P.flash=P.weapon===2?.12:.09;
   if(P.weapon===0){ sfx.pistol(); hitscan(0,12); kick(.16); }
   else if(P.weapon===1){ sfx.shotgun(); for(let i=0;i<7;i++) hitscan((Math.random()-.5)*.2,9); kick(.38); }
+  else if(P.weapon===3){
+    sfx.auto(); hitscan((Math.random()-.5)*.05,7); kick(.09);
+    P.heat=Math.min(1,P.heat+.085);
+    if(P.heat>=1){ P.overheatT=1.6; sfx.overheat(); showMsg('Overclock-Gewehr überhitzt — kühlt ab…',1300); kick(.32); }
+  }
   else { sfx.melee(); hitscan((Math.random()-.5)*.04,26,1.65); kick(.2); }
   alertNear();
 }
@@ -1309,6 +1328,7 @@ function updatePickups(){
     else if(p.kind==='a'){ if(P.ammo>=99) continue; P.ammo=Math.min(99,P.ammo+10); showMsg('Ladung +10',1200); sfx.pickup(); }
     else if(p.kind==='m'){ stats.shards++; showMsg('MOGC-Splitter gefunden',1200); sfx.pickup(); }
     else if(p.kind==='s'){ P.hasSG=true; P.ammo=Math.min(99,P.ammo+8); setWeapon(1); showMsg('Streu-Kanone! (Taste 1/2 wechselt)',2600); sfx.gun(); }
+    else if(p.kind==='w'){ P.hasAuto=true; P.ammo=Math.min(99,P.ammo+14); setWeapon(3); showMsg('Overclock-Gewehr! (Taste 4 wechselt)',2600); sfx.gun(); }
     p.taken=true;
   }
 }
@@ -1352,7 +1372,7 @@ function finishLevel(){
 /* ============================================================
    Ablauf: Start, Pause, Overlays
    ============================================================ */
-function newRun(){ run.kills=run.shards=run.time=run.foes=run.shardsMax=0; P.hasSG=false; }
+function newRun(){ run.kills=run.shards=run.time=run.foes=run.shardsMax=0; P.hasSG=false; P.hasAuto=false; P.heat=0; P.overheatT=0; }
 function startLevel(i,fresh){
   fadeTransition(()=>{
     initAudio();
@@ -1587,6 +1607,19 @@ function drawWeapon(time){
     px(ctx,'#2b3b4f',130,124,26,52); px(ctx,'#2b3b4f',164,124,26,52);
     px(ctx,'#0d141c',130,124,26,4); px(ctx,'#0d141c',164,124,26,4);
     px(ctx,'#FFAE3D',130,170,60,4); px(ctx,'#35E4FF',140,132,2,32); px(ctx,'#35E4FF',178,132,2,32);
+  } else if(P.weapon===3){
+    const heatColor=P.overheatT>0?'#FF3D6E':P.heat>.66?'#FF6A2E':P.heat>.33?'#FFC24D':'#35E4FF';
+    poly(ctx,'#0d141c',[118,235,138,150,182,150,202,235]);
+    poly(ctx,'#1f2c3f',[125,235,142,155,178,155,195,235]);
+    px(ctx,'#2b3b4f',140,96,40,60); px(ctx,'#0d141c',140,96,40,6);
+    px(ctx,heatColor,146,112,28,4);
+    px(ctx,'#10161f',150,150,20,20); px(ctx,'#2b3b4f',153,153,14,14);
+    if(P.overheatT>0){
+      const puff=Math.min(1,P.overheatT/1.6);
+      const gr=ctx.createRadialGradient(160,100,2,160,100,26*puff+6);
+      gr.addColorStop(0,'rgba(255,255,255,.55)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=gr; ctx.fillRect(120,70,80,60);
+    }
   } else {
     const lunge=P.flash>0?16:0;
     poly(ctx,'#1f2c3f',[92,235,84,186,108,164,132,186,124,235]);
@@ -1599,7 +1632,7 @@ function drawWeapon(time){
     ctx.restore();
   }
   if(P.flash>0){
-    const cx=160, cy=P.weapon===0?134:120, r=P.weapon===0?18:28;
+    const cx=160, cy=P.weapon===0?134:(P.weapon===3?100:120), r=P.weapon===0?18:(P.weapon===3?16:28);
     const gr=ctx.createRadialGradient(cx,cy,1,cx,cy,r);
     gr.addColorStop(0,'rgba(255,255,255,.95)'); gr.addColorStop(.4,'rgba(255,190,80,.8)'); gr.addColorStop(1,'rgba(255,120,40,0)');
     ctx.fillStyle=gr; ctx.fillRect(cx-r,cy-r,r*2,r*2);
@@ -1673,6 +1706,14 @@ function drawFace(kind){
   g.stroke();
 }
 const elHp=$('hp'), elFill=$('hpfill'), elAmmo=$('ammo'), elShards=$('shards'), elFoes=$('foes'), elTop=$('top');
+const elHeatbar=$('heatbar'), elHeatfill=$('heatfill');
+function updateHeatUI(){
+  if(P.weapon!==3&&P.heat<=0){ elHeatbar.classList.remove('show'); return; }
+  elHeatbar.classList.add('show');
+  const pct=Math.round(P.heat*100);
+  elHeatfill.style.width=pct+'%';
+  elHeatfill.style.background=P.overheatT>0?'var(--down)':P.heat>.66?'var(--amber)':'var(--cyan)';
+}
 let hudLast='';
 function updateHud(){
   const foes=enemies.reduce((n,e)=>n+(e.alive?1:0),0);
@@ -1793,6 +1834,8 @@ function update(dt){
   } else P.moving=Math.max(0,P.moving-dt*8);
   // Feuern
   P.fireCd=Math.max(0,P.fireCd-dt); P.recoil=Math.max(0,P.recoil-dt*5); P.flash=Math.max(0,P.flash-dt);
+  if(P.overheatT>0){ P.overheatT=Math.max(0,P.overheatT-dt); if(P.overheatT===0) P.heat=0; }
+  else P.heat=Math.max(0,P.heat-dt*.32);
   if(keys.Space||mouseDown) tryFire();
   // Welt
   if(lvl.fog) updateFog();
@@ -1805,6 +1848,7 @@ function update(dt){
   shakeAmt=Math.max(0,shakeAmt-dt*3.4);
   $('hurt').style.opacity=Math.min(1,hurtT*2.4); $('heal').style.opacity=Math.min(1,healT*2.4);
   $('xh').classList.toggle('hit',hitMarkT>0);
+  updateHeatUI();
   if(msgT>0){ msgT-=dt; if(msgT<=0) $('msg').classList.remove('on'); }
 }
 function applyShake(){
