@@ -1175,6 +1175,40 @@
   .guild-upgrade-card .gu-desc{ font-size:11.5px; color:var(--fg-faint); line-height:1.4; margin-bottom:10px; }
   .guild-upgrade-card .gu-meta{ display:flex; justify-content:space-between; align-items:center; font-size:11.5px; }
 
+  /* Kompakt-Modus fuer den Corp-Tab: die Panel-/Row-/Card-Abstaende oben waren fuer
+     eine Handvoll Zeilen gedacht -- bei 7+ Mitgliedern, 7+ Beitraegen und 16
+     Upgrade-Karten mit vollem Beschreibungstext (je 2-3 Zeilen) wuchs der Tab
+     dadurch sehr in die Laenge. Nur fuer #tabPage-gilde ueberschrieben, alle
+     anderen Tabs (die dieselben Panel-/Row-Klassen mitbenutzen) unveraendert.
+     Beschreibung der Upgrade-Karten wird auf 2 Zeilen geclampt, voller Text
+     per title-Tooltip (siehe renderGuildUpgrades()). */
+  #tabPage-gilde .panel{ padding:14px 16px; margin-bottom:12px; }
+  #tabPage-gilde .panel h3{ margin-bottom:10px; }
+  #tabPage-gilde .guild-row{ padding:7px 12px; margin-bottom:5px; }
+  #tabPage-gilde .guild-row .gr-main{ font-size:13px; }
+  #tabPage-gilde .guild-row .gr-sub{ font-size:11px; margin-top:1px; }
+  #tabPage-gilde .guild-treasury-box{ gap:12px; }
+  #tabPage-gilde .guild-treasury-balance{ font-size:19px; }
+  #tabPage-gilde .guild-upgrade-grid{ grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:10px; }
+  #tabPage-gilde .gu-branch h4{ margin-bottom:6px; }
+  #tabPage-gilde .gu-branch .guild-upgrade-card{ margin-bottom:6px; }
+  #tabPage-gilde .guild-upgrade-card{ padding:8px 10px; border-radius:9px; }
+  #tabPage-gilde .guild-upgrade-card .gu-name{ font-size:12.5px; margin-bottom:2px; }
+  #tabPage-gilde .guild-upgrade-card .gu-desc{ font-size:11px; line-height:1.3; margin-bottom:6px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; cursor:help; }
+
+  /* Auf-/Zuklapp-Funktion fuer die Corp-Panels (wireCorpPanelCollapse()): Klick auf
+     die Kopfzeile klappt den Panel-Inhalt ein/aus, Zustand pro Panel in localStorage
+     gemerkt. Corp-Einstellungen ist per Default zugeklappt (kleiner Regel-/
+     Verwaltungskram, den man selten braucht), alle anderen Panels offen. */
+  #tabPage-gilde .panel-toggle-header{ cursor:pointer; user-select:none; }
+  #tabPage-gilde .panel-toggle{ margin-left:auto; width:8px; height:8px; flex-shrink:0;
+    border-right:2px solid var(--fg-faint); border-bottom:2px solid var(--fg-faint);
+    transform:rotate(45deg); transition:transform .15s ease; }
+  #tabPage-gilde .panel.panel-collapsed .panel-toggle{ transform:rotate(-45deg); }
+  #tabPage-gilde .panel.panel-collapsed > *:not(h3){ display:none !important; }
+  #tabPage-gilde .panel.panel-collapsed h3{ margin-bottom:0; }
+
   /* ---------- farm overview (icon grid) ---------- */
   .farm-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr)); gap:10px; margin-bottom:6px; }
   .farm-tile{ border:1px solid var(--line); border-radius:12px; padding:12px 10px 10px; background:radial-gradient(circle at 30% 0%, var(--blue-dim), transparent 70%); text-align:center; }
@@ -4039,7 +4073,7 @@
 
       <!-- In einer Corp -->
       <div id="guildMineWrap" style="display:none;">
-        <div class="panel">
+        <div class="panel" id="guildSettingsPanel">
           <h3><span id="guildMineTitle"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12 3.2V6.8C12 9.8 9.8 11.7 7 12.5C4.2 11.7 2 9.8 2 6.8V3.2L7 1.5Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span> Meine Corp</span> <span class="tag" id="guildMineJoinMode"></span></h3>
           <div id="guildMineMeta" class="sm-hint"></div>
           <div class="guild-form-row" id="guildJoinModeRow" style="display:none;">
@@ -4515,6 +4549,16 @@ const HIST_ORDER = {
   wallet_history: false, anch_history: false, stbl_history: false,
   gov_history: false, cycle_history: false
 };
+// BUGFIX (Flux-Chart zeigte nur ~3 Min. statt 6h): FLUX fehlte komplett im
+// historyCache/HIST_ORDER/HIST_KIND-System oben, das bei Light-Reloads (Polling-
+// Timer + jede Kauf/Verkauf-Aktion) die vom Server nur 2 mitgelieferten Punkte mit
+// dem bisherigen Verlauf mergt. Ohne Eintrag hat jeder Light-Reload den Flux-Chart
+// komplett durch diese 2 frischen Punkte ersetzt -- bei ~3-Minuten-Tick der Flux-
+// Preishistorie ergibt das exakt einen ~3-Minuten-breiten Chart. Zusaetzlich liegt
+// Flux' Verlauf verschachtelt unter gs.flux.price_history statt als Top-Level-Key
+// wie bei den anderen -- der generische Loop oben wuerde ihn dadurch selbst mit
+// Eintrag nicht finden. Deshalb eigener kleiner Cache statt Eintrag in der Map.
+let fluxHistoryCache = [];
 function reconcileHistories(gs, isLight){
   for (const key of Object.keys(historyCache)) {
     const newestFirst = HIST_ORDER[key];
@@ -4527,6 +4571,14 @@ function reconcileHistories(gs, isLight){
       historyCache[key] = newestFirst ? fresh.slice(0, maxLen) : fresh.slice(Math.max(0, fresh.length - maxLen));
     }
     gs[key] = historyCache[key];
+  }
+
+  if (gs.flux) {
+    const freshFlux = gs.flux.price_history || [];
+    fluxHistoryCache = isLight
+      ? mergeHistory(fluxHistoryCache, freshFlux, 'recorded_at', HIST_MAX.price, true)
+      : freshFlux.slice(0, HIST_MAX.price);
+    gs.flux.price_history = fluxHistoryCache;
   }
 }
 let novaChart = null;
@@ -6570,10 +6622,44 @@ function updateMarketplaceBalance(){
   if (el) el.textContent = `${fmtCoin(storeBalance)} MOGC · ${fmtCoin(currentBalance)} NRC`;
 }
 
+/* Auf-/Zuklapp-Funktion fuer die Panels im Corp-Tab: Klick auf die Kopfzeile
+   klappt alles ausser dem h3 ein/aus (siehe CSS .panel-collapsed). Zustand pro
+   Panel in localStorage gemerkt, damit er ueber Reloads hinweg bestehen bleibt.
+   Panels ohne eigene id bekommen einen Index-Fallback-Key -- die Reihenfolge im
+   Markup ist statisch, also stabil genug. guildSettingsPanel ("Meine Corp" /
+   Beitrittsmodus/Steuersatz/Auflösen) ist per Default zugeklappt, alles andere
+   offen. Laeuft einmalig beim Script-Start -- die Panels sind statisches HTML,
+   muessen also nicht bei jedem Tab-Wechsel neu verdrahtet werden. */
+function wireCorpPanelCollapse(){
+  const wrap = document.getElementById('tabPage-gilde');
+  if (!wrap) return;
+  wrap.querySelectorAll('.panel').forEach((panel, idx) => {
+    const h3 = panel.querySelector('h3');
+    if (!h3) return;
+    const key = 'corpPanelCollapsed:' + (panel.id || ('idx' + idx));
+    const defaultCollapsed = panel.id === 'guildSettingsPanel';
+    const stored = localStorage.getItem(key);
+    let collapsed = stored === null ? defaultCollapsed : stored === '1';
+    const toggle = document.createElement('span');
+    toggle.className = 'panel-toggle';
+    toggle.setAttribute('aria-hidden', 'true');
+    h3.appendChild(toggle);
+    h3.classList.add('panel-toggle-header');
+    const apply = () => panel.classList.toggle('panel-collapsed', collapsed);
+    apply();
+    h3.addEventListener('click', () => {
+      collapsed = !collapsed;
+      localStorage.setItem(key, collapsed ? '1' : '0');
+      apply();
+    });
+  });
+}
+
 /* Einmalig beim Laden: die Panels wandern sofort ins Overlay, damit die
    Platzhalter-Hinweise in den alten Tabs von Anfang an stimmen. */
 initMarketplace();
 wireFluxMarket();
+wireCorpPanelCollapse();
 
 /* ============================================================
    Flux-Linie (4. Foerderlinie, crypto_farm.flux_*)
@@ -8645,10 +8731,11 @@ async function renderGuildUpgrades(guildId, isOfficer){
       else if (isOfficer) actionHtml = `<button type="button" class="btn btn-primary" data-buy-upgrade="${u.key}">${fmtCoin(u.cost_mogc)} MOGC</button>`;
       else actionHtml = `<span class="sm-hint">${fmtCoin(u.cost_mogc)} MOGC</span>`;
       const cls = u.owned ? 'owned' : (u.purchasable ? '' : 'locked');
+      const descAttr = String(u.description || '').replace(/"/g, '&quot;');
       return `
         <div class="guild-upgrade-card ${cls}">
           <div class="gu-name">${u.name}</div>
-          <div class="gu-desc">${u.description}</div>
+          <div class="gu-desc" title="${descAttr}">${u.description}</div>
           <div class="gu-meta"><span>Stufe ${u.tier} · ${guildEffectLabel(u)}</span>${actionHtml}</div>
         </div>`;
     }).join('');
