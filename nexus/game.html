@@ -2,6 +2,10 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.33: AXIOM-Cap von 21 Mio auf 1.000 Mrd (1e12) erhoeht, Foerderdauer ca. 1 Jahr: Start-/Tail-Rate
+    x11.904,76 (372 Mio/h bzw. 16,5 Mio/h), Monats-Nachschub-Obergrenze 11,9 Mrd. Guthaben blieben
+    unveraendert -> AXIOM verliert entsprechend an Wert (Bankkurs koppelt an die Rate). fmtCoin()
+    zeigt jetzt auch B (Mrd) und T (Bio) statt \"1000000,00M\".
   - v4.2.32: AXIOM-Nachschub-Topf. Neuer Topf (core_config.recycle_pool) mit 1 Mio AXIOM aus dem
     Foerder-Vorrat, getrennt von der Bank-Reserve: der Monats-Nachschub nach Foerderende nimmt
     zuerst daraus, Rest aus der Reserve. Die Gebuehr (3 %) jedes Bank-Kaufs fliesst jetzt in den
@@ -4942,6 +4946,8 @@ function floor2(n){
 function fl2(n){ return floor2(n).toFixed(2); }
 function fmtCoin(n){
   n = Number(n) || 0;
+  if (n >= 1e12) return fl2(n / 1e12) + 'T';
+  if (n >= 1e9) return fl2(n / 1e9) + 'B';
   if (n >= 1e6) return fl2(n / 1e6) + 'M';
   if (n >= 1e3) return fl2(n / 1e3) + 'k';
   return fl2(n);
