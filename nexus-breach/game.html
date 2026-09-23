@@ -56,11 +56,18 @@
     font-size:clamp(13px,2.1cqw,24px); font-weight:600; color:var(--fg); text-shadow:0 2px 6px #000,0 0 14px rgba(53,228,255,.4);
     opacity:0; transition:opacity .25s; }
   #msg.on{ opacity:1; }
-  #bar{ position:absolute; left:0; right:0; bottom:0; height:12.5cqw; display:grid;
-    grid-template-columns:1.25fr 1fr 9cqw 1fr 1fr; align-items:center; gap:1cqw; padding:0 2.2cqw;
-    background:linear-gradient(to bottom,rgba(8,14,24,.86),rgba(4,6,12,.96));
-    border-top:2px solid rgba(53,228,255,.45); box-shadow:0 -6px 24px rgba(53,228,255,.10); }
-  .cell{ min-width:0; }
+  /* HUD: freistehende Instrumenten-Paneele statt durchgehendem Balken mit hartem
+     Rand — nutzt den im Spiel schon etablierten angeschnittenen-Ecken-Look der
+     Buttons (siehe button.primary weiter unten), statt eine neue Formsprache
+     einzuführen. */
+  #bar{ position:absolute; left:0; right:0; bottom:0; display:grid;
+    grid-template-columns:1.25fr 1fr 9.4cqw 1fr 1fr; align-items:end; gap:1.1cqw;
+    padding:0 2.2cqw 1.6cqw; background:none; }
+  .cell{ min-width:0; position:relative; padding:.85cqw 1.3cqw 1cqw;
+    background:linear-gradient(165deg,rgba(13,22,36,.92),rgba(4,7,14,.97));
+    border:1px solid rgba(53,228,255,.25);
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+    box-shadow:0 6px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(53,228,255,.06); }
   .lab{ font-size:clamp(9px,1.25cqw,14px); color:var(--dim); margin-bottom:.2cqw; }
   .val{ font:700 clamp(18px,3.9cqw,44px)/1 ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace; color:var(--fg); font-variant-numeric:tabular-nums; }
   .val small{ font-size:.45em; color:var(--dim); font-weight:600; margin-left:.4em; }
@@ -69,7 +76,14 @@
   #heatbar{ height:.7cqw; margin-top:.6cqw; background:#0e1826; border:1px solid #1b2a3e; opacity:0; transition:opacity .2s; }
   #heatbar.show{ opacity:1; }
   #heatfill{ height:100%; width:0%; background:var(--cyan); transition:width .1s linear, background .2s; }
-  #face{ width:8.6cqw; height:8.6cqw; image-rendering:pixelated; justify-self:center; filter:drop-shadow(0 0 6px rgba(53,228,255,.35)); }
+  /* Gesicht: eigene leuchtende Medaillon-Fassung statt nacktem Canvas im Grid —
+     schwebt als runder Blickfang minimal höher als die eckigen Paneele. */
+  .face-frame{ width:9.6cqw; height:9.6cqw; border-radius:50%; justify-self:center; align-self:end;
+    margin-bottom:.3cqw; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 38%,rgba(14,24,40,.96),rgba(4,7,14,.98));
+    border:1px solid rgba(53,228,255,.4);
+    box-shadow:0 0 0 4px rgba(4,6,12,.92), 0 0 20px rgba(53,228,255,.4), inset 0 0 12px rgba(53,228,255,.12); }
+  #face{ width:7.4cqw; height:7.4cqw; image-rendering:pixelated; filter:drop-shadow(0 0 5px rgba(53,228,255,.4)); }
   #overlay{ position:absolute; inset:0; display:none; align-items:center; justify-content:flex-start;
     background:radial-gradient(120% 90% at 20% 30%,rgba(4,6,12,.72),rgba(4,6,12,.93)); padding:0 7cqw; }
   #overlay.on{ display:flex; }
@@ -233,7 +247,7 @@
   <div id="bar">
     <div class="cell"><div class="lab">Integrität</div><div class="val" id="hp">100</div><div id="hpbar"><div id="hpfill"></div></div></div>
     <div class="cell"><div class="lab" id="wname">Puls-Pistole</div><div class="val" id="ammo">0</div><div id="heatbar"><div id="heatfill"></div></div></div>
-    <canvas id="face" width="40" height="40"></canvas>
+    <div class="face-frame"><canvas id="face" width="40" height="40"></canvas></div>
     <div class="cell"><div class="lab">MOGC-Splitter</div><div class="val" id="shards">0<small>/0</small></div></div>
     <div class="cell"><div class="lab">Rogue-Prozesse</div><div class="val" id="foes">0</div></div>
   </div>
@@ -353,6 +367,40 @@ function exitTex(col,dark){
 const texExit=exitTex('#35E4FF','#06333d');
 const texExitLocked=exitTex('#FF3D6E','#3a0c18');
 const texStairs=exitTex('#0ECB81','#0a2a1c'); // Treppe hoch: gleiches Portal-Muster, grün statt cyan/rot
+
+/* Etagen-Anzeigeschilder: kleine 7-Segment-Ziffernschrift, zeigt die
+   Stockwerknummer im Fahrstuhl-Schema (Keller=-1, Erdgeschoss=0, 1.Stock=1 …) */
+const SEG_DIGITS={
+  '0':['a','b','c','d','e','f'], '1':['b','c'], '2':['a','b','g','e','d'],
+  '3':['a','b','g','c','d'], '4':['f','g','b','c'], '5':['a','f','g','c','d'],
+  '6':['a','f','g','e','c','d'], '7':['a','b','c'], '8':['a','b','c','d','e','f','g'],
+  '9':['a','b','c','d','f','g'], '-':['g']
+};
+function drawSegChar(g,ch,ox,oy,bw,bh,th,color){
+  const set=new Set(SEG_DIGITS[ch]||[]);
+  const midY=(bh-th)/2;
+  if(set.has('a')) px(g,color,ox+th,oy,bw-2*th,th);
+  if(set.has('g')) px(g,color,ox+th,oy+midY,bw-2*th,th);
+  if(set.has('d')) px(g,color,ox+th,oy+bh-th,bw-2*th,th);
+  if(set.has('f')) px(g,color,ox,oy+th,th,midY-th);
+  if(set.has('b')) px(g,color,ox+bw-th,oy+th,th,midY-th);
+  if(set.has('e')) px(g,color,ox,oy+midY+th,th,midY-th);
+  if(set.has('c')) px(g,color,ox+bw-th,oy+midY+th,th,midY-th);
+}
+function makeFloorSignTex(label){
+  return makeTex(g=>{
+    px(g,'#0a0f16',0,0,64,64);
+    px(g,'#161c26',3,3,58,58);
+    px(g,'#080d13',6,6,52,52);
+    px(g,'#1b8ea3',9,9,46,2);
+    const chars=label.split(''), bw=16, bh=28, th=3, gap=4;
+    const totalW=chars.length*bw+(chars.length-1)*gap;
+    let ox=32-totalW/2, oy=32-bh/2;
+    for(const ch of chars){ drawSegChar(g,ch,ox,oy,bw,bh,th,'#35E4FF'); ox+=bw+gap; }
+    px(g,'#26364b',0,0,64,1); px(g,'#26364b',0,63,64,1); px(g,'#26364b',0,0,1,64); px(g,'#26364b',63,0,1,64);
+  });
+}
+const SIGN_TEX={}; for(let i=-1;i<=3;i++) SIGN_TEX[String(i)]=makeFloorSignTex(String(i));
 const texFloor=makeTex(g=>{
   const r=rng(51);
   px(g,'#101824',0,0,64,64);
@@ -1155,6 +1203,37 @@ function generateStairFloor(depth,floorIdx,totalFloors){
     map: grid2.map(r=>r.join(''))
   };
 }
+// Verteilt mehrere kleine Etagen-Anzeigeschilder ('D') über eine fertige
+// Karte. Rein kosmetisch: ersetzt nur normale, bereits massive Wandzellen
+// ('#'/'R'/'H'), die an mindestens eine Flurzelle angrenzen (also sichtbar
+// sind) — nie Spawn/Tür/Treppe/Gegner/Item-Zellen. Beeinflusst dadurch nie
+// die Erreichbarkeit, nur die Optik.
+function scatterFloorSigns(mapRows,count){
+  const size=mapRows.length;
+  const rows=mapRows.map(r=>r.split(''));
+  const wallCh=new Set(['#','R','H']);
+  const candidates=[];
+  for(let y=1;y<size-1;y++) for(let x=1;x<rows[y].length-1;x++){
+    if(!wallCh.has(rows[y][x])) continue;
+    let visible=false;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const ny=y+dy, nx=x+dx;
+      if(rows[ny]&&rows[ny][nx]==='.'){ visible=true; break; }
+    }
+    if(visible) candidates.push([x,y]);
+  }
+  shuffleArr(candidates);
+  const chosen=[]; let placed=0;
+  const minGap=Math.max(5,Math.floor(size/8));
+  for(const [x,y] of candidates){
+    if(placed>=count) break;
+    let ok=true;
+    for(const [cx,cy] of chosen){ if(Math.hypot(x-cx,y-cy)<minGap){ ok=false; break; } }
+    if(!ok) continue;
+    rows[y][x]='D'; chosen.push([x,y]); placed++;
+  }
+  return rows.map(r=>r.join(''));
+}
 function generateProceduralSite(depth){
   const n=floorsForDepth(depth);
   const floors=[];
@@ -1163,6 +1242,17 @@ function generateProceduralSite(depth){
   top.floorIdx=n-1; top.totalFloors=n;
   if(n>1) top.name+=' · '+floorName(n-1);
   floors.push(top);
+  // Etagen-Anzeigen: Fahrstuhl-Schema (Keller=-1, Erdgeschoss=0, 1.Stock=1 …),
+  // mehrere kleine Displays über die Karte verteilt statt nur eins am Spawn.
+  // Nur bei echten Mehr-Etagen-Standorten (n>1) — ein einstöckiger Sektor
+  // (z.B. jedes Außenbiom) braucht keine Fahrstuhl-Beschilderung.
+  if(n>1){
+    for(const f of floors){
+      f.signDigit=f.floorIdx-1;
+      const size=f.map.length;
+      f.map=scatterFloorSigns(f.map,Math.max(2,Math.round(size/14)));
+    }
+  }
   return floors;
 }
 function startProceduralRun(){ newRun(); siteFloors=generateProceduralSite(1); startLevel(siteFloors[0],true); }
@@ -1212,7 +1302,7 @@ function parseLevel(src){
   grid=new Uint8Array(MW*MH); enemies=[]; pickups=[]; shots=[]; booms=[]; sparks=[];
   totals={foes:0,shards:0};
   exitCell=null; stairsCell=null; // sonst würde eine Karte ohne 'X'/'U' die Zelle der vorherigen Karte erben
-  const wall={'#':1,'R':2,'H':3,'X':4,'U':5};
+  const wall={'#':1,'R':2,'H':3,'X':4,'U':5,'D':6};
   for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
     const c=rows[y][x];
     if(wall[c]){ grid[y*MW+x]=wall[c]; if(c==='X') exitCell={x,y}; else if(c==='U') stairsCell={x,y}; continue; }
@@ -1862,6 +1952,7 @@ function renderWalls(time){
       const frame=Math.floor(time*2.2+(cellHash%97)*0.07)%RACK_FRAMES.length;
       tex=RACK_FRAMES[frame];
     }
+    else if(hit===6){ tex=SIGN_TEX[String(lvl.signDigit)]||SIGN_TEX['0']; }
     const y0=Math.max(0,top|0), y1=Math.min(H-1,(top+lh)|0);
     const step=64/lh; let tp=(y0-top)*step;
     for(let y=y0;y<=y1;y++){
@@ -1981,7 +2072,7 @@ function buildMini(){
   miniCv.width=MW*MS; miniCv.height=MH*MS;
   const c=document.createElement('canvas'); c.width=MW*MS; c.height=MH*MS;
   const g=c.getContext('2d');
-  const col=['','#1f2c3f','#26364b','#4a3a1a','#35E4FF'];
+  const col=['','#1f2c3f','#26364b','#4a3a1a','#35E4FF','#0ECB81','#1f2c3f'];
   for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){ const v=grid[y*MW+x]; if(v){ g.fillStyle=col[v]; g.fillRect(x*MS,y*MS,MS,MS); } }
   miniStatic=c;
 }
@@ -1997,7 +2088,7 @@ function drawMini(){
 }
 function drawFogMini(){
   mctx.clearRect(0,0,miniCv.width,miniCv.height);
-  const col=['','#1f2c3f','#26364b','#4a3a1a','#35E4FF'];
+  const col=['','#1f2c3f','#26364b','#4a3a1a','#35E4FF','#0ECB81','#1f2c3f'];
   for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
     const k=y*MW+x; if(!seen[k]) continue;
     const v=grid[k];
