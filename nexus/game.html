@@ -2,6 +2,13 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.32: AXIOM-Nachschub-Topf. Neuer Topf (core_config.recycle_pool) mit 1 Mio AXIOM aus dem
+    Foerder-Vorrat, getrennt von der Bank-Reserve: der Monats-Nachschub nach Foerderende nimmt
+    zuerst daraus, Rest aus der Reserve. Die Gebuehr (3 %) jedes Bank-Kaufs fliesst jetzt in den
+    Topf statt in die Reserve; die Verkaufs-Gebuehr bleibt in der Reserve. Anzeige im AXIOM-Tab
+    (Vorrats-Zeile). Rohstoffe (DEUT/ENERGIE/KRISTALL/MEDIZIN/METAL/PRAEZISIONSWERKZEUG/
+    VERBUNDPLATTEN) sind aus der AXIOM-Bank raus (core_bank_pairs.bank_enabled=false).
+  - v4.2.31: Wallet-Kontoauszug ist jetzt einklappbar (standardmaessig zugeklappt, Klick auf die Ueberschrift).
   - v4.2.30: Relais-Netzwerk-Skillbaum von 5 auf 28 Knoten erweitert (+23, weiterhin in RELAY
     bezahlt). Bestehende Aeste verlaengert (Netzwerk-Verstaerker IV, Boost-Kapazitaet II-IV,
     Alt-Netz-Bonus II-IV) plus vier neue Aeste mit je 4 Stufen: Ertrags-Optimierer (+15 % eigene
@@ -1353,6 +1360,13 @@
   .wr-tab:hover{ border-color:rgba(232,230,227,0.3); color:#e8e6e3; }
   .wr-tab.active{ background:#2F8CFF; border-color:#2F8CFF; color:#fff; }
 
+  /* Kontoauszug einklappbar (standardmaessig zu) */
+  .ledger-collapse > summary{ list-style:none; cursor:pointer; user-select:none; display:flex; align-items:center; gap:10px; }
+  .ledger-collapse > summary::-webkit-details-marker{ display:none; }
+  .ledger-collapse > summary h3{ margin:0; flex:1; }
+  .ledger-collapse .ledger-chev{ width:8px; height:8px; flex-shrink:0; border-right:2px solid var(--fg-dim); border-bottom:2px solid var(--fg-dim);
+    transform:rotate(-45deg); transition:transform .2s; margin-right:4px; }
+  .ledger-collapse[open] .ledger-chev{ transform:rotate(45deg); }
   /* Kontoauszug (Wallet-Ledger) -- kompakte Ein/Aus-Liste je Waehrung */
   .ledger-list{ margin-top:12px; display:flex; flex-direction:column; gap:6px; }
   .ledger-row{ display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:10px;
@@ -2851,8 +2865,9 @@
     </div>
 
     <div class="panel">
-      <h3>Kontoauszug <span class="tag">— Ein-/Ausgänge im Detail, für alle NEXUS-Währungen</span></h3>
-      <div class="wallet-range-tabs" id="ledgerSymbolTabs">
+      <details class="ledger-collapse">
+      <summary><h3>Kontoauszug <span class="tag">— Ein-/Ausgänge im Detail, für alle NEXUS-Währungen</span></h3><span class="ledger-chev" aria-hidden="true"></span></summary>
+      <div class="wallet-range-tabs" id="ledgerSymbolTabs" style="margin-top:14px;">
         <button type="button" class="wr-tab active" data-symbol="NOVA">NRC</button>
         <button type="button" class="wr-tab" data-symbol="MOGC">MOGC</button>
         <button type="button" class="wr-tab" data-symbol="STBL">STBL</button>
@@ -2879,6 +2894,7 @@
         <div class="sm-hint">Lade Kontoauszug …</div>
       </div>
       <button type="button" class="btn btn-ghost" id="ledgerLoadMoreBtn" style="margin-top:10px; display:none;">Weitere laden</button>
+      </details>
     </div>
 
     <div class="panel">
@@ -6273,7 +6289,7 @@ function applyAxiomState(gs){
 
   const supplyHintEl = document.getElementById('axiomSupplyHint');
   if (supplyHintEl) {
-    supplyHintEl.textContent = `Vorrat: ${fmtCoin(Number(cs?.remaining_supply ?? 0))} von ${fmtCoin(Number(cs?.cap ?? 21000000))} AXIOM übrig · Bank-Reserve: ${fmtCoin(Number(cs?.reserve_balance ?? 0))} AXIOM`;
+    supplyHintEl.textContent = `Vorrat: ${fmtCoin(Number(cs?.remaining_supply ?? 0))} von ${fmtCoin(Number(cs?.cap ?? 21000000))} AXIOM übrig · Bank-Reserve: ${fmtCoin(Number(cs?.reserve_balance ?? 0))} AXIOM · Nachschub-Topf: ${fmtCoin(Number(cs?.recycle_pool ?? 0))} AXIOM (speist nach Ende der Förderung monatlich bis zu 1 Mio zurück in die Förderung; füllt sich mit der Gebühr aus Bank-Käufen)`;
   }
   const disabledHintEl = document.getElementById('axiomDisabledHint');
   if (disabledHintEl) disabledHintEl.style.display = enabled ? 'none' : 'block';
