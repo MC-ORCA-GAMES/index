@@ -2,6 +2,27 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.29: Korrektur zu v4.2.28 -- SIGIL ist laut Design PERMANENT und darf beim Prestige
+    NICHT verkauft/umgewandelt werden (Rueckmeldung von Jens). SIGIL-Liquidierung wieder aus
+    crypto_farm.do_prestige() entfernt. Stattdessen echten Bug behoben: NRC (nova_rift_balance)
+    wurde bisher komplett ohne MOGC-Gegenwert auf den Restart-Kapital-Wert ueberschrieben --
+    kompletter bisheriger NRC-Bestand ging ersatzlos verloren (so wie Jens' ca. 1,5 Mio NRC).
+    Jetzt: Bestand wird vor dem Reset gesichert und zum aktuellen Marktpreis
+    (crypto_farm.market_price_history) in MOGC umgewandelt -- exakt dieselbe Formel wie
+    crypto_farm.sell_nova_rift() und die Bot-Verkaeufe in bump_bot_miners(). FLUX/IONX bleiben
+    unveraendert (verkaufen intern gegen NRC/PULSE statt MOGC, kein direkter MOGC-Kurs
+    vorhanden -- daher weiterhin ohne Ausgleich resettet).
+  - v4.2.28: BUGFIX -- crypto_farm.do_prestige() hat SIGIL komplett vergessen (weder Reset
+    noch MOGC-Umwandlung), obwohl VOLT/QNTM/DRIFT/GRID/CYCLE/SIGIL/STBL laut Design alle beim
+    Prestige liquidiert werden sollen. SIGIL wurde dadurch nicht geloescht (blieb im Wallet
+    stehen), aber eben auch nicht in MOGC umgewandelt -- wer nur SIGIL hielt, bekam 0 MOGC beim
+    Prestige. Fix: gleiches Orderbuch-Verkaufsmuster wie CYCLE ergaenzt (offene sigil_orders
+    stornieren + Restbestand ueber platform._place_sigil_order_internal() verkaufen).
+  - v4.2.27: BUGFIX -- FORK-Gabel 5->6 (crypto_farm.fork_gate_requirements, depth=5) verlangte
+    min_rigs=20 auf dem aktuellen Knoten, aber der aktuelle Knoten bei Tiefe 5 ist immer einer
+    der 48 Tier-5-Perks (Stabilitaets-/Chaos-Siegel) -- die sind nie kaufbar (base_cost NULL).
+    Die Gabel war dadurch nie freischaltbar. min_rigs fuer depth=5 auf 0 gesetzt, nur noch die
+    Foerdermenge (1,3 Mio) zaehlt als Bedingung.
   - v4.2.26: FORK-Erweiterungspfad (Gabel 6-25) drastisch entschleunigt -- vorher war der
     komplette Baum inkl. der 20 neuen Gabeln mit einer Optimalstrategie in unter einem Tag
     durchspielbar. Rate-Wachstum pro Tier von 1.35x auf 1.25x gesenkt, Basisrate von 5.0 auf
