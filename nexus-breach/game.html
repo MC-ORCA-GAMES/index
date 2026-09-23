@@ -311,6 +311,25 @@ const texRack=makeTex(g=>{
   px(g,'#26364b',0,0,1,64); px(g,'#26364b',63,0,1,64);
   speckle(g,r,120,['#0d141c','#1b2636']);
 });
+// Zusätzliche Blink-Frames für dieselbe Rack-Wand: exakt derselbe Panel-
+// Hintergrund (gleicher Seed 23), aber eigene, unabhängig gewürfelte
+// LED-Zustände/Farben pro Frame — dadurch "blinken" die Racks im Spiel.
+function makeRackFrame(ledSeed){
+  return makeTex(g=>{
+    const r=rng(23);
+    px(g,'#0a1017',0,0,64,64);
+    const rl=rng(ledSeed);
+    for(let i=0;i<8;i++){
+      const y=i*8;
+      px(g,'#141d29',1,y+1,62,6); px(g,'#0a1017',1,y+7,62,1);
+      for(let x=4;x<26;x+=3) px(g,'#0a1017',x,y+2,1,4);
+      for(let k=0;k<5;k++){ const on=rl()<.62; const c=rl()<.5?'#35E4FF':(rl()<.5?'#FFAE3D':'#0ECB81'); px(g,on?c:'#131b26',36+k*5,y+3,2,2); }
+    }
+    px(g,'#26364b',0,0,1,64); px(g,'#26364b',63,0,1,64);
+    speckle(g,r,120,['#0d141c','#1b2636']);
+  });
+}
+const RACK_FRAMES=[texRack, makeRackFrame(4451), makeRackFrame(9137), makeRackFrame(2609)];
 const texVault=makeTex(g=>{
   const r=rng(37);
   px(g,'#232a37',0,0,64,64);
@@ -1080,7 +1099,14 @@ function generateProceduralLevel(depth){
    sealExtraApproaches). Die OBERSTE Etage bleibt exakt die bisherige
    generateProceduralLevel() (mit Vorraum + Boss + echtem Ausgang) —
    unverändert, um deren bereits getestetes Verhalten nicht anzufassen. */
-function floorsForDepth(depth){ if(depth<4) return 1; if(depth<10) return 2; if(depth<18) return 3; return 4; }
+function floorsForDepth(depth){
+  const biome=BIOMES[biomeForDepth(depth)];
+  if(biome && biome.outdoor) return 1; // Offenes Gelände (Schlucht/Wüste/Dschungel) bleibt einstöckig — "Etagen" unter offenem Himmel ergeben dort keinen Sinn
+  if(depth<4) return 1;
+  if(depth<10) return 2;
+  if(depth<18) return 3;
+  return 4;
+}
 function floorName(i){ if(i===0) return 'Keller'; if(i===1) return 'Erdgeschoss'; return (i-1)+'. Stock'; }
 function generateStairFloor(depth,floorIdx,totalFloors){
   const tier=SIZE_TIERS[(Math.random()*SIZE_TIERS.length)|0];
@@ -1829,6 +1855,13 @@ function renderWalls(time){
     let tex=curWall[hit]||curWall[1];
     if(hit===4){ tex=locked_?texExitLocked:texExit; f=clamp(170+((Math.sin(time*4)+1)*43)|0,0,256); }
     else if(hit===5){ tex=texStairs; f=clamp(170+((Math.sin(time*3)+1)*43)|0,0,256); }
+    else if(hit===2&&curBiome==='facility'){
+      // Server-Racks blinken: Frame-Wahl aus Zeit + Zellposition gehasht,
+      // damit nicht alle Racks im Gleichtakt schalten.
+      const cellHash=((mx*928371)^(my*589301))>>>0;
+      const frame=Math.floor(time*2.2+(cellHash%97)*0.07)%RACK_FRAMES.length;
+      tex=RACK_FRAMES[frame];
+    }
     const y0=Math.max(0,top|0), y1=Math.min(H-1,(top+lh)|0);
     const step=64/lh; let tp=(y0-top)*step;
     for(let y=y0;y<=y1;y++){
