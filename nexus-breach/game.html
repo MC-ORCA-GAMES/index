@@ -416,6 +416,27 @@ const texCeil=makeTex(g=>{
   px(g,'#3d8fa3',18,26,28,12); px(g,'#9fdcea',20,28,24,8);
   speckle(g,r,90,['#0b111a','#05080d']);
 });
+// Zusätzliche Flacker-Frames für dieselbe Deckenplatte: exakt derselbe
+// Hintergrund (gleicher Seed 77), nur die Lampe selbst wird abgedunkelt bzw.
+// fast abgeschaltet — daraus entsteht der Flacker-Effekt einzelner Lampen.
+function makeCeilFrame(outer,inner){
+  return makeTex(g=>{
+    const r=rng(77);
+    px(g,'#080c12',0,0,64,64);
+    px(g,'#111926',0,0,64,1); px(g,'#111926',0,0,1,64);
+    px(g,outer,18,26,28,12); px(g,inner,20,28,24,8);
+    speckle(g,r,90,['#0b111a','#05080d']);
+  });
+}
+const texCeilDim=makeCeilFrame('#1f4550','#4c757d');
+const texCeilOff=makeCeilFrame('#0c161c','#152128');
+// Mehrheitlich an, mit vereinzelten Dunkel-/Aus-Stotterern dazwischen — kein
+// gleichmäßiges Pulsieren, eher eine kaputte Leuchtstoffröhre. Der zweite
+// Array haelt pro Frame den lokalen Helligkeits-Faktor synchron zur Textur —
+// eine flackernde Lampe soll die Zelle darunter auch wirklich abdunkeln,
+// nicht nur ihr Icon austauschen.
+const CEIL_FLICKER_FRAMES=[texCeil,texCeil,texCeil,texCeilDim,texCeil,texCeil,texCeilOff,texCeil,texCeil,texCeil,texCeilDim,texCeil,texCeilOff,texCeil,texCeil];
+const CEIL_FLICKER_F=       [1,     1,     1,     .6,        1,     1,     .28,      1,     1,     1,     .6,        1,     .28,      1,     1];
 const WALLTEX=[null,texPanel,texRack,texVault,texExit];
 
 /* ============================================================
@@ -1949,7 +1970,7 @@ function computeSkyCols(){
     skyColBuf[x]=sx;
   }
 }
-function renderFloorCeil(){
+function renderFloorCeil(time){
   const rx0=dirX-planeX, ry0=dirY-planeY, rx1=dirX+planeX, ry1=dirY+planeY;
   if(curOutdoor) computeSkyCols();
   for(let y=0;y<H;y++){
@@ -1967,10 +1988,26 @@ function renderFloorCeil(){
     if(f<=2){ for(let x=0;x<W;x++) buf[base+x]=FOGC; continue; }
     const stx=rd*(rx1-rx0)/W, sty=rd*(ry1-ry0)/W;
     let fx=P.x+rd*rx0, fy=P.y+rd*ry0;
-    const tex=p>0?curFloor:curCeil;
-    for(let x=0;x<W;x++){
-      buf[base+x]=shade(tex[(((fy*64)|0)&63)<<6|(((fx*64)|0)&63)],f);
-      fx+=stx; fy+=sty;
+    if(p>0){
+      for(let x=0;x<W;x++){
+        buf[base+x]=shade(curFloor[(((fy*64)|0)&63)<<6|(((fx*64)|0)&63)],f);
+        fx+=stx; fy+=sty;
+      }
+    } else {
+      // Decke: fast überall die normale, ruhig leuchtende Platte — nur eine
+      // gehashte Minderheit der Zellen (~1 von 7) ist als Flacker-Lampe
+      // markiert, Phase pro Zelle versetzt (wie bei den Server-Racks).
+      for(let x=0;x<W;x++){
+        const mx=fx|0, my=fy|0;
+        const h=((mx*928371)^(my*589301))>>>0;
+        let ctex=curCeil, lf=f;
+        if(curCeil===texCeil && (h%7)===0){
+          const fr=Math.floor(time*2.4+(h%97)*0.08)%CEIL_FLICKER_FRAMES.length;
+          ctex=CEIL_FLICKER_FRAMES[fr]; lf=f*CEIL_FLICKER_F[fr];
+        }
+        buf[base+x]=shade(ctex[(((fy*64)|0)&63)<<6|(((fx*64)|0)&63)],lf);
+        fx+=stx; fy+=sty;
+      }
     }
   }
 }
@@ -2116,7 +2153,7 @@ function render(time){
   planeX=-dirY*PLANE_LEN; planeY=dirX*PLANE_LEN;
   horizon=HALF+P.pitch+Math.sin(P.bob*2)*1.6*P.moving;
   flashAdd=(P.flash>0?55:0);
-  renderFloorCeil(); renderWalls(time); renderSprites(time);
+  renderFloorCeil(time); renderWalls(time); renderSprites(time);
   ctx.putImageData(img,0,0);
   drawWeapon(time);
 }
