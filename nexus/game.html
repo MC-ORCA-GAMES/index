@@ -2,6 +2,15 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.30: Relais-Netzwerk-Skillbaum von 5 auf 28 Knoten erweitert (+23, weiterhin in RELAY
+    bezahlt). Bestehende Aeste verlaengert (Netzwerk-Verstaerker IV, Boost-Kapazitaet II-IV,
+    Alt-Netz-Bonus II-IV) plus vier neue Aeste mit je 4 Stufen: Ertrags-Optimierer (+15 % eigene
+    Foerderung), Signal-Effizienz (-20 % Boost-Kosten), Signal-Reichweite (+70 Min. Boost-Dauer),
+    Reserve-Abkommen (Bank-Skim 1,0 % -> 0,2 %). Backend: relay_skill_nodes-Migration
+    (relay_skillbaum_erweiterung.sql) + neue Helfer relay_payout_mult/relay_bank_cut_rate/
+    relay_boost_cost_mult/relay_boost_duration_minutes, angebunden in collect_relay_earnings,
+    collect_all_relay_earnings und trigger_relay_boost. Frontend: 7 Aeste, Bonus-Zusammenfassung
+    ueber dem Baum, Boost-Kostenvorschau/-Dauer beruecksichtigen die Skills.
   - v4.2.29: Korrektur zu v4.2.28 -- SIGIL ist laut Design PERMANENT und darf beim Prestige
     NICHT verkauft/umgewandelt werden (Rueckmeldung von Jens). SIGIL-Liquidierung wieder aus
     crypto_farm.do_prestige() entfernt. Stattdessen echten Bug behoben: NRC (nova_rift_balance)
@@ -3166,6 +3175,7 @@
 
       <div class="panel">
         <h3>Relais-Netzwerk-Skillbaum <span class="tag">— bezahlt mit Relay, nicht mit Prestige-Punkten</span></h3>
+        <div class="sm-hint" id="relaySkillSummary" style="margin-bottom:12px;">–</div>
         <div class="skill-tree" id="relaySkillTree"></div>
       </div>
     </div>
@@ -4006,17 +4016,15 @@
     </div>
     </div>
 
-    <div class="tab-page" id="tabPage-shop">
-    <div class="panel">
-      <h3>Dein Guthaben</h3>
-      <div class="top-row">
-        <div class="stat-card">
-          <div class="label">MC ORCA GAMES Coins (MOGC)</div>
-          <div class="value coin-value"><span class="coin-icon" aria-hidden="true"><svg viewBox="0 0 32 32" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="1.6"/><ellipse cx="16" cy="16" rx="12" ry="5.2" fill="none" stroke="currentColor" stroke-width="1" transform="rotate(-18 16 16)"/><path d="M16 9.5L17.6 13.7L22 13.9L18.5 16.6L19.7 21L16 18.5L12.3 21L13.5 16.6L10 13.9L14.4 13.7Z" fill="#E5484D"/></svg></span><span class="js-balance-mogc">–</span></div>
-        </div>
-      </div>
-    </div>
-
+    <!-- Quellpanels fuer den Handelsplatz-Kategorie "Rigs & Items": werden beim
+         Laden per mpMove() dorthin verschoben (siehe initMarketplace()). Kein
+         eigener Tab mehr -- der Shop-Nav-Button ist seit v4.2 nur noch ein
+         Shortcut, der direkt auf Handelsplatz/Rigs&Items zeigt (siehe
+         activateTab()). Das alte "Dein Guthaben"-Panel wurde entfernt, da es
+         nie sichtbar war und der Kontostand ohnehin in der Kopfleiste/im
+         Wallet-Tab steht. display:none, damit vor dem Verschieben nichts
+         aufblitzt. -->
+    <div id="shopSourcePanels" style="display:none;">
     <div class="panel">
       <h3>Premium-Shop <span class="tag">— Items gelten auch in Aetheris, Deep Anchor, Path of the Stars & Astrion</span></h3>
       <div id="shopList"></div>
@@ -6914,7 +6922,7 @@ document.getElementById('relayCollectBtn').addEventListener('click', async () =>
 
 /* ---------- Relay: Signal-Verstärker (Kosten 25 × Stärke^1.6, siehe trigger_relay_boost) ---------- */
 function relayBoostCost(pct){
-  return 25 * Math.pow(pct, 1.6);
+  return Math.round(25 * Math.pow(pct, 1.6) * relayBoostCostMult() * 100) / 100;
 }
 function updateRelayBoostCostPreview(){
   const slider = document.getElementById('relayBoostStrength');
@@ -6925,7 +6933,7 @@ function updateRelayBoostCostPreview(){
   if (label) label.textContent = `${pct} %`;
   if (preview) {
     const cost = relayBoostCost(pct);
-    preview.textContent = `Kosten: ${fmtCoin(cost)} RELAY · +${pct}% Netzwerk-Rate für 2 Std. (netzwerkweit)`;
+    preview.textContent = `Kosten: ${fmtCoin(cost)} RELAY · +${pct}% Netzwerk-Rate für ${relayBoostDurationLabel()} (netzwerkweit)`;
   }
   const btn = document.getElementById('relayBoostBtn');
   if (btn) btn.disabled = relayBalance < relayBoostCost(pct);
@@ -6941,7 +6949,7 @@ document.getElementById('relayBoostBtn').addEventListener('click', async () => {
   const { data, error } = await sb.schema('crypto_farm').rpc('trigger_relay_boost', { p_strength_pct: pct });
   if (error) { showMsg('statusMsg', error.message, false); updateRelayBoostCostPreview(); return; }
   const row = Array.isArray(data) ? data[0] : data;
-  showMsg('statusMsg', `Signal-Verstärker aktiv: +${Number(row?.strength_pct ?? pct)}% Netzwerk-Rate für 2 Std.`, true);
+  showMsg('statusMsg', `Signal-Verstärker aktiv: +${Number(row?.strength_pct ?? pct)}% Netzwerk-Rate für ${relayBoostDurationLabel()}.`, true);
   spawnFly('-' + fmtCoin(row?.cost ?? relayBoostCost(pct)) + ' RELAY', btn, false);
   await loadEverything({ light: true });
 });
@@ -6968,12 +6976,50 @@ document.getElementById('relaySellBtn').addEventListener('click', async () => {
 
 /* ---------- Relais-Netzwerk-Skillbaum (bezahlt in RELAY, nicht Prestige-Punkte,
    Tier-Gate-Logik 1:1 uebernommen von renderSkillTree()/buySkillNode()) ---------- */
-const RELAY_SKILL_BRANCH_LABELS = { verstaerker: 'Netzwerk-Verstärker', boost: 'Boost-Kapazität', altnetz: 'Alt-Netz-Bonus' };
+const RELAY_SKILL_BRANCH_LABELS = {
+  verstaerker: 'Netzwerk-Verstärker', boost: 'Boost-Kapazität', altnetz: 'Alt-Netz-Bonus',
+  ertrag: 'Ertrags-Optimierer', effizienz: 'Signal-Effizienz', reichweite: 'Signal-Reichweite', reserve: 'Reserve-Abkommen'
+};
+const RELAY_SKILL_BRANCH_ORDER = ['verstaerker', 'boost', 'altnetz', 'ertrag', 'effizienz', 'reichweite', 'reserve'];
+/* Summe eines Skill-Effekts ueber alle freigeschalteten Relay-Knoten (spiegelt crypto_farm.relay_skill_sum). */
+function relaySkillSum(key){
+  let sum = 0;
+  relaySkillNodes.forEach(n => { if (n.effect_key === key && ownedRelaySkillIds.has(n.id)) sum += Number(n.effect_value) || 0; });
+  return sum;
+}
+function relayBoostCostMult(){ return Math.max(1 - relaySkillSum('boost_cost_reduction'), 0.5); }
+function relayBoostDurationMin(){ return 120 + relaySkillSum('boost_duration_bonus'); }
+function relayBoostDurationLabel(){
+  const m = Math.round(relayBoostDurationMin());
+  return m % 60 === 0 ? `${m / 60} Std.` : (m >= 60 ? `${Math.floor(m / 60)} Std. ${m % 60} Min.` : `${m} Min.`);
+}
+/* Kurzuebersicht der aktiven Skill-Boni unter dem Baum. */
+function relaySkillSummaryHtml(){
+  const parts = [];
+  const pct = (v, d) => (v * 100).toLocaleString('de-DE', { maximumFractionDigits: d });
+  const payout = relaySkillSum('payout_mult');
+  if (payout > 0) parts.push(`Förderung <b>+${pct(payout, 1)} %</b>`);
+  const exp = relaySkillSum('anteils_exponent');
+  if (exp > 0) parts.push(`Anteils-Exponent <b>${(0.70 + exp).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`);
+  const cd = relaySkillSum('boost_cooldown_reduction');
+  if (cd > 0) parts.push(`Boost-Abklingzeit <b>${Math.max(20 - cd, 2)} Min.</b>`);
+  const cost = relaySkillSum('boost_cost_reduction');
+  if (cost > 0) parts.push(`Boost-Kosten <b>−${pct(Math.min(cost, 0.5), 0)} %</b>`);
+  const dur = relaySkillSum('boost_duration_bonus');
+  if (dur > 0) parts.push(`Boost-Dauer <b>${relayBoostDurationLabel()}</b>`);
+  const bank = relaySkillSum('bank_cut_reduction');
+  if (bank > 0) parts.push(`Bank-Skim <b>${pct(Math.max(0.01 - bank, 0), 1)} %</b>`);
+  const alt = relaySkillSum('alt_netz_bonus');
+  if (alt > 0) parts.push(`Alt-Netz <b>+${alt.toLocaleString('de-DE', { maximumFractionDigits: 3 })}/s</b>`);
+  const total = relaySkillNodes.length, owned = relaySkillNodes.filter(n => ownedRelaySkillIds.has(n.id)).length;
+  return `<b>${owned} / ${total}</b> Knoten freigeschaltet` + (parts.length ? ' · ' + parts.join(' · ') : '');
+}
 function renderRelaySkillTree(){
   const el = document.getElementById('relaySkillTree');
   if (!el) return;
   el.innerHTML = '';
-  const branches = ['verstaerker', 'boost', 'altnetz'];
+  const extra = [...new Set(relaySkillNodes.map(n => n.branch))].filter(b => !RELAY_SKILL_BRANCH_ORDER.includes(b));
+  const branches = RELAY_SKILL_BRANCH_ORDER.concat(extra);
   branches.forEach(branch => {
     const nodes = relaySkillNodes.filter(n => n.branch === branch).sort((a, b) => a.tier - b.tier);
     if (nodes.length === 0) return;
@@ -7003,6 +7049,9 @@ function renderRelaySkillTree(){
     });
     el.appendChild(col);
   });
+  const sumEl = document.getElementById('relaySkillSummary');
+  if (sumEl) sumEl.innerHTML = relaySkillSummaryHtml();
+  updateRelayBoostCostPreview();
 }
 
 window.buyRelaySkill = async function(nodeId, btnEl){
