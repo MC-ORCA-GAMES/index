@@ -28,9 +28,16 @@
   html,body{ margin:0; height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
     font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif; }
   body{ display:flex; align-items:center; justify-content:center; }
-  #stage{ position:relative; width:min(100vw,160vh); aspect-ratio:16/10; background:#000;
-    container-type:inline-size; user-select:none; -webkit-user-select:none; }
-  canvas#view{ position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; display:block; }
+  /* Bühne füllt immer den kompletten Bildschirm (kein festes 16:10 mehr, kein
+     Container mit fester Aspect-Ratio) — dadurch keine schwarzen Rand-/Seiten-
+     streifen mehr auf Bildschirmen, die vom 16:10-Format abweichen. */
+  #stage{ position:relative; width:100vw; height:100vh; height:100dvh; background:#000;
+    overflow:hidden; container-type:inline-size; user-select:none; -webkit-user-select:none; }
+  /* object-fit:cover skaliert das intern weiterhin in 960x600 (16:10) gerenderte
+     Bild verzerrungsfrei so hoch, dass es die Bühne randlos ausfüllt — bei
+     abweichendem Seitenverhältnis wird minimal oben/unten bzw. links/rechts
+     beschnitten statt schwarzer Balken angezeigt zu werden. */
+  canvas#view{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; image-rendering:pixelated; display:block; }
   #scan{ position:absolute; inset:0; pointer-events:none;
     background:repeating-linear-gradient(to bottom,rgba(0,0,0,.16) 0 1px,transparent 1px 3px);
     box-shadow:inset 0 0 12cqw rgba(0,0,0,.55); }
@@ -326,6 +333,7 @@ function exitTex(col,dark){
 }
 const texExit=exitTex('#35E4FF','#06333d');
 const texExitLocked=exitTex('#FF3D6E','#3a0c18');
+const texStairs=exitTex('#0ECB81','#0a2a1c'); // Treppe hoch: gleiches Portal-Muster, grün statt cyan/rot
 const texFloor=makeTex(g=>{
   const r=rng(51);
   px(g,'#101824',0,0,64,64);
@@ -735,7 +743,7 @@ const WEAPONS=[
   {name:'Overclock-Gewehr', cost:1, rate:.07}
 ];
 
-let MW=0, MH=0, grid=null, flow=null, exitCell=null, lvIdx=0, lvl=null;
+let MW=0, MH=0, grid=null, flow=null, exitCell=null, stairsCell=null, siteFloors=null, lvIdx=0, lvl=null;
 let enemies=[], pickups=[], shots=[], booms=[], sparks=[], totals={foes:0,shards:0};
 let miniStatic=null;
 let seen=null, visible=null;
@@ -1061,7 +1069,77 @@ function generateProceduralLevel(depth){
     map: grid2.map(r=>r.join(''))
   };
 }
-function startProceduralRun(){ newRun(); startLevel(generateProceduralLevel(1),true); }
+/* ============================================================
+   Mehrere Etagen pro Sektor (Keller / Erdgeschoss / Stockwerke)
+   ============================================================
+   Ein "Standort" (Site) besteht aus 1–4 übereinanderliegenden Etagen.
+   Jede Etage außer der obersten ist eine vereinfachte Maze OHNE Boss/
+   Schloss — statt eines echten Ausgangs ('X') hat sie eine Treppe hoch
+   ('U'), die nach dem gleichen Prinzip wie der Ausgang funktioniert
+   (Wand-Tür, erreichbar über genau einen Zugang, siehe findDoorCell/
+   sealExtraApproaches). Die OBERSTE Etage bleibt exakt die bisherige
+   generateProceduralLevel() (mit Vorraum + Boss + echtem Ausgang) —
+   unverändert, um deren bereits getestetes Verhalten nicht anzufassen. */
+function floorsForDepth(depth){ if(depth<4) return 1; if(depth<10) return 2; if(depth<18) return 3; return 4; }
+function floorName(i){ if(i===0) return 'Keller'; if(i===1) return 'Erdgeschoss'; return (i-1)+'. Stock'; }
+function generateStairFloor(depth,floorIdx,totalFloors){
+  const tier=SIZE_TIERS[(Math.random()*SIZE_TIERS.length)|0];
+  let size=Math.round((11+depth*2.2)*tier); size+=(1-(size%2)); size=Math.max(11,Math.min(size,61));
+  const idx=(x,y)=>y*size+x;
+  const g=carveMaze(size);
+  const doorCand=findDoorCell(g,size,bfsAll(g,size,1,1));
+  let far={x:1,y:1};
+  if(doorCand){ far={x:doorCand.x,y:doorCand.y}; if(doorCand.deg>1) sealExtraApproaches(g,size,doorCand); }
+  const wallChars=['#','R','H'], wallW=[0.62,0.28,0.10];
+  function pickWall(){ const r=Math.random(); let acc=0; for(let i=0;i<wallChars.length;i++){ acc+=wallW[i]; if(r<=acc) return wallChars[i]; } return '#'; }
+  const grid2=[];
+  for(let y=0;y<size;y++){ const row=[]; for(let x=0;x<size;x++) row.push(g[idx(x,y)]===1?pickWall():'.'); grid2.push(row); }
+  grid2[1][1]='P';
+  if(doorCand){ const [ox,oy]=DOOR_SIDES[doorCand.side]; grid2[far.y+oy][far.x+ox]='U'; }
+  else { grid2[far.y][far.x]='U'; } // Notfall, praktisch nie
+  const floorCells=[];
+  for(let y=1;y<size-1;y++) for(let x=1;x<size-1;x++) if(g[idx(x,y)]===0 && !(x===1&&y===1) && grid2[y][x]==='.') floorCells.push([x,y]);
+  shuffleArr(floorCells);
+  // Etwas schwächer besetzt als eine volle Tiefe, da man mehrere Etagen
+  // pro Standort durchläuft — sonst kumuliert die Gegnerzahl zu schnell.
+  const enemyCells=[];
+  function place(ch,count,minDist){
+    let placed=0;
+    for(let i=0;i<floorCells.length&&placed<count;i++){
+      const [x,y]=floorCells[i]; if(grid2[y][x]!=='.') continue;
+      if(minDist){ let ok=true; for(const [ex,ey] of enemyCells){ if(Math.hypot(x-ex,y-ey)<minDist){ ok=false; break; } } if(!ok) continue; }
+      grid2[y][x]=ch; if(minDist) enemyCells.push([x,y]); placed++;
+    }
+    if(placed<count){ for(let i=0;i<floorCells.length&&placed<count;i++){ const [x,y]=floorCells[i]; if(grid2[y][x]!=='.') continue; grid2[y][x]=ch; if(minDist) enemyCells.push([x,y]); placed++; } }
+  }
+  place('d',2+Math.min(4,Math.floor(depth*0.5)),3);
+  place('r',Math.min(3,Math.floor(depth/4)),4);
+  place('h',1+Math.floor(depth/4));
+  place('a',2+Math.floor(depth/4));
+  place('m',3+Math.floor(depth/3));
+  let angle=Math.PI/4;
+  if(g[idx(2,1)]===0) angle=0; else if(g[idx(1,2)]===0) angle=Math.PI/2;
+  const biomeId=biomeForDepth(depth), biome=BIOMES[biomeId];
+  const label=floorName(floorIdx);
+  return {
+    name:biome.name+' · Tiefe '+depth+' · '+label,
+    intro:'Automatisch generierte Etage ('+label+') — irgendwo in der Randwand geht eine Treppe weiter nach oben.',
+    angle, lock:false, fog:true, procedural:true, depth, biome:biomeId,
+    floorIdx, totalFloors,
+    map: grid2.map(r=>r.join(''))
+  };
+}
+function generateProceduralSite(depth){
+  const n=floorsForDepth(depth);
+  const floors=[];
+  for(let i=0;i<n-1;i++) floors.push(generateStairFloor(depth,i,n));
+  const top=generateProceduralLevel(depth);
+  top.floorIdx=n-1; top.totalFloors=n;
+  if(n>1) top.name+=' · '+floorName(n-1);
+  floors.push(top);
+  return floors;
+}
+function startProceduralRun(){ newRun(); siteFloors=generateProceduralSite(1); startLevel(siteFloors[0],true); }
 function restartCurrent(){ startLevel(lvIdx>=0?lvIdx:lvl,true); }
 function finishRun(){
   state='gamewin'; releaseLock();
@@ -1107,10 +1185,11 @@ function parseLevel(src){
   const rows=lvl.map; MH=rows.length; MW=rows[0].length;
   grid=new Uint8Array(MW*MH); enemies=[]; pickups=[]; shots=[]; booms=[]; sparks=[];
   totals={foes:0,shards:0};
-  const wall={'#':1,'R':2,'H':3,'X':4};
+  exitCell=null; stairsCell=null; // sonst würde eine Karte ohne 'X'/'U' die Zelle der vorherigen Karte erben
+  const wall={'#':1,'R':2,'H':3,'X':4,'U':5};
   for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
     const c=rows[y][x];
-    if(wall[c]){ grid[y*MW+x]=wall[c]; if(c==='X') exitCell={x,y}; continue; }
+    if(wall[c]){ grid[y*MW+x]=wall[c]; if(c==='X') exitCell={x,y}; else if(c==='U') stairsCell={x,y}; continue; }
     const cx=x+.5, cy=y+.5;
     if(c==='P'){ P.x=cx; P.y=cy; P.a=lvl.angle; }
     else if(ETYPES[c]){ const t=ETYPES[c];
@@ -1538,6 +1617,22 @@ function checkExit(dt){
     else finishLevel();
   }
 }
+// Treppe hoch: gleicher Trigger-Mechanismus wie der Ausgang (Annäherung an
+// eine Wand-Tür genügt, kein Betreten der massiven Zelle nötig). fadeBusy
+// als Sperre wiederverwendet, damit während der laufenden Fade-Transition
+// (Dauer siehe FADE_MS) nicht mehrfach pro Frame ausgelöst wird.
+function checkStairs(){
+  if(!stairsCell || fadeBusy) return;
+  const cx=stairsCell.x+.5, cy=stairsCell.y+.5;
+  if(Math.abs(P.x-cx)<1.15 && Math.abs(P.y-cy)<1.15 && Math.hypot(P.x-cx,P.y-cy)<1.1) climbStairs();
+}
+function climbStairs(){
+  if(!siteFloors || typeof lvl.floorIdx!=='number') return;
+  const next=lvl.floorIdx+1;
+  if(next>=siteFloors.length) return; // sollte nie eintreten, oberste Etage hat kein 'U'
+  run.kills+=stats.kills; run.shards+=stats.shards; run.time+=stats.time; run.foes+=totals.foes; run.shardsMax+=totals.shards;
+  startLevel(siteFloors[next],false);
+}
 function finishLevel(){
   state='levelwin'; releaseLock(); sfx.win();
   run.kills+=stats.kills; run.shards+=stats.shards; run.time+=stats.time; run.foes+=totals.foes; run.shardsMax+=totals.shards;
@@ -1546,7 +1641,7 @@ function finishLevel(){
   if(lvl.procedural){
     const nextDepth=lvl.depth+1;
     showOverlay({title:'Sektor gesäubert',text:lvl.name+' ist wieder online.',stats:st,
-      buttons:[{label:'Weiter — Tiefe '+nextDepth,primary:true,fn:()=>startLevel(generateProceduralLevel(nextDepth),false)},
+      buttons:[{label:'Weiter — Tiefe '+nextDepth,primary:true,fn:()=>{ siteFloors=generateProceduralSite(nextDepth); startLevel(siteFloors[0],false); }},
                {label:'Lauf beenden',fn:finishRun}]});
     return;
   }
@@ -1607,7 +1702,7 @@ function showTitle(){
     '<div class="infopanel" id="infoPanel">'+
       '<div class="subhead">Steuerung</div>'+KEYS_HTML+
       '<div class="subhead">Zufallslauf</div>'+
-      '<p style="margin:0 0 1.2cqw">Prozedural generiertes Labyrinth, unbekannt bis erkundet — die Karte deckt sich per Nebel des Krieges auf. Jeder gesäuberte Sektor führt zu einem größeren, härteren.</p>'+
+      '<p style="margin:0 0 1.2cqw">Prozedural generiertes Labyrinth, unbekannt bis erkundet — die Karte deckt sich per Nebel des Krieges auf. Jeder gesäuberte Sektor führt zu einem größeren, härteren. Ab Tiefe 4 bestehen Sektoren aus mehreren Etagen (Keller, Erdgeschoss, Stockwerke) — eine grün markierte Treppe in der Wand führt jeweils eine Etage höher.</p>'+
       '<div class="subhead">Direkt zu Story-Sektor</div>'+
       '<div class="row">'+chips+'</div>'+
     '</div>'+
@@ -1733,6 +1828,7 @@ function renderWalls(time){
     f=clamp(f+flashAdd,0,256);
     let tex=curWall[hit]||curWall[1];
     if(hit===4){ tex=locked_?texExitLocked:texExit; f=clamp(170+((Math.sin(time*4)+1)*43)|0,0,256); }
+    else if(hit===5){ tex=texStairs; f=clamp(170+((Math.sin(time*3)+1)*43)|0,0,256); }
     const y0=Math.max(0,top|0), y1=Math.min(H-1,(top+lh)|0);
     const step=64/lh; let tp=(y0-top)*step;
     for(let y=y0;y<=y1;y++){
@@ -1861,6 +1957,7 @@ function drawMini(){
   mctx.clearRect(0,0,miniCv.width,miniCv.height);
   mctx.drawImage(miniStatic,0,0);
   if(exitLocked()&&exitCell){ mctx.fillStyle='#FF3D6E'; mctx.fillRect(exitCell.x*MS,exitCell.y*MS,MS,MS); }
+  if(stairsCell){ mctx.fillStyle='#0ECB81'; mctx.fillRect(stairsCell.x*MS,stairsCell.y*MS,MS,MS); }
   const px_=P.x*MS, py_=P.y*MS;
   mctx.fillStyle='#FFAE3D'; mctx.beginPath(); mctx.arc(px_,py_,2,0,7); mctx.fill();
   mctx.strokeStyle='#FFAE3D'; mctx.lineWidth=1; mctx.beginPath(); mctx.moveTo(px_,py_); mctx.lineTo(px_+Math.cos(P.a)*6,py_+Math.sin(P.a)*6); mctx.stroke();
@@ -1877,6 +1974,7 @@ function drawFogMini(){
   }
   mctx.globalAlpha=1;
   if(exitLocked()&&exitCell&&seen[exitCell.y*MW+exitCell.x]){ mctx.fillStyle='#FF3D6E'; mctx.fillRect(exitCell.x*MS,exitCell.y*MS,MS,MS); }
+  if(stairsCell&&seen[stairsCell.y*MW+stairsCell.x]){ mctx.fillStyle='#0ECB81'; mctx.fillRect(stairsCell.x*MS,stairsCell.y*MS,MS,MS); }
   const px_=P.x*MS, py_=P.y*MS;
   mctx.fillStyle='#FFAE3D'; mctx.beginPath(); mctx.arc(px_,py_,2,0,7); mctx.fill();
   mctx.strokeStyle='#FFAE3D'; mctx.lineWidth=1; mctx.beginPath(); mctx.moveTo(px_,py_); mctx.lineTo(px_+Math.cos(P.a)*6,py_+Math.sin(P.a)*6); mctx.stroke();
@@ -2036,7 +2134,7 @@ function update(dt){
   if(lvl.fog) updateFog();
   flowT-=dt; if(flowT<=0){ computeFlow(); flowT=.3; }
   for(const e of enemies) updateEnemy(e,dt);
-  updateShots(dt); updatePickups(); updateBooms(dt); updateSparks(dt); checkExit(dt);
+  updateShots(dt); updatePickups(); updateBooms(dt); updateSparks(dt); checkExit(dt); checkStairs();
   ambientTick(dt);
   // Effekte
   hurtT=Math.max(0,hurtT-dt); healT=Math.max(0,healT-dt); hitMarkT=Math.max(0,hitMarkT-dt);
