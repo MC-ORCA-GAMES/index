@@ -2,6 +2,14 @@
   MC ORCA GAMES — NEXUS
 
   Changelog:
+  - v4.2.25: FORK-Bruchpfad um 20 Gabeln erweitert (5 -> 25 insgesamt). Ab Gabel 6 gemeinsamer
+    Erweiterungspfad (Tier 6-25, je 2 Optionen "Vollast"/"Sparmodus", 40 neue Knoten in
+    crypto_farm.fork_rig_types), unabhaengig davon, welchen der 48 urspruenglichen Endaeste
+    (Tier 1-5) der Spieler gewaehlt hat -- kein exponentielles Wachstum. Neue Tabelle
+    crypto_farm.fork_gate_requirements (Tiefe 0-24) ersetzt die hartkodierten Gate-Schwellen
+    in fork_choose_branch()/get_fork_status(). Frontend: forkChildrenOf() liest ab Tiefe 5
+    ueber die Ziel-Tier statt exaktem Parent-Match, "Pfad vollstaendig"-Anzeige greift jetzt
+    bei Tiefe 25 und zeigt den tatsaechlichen letzten Knoten.
   - v4.2.24: Alle 7 haesslichen nativen confirm()-Dialoge (Browser-Popup, nicht stylebar) durch
     ein eigenes Bestaetigungs-Modal ersetzt (#nxConfirmModal, Funktion nxConfirm()), das im
     bestehenden .offline-modal-backdrop/-card-Look (wie das "Willkommen zurueck"-Popup) erscheint
@@ -6915,7 +6923,13 @@ async function loadForkTree(){
   forkTreeLoaded = true;
 }
 
-function forkChildrenOf(pathKey){
+function forkChildrenOf(pathKey, depth){
+  // Ab Gabel 6 (Tiefe 5) ist der Pfad ein gemeinsamer Erweiterungsbaum: die naechsten
+  // beiden Optionen ergeben sich rein aus der Ziel-Tier, unabhaengig davon, welchen
+  // der 48 urspruenglichen Endaeste man gewaehlt hat.
+  if (typeof depth === 'number' && depth >= 5) {
+    return forkTree.filter(n => n.tier === depth + 1).sort((a, b) => a.sort_order - b.sort_order);
+  }
   return forkTree.filter(n => n.parent_key === pathKey).sort((a, b) => a.sort_order - b.sort_order);
 }
 
@@ -7019,10 +7033,10 @@ function renderForkGateAndChoices(status){
 
   const depth = (status.locked_path || []).length;
 
-  if (depth >= 5) {
+  if (depth >= 25) {
     gatePanel.style.display = 'none';
     completePanel.style.display = 'block';
-    const last = forkTreeByKey[status.locked_path[4]];
+    const last = forkTreeByKey[status.locked_path[status.locked_path.length - 1]];
     const isStabilitaet = status.locked_path[4] && status.locked_path[4].endsWith('.stabilitaet');
     let extra = '';
     if (isStabilitaet) {
@@ -7033,7 +7047,7 @@ function renderForkGateAndChoices(status){
     }
     document.getElementById('forkCompleteBox').innerHTML = `
       <h3>Pfad vollständig verlötet</h3>
-      <p>Du hast dich für <b>${last ? last.name : '?'}</b> entschieden. Dein Baum ist abgeschlossen — alle anderen Äste bleiben für immer durchtrennt.</p>${extra}`;
+      <p>Du hast dich für <b>${last ? last.name : '?'}</b> entschieden. Dein Baum ist abgeschlossen (25 Gabeln) — alle anderen Äste bleiben für immer durchtrennt.</p>${extra}`;
     return;
   }
   completePanel.style.display = 'none';
@@ -7075,7 +7089,7 @@ function renderForkGateAndChoices(status){
   if (!ready) return;
 
   const curKey = forkCurrentNodeKey(status);
-  const kids = forkChildrenOf(curKey);
+  const kids = forkChildrenOf(curKey, depth);
   if (kids.length === 0) return;
 
   kids.forEach(node => {
