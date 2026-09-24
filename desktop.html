@@ -43,6 +43,12 @@
     position:absolute; inset:0; padding:18px 10px;
     background:var(--bg);
   }
+  #wallpaper{
+    position:absolute; inset:0; z-index:0; pointer-events:none;
+    background-image:url("assets/img/wallpaper.png");
+    background-size:cover; background-position:center; background-repeat:no-repeat;
+    opacity:0.5; filter:brightness(0.9) saturate(1.05);
+  }
   #stars{ position:absolute; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
   #desktop::before{
     content:"";
@@ -173,6 +179,7 @@
 <div id="boot"></div>
 
 <div id="desktop" style="display:none;">
+  <div id="wallpaper"></div>
   <canvas id="stars"></canvas>
   <div id="icons">
     <div class="icon" data-open="browser" tabindex="0"><div class="glyph">◐</div><div class="label">Netzscout</div></div>
@@ -317,9 +324,8 @@
     },
     foto: {
       title: "FOTO_037.jpg — Bildvorschau",
-      body: `<div style="text-align:center; font-size:64px; letter-spacing:8px; opacity:.6;">▧▧▧</div>
-             <p style="text-align:center; opacity:.6;">Datei beschädigt oder Format nicht unterstützt.</p>
-             <p style="opacity:.5; font-size:12px;">Metadaten: aufgenommen 03:14 Uhr · Kamera: unbekanntes Gerät</p>`
+      body: `<img src="assets/img/foto_037.jpg" alt="FOTO_037" style="width:100%; display:block; border:1px solid rgba(232,230,227,.15); border-radius:4px; filter:contrast(1.05) saturate(.9);">
+             <p style="opacity:.5; font-size:12px; margin-top:8px;">Metadaten: aufgenommen 03:14 Uhr · Kamera: unbekanntes Gerät · wiederhergestellt aus Sektor-Cache</p>`
     },
     system: {
       title: "Systeminfo",
