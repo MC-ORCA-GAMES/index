@@ -99,6 +99,10 @@
   .win .bar .x:hover{opacity:1; color:var(--err);}
   .win .bar .max{cursor:pointer; color:var(--text); opacity:.7; padding:0 4px;}
   .win .bar .max:hover{opacity:1; color:var(--crt);}
+  .win .bar .min{cursor:pointer; color:var(--text); opacity:.7; padding:0 4px;}
+  .win .bar .min:hover{opacity:1; color:var(--teal);}
+  .win.minimized{display:none;}
+  .taskitem.min{opacity:.5;}
   .win .bar .btns{display:flex; gap:2px;}
   .win.maximized{
     left:0 !important; top:0 !important; right:0 !important; bottom:34px !important;
@@ -412,7 +416,7 @@
 
   function openWindow(key){
     if(key === 'terminal') return openTerminal();
-    if(key === 'browser') return openBrowser('suche.html');
+    if(key === 'browser') return openBrowser(SITE_URL);
     if(key === 'assistent') return openBrowser('assistent.html', 'T-7 Assistent', 'assistent');
     if(key === 'suche') return openBrowser('suche.html', 'ORBIT Suche', 'suche');
     if(key.startsWith('game:')){ const g = GAMES.find(x=>'game:'+x.id===key); if(g) openBrowser(g.url, g.name, key); return; }
@@ -429,13 +433,14 @@
     win.style.left = (60 + Math.random()*120) + 'px';
     win.style.top = (40 + Math.random()*100) + 'px';
     win.style.width = '340px';
-    win.innerHTML = `<div class="bar"><span>${data.title}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+    win.innerHTML = `<div class="bar"><span>${data.title}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
                       <div class="body">${data.body}</div>`;
     document.getElementById('desktop').appendChild(win);
     makeDraggable(win);
     focusWinEl(win);
     win.querySelector('.x').onclick = ()=> closeWin(win, key);
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, key);
     openWinIds.add(key);
     addTaskItem(key, data.title, win);
     if(data.onOpen) data.onOpen(win);
@@ -447,7 +452,7 @@
     win.className = 'win';
     win.dataset.key = 'terminal';
     win.style.left = '80px'; win.style.top = '60px'; win.style.width='420px';
-    win.innerHTML = `<div class="bar"><span>Terminal</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+    win.innerHTML = `<div class="bar"><span>Terminal</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
       <div class="body">
         <div id="term-out">TERMINUS SHELL v0.7
 Gib 'hilfe' ein für Befehle.
@@ -459,6 +464,7 @@ Gib 'hilfe' ein für Befehle.
     focusWinEl(win);
     win.querySelector('.x').onclick = ()=> closeWin(win, 'terminal');
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, 'terminal');
     openWinIds.add('terminal');
     addTaskItem('terminal', 'Terminal', win);
 
@@ -753,7 +759,7 @@ Gib 'hilfe' ein für Befehle.
     win.style.top = (60 + Math.random()*70) + 'px';
     win.style.width = '330px';
     const title = fund.name + ' — Audioplayer';
-    win.innerHTML = `<div class="bar"><span>${title}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+    win.innerHTML = `<div class="bar"><span>${title}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
       <div class="body">
         <p class="ap-name">♪ ${fund.name}</p>
         <div class="ap-row"><button class="sig-btn" data-ap-play>▶ abspielen</button><span class="ap-time">0:00 / –:––</span></div>
@@ -773,6 +779,7 @@ Gib 'hilfe' ein für Befehle.
     const foundBox = win.querySelector('.ap-found');
     win.querySelector('.x').onclick = ()=> { audio.pause(); closeWin(win, key); };
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, key);
     openWinIds.add(key);
     addTaskItem(key, title, win);
 
@@ -829,7 +836,7 @@ Gib 'hilfe' ein für Befehle.
     win.style.left = (70 + Math.random()*100) + 'px';
     win.style.top = (50 + Math.random()*80) + 'px';
     win.style.width = '420px';
-    win.innerHTML = `<div class="bar"><span>Frequenzanalysator</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+    win.innerHTML = `<div class="bar"><span>Frequenzanalysator</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
       <div class="body">
         <p style="opacity:.6; font-size:12px;">Zerlegt eingehende Audiosignale in ihr Frequenzband. Manchmal steckt darin mehr als nur Rauschen.</p>
         <canvas class="sig-canvas" width="760" height="200"></canvas>
@@ -875,6 +882,7 @@ Gib 'hilfe' ein für Befehle.
 
     win.querySelector('.x').onclick = ()=> { closeWin(win, 'signal'); audio.pause(); if(revealRaf) cancelAnimationFrame(revealRaf); sigWinRefs = null; };
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, 'signal');
     openWinIds.add('signal');
     addTaskItem('signal', 'Frequenzanalysator', win);
 
@@ -1142,7 +1150,7 @@ Gib 'hilfe' ein für Befehle.
     win.dataset.key = key;
     win.style.left = (40 + (n % 6) * 28) + 'px'; win.style.top = (24 + (n % 6) * 28) + 'px';
     win.style.width = W + 'px'; win.style.height = H + 'px';
-    win.innerHTML = `<div class="bar"><span>${title || 'Netzscout'}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+    win.innerHTML = `<div class="bar"><span>${title || 'Netzscout'}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
       <div class="body" style="padding:0; display:flex; flex-direction:column;">
         <div style="display:flex; gap:6px; align-items:center; padding:6px 8px; background:var(--bg-alt); border-bottom:1px solid var(--panel-border);">
           <span class="bb-back" title="Zurück" style="cursor:pointer; opacity:.7; padding:2px 4px;">←</span>
@@ -1160,6 +1168,7 @@ Gib 'hilfe' ein für Befehle.
     focusWinEl(win);
     win.querySelector('.x').onclick = ()=> closeWin(win, key);
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, key);
     openWinIds.add(key);
     addTaskItem(key, title || 'Netzscout', win);
 
@@ -1167,14 +1176,14 @@ Gib 'hilfe' ein für Befehle.
     const urlInput = win.querySelector('.bb-url');
     function navigate(){
       const v = urlInput.value.trim();
-      if(!v){ frame.src = 'suche.html'; return; }
+      if(!v){ frame.src = SITE_URL; return; }
       const isUrl = /^(https?:)?\/\//.test(v) || /\.(html?|png|jpe?g|svg|ogg|mp4)(\?.*)?$/i.test(v) || v.startsWith('/') || v.includes('.html');
       frame.src = isUrl ? v : 'suche.html?q=' + encodeURIComponent(v);
     }
     win.querySelector('.bb-go').onclick = navigate;
     win.querySelector('.bb-reload').onclick = ()=> { frame.src = frame.src; };
     win.querySelector('.bb-back').onclick = ()=> { try{ frame.contentWindow.history.back(); }catch(e){} };
-    win.querySelector('.bb-new').onclick = ()=> openBrowser('suche.html');
+    win.querySelector('.bb-new').onclick = ()=> openBrowser(SITE_URL);
     win.querySelector('.bb-home').onclick = ()=> { frame.src = SITE_URL; };
     urlInput.addEventListener('keydown', e=>{ if(e.key==='Enter') navigate(); });
     frame.addEventListener('load', ()=>{ try{
@@ -1240,7 +1249,7 @@ Gib 'hilfe' ein für Befehle.
     win.style.left = (100 + Math.random()*80) + 'px';
     win.style.top = (70 + Math.random()*60) + 'px';
     win.style.width = '320px';
-    win.innerHTML = `<div class="bar"><span>${title}</span><span class="btns"><span class="x">✕</span></span></div>
+    win.innerHTML = `<div class="bar"><span>${title}</span><span class="btns"><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
       <div class="body">
         <p class="ap-name pw-label">Wird vorbereitet …</p>
         <div class="ap-bar"><div class="ap-fill pw-fill"></div></div>
@@ -1251,6 +1260,7 @@ Gib 'hilfe' ein für Befehle.
     focusWinEl(win);
     let closable = false;
     win.querySelector('.x').onclick = ()=>{ if(closable) closeWin(win, key); };
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, key);
     openWinIds.add(key);
     addTaskItem(key, title, win);
     return {
@@ -1346,13 +1356,14 @@ Gib 'hilfe' ein für Befehle.
     win.className = 'win';
     win.dataset.key = 'downloads';
     win.style.left = '90px'; win.style.top = '50px'; win.style.width = '340px';
-    win.innerHTML = `<div class="bar"><span>Downloads</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+    win.innerHTML = `<div class="bar"><span>Downloads</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
       <div class="body"><div class="fl dl-list"></div><p class="fl-status">Doppelklick installiert eine heruntergeladene Datei.</p></div>`;
     document.getElementById('desktop').appendChild(win);
     makeDraggable(win);
     focusWinEl(win);
     win.querySelector('.x').onclick = ()=> closeWin(win, 'downloads');
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, 'downloads');
     openWinIds.add('downloads');
     addTaskItem('downloads', 'Downloads', win);
     renderDownloads();
@@ -1651,7 +1662,7 @@ Gib 'hilfe' ein für Befehle.
     win.dataset.key = 'musik';
     win.style.left = '70px'; win.style.top = '24px';
     win.style.width = 'min(680px, 94vw)';
-    win.innerHTML = `<div class="bar"><span>Musikarchiv — ${total} Titel</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+    win.innerHTML = `<div class="bar"><span>Musikarchiv — ${total} Titel</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
       <div class="body mus-body">
         <div class="mus-main">
           <div class="mus-games"></div>
@@ -1703,6 +1714,7 @@ Gib 'hilfe' ein für Befehle.
 
     win.querySelector('.x').onclick = ()=>{ audio.pause(); audio.removeAttribute('src'); audio.load(); closeWin(win, 'musik'); };
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, 'musik');
 
     const entries = id => id === 'all'
       ? MUSIC_LIB.flatMap(g => g.tracks.map(t => ({g, t})))
@@ -1819,7 +1831,7 @@ Gib 'hilfe' ein für Befehle.
           <span style="opacity:.6;">${m.t === 'audio' ? '♪' : '▧'}</span><span>${m.n}</span></div>`;
       });
     });
-    win.innerHTML = `<div class="bar"><span>Medienarchiv — ${MEDIA.length} Dateien</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+    win.innerHTML = `<div class="bar"><span>Medienarchiv — ${MEDIA.length} Dateien</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
       <div class="body" style="padding:0; display:flex; height:440px; max-height:70vh;">
         <div style="width:56%; overflow:auto; padding:8px 10px; border-right:1px solid var(--panel-border);">${listHtml}</div>
         <div id="media-preview" style="width:44%; overflow:auto; padding:10px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12px; opacity:.6;">
@@ -1831,6 +1843,7 @@ Gib 'hilfe' ein für Befehle.
     focusWinEl(win);
     win.querySelector('.x').onclick = ()=> closeWin(win, 'medien');
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, 'medien');
     openWinIds.add('medien');
     addTaskItem('medien', 'Medienarchiv', win);
 
@@ -1857,13 +1870,29 @@ Gib 'hilfe' ein für Befehle.
     if(item) item.remove();
   }
 
+  function minimizeWin(win, key){
+    win.classList.add('minimized');
+    const item = document.getElementById('task-'+key);
+    if(item) item.classList.add('min');
+  }
+  function restoreWin(win, key){
+    win.classList.remove('minimized');
+    const item = document.getElementById('task-'+key);
+    if(item) item.classList.remove('min');
+    focusWinEl(win);
+  }
+
   function addTaskItem(key, label, win){
     const bar = document.getElementById('openwins');
     const item = document.createElement('div');
     item.className = 'taskitem';
     item.id = 'task-'+key;
     item.textContent = label.split(' — ')[0];
-    item.onclick = ()=> focusWinEl(win);
+    item.onclick = ()=>{
+      if(win.classList.contains('minimized')){ restoreWin(win, key); return; }
+      if(parseInt(win.style.zIndex||0, 10) === zTop) minimizeWin(win, key);
+      else focusWinEl(win);
+    };
     bar.appendChild(item);
   }
 
