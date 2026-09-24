@@ -293,11 +293,90 @@
   .expl-item.sel{background:rgba(33,199,184,.14); border-color:rgba(33,199,184,.4);}
   .expl-icon{display:block; font-size:22px;}
   .expl-label{display:block; font-size:11px; margin-top:3px; word-break:break-word; line-height:1.2;}
+
+  /* ---- Login-Bildschirm (vor dem Boot) ---- */
+  #loginscreen{
+    position:fixed; inset:0; z-index:10001; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at 50% 30%, #1c2440 0%, #05060d 75%);
+    font-family:"Space Grotesk",sans-serif; color:var(--text);
+  }
+  #loginscreen::before{
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
+    background:repeating-linear-gradient(rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.12) 3px 4px);
+    mix-blend-mode:multiply;
+  }
+  .login-box{position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:18px; padding:20px;}
+  .login-avatar{
+    width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:44px; background:var(--panel); border:2px solid var(--crt-dim); box-shadow:0 0 24px rgba(212,175,55,.25);
+  }
+  .login-user{font-size:20px; font-weight:600; letter-spacing:.03em;}
+  .login-sub{font-size:12px; opacity:.6; letter-spacing:.08em; text-transform:uppercase;}
+  .login-pass{
+    background:var(--bg-alt); border:1px solid var(--panel-border); color:var(--text);
+    padding:8px 12px; border-radius:3px; font-family:"Consolas",monospace; font-size:13px; width:220px; text-align:center;
+  }
+  .login-btn{
+    background:var(--crt-dim); color:#05060d; border:none; padding:8px 26px; border-radius:3px; cursor:pointer;
+    font-family:"Space Grotesk",sans-serif; font-weight:700; letter-spacing:.04em; font-size:13px;
+  }
+  .login-btn:hover{background:var(--crt);}
+  .login-hint{font-size:11px; opacity:.45; margin-top:4px;}
+  .login-clock{position:absolute; top:24px; right:32px; font-size:13px; opacity:.6; font-family:"Consolas",monospace;}
+
+  /* ---- Startmenü als Kachel-Raster (Windows-artig) ---- */
+  #startmenu{ min-width:220px; padding:10px; }
+  #startmenu div{padding:0;}
+  .sm-account{
+    display:flex; align-items:center; gap:8px; padding:8px; margin-bottom:8px; cursor:pointer;
+    border-bottom:1px solid var(--panel-border); font-size:12.5px;
+  }
+  .sm-account:hover{background:rgba(212,175,55,0.10);}
+  .sm-avatar{width:26px; height:26px; border-radius:50%; background:var(--bg-alt); display:flex; align-items:center; justify-content:center; font-size:14px;}
+  .sm-tiles{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:8px;}
+  .tile{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    background:var(--bg-alt); border:1px solid var(--panel-border); border-radius:3px; padding:10px 4px;
+    cursor:pointer; font-size:18px; text-align:center;
+  }
+  .tile span{font-size:10px; letter-spacing:.02em;}
+  .tile:hover{border-color:var(--crt-dim); background:rgba(212,175,55,0.10);}
+  .sm-shutdown{padding:8px 10px !important; cursor:pointer; font-size:12.5px; border-top:1px solid var(--panel-border);}
+  .sm-shutdown:hover{background:rgba(212,175,55,0.10);}
 </style>
 </head>
 <body>
 
-<div id="boot"></div>
+<div id="loginscreen">
+  <div class="login-clock" id="loginClock">--:--</div>
+  <div class="login-box">
+    <div class="login-avatar" id="loginAvatar">◈</div>
+    <div class="login-sub">TERMINUS-7 · Zugang</div>
+
+    <div id="loginStepEmail" style="display:flex; flex-direction:column; align-items:center; gap:4px; max-width:280px;">
+      <div class="login-user" style="font-size:14px; font-weight:400; opacity:.85; text-align:center;">Login per Code — keine Passwörter. Gilt für den gesamten MC ORCA-Account.</div>
+      <input type="email" class="login-pass" id="loginEmailInput" placeholder="deine@email.de" autocomplete="email" style="margin-top:12px;">
+      <button class="login-btn" id="loginSendBtn" type="button" style="margin-top:12px;">Code senden</button>
+    </div>
+
+    <div id="loginStepCode" style="display:none; flex-direction:column; align-items:center; gap:14px;">
+      <div class="login-user" style="font-size:13px; font-weight:400; opacity:.85;">Code aus der E-Mail eingeben:</div>
+      <input type="text" class="login-pass" id="loginCodeInput" placeholder="123456" inputmode="numeric" maxlength="6" style="letter-spacing:5px; text-align:center;">
+      <button class="login-btn" id="loginVerifyBtn" type="button">Bestätigen</button>
+      <div class="login-hint" style="cursor:pointer; text-decoration:underline;" id="loginBackBtn">andere E-Mail verwenden</div>
+    </div>
+
+    <div id="loginStepIn" style="display:none; flex-direction:column; align-items:center; gap:14px;">
+      <div class="login-user" id="loginInName">—</div>
+      <button class="login-btn" id="loginContinueBtn" type="button">Weiter</button>
+      <div class="login-hint" style="cursor:pointer; text-decoration:underline;" id="loginSignOutBtn">nicht du? abmelden</div>
+    </div>
+
+    <div class="login-hint" id="loginStatus" style="min-height:14px;"></div>
+  </div>
+</div>
+
+<div id="boot" style="display:none;"></div>
 
 <div id="desktop" style="display:none;">
   <div id="wallpaper"></div>
@@ -331,12 +410,19 @@
 <div id="fs-toast"></div>
 
 <div id="startmenu">
-  <div data-open="explorer">Explorer</div>
-  <div data-open="terminal">Terminal</div>
-  <div data-open="system">Systeminfo</div>
-  <div id="shutdown">Herunterfahren</div>
+  <div class="sm-account" data-open="profil"><span class="sm-avatar" id="smAvatar">◈</span> <span id="smAccountName">Gast</span></div>
+  <div class="sm-tiles">
+    <div class="tile" data-open="explorer">📁<span>Explorer</span></div>
+    <div class="tile" data-open="terminal">⌨<span>Terminal</span></div>
+    <div class="tile" data-open="system">⚙<span>System</span></div>
+    <div class="tile" data-open="profil">👤<span>Profil</span></div>
+    <div class="tile" data-open="raenge">🏅<span>Ränge</span></div>
+    <div class="tile" data-open="browser">🌐<span>Portal</span></div>
+  </div>
+  <div id="shutdown" class="sm-shutdown">Herunterfahren</div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   // Ziel-Seite, die im eingebauten "Netzscout"-Browser lädt.
@@ -376,8 +462,136 @@
     i++;
     setTimeout(typeLine, bootLines[i-1] === "" ? 250 : 260 + Math.random()*220);
   }
-  bootEl.innerHTML = "";
-  typeLine();
+  function startBoot(){
+    document.getElementById('boot').style.display = 'block';
+    bootEl.innerHTML = "";
+    typeLine();
+  }
+
+  // ---------- Login screen: echter Account-Login (E-Mail + Code), wie im Portal ----------
+  (function(){
+    const loginScreen = document.getElementById('loginscreen');
+    const clockEl = document.getElementById('loginClock');
+    function tickClock(){
+      const d = new Date();
+      clockEl.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    function dismissLogin(){
+      loginScreen.style.transition = 'opacity .4s';
+      loginScreen.style.opacity = '0';
+      setTimeout(()=>{
+        loginScreen.style.display = 'none';
+        startBoot();
+      }, 400);
+    }
+
+    // Gleicher Supabase-Cloud-Account wie auf portal.html / profil.html — eine Anmeldung
+    // gilt (per gemeinsamem localStorage) für die ganze mc-orca-games.de Seite.
+    const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+    const supabaseClient = (typeof window.supabase !== 'undefined')
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
+    const stepEmail = document.getElementById('loginStepEmail');
+    const stepCode = document.getElementById('loginStepCode');
+    const stepIn = document.getElementById('loginStepIn');
+    const statusEl = document.getElementById('loginStatus');
+    const emailInput = document.getElementById('loginEmailInput');
+    const codeInput = document.getElementById('loginCodeInput');
+    const inNameEl = document.getElementById('loginInName');
+    const smNameEl = document.getElementById('smAccountName');
+    let pendingEmail = '';
+    let uiState = 'email';
+
+    function setStatus(msg, isErr){
+      statusEl.textContent = msg || '';
+      statusEl.style.color = isErr ? '#ff8a80' : '';
+      statusEl.style.opacity = msg ? '.85' : '.45';
+    }
+    function render(){
+      stepEmail.style.display = uiState === 'email' ? 'flex' : 'none';
+      stepCode.style.display = uiState === 'code' ? 'flex' : 'none';
+      stepIn.style.display = uiState === 'in' ? 'flex' : 'none';
+    }
+
+    async function loadProfileAndShow(user){
+      let displayName = user.email;
+      if(supabaseClient){
+        try{
+          const res = await supabaseClient.from('profiles').select('username,avatar').eq('user_id', user.id).maybeSingle();
+          if(!res.error && res.data && res.data.username) displayName = res.data.username;
+        }catch(e){ /* Profiltabelle evtl. noch nicht vorhanden - egal */ }
+      }
+      inNameEl.textContent = 'Angemeldet als ' + displayName;
+      if(smNameEl) smNameEl.textContent = displayName;
+      window.__cloudUser = user;
+    }
+
+    if(!supabaseClient){
+      // Kein Netz / Skript blockiert: nicht aussperren, einfach normal weiter booten.
+      setStatus('Cloud-Login gerade nicht erreichbar — weiter im Gastmodus.', true);
+      setTimeout(dismissLogin, 900);
+      return;
+    }
+
+    supabaseClient.auth.getSession().then(async (res)=>{
+      const session = res.data.session;
+      if(session && session.user){
+        uiState = 'in';
+        render();
+        await loadProfileAndShow(session.user);
+      }
+    });
+
+    document.getElementById('loginSendBtn').addEventListener('click', async ()=>{
+      const email = emailInput.value.trim();
+      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
+      setStatus('Sende Code …', false);
+      const res = await supabaseClient.auth.signInWithOtp({ email, options:{ shouldCreateUser:true } });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      pendingEmail = email;
+      uiState = 'code';
+      render();
+      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
+    });
+    emailInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') document.getElementById('loginSendBtn').click(); });
+
+    document.getElementById('loginVerifyBtn').addEventListener('click', async ()=>{
+      const code = codeInput.value.trim();
+      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
+      setStatus('Prüfe Code …', false);
+      const res = await supabaseClient.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      uiState = 'in';
+      render();
+      await loadProfileAndShow(res.data.user);
+      setStatus('Eingeloggt!', false);
+      setTimeout(dismissLogin, 500);
+    });
+    codeInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') document.getElementById('loginVerifyBtn').click(); });
+
+    document.getElementById('loginBackBtn').addEventListener('click', ()=>{
+      uiState = 'email';
+      setStatus('', false);
+      render();
+    });
+
+    document.getElementById('loginContinueBtn').addEventListener('click', dismissLogin);
+
+    document.getElementById('loginSignOutBtn').addEventListener('click', async ()=>{
+      await supabaseClient.auth.signOut();
+      uiState = 'email';
+      if(smNameEl) smNameEl.textContent = 'Gast';
+      setStatus('Ausgeloggt.', false);
+      render();
+    });
+
+    render();
+  })();
 
   // ---------- Starfield (wie auf mc-orca-games.de) ----------
   function initStars(){
@@ -498,6 +712,8 @@
     if(key === 'browser') return openBrowser(SITE_URL);
     if(key === 'assistent') return openBrowser('assistent.html', 'T-7 Assistent', 'assistent');
     if(key === 'suche') return openBrowser('suche.html', 'ORBIT Suche', 'suche');
+    if(key === 'profil') return openBrowser('profil.html', 'Profil', 'profil');
+    if(key === 'raenge') return openBrowser('raenge.html', 'Ränge', 'raenge');
     if(key.startsWith('game:')){ const g = GAMES.find(x=>'game:'+x.id===key); if(g) openBrowser(g.url, g.name, key); return; }
     if(key === 'medien') return openMediaArchive();
     if(key === 'musik') return openMusicArchive();
