@@ -2310,12 +2310,28 @@ Gib 'hilfe' ein für Befehle.
     saveVFS();
     return id;
   }
-  function vfsAddLink(parentId, sysKey, label){
+  function vfsAddLink(parentId, sysKey, label, html){
     const id = vfsNewId();
-    VFS.nodes[id] = {id, type:'link', name: label, parent: parentId, sysKey};
+    VFS.nodes[id] = {id, type:'link', name: label, parent: parentId, sysKey, html};
     vfsNode(parentId).children.push(id);
     saveVFS();
     return id;
+  }
+  function vfsRenameNode(id, name){
+    const node = vfsNode(id);
+    if(!node || !name) return;
+    node.name = name;
+    saveVFS();
+  }
+  function vfsRemoveNode(id){
+    const node = vfsNode(id);
+    if(!node) return;
+    if(node.parent){
+      const p = vfsNode(node.parent);
+      if(p) p.children = p.children.filter(c => c !== id);
+    }
+    delete VFS.nodes[id];
+    saveVFS();
   }
   function vfsMoveNode(id, newParentId){
     const node = vfsNode(id);
@@ -2333,6 +2349,29 @@ Gib 'hilfe' ein für Befehle.
   function hideSystemIcon(key){
     hiddenIcons.add(key);
     try{ localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hiddenIcons])); }catch(e){}
+  }
+  function unhideSystemIcon(key){
+    hiddenIcons.delete(key);
+    try{ localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hiddenIcons])); }catch(e){}
+  }
+  // Holt ein Icon (z.B. ein Spiel), das in einen Ordner verschoben wurde, zurück auf den Desktop
+  function restoreLinkToDesktop(id){
+    const node = vfsNode(id);
+    if(!node || node.type !== 'link') return;
+    unhideSystemIcon(node.sysKey);
+    vfsRemoveNode(id);
+    const box = document.getElementById('icons');
+    if(node.html){
+      const tmp = document.createElement('div');
+      tmp.innerHTML = node.html;
+      const iconEl = tmp.firstElementChild;
+      if(iconEl && !box.querySelector('.icon[data-open="'+iconEl.dataset.open+'"]')){
+        box.appendChild(iconEl);
+        wireIcon(iconEl);
+      }
+    }
+    refreshDesktopVfsIcons();
+    toast('"' + node.name + '" auf den Desktop zurückgelegt.');
   }
 
   // Kontextmenü (Rechtsklick): Neuer Ordner usw.
@@ -2359,6 +2398,24 @@ Gib 'hilfe' ein für Befehle.
     showCtxMenu(e.clientX, e.clientY, [
       {label:'Neuer Ordner', action: ()=>{ vfsCreateFolder('desktop', 'Neuer Ordner'); refreshDesktopVfsIcons(); }},
       {label:'Explorer öffnen', action: ()=> openWindow('explorer')}
+    ]);
+  });
+
+  // Rechtsklick auf einen selbst erstellten Ordner direkt auf dem Desktop -> Umbenennen
+  document.getElementById('icons').addEventListener('contextmenu', e=>{
+    const icon = e.target.closest('.icon[data-vfs]');
+    if(!icon) return;
+    e.preventDefault();
+    const id = icon.dataset.vfs;
+    const node = vfsNode(id);
+    if(!node) return;
+    showCtxMenu(e.clientX, e.clientY, [
+      {label:'Umbenennen', action: ()=>{
+        const name = prompt('Neuer Name:', node.name);
+        if(name === null) return;
+        vfsRenameNode(id, name.trim() || node.name);
+        refreshDesktopVfsIcons();
+      }}
     ]);
   });
 
@@ -2431,9 +2488,26 @@ Gib 'hilfe' ein für Befehle.
     }
     listEl.addEventListener('contextmenu', e=>{
       e.preventDefault();
-      showCtxMenu(e.clientX, e.clientY, [
-        {label:'Neuer Ordner', action: ()=>{ vfsCreateFolder(id, 'Neuer Ordner'); render(); refreshDesktopVfsIcons(); status.textContent = 'Ordner erstellt.'; }}
-      ]);
+      const row = e.target.closest('.frow');
+      const items = [];
+      if(row){
+        const node = vfsNode(row.dataset.id);
+        if(node && node.type === 'folder'){
+          items.push({label:'Umbenennen', action: ()=>{
+            const name = prompt('Neuer Name:', node.name);
+            if(name === null) return;
+            vfsRenameNode(node.id, name.trim() || node.name);
+            render(); refreshDesktopVfsIcons();
+          }});
+        } else if(node && node.type === 'link'){
+          items.push({label:'Auf den Desktop verschieben', action: ()=>{
+            restoreLinkToDesktop(node.id);
+            render();
+          }});
+        }
+      }
+      items.push({label:'Neuer Ordner', action: ()=>{ vfsCreateFolder(id, 'Neuer Ordner'); render(); refreshDesktopVfsIcons(); status.textContent = 'Ordner erstellt.'; }});
+      showCtxMenu(e.clientX, e.clientY, items);
     });
     render();
   }
@@ -2480,6 +2554,22 @@ Gib 'hilfe' ein für Befehle.
       treeEl.innerHTML = `<div class="expl-tnode${curFolder === 'desktop' ? ' sel' : ''}" data-id="desktop">🖥 Dieser PC</div>` + buildTree('desktop', 1);
       treeEl.querySelectorAll('.expl-tnode').forEach(el=>{
         el.onclick = ()=>{ if(el.dataset.id !== curFolder){ history.push(curFolder); curFolder = el.dataset.id; } renderAll(); };
+        if(el.dataset.id !== 'desktop'){
+          el.addEventListener('contextmenu', e=>{
+            e.preventDefault();
+            e.stopPropagation();
+            const node = vfsNode(el.dataset.id);
+            if(!node) return;
+            showCtxMenu(e.clientX, e.clientY, [
+              {label:'Umbenennen', action: ()=>{
+                const name = prompt('Neuer Name:', node.name);
+                if(name === null) return;
+                vfsRenameNode(node.id, name.trim() || node.name);
+                renderAll(); refreshDesktopVfsIcons();
+              }}
+            ]);
+          });
+        }
       });
     }
     function renderMain(){
@@ -2514,6 +2604,25 @@ Gib 'hilfe' ein für Befehle.
             if(draggedId && draggedId !== node.id){ vfsMoveNode(draggedId, node.id); renderAll(); refreshDesktopVfsIcons(); }
           });
         }
+        row.addEventListener('contextmenu', e=>{
+          e.preventDefault();
+          e.stopPropagation();
+          const items = [];
+          if(node.type === 'folder'){
+            items.push({label:'Umbenennen', action: ()=>{
+              const name = prompt('Neuer Name:', node.name);
+              if(name === null) return;
+              vfsRenameNode(node.id, name.trim() || node.name);
+              renderAll(); refreshDesktopVfsIcons();
+            }});
+          } else if(node.type === 'link'){
+            items.push({label:'Auf den Desktop verschieben', action: ()=>{
+              restoreLinkToDesktop(node.id);
+              renderAll();
+            }});
+          }
+          showCtxMenu(e.clientX, e.clientY, items);
+        });
       });
     }
     function renderPath(){
@@ -2609,7 +2718,7 @@ Gib 'hilfe' ein für Befehle.
           if(icon.dataset.vfs){
             vfsMoveNode(icon.dataset.vfs, targetId);
           } else {
-            vfsAddLink(targetId, id, label);
+            vfsAddLink(targetId, id, label, icon.outerHTML);
             hideSystemIcon(id);
           }
           icon.remove();
