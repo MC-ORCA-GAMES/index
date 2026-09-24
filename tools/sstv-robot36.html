@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Bild → Robot SSTV — internes Tool</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{--bg:#0a0b12;--panel:#151726;--line:rgba(232,230,227,.15);--text:#E9E7E2;--dim:#a4a8b8;--gold:#D4AF37;--teal:#21C7B8;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; margin:0; padding:24px; display:flex; flex-direction:column; align-items:center; gap:16px;}
+  h1{font-size:18px; color:var(--gold); margin:0;}
+  p.hint{color:var(--dim); font-size:13px; max-width:560px; text-align:center; margin:0;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px; width:100%; max-width:560px; display:flex; flex-direction:column; gap:14px;}
+  label{font-size:12.5px; color:var(--dim); display:flex; flex-direction:column; gap:4px;}
+  select, input[type=number], input[type=text]{background:#0d0e17; border:1px solid var(--line); color:var(--text); border-radius:4px; padding:6px 8px; font-size:13px; font-family:inherit;}
+  .row{display:flex; gap:12px;}
+  .row label{flex:1;}
+  input[type=file]{color:var(--text);}
+  button{background:var(--gold); color:#111; border:none; border-radius:4px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px;}
+  button:disabled{opacity:.5; cursor:default;}
+  .previews{display:flex; gap:10px;}
+  .previews > div{flex:1; display:flex; flex-direction:column; gap:4px; align-items:center;}
+  .previews span{font-size:11px; color:var(--dim);}
+  canvas#preview{width:100%; aspect-ratio:16/10; background:#000; border:1px solid var(--line); border-radius:4px;}
+  canvas#previewCrop{width:100%; aspect-ratio:320/240; background:#000; border:1px solid var(--line); border-radius:4px; image-rendering:pixelated;}
+  fieldset{border:1px solid var(--line); border-radius:4px; padding:10px 12px; display:flex; flex-direction:column; gap:10px;}
+  legend{font-size:12px; color:var(--gold); padding:0 4px;}
+  .radiorow{display:flex; gap:16px; font-size:12.5px; color:var(--dim);}
+  .radiorow label{flex-direction:row; align-items:center; gap:6px; font-size:12.5px; color:var(--text);}
+  #status{font-size:12.5px; color:var(--teal); min-height:18px;}
+  a#dl{color:var(--gold); font-size:13px;}
+  #afterHint{display:none;}
+  code{color:var(--teal);}
+  details{width:100%;}
+  summary{cursor:pointer; font-size:12.5px; color:var(--dim);}
+  details p{font-size:12.5px; color:var(--dim); line-height:1.5;}
+</style>
+</head>
+<body>
+<h1>Bild → Robot SSTV</h1>
+<p class="hint">Internes Tool, nicht für Besucher gedacht. Erzeugt eine echte, standardkonforme SSTV-Audiodatei im Modus <strong>Robot 36</strong> oder <strong>Robot 72</strong> (Color) — 320×240. Jede reale SSTV-Software oder -App (z. B. „Robot36" für Android, RX-SSTV, QSSTV, MMSSTV oder Online-Decoder) kann das Bild aus der WAV-Datei zurückrechnen. Das ist ein anderes Signal als das Spektrogramm-Tool — kein Wasserfallbild, sondern echtes Amateurfunk-Format.</p>
+
+<div class="card">
+  <label>Bild wählen<input type="file" id="file" accept="image/*"></label>
+
+  <div class="previews">
+    <div><canvas id="preview" width="400" height="250"></canvas><span>Original</span></div>
+    <div><canvas id="previewCrop" width="320" height="240"></canvas><span>320×240 (so wird gesendet)</span></div>
+  </div>
+
+  <fieldset>
+    <legend>SSTV-Modus</legend>
+    <div class="radiorow">
+      <label><input type="radio" name="mode" value="robot36" checked> Robot 36 (VIS 8, ~37&nbsp;s, R-Y/B-Y abwechselnd)</label>
+      <label><input type="radio" name="mode" value="robot72"> Robot 72 (VIS 12, ~72&nbsp;s, R-Y+B-Y jede Zeile, höhere Farbtreue)</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Bildausschnitt</legend>
+    <div class="radiorow">
+      <label><input type="radio" name="fit" value="cover" checked> Formatfüllend (beschneidet Ränder)</label>
+      <label><input type="radio" name="fit" value="contain"> Ganzes Bild (schwarze Balken)</label>
+    </div>
+  </fieldset>
+
+  <div class="row">
+    <label>Kennung (nur Buchstaben/Zahlen, wird zum Dateinamen)<input type="text" id="signame" value="theta1"></label>
+  </div>
+  <p class="hint" style="margin:0; text-align:left;">Dateiname: <code id="fnamePreview">sstv_theta1_robot36.wav</code></p>
+
+  <button id="go" disabled>SSTV-Audio erzeugen</button>
+  <div id="status"></div>
+  <a id="dl" style="display:none" download="signal.wav">⬇ Datei herunterladen</a>
+  <p class="hint" id="afterHint">Zum Testen: Datei mit einer SSTV-Decoder-App abspielen/einspeisen lassen — Modus wird automatisch per VIS-Code erkannt.</p>
+
+  <details>
+    <summary>Technische Details</summary>
+    <p>
+      <strong>Robot 36 Color</strong>, VIS-Code 8 (dezimal), 320×240 Pixel, 240 Zeilen, ca. 37&nbsp;s.<br>
+      Pro Zeile: Sync 9&nbsp;ms@1200&nbsp;Hz, Sync-Porch 3&nbsp;ms@1500&nbsp;Hz, Y-Scan 88&nbsp;ms (1500–2300&nbsp;Hz), Separator 4,5&nbsp;ms, Porch 1,5&nbsp;ms@1900&nbsp;Hz, R-Y/B-Y-Scan 44&nbsp;ms (abwechselnd je Zeile).<br><br>
+      <strong>Robot 72 Color</strong>, VIS-Code 12 (dezimal), 320×240 Pixel, 240 Zeilen, ca. 72&nbsp;s.<br>
+      Pro Zeile: Sync 9&nbsp;ms@1200&nbsp;Hz, Sync-Porch 3&nbsp;ms@1500&nbsp;Hz, Y-Scan 138&nbsp;ms, Separator 4,5&nbsp;ms@1500&nbsp;Hz, Porch 1,5&nbsp;ms@1900&nbsp;Hz, R-Y-Scan 69&nbsp;ms, Separator 4,5&nbsp;ms@1500&nbsp;Hz, Porch 1,5&nbsp;ms@1900&nbsp;Hz, B-Y-Scan 69&nbsp;ms (beide Differenzsignale in jeder Zeile).<br><br>
+      Farbkonvertierung nach ITU-R BT.601 (Y/R-Y/B-Y mit 16/128-Offset), Frequenzmapping 1500–2300&nbsp;Hz linear über 0–255.<br>
+      44,1&nbsp;kHz / 16&nbsp;Bit / Mono WAV, durchgehende Phasenkontinuität (keine Klick-Artefakte an Segmentgrenzen).
+    </p>
+  </details>
+</div>
+
+<script>
+(function(){
+  const fileInput = document.getElementById('file');
+  const preview = document.getElementById('preview');
+  const pctx = preview.getContext('2d');
+  const previewCrop = document.getElementById('previewCrop');
+  const cctx = previewCrop.getContext('2d');
+  const goBtn = document.getElementById('go');
+  const statusEl = document.getElementById('status');
+  const dl = document.getElementById('dl');
+  const afterHint = document.getElementById('afterHint');
+  const signameEl = document.getElementById('signame');
+  const fnamePreview = document.getElementById('fnamePreview');
+  const fitRadios = document.querySelectorAll('input[name=fit]');
+  const modeRadios = document.querySelectorAll('input[name=mode]');
+
+  const W = 320, H = 240;
+  let img = null;
+
+  const MODES = {
+    robot36: { label: 'Robot 36', visCode: 8 },
+    robot72: { label: 'Robot 72', visCode: 12 }
+  };
+
+  function currentFit(){
+    for(const r of fitRadios) if(r.checked) return r.value;
+    return 'cover';
+  }
+  function currentMode(){
+    for(const r of modeRadios) if(r.checked) return r.value;
+    return 'robot36';
+  }
+
+  function computeFilename(){
+    const slug = (signameEl.value || 'signal').trim().toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,40) || 'signal';
+    return `sstv_${slug}_${currentMode()}.wav`;
+  }
+  function updateFnamePreview(){ fnamePreview.textContent = computeFilename(); }
+  signameEl.addEventListener('input', updateFnamePreview);
+  modeRadios.forEach(r => r.addEventListener('change', updateFnamePreview));
+  updateFnamePreview();
+
+  // Baut die 320x240-Vorschau (formatfüllend beschnitten oder mit Rand) —
+  // exakt das Canvas, aus dem später auch die Pixel für die Kodierung kommen.
+  function buildFrame(){
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const cx = c.getContext('2d');
+    cx.fillStyle = '#000'; cx.fillRect(0,0,W,H);
+    if(currentFit() === 'cover'){
+      const scale = Math.max(W/img.width, H/img.height);
+      const dw = img.width*scale, dh = img.height*scale;
+      cx.drawImage(img, (W-dw)/2, (H-dh)/2, dw, dh);
+    } else {
+      const scale = Math.min(W/img.width, H/img.height);
+      const dw = img.width*scale, dh = img.height*scale;
+      cx.drawImage(img, (W-dw)/2, (H-dh)/2, dw, dh);
+    }
+    return c;
+  }
+
+  function updateCropPreview(){
+    if(!img) return;
+    const frame = buildFrame();
+    cctx.drawImage(frame, 0, 0);
+  }
+
+  fitRadios.forEach(r => r.addEventListener('change', updateCropPreview));
+
+  fileInput.addEventListener('change', ()=>{
+    const f = fileInput.files[0];
+    if(!f) return;
+    const url = URL.createObjectURL(f);
+    const im = new Image();
+    im.onload = ()=>{
+      img = im;
+      pctx.fillStyle = '#000'; pctx.fillRect(0,0,preview.width,preview.height);
+      const scale = Math.min(preview.width/im.width, preview.height/im.height);
+      const dw = im.width*scale, dh = im.height*scale;
+      pctx.drawImage(im, (preview.width-dw)/2, (preview.height-dh)/2, dw, dh);
+      goBtn.disabled = false;
+      URL.revokeObjectURL(url);
+      updateCropPreview();
+    };
+    im.src = url;
+  });
+
+  // ---- Robot 36 / Robot 72 SSTV-Kodierung ----
+  // Referenz: Dayton Paper (barberdsp.com/downloads/Dayton%20Paper.pdf), VIS-Codes 8 (R36) / 12 (R72).
+
+  const SAMPLE_RATE = 44100;
+
+  // ITU-R BT.601 Y/R-Y/B-Y-Konvertierung (0..255 Eingang, Y~16-235, R-Y/B-Y~um 128 zentriert)
+  function rgbToYRyBy(r, g, b){
+    const y  = 16.0  + 0.003906*(65.738*r + 129.057*g + 25.064*b);
+    const ry = 128.0 + 0.003906*(112.439*r - 94.154*g - 18.285*b);
+    const by = 128.0 + 0.003906*(-37.945*r - 74.494*g + 112.439*b);
+    return [y, ry, by];
+  }
+  function clamp255(v){ return v < 0 ? 0 : (v > 255 ? 255 : v); }
+  function valToFreq(v){ return 1500 + clamp255(v) * 3.1372549; } // (2300-1500)/255
+
+  // Ein "Segment" ist entweder ein Festton ({ms, freq}) oder ein Scan über eine
+  // Zeile ({ms, freqs: Float32Array(320)}). Alle Segmente teilen sich eine
+  // fortlaufende Phase, damit es an den Übergängen nicht klickt.
+  function buildSegments(frameCanvas, mode){
+    const cx = frameCanvas.getContext('2d');
+    const data = cx.getImageData(0,0,W,H).data;
+
+    const segs = [];
+    const tone = (ms, freq) => segs.push({ms, freqs:[freq]});
+    const scan = (ms, freqs) => segs.push({ms, freqs});
+
+    // --- VIS-Header ---
+    tone(300, 1900);
+    tone(10, 1200);
+    tone(300, 1900);
+    tone(30, 1200); // VIS start bit
+
+    const visCode = MODES[mode].visCode;
+    let bits = [];
+    let n = visCode;
+    for(let i=0;i<7;i++){ bits.push(n & 1); n >>= 1; }
+    let ones = 0;
+    for(const bit of bits){
+      tone(30, bit ? 1100 : 1300);
+      if(bit) ones++;
+    }
+    const parityOne = (ones % 2) !== 0; // even parity: Summe aller 1-Bits inkl. Parity muss gerade sein
+    tone(30, parityOne ? 1100 : 1300);
+    tone(30, 1200); // VIS stop bit
+
+    // --- 240 Bildzeilen ---
+    const yRow = new Float32Array(W), ryRow = new Float32Array(W), byRow = new Float32Array(W);
+    for(let row=0; row<H; row++){
+      for(let x=0; x<W; x++){
+        const p = (row*W + x)*4;
+        const [y, ry, by] = rgbToYRyBy(data[p], data[p+1], data[p+2]);
+        yRow[x] = valToFreq(y);
+        ryRow[x] = valToFreq(ry);
+        byRow[x] = valToFreq(by);
+      }
+      if(mode === 'robot72'){
+        // Robot 72: Y 138ms, dann R-Y UND B-Y in jeder Zeile, je 69ms.
+        tone(9, 1200);    // Sync
+        tone(3, 1500);    // Sync-Porch
+        scan(138, yRow.slice());   // Y-Scan
+        tone(4.5, 1500);  // Separator
+        tone(1.5, 1900);  // Porch
+        scan(69, ryRow.slice());  // R-Y
+        tone(4.5, 1500);  // Separator
+        tone(1.5, 1900);  // Porch
+        scan(69, byRow.slice());  // B-Y
+      } else {
+        // Robot 36: Y 88ms, R-Y/B-Y abwechselnd je Zeile, je 44ms.
+        tone(9, 1200);   // Sync
+        tone(3, 1500);   // Sync-Porch
+        scan(88, yRow.slice()); // Y-Scan
+        if(row % 2 !== 0){
+          tone(4.5, 1500);
+          tone(1.5, 1900);
+          scan(44, ryRow.slice()); // R-Y
+        } else {
+          tone(4.5, 2300);
+          tone(1.5, 1900);
+          scan(44, byRow.slice()); // B-Y
+        }
+      }
+    }
+    return segs;
+  }
+
+  // Rechnet Segmente in Samples um — fortlaufende Phase, Stufenfunktion pro
+  // Segment (wie in gängigen Referenz-Encodern), damit reale Decoder das
+  // Timing exakt wiedererkennen.
+  async function renderSegmentsAsync(segs, onProgress){
+    let total = 0;
+    const counts = segs.map(s => { const n = Math.round(SAMPLE_RATE*s.ms/1000); total += n; return n; });
+    const out = new Float32Array(total);
+    let ptr = 0, phase = 0;
+    for(let si=0; si<segs.length; si++){
+      const {freqs} = segs[si];
+      const n = counts[si];
+      const L = freqs.length;
+      for(let i=0;i<n;i++){
+        let pos = Math.floor((i+1)/n*L) - 1;
+        if(pos < 0) pos = 0; else if(pos >= L) pos = L-1;
+        phase += 2*Math.PI*freqs[pos]/SAMPLE_RATE;
+        out[ptr++] = Math.sin(phase) * 0.9;
+      }
+      if(si % 20 === 0){
+        onProgress(si/segs.length);
+        await new Promise(res=>setTimeout(res, 0));
+      }
+    }
+    onProgress(1);
+    return out;
+  }
+
+  function floatTo16BitPCM(samples){
+    const buf = new ArrayBuffer(samples.length*2);
+    const view = new DataView(buf);
+    for(let i=0;i<samples.length;i++){
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(i*2, s < 0 ? s*0x8000 : s*0x7FFF, true);
+    }
+    return buf;
+  }
+  function encodeWav(samples, sampleRate){
+    const pcm = floatTo16BitPCM(samples);
+    const buf = new ArrayBuffer(44 + pcm.byteLength);
+    const view = new DataView(buf);
+    const writeStr = (o,s)=>{ for(let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); };
+    writeStr(0,'RIFF'); view.setUint32(4, 36+pcm.byteLength, true); writeStr(8,'WAVE');
+    writeStr(12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true);
+    view.setUint16(22,1,true); view.setUint32(24,sampleRate,true);
+    view.setUint32(28,sampleRate*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true);
+    writeStr(36,'data'); view.setUint32(40,pcm.byteLength,true);
+    new Uint8Array(buf,44).set(new Uint8Array(pcm));
+    return new Blob([buf], {type:'audio/wav'});
+  }
+
+  goBtn.addEventListener('click', async ()=>{
+    if(!img) return;
+    goBtn.disabled = true;
+    afterHint.style.display = 'none';
+    statusEl.textContent = 'baue Zeilen … 0%';
+    await new Promise(r=>setTimeout(r, 30));
+    const fname = computeFilename();
+    const mode = currentMode();
+    try{
+      const frame = buildFrame();
+      const segs = buildSegments(frame, mode);
+      const samples = await renderSegmentsAsync(segs, (frac)=>{
+        statusEl.textContent = 'erzeuge audio … ' + Math.round(frac*100) + '%';
+      });
+      const blob = encodeWav(samples, SAMPLE_RATE);
+      dl.href = URL.createObjectURL(blob);
+      dl.download = fname;
+      dl.textContent = '⬇ ' + fname + ' herunterladen';
+      dl.style.display = 'inline-block';
+      afterHint.style.display = 'block';
+      const secs = (samples.length/SAMPLE_RATE).toFixed(1);
+      statusEl.textContent = 'fertig — ' + (blob.size/1024).toFixed(0) + ' KB, ' + secs + 's, ' + MODES[mode].label + ' (320×240)';
+    } catch(e){
+      statusEl.textContent = 'Fehler: ' + e.message;
+    }
+    goBtn.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>
