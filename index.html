@@ -75,6 +75,14 @@
   .win .bar:active{cursor:grabbing;}
   .win .bar .x{cursor:pointer; color:var(--text); opacity:.7; padding:0 4px;}
   .win .bar .x:hover{opacity:1; color:var(--err);}
+  .win .bar .max{cursor:pointer; color:var(--text); opacity:.7; padding:0 4px;}
+  .win .bar .max:hover{opacity:1; color:var(--crt);}
+  .win .bar .btns{display:flex; gap:2px;}
+  .win.maximized{
+    left:0 !important; top:0 !important; width:100% !important; max-width:100% !important;
+    height:calc(100% - 34px) !important; border-radius:0; z-index:9000 !important;
+  }
+  .win.maximized .body{max-height:none !important; height:calc(100% - 33px);}
   .win .body{padding:14px; font-size:13.5px; line-height:1.55; overflow:auto; max-height:60vh;}
   .win .body p{margin:0 0 10px;}
   .win .body img.glitchimg{width:100%; filter:contrast(1.1) saturate(0.3) brightness(.8);}
@@ -118,6 +126,7 @@
 <div id="desktop" style="display:none;">
   <div id="icons">
     <div class="icon" data-open="browser" tabindex="0"><div class="glyph">◐</div><div class="label">Netzscout</div></div>
+    <div class="icon" data-open="medien" tabindex="0"><div class="glyph">▨</div><div class="label">Medienarchiv</div></div>
     <div class="icon" data-open="terminal" tabindex="0"><div class="glyph">▚</div><div class="label">Terminal</div></div>
     <div class="icon" data-open="tagebuch" tabindex="0"><div class="glyph">▤</div><div class="label">tagebuch.txt</div></div>
     <div class="icon" data-open="foto" tabindex="0"><div class="glyph">▧</div><div class="label">FOTO_037.jpg</div></div>
@@ -230,6 +239,7 @@
   function openWindow(key){
     if(key === 'terminal') return openTerminal();
     if(key === 'browser') return openBrowser();
+    if(key === 'medien') return openMediaArchive();
     if(openWinIds.has(key)){ focusWin(key); return; }
     const data = CONTENT[key];
     if(!data) return;
@@ -239,12 +249,13 @@
     win.style.left = (60 + Math.random()*120) + 'px';
     win.style.top = (40 + Math.random()*100) + 'px';
     win.style.width = '340px';
-    win.innerHTML = `<div class="bar"><span>${data.title}</span><span class="x">✕</span></div>
+    win.innerHTML = `<div class="bar"><span>${data.title}</span><span class="btns"><span class="max">⛶</span><span class="x">✕</span></span></div>
                       <div class="body">${data.body}</div>`;
     document.getElementById('desktop').appendChild(win);
     makeDraggable(win);
     focusWinEl(win);
     win.querySelector('.x').onclick = ()=> closeWin(win, key);
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
     openWinIds.add(key);
     addTaskItem(key, data.title, win);
   }
@@ -255,7 +266,7 @@
     win.className = 'win';
     win.dataset.key = 'terminal';
     win.style.left = '80px'; win.style.top = '60px'; win.style.width='420px';
-    win.innerHTML = `<div class="bar"><span>Terminal</span><span class="x">✕</span></div>
+    win.innerHTML = `<div class="bar"><span>Terminal</span><span class="btns"><span class="max">⛶</span><span class="x">✕</span></span></div>
       <div class="body">
         <div id="term-out">TERMINUS SHELL v0.7
 Gib 'hilfe' ein für Befehle.
@@ -266,6 +277,7 @@ Gib 'hilfe' ein für Befehle.
     makeDraggable(win);
     focusWinEl(win);
     win.querySelector('.x').onclick = ()=> closeWin(win, 'terminal');
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
     openWinIds.add('terminal');
     addTaskItem('terminal', 'Terminal', win);
 
@@ -300,20 +312,21 @@ Gib 'hilfe' ein für Befehle.
     win.dataset.key = 'browser';
     win.style.left = '40px'; win.style.top = '30px';
     win.style.width = 'min(640px, 90vw)';
-    win.innerHTML = `<div class="bar"><span>Netzscout</span><span class="x">✕</span></div>
-      <div class="body" style="padding:0; max-height:70vh;">
+    win.innerHTML = `<div class="bar"><span>Netzscout</span><span class="btns"><span class="max">⛶</span><span class="x">✕</span></span></div>
+      <div class="body" style="padding:0; display:flex; flex-direction:column; height:460px;">
         <div style="display:flex; gap:6px; align-items:center; padding:6px 8px; background:var(--bg-alt); border-bottom:1px solid var(--panel-border);">
           <span id="bnav-back" style="cursor:pointer; opacity:.7; padding:2px 4px;">←</span>
           <span id="bnav-reload" style="cursor:pointer; opacity:.7; padding:2px 4px;">⟳</span>
           <input id="bnav-url" style="flex:1; background:var(--bg); border:1px solid var(--panel-border); color:var(--text); padding:4px 8px; font-family:inherit; font-size:12px;" value="${SITE_URL}">
           <span id="bnav-go" style="cursor:pointer; color:var(--crt); padding:2px 6px;">Los</span>
         </div>
-        <iframe id="bnav-frame" src="${SITE_URL}" style="width:100%; height:420px; border:none; background:#fff;"></iframe>
+        <iframe id="bnav-frame" src="${SITE_URL}" style="flex:1; min-height:0; width:100%; border:none; background:#fff;"></iframe>
       </div>`;
     document.getElementById('desktop').appendChild(win);
     makeDraggable(win);
     focusWinEl(win);
     win.querySelector('.x').onclick = ()=> closeWin(win, 'browser');
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
     openWinIds.add('browser');
     addTaskItem('browser', 'Netzscout', win);
 
@@ -324,6 +337,133 @@ Gib 'hilfe' ein für Befehle.
     win.querySelector('#bnav-reload').onclick = ()=> { frame.src = frame.src; };
     win.querySelector('#bnav-back').onclick = ()=> { try{ frame.contentWindow.history.back(); }catch(e){} };
     urlInput.addEventListener('keydown', e=>{ if(e.key==='Enter') navigate(); });
+  }
+
+  function toggleMaximize(win){
+    if(win.classList.contains('maximized')){
+      win.classList.remove('maximized');
+      if(win.dataset.prevStyle !== undefined) win.setAttribute('style', win.dataset.prevStyle);
+    } else {
+      win.dataset.prevStyle = win.getAttribute('style') || '';
+      win.classList.add('maximized');
+      focusWinEl(win);
+    }
+  }
+
+
+  const MEDIA = [
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navArchiv/navArchiv_1.png",n:"navArchiv_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navBerichte/navBerichte_1.png",n:"navBerichte_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navDyson/navDyson_1.png",n:"navDyson_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navEinstellungen/navEinstellungen_1.png",n:"navEinstellungen_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navFlotte/navFlotte_1.png",n:"navFlotte_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navForschung/navForschung_1.png",n:"navForschung_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navGalaxie/navGalaxie_1.png",n:"navGalaxie_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navLebensformen/navLebensformen_1.png",n:"navLebensformen_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navMarkt/navMarkt_1.png",n:"navMarkt_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navMehr/navMehr_1.png",n:"navMehr_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navOffiziersLounge/navOffiziersLounge_1.png",n:"navOffiziersLounge_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navPlanet/navPlanet_1.png",n:"navPlanet_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navUebersicht/navUebersicht_1.png",n:"navUebersicht_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/icons/navWerft/navWerft_1.png",n:"navWerft_1.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/logo.png",n:"logo.png"},
+  {g:"Aetheris",t:"image",p:"aetheris/bilder/monde/natuerlich/natuerlich_1.png",n:"natuerlich_1.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/academy.png",n:"academy.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/achievements.png",n:"achievements.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/album.png",n:"album.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/battle.png",n:"battle.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/deckbuilder.png",n:"deckbuilder.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/hub.png",n:"hub.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/market.png",n:"market.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/settings.png",n:"settings.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/tournament.png",n:"tournament.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/backgrounds/trade.png",n:"trade.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/icons/hub-academy.png",n:"hub-academy.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/icons/hub-achievements.png",n:"hub-achievements.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/icons/hub-album.png",n:"hub-album.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/icons/hub-arena.png",n:"hub-arena.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/icons/hub-daily.png",n:"hub-daily.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/icons/hub-decks.png",n:"hub-decks.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/icons/hub-market.png",n:"hub-market.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/icons/hub-settings.png",n:"hub-settings.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/icons/hub-trade.png",n:"hub-trade.png"},
+  {g:"Astrion",t:"image",p:"astrion/art/logo.png",n:"logo.png"},
+  {g:"Deep Anchor",t:"image",p:"deepanchor/art/bilder/logo.png",n:"logo.png"},
+  {g:"Domus Prime",t:"image",p:"domus-prime/art/logo.png",n:"logo.png"},
+  {g:"Foundry",t:"image",p:"foundry/art/logo.png",n:"logo.png"},
+  {g:"Foundry",t:"image",p:"foundry/art/screenshots/foundry-entscheidungen.jpg",n:"foundry-entscheidungen.jpg"},
+  {g:"Foundry",t:"image",p:"foundry/art/screenshots/foundry-ereignisse.jpg",n:"foundry-ereignisse.jpg"},
+  {g:"Foundry",t:"image",p:"foundry/art/screenshots/foundry-galaxie.jpg",n:"foundry-galaxie.jpg"},
+  {g:"Foundry",t:"image",p:"foundry/art/screenshots/foundry-markt.jpg",n:"foundry-markt.jpg"},
+  {g:"Foundry",t:"image",p:"foundry/art/screenshots/foundry-neue-firma.jpg",n:"foundry-neue-firma.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/logo.png",n:"logo.png"},
+  {g:"Nexus",t:"image",p:"nexus/art/nova-rift-coin-32.png",n:"nova-rift-coin-32.png"},
+  {g:"Nexus",t:"image",p:"nexus/art/nova-rift-coin-96.png",n:"nova-rift-coin-96.png"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-aktienmarkt.jpg",n:"nexus-aktienmarkt.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-bank.jpg",n:"nexus-bank.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-erfolge.jpg",n:"nexus-erfolge.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-event.jpg",n:"nexus-event.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-farm.jpg",n:"nexus-farm.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-handelsplatz.jpg",n:"nexus-handelsplatz.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-prestige.jpg",n:"nexus-prestige.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-relay.jpg",n:"nexus-relay.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-sprungmaerkte.jpg",n:"nexus-sprungmaerkte.jpg"},
+  {g:"Nexus",t:"image",p:"nexus/art/screenshots/nexus-uebersicht.jpg",n:"nexus-uebersicht.jpg"},
+  {g:"Nexus: Singularity",t:"image",p:"nexus/nexus_singularity/art/logo.png",n:"logo.png"},
+  {g:"Nexus: Singularity",t:"audio",p:"nexus/nexus_singularity/art/music/ogg/Awakened_Dominance.ogg",n:"Awakened_Dominance.ogg"},
+  {g:"Nexus: Singularity",t:"audio",p:"nexus/nexus_singularity/art/music/ogg/Awakened_Threat.ogg",n:"Awakened_Threat.ogg"},
+  {g:"Nexus: Singularity",t:"audio",p:"nexus/nexus_singularity/art/music/ogg/Before_Awakening.ogg",n:"Before_Awakening.ogg"},
+  {g:"Path of the Stars",t:"image",p:"pathofthestars/bilder/logo.png",n:"logo.png"},
+  {g:"Sonstiges / Root",t:"image",p:"art/logo.png",n:"logo.png"},
+  {g:"Sonstiges / Root",t:"image",p:"assets/avatars/rocket.svg",n:"rocket.svg"},
+  {g:"Sonstiges / Root",t:"image",p:"bilder/logo.png",n:"logo.png"}
+];
+
+  function openMediaArchive(){
+    if(openWinIds.has('medien')){ focusWin('medien'); return; }
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = 'medien';
+    win.style.left = '60px'; win.style.top = '20px';
+    win.style.width = 'min(560px, 92vw)';
+    const groups = {};
+    MEDIA.forEach(m => { (groups[m.g] = groups[m.g] || []).push(m); });
+    let listHtml = '';
+    Object.keys(groups).sort().forEach(g => {
+      listHtml += `<div style="opacity:.55; font-size:11px; letter-spacing:.08em; margin:10px 0 4px; font-family:'Space Grotesk',sans-serif;">${g.toUpperCase()}</div>`;
+      groups[g].forEach(m => {
+        listHtml += `<div class="media-row" data-path="${m.p}" data-type="${m.t}" style="cursor:pointer; padding:3px 4px; font-size:12px; display:flex; gap:6px; align-items:center; border-radius:2px;">
+          <span style="opacity:.6;">${m.t === 'audio' ? '♪' : '▧'}</span><span>${m.n}</span></div>`;
+      });
+    });
+    win.innerHTML = `<div class="bar"><span>Medienarchiv — ${MEDIA.length} Dateien</span><span class="btns"><span class="max">⛶</span><span class="x">✕</span></span></div>
+      <div class="body" style="padding:0; display:flex; height:440px; max-height:70vh;">
+        <div style="width:56%; overflow:auto; padding:8px 10px; border-right:1px solid var(--panel-border);">${listHtml}</div>
+        <div id="media-preview" style="width:44%; overflow:auto; padding:10px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12px; opacity:.6;">
+          Datei anklicken zur Vorschau.<br><br><span style="font-size:11px;">(Live erst nach Upload auf den echten Server sichtbar — Assets sind nicht Teil dieses Prototyps.)</span>
+        </div>
+      </div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    win.querySelector('.x').onclick = ()=> closeWin(win, 'medien');
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    openWinIds.add('medien');
+    addTaskItem('medien', 'Medienarchiv', win);
+
+    const preview = win.querySelector('#media-preview');
+    win.querySelectorAll('.media-row').forEach(row => {
+      row.addEventListener('mouseenter', ()=> row.style.background='rgba(212,175,55,0.10)');
+      row.addEventListener('mouseleave', ()=> row.style.background='transparent');
+      row.addEventListener('click', ()=> {
+        const path = row.dataset.path, type = row.dataset.type;
+        if(type === 'audio'){
+          preview.innerHTML = `<div style="width:100%;"><div style="opacity:.7; font-size:11px; margin-bottom:8px; word-break:break-all;">${path}</div><audio controls style="width:100%;" src="${path}"></audio></div>`;
+        } else {
+          preview.innerHTML = `<div style="width:100%;"><img src="${path}" style="max-width:100%; max-height:280px; object-fit:contain;" onerror="this.nextElementSibling.style.display='block'"><div style="display:none; opacity:.6; margin-top:8px;">nicht ladbar hier — existiert nur auf dem Live-Server</div><div style="opacity:.5; font-size:11px; margin-top:6px; word-break:break-all;">${path}</div></div>`;
+        }
+      });
+    });
   }
 
   function closeWin(win, key){
