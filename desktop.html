@@ -497,7 +497,7 @@ Gib 'hilfe' ein für Befehle.
       if(inSync){ if(runStart < 0) runStart = i; }
       else if(runStart >= 0){
         const len = (i - runStart)*HOP;
-        if(len >= 0.005 && len <= 0.014 && f > 1330){
+        if(len >= 0.005 && len <= 0.30 && f > 1330){   // lange Läufe zählen mit: Der Sync der ersten Zeile hängt direkt an den 1100/1300-Hz-Bits und dem Stoppbit des VIS-Headers
           const a = ft[i-1], b = f;                       // Kante 1200 -> 1500+ Hz, linear interpoliert
           const frac = (b > a) ? (1350 - a)/(b - a) : 0;
           ends.push((i - 1 + Math.min(1, Math.max(0, frac)))*HOP);
@@ -698,7 +698,7 @@ Gib 'hilfe' ein für Befehle.
       ctx2d.fillStyle = '#04050a'; ctx2d.fillRect(0,0,canvas.width,canvas.height);
     }
 
-    win.querySelector('.x').onclick = ()=> { closeWin(win, 'signal'); audio.pause(); sigWinRefs = null; };
+    win.querySelector('.x').onclick = ()=> { closeWin(win, 'signal'); audio.pause(); if(revealRaf) cancelAnimationFrame(revealRaf); sigWinRefs = null; };
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
     openWinIds.add('signal');
     addTaskItem('signal', 'Frequenzanalysator', win);
@@ -788,6 +788,7 @@ Gib 'hilfe' ein für Befehle.
       viewSel.value = viewMode;
       audio.pause();
       if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
+      decodeActive = false; decodeStop = null; decodeBtn.textContent = '◧ SSTV entschlüsseln';
       setCanvasMode(false);
       audio.src = 'assets/audio/' + f;
       audio.load();
@@ -800,6 +801,7 @@ Gib 'hilfe' ein für Befehle.
     // Ansicht manuell umschalten; Farbansichten brauchen den Bereich des Encoders (bei
     // Nicht-Farb-Signalen einfach ausprobieren: 300–7000 Hz ist der Tool-Standard).
     viewSel.onchange = ()=>{
+      if(decodeActive){ audio.pause(); playBtn.textContent = '▶ abspielen'; finishDecode(); }
       setCanvasMode(false);
       viewMode = viewSel.value;
       if(viewMode !== 'intensity'){
@@ -818,6 +820,13 @@ Gib 'hilfe' ein für Befehle.
     };
 
     playBtn.onclick = ()=>{
+      if(decodeActive){                                // Entschlüsselung läuft: nur Ton pausieren/fortsetzen
+        ensureAudioGraph();
+        if(sigAudioCtx.state === 'suspended') sigAudioCtx.resume();
+        if(audio.paused){ audio.play(); playBtn.textContent = '⏸ pause'; }
+        else { audio.pause(); playBtn.textContent = '▶ weiter'; }
+        return;
+      }
       setCanvasMode(false);
       ensureAudioGraph();
       if(sigAudioCtx.state === 'suspended') sigAudioCtx.resume();
@@ -836,23 +845,31 @@ Gib 'hilfe' ein für Befehle.
     audio.addEventListener('ended', ()=>{
       const t = SIGNAL_FILES.find(s=>s.file === select.value) || track;
       playBtn.textContent = '▶ abspielen';
+      if(decodeActive){ if(decodeStop) decodeStop(); else finishDecode(); return; }   // Ton zu Ende -> Bild komplettieren (letzte Zeile)
       status.textContent = t.label + ' — Ende';
       if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
     });
 
-    // SSTV entschlüsseln: komplette Datei laden, Robot 36 / Robot 72 erkennen, Bild zeilenweise einblenden
+    // SSTV entschlüsseln: Datei wird im Hintergrund komplett analysiert, das Bild baut sich aber
+    // synchron zum Ton auf – Zeile für Zeile, genau so schnell, wie das Signal abgespielt wird.
+    let decodeActive = false, decodeStop = null;
+    function finishDecode(){ decodeActive = false; decodeStop = null; decodeBtn.textContent = '◧ SSTV entschlüsseln'; }
+
     decodeBtn.onclick = async ()=>{
+      // Läuft gerade eine Entschlüsselung: Button = "sofort anzeigen"
+      if(decodeActive && decodeStop){ decodeStop(true); return; }
       const t = SIGNAL_FILES.find(s=>s.file === select.value) || track;
       decodeBtn.disabled = true;
+      // Audio-Kontext direkt im Klick anlegen/freigeben (Autoplay-Regeln), sonst bleibt der Ton stumm
+      ensureAudioGraph();
+      if(sigAudioCtx.state === 'suspended') sigAudioCtx.resume();
       audio.pause();
       if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
-      playBtn.textContent = '▶ abspielen';
       status.textContent = t.label + ' — lese Datei ...';
       try{
         const resp = await fetch('assets/audio/' + t.file);
         if(!resp.ok) throw new Error('HTTP ' + resp.status);
         const ab = await resp.arrayBuffer();
-        if(!sigAudioCtx) sigAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const buf = await sigAudioCtx.decodeAudioData(ab);
         // auf Mono mischen
         const n = buf.length, ch = buf.numberOfChannels, mono = new Float32Array(n);
@@ -860,7 +877,7 @@ Gib 'hilfe' ein für Befehle.
           const d = buf.getChannelData(c);
           for(let i = 0; i < n; i++) mono[i] += d[i] / ch;
         }
-        status.textContent = t.label + ' — entschlüssele ...';
+        status.textContent = t.label + ' — suche SSTV-Signal ...';
         await new Promise(r => setTimeout(r, 30));      // Statusanzeige zeichnen lassen
         const res = sstvDecode(mono, buf.sampleRate);
         if(!res){
@@ -868,20 +885,57 @@ Gib 'hilfe' ein für Befehle.
           status.textContent = t.label + ' — kein SSTV-Signal erkannt';
         } else {
           setCanvasMode(true);
-          const lines = Array.from(res.lineDone).filter(v => isFinite(v)).length;
           const label = res.mode === 'robot72' ? 'Robot 72' : 'Robot 36';
-          const img = new ImageData(res.rgb, res.w, res.h);
-          const tmp = document.createElement('canvas'); tmp.width = res.w; tmp.height = res.h;
-          tmp.getContext('2d').putImageData(img, 0, 0);
-          // Zeilenweise einblenden (ca. 2,5 s)
-          const t0 = performance.now(), DUR = 2500;
-          const step = now => {
-            const rows = Math.min(res.h, Math.ceil((now - t0) / DUR * res.h));
-            ctx2d.drawImage(tmp, 0, 0, res.w, rows, 0, 0, res.w, rows);
-            if(rows < res.h) revealRaf = requestAnimationFrame(step); else revealRaf = null;
+          const P = res.mode === 'robot72' ? 0.300 : 0.150;
+          // Zeitpunkt, ab dem jede Zeile fertig ist; Lücken (nicht gefundene Zeilen) mit Zeilentakt überbrücken
+          const eff = new Float64Array(res.h);
+          let prev = 0;
+          for(let r = 0; r < res.h; r++){
+            const v = res.lineDone[r];
+            eff[r] = isFinite(v) ? v : prev + P;
+            prev = eff[r];
+          }
+          const found = Array.from(res.lineDone).filter(v => isFinite(v)).length;
+          const full = document.createElement('canvas'); full.width = res.w; full.height = res.h;
+          full.getContext('2d').putImageData(new ImageData(res.rgb, res.w, res.h), 0, 0);
+
+          let shown = 0, lastRows = -1;
+          const paint = rows => {
+            if(rows === lastRows) return;
+            lastRows = rows;
+            ctx2d.fillStyle = '#04050a'; ctx2d.fillRect(0, 0, res.w, res.h);
+            if(rows > 0) ctx2d.drawImage(full, 0, 0, res.w, rows, 0, 0, res.w, rows);
           };
+          const done = () => {
+            revealRaf = null;
+            paint(res.h);
+            status.textContent = t.label + ' — SSTV ' + label + ' erkannt, ' + found + '/' + res.h + ' Zeilen';
+          };
+          const step = () => {
+            const ct = audio.currentTime;
+            while(shown < res.h && eff[shown] <= ct) shown++;
+            paint(shown);
+            if(shown >= res.h){ done(); return; }
+            status.textContent = t.label + ' — empfange ' + label + ': Zeile ' + shown + '/' + res.h;
+            revealRaf = requestAnimationFrame(step);
+          };
+          decodeStop = (skip) => {                     // "sofort anzeigen": Ton stoppen, komplettes Bild zeigen
+            if(revealRaf){ cancelAnimationFrame(revealRaf); revealRaf = null; }
+            audio.pause(); audio.currentTime = 0;
+            playBtn.textContent = '▶ abspielen';
+            finishDecode(); done();
+          };
+          decodeActive = true;
+          decodeBtn.textContent = '⏭ sofort anzeigen';
+          audio.currentTime = 0;
+          paint(0);
           revealRaf = requestAnimationFrame(step);
-          status.textContent = t.label + ' — SSTV ' + label + ' erkannt, ' + lines + '/' + res.h + ' Zeilen';
+          audio.play().then(() => {
+            playBtn.textContent = '⏸ pause';
+          }).catch(() => {
+            playBtn.textContent = '▶ abspielen';
+            status.textContent = t.label + ' — ▶ drücken, um den Empfang zu starten';
+          });
         }
       }catch(e){
         status.textContent = t.label + ' — Fehler beim Lesen (' + (e && e.message ? e.message : e) + ')';
