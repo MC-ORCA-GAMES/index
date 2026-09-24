@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ORBIT – Suche im MC-ORCA-Universum</title>
+<meta name="robots" content="noindex, follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0a0b12; --bg2:#12141f; --panel:#151726; --line:rgba(232,230,227,.12); --text:#E9E7E2; --dim:#a4a8b8; --faint:#8b8fa3;
+         --gold:#D4AF37; --teal:#21C7B8; --link:#7FB6FF; --url:#21C7B8; }
+  *{box-sizing:border-box;}
+  html,body{margin:0; min-height:100%; background:var(--bg); color:var(--text); font-family:"Inter",system-ui,sans-serif;}
+  body{padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);}
+  a{color:inherit; text-decoration:none;}
+  mark{background:rgba(212,175,55,.22); color:#f3dc8a; padding:0 1px; border-radius:2px;}
+
+  /* Startansicht */
+  #home{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px 16px 90px; text-align:center;}
+  .logo{font-family:"Space Grotesk",sans-serif; font-weight:700; letter-spacing:.16em; font-size:clamp(44px,9vw,76px); margin:0;
+        background:linear-gradient(90deg,#D4AF37,#FF6A2B 45%,#D6303F 70%,#B23AFF); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .logo small{display:block; font-size:12px; letter-spacing:.32em; font-weight:500; color:var(--faint); -webkit-text-fill-color:var(--faint); margin-top:6px;}
+  .box{width:min(640px,100%); margin-top:30px; display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--line);
+       border-radius:28px; padding:6px 8px 6px 18px; transition:border-color .15s, box-shadow .15s;}
+  .box:focus-within{border-color:var(--gold); box-shadow:0 0 0 3px rgba(212,175,55,.14);}
+  .box svg{flex:none; opacity:.6;}
+  .box input{flex:1; min-width:0; background:transparent; border:none; outline:none; color:var(--text); font:16px "Inter",sans-serif; padding:10px 0;}
+  .box button.clear{background:none; border:none; color:var(--faint); font-size:18px; cursor:pointer; padding:4px 8px; display:none;}
+  .btns{margin-top:22px; display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
+  .btn{background:var(--bg2); border:1px solid var(--line); color:var(--text); border-radius:6px; padding:10px 18px; font:500 14px "Inter",sans-serif; cursor:pointer;}
+  .btn:hover{border-color:var(--gold); color:var(--gold);}
+  .chips{margin-top:26px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:640px;}
+  .chip{border:1px solid var(--line); border-radius:999px; padding:5px 13px; font-size:12.5px; color:var(--dim); cursor:pointer; background:transparent;}
+  .chip:hover{border-color:var(--teal); color:var(--teal);}
+  .stat{position:fixed; left:0; right:0; bottom:0; padding:14px; text-align:center; font-size:12px; color:var(--faint); border-top:1px solid var(--line); background:var(--bg);}
+
+  /* Ergebnisansicht */
+  #res{display:none;}
+  .top{position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); padding:14px 18px 0;}
+  .toprow{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+  .top .logo{font-size:26px; letter-spacing:.14em; cursor:pointer;}
+  .top .logo small{display:none;}
+  .top .box{margin:0; flex:1; min-width:220px; max-width:640px; padding:2px 6px 2px 16px;}
+  .top .box input{padding:8px 0;}
+  .tabs{display:flex; gap:4px; margin-top:8px; overflow-x:auto;}
+  .tab{background:none; border:none; border-bottom:2px solid transparent; color:var(--dim); font:500 13.5px "Inter",sans-serif; padding:9px 12px; cursor:pointer; white-space:nowrap;}
+  .tab:hover{color:var(--text);}
+  .tab.on{color:var(--gold); border-bottom-color:var(--gold);}
+  .tab i{font-style:normal; opacity:.55; margin-left:4px; font-size:11.5px;}
+  main{max-width:760px; padding:6px 18px 60px; margin:0 0 0 clamp(0px,4vw,90px);}
+  .meta{font-size:12.5px; color:var(--faint); margin:14px 0 4px;}
+  .r{padding:14px 0 6px;}
+  .r .u{font-size:12.5px; color:var(--url); display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .r .u b{font-weight:500; color:var(--dim); border:1px solid var(--line); border-radius:3px; padding:0 5px; font-size:11px;}
+  .r h3{margin:3px 0 4px; font:500 19px/1.3 "Space Grotesk","Inter",sans-serif;}
+  .r h3 a{color:var(--link);}
+  .r h3 a:hover{text-decoration:underline;}
+  .r p{margin:0; font-size:14px; line-height:1.55; color:var(--dim);}
+  .r.media{display:flex; gap:14px; align-items:flex-start;}
+  .r.media .th{flex:none; width:96px; height:64px; background:var(--bg2) center/contain no-repeat; border:1px solid var(--line); border-radius:4px;}
+  .r audio, .r video{margin-top:8px; max-width:100%; height:34px;}
+  .r video{height:auto; width:320px;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; margin-top:14px;}
+  .grid a{display:block; background:var(--bg2); border:1px solid var(--line); border-radius:6px; overflow:hidden;}
+  .grid a:hover{border-color:var(--gold);}
+  .grid .im{height:110px; background:center/contain no-repeat;}
+  .grid span{display:block; padding:6px 8px; font-size:11.5px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .more{margin:20px 0; display:block;}
+  .none{padding:30px 0; color:var(--dim); line-height:1.7;}
+  .none b{color:var(--text);}
+  @media (max-width:640px){ .top{padding:10px 12px 0;} main{padding:4px 12px 50px; margin:0;} .r.media .th{width:72px; height:52px;} }
+</style>
+</head>
+<body>
+
+<div id="home">
+  <h1 class="logo">ORBIT<small>SUCHE IM MC-ORCA-UNIVERSUM</small></h1>
+  <form class="box" data-f role="search">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input type="search" data-q autocomplete="off" spellcheck="false" placeholder="Spiele, Seiten, Bilder, Musik durchsuchen …" aria-label="Suche">
+    <button type="button" class="clear" data-clear aria-label="Leeren">✕</button>
+  </form>
+  <div class="btns">
+    <button class="btn" data-go>Orbit-Suche</button>
+    <button class="btn" data-lucky>Auf gut Glück</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="stat" id="stat">Index wird geladen …</div>
+</div>
+
+<div id="res">
+  <div class="top">
+    <div class="toprow">
+      <div class="logo" id="miniLogo">ORBIT<small></small></div>
+      <form class="box" data-f role="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" data-q autocomplete="off" spellcheck="false" aria-label="Suche">
+        <button type="button" class="clear" data-clear aria-label="Leeren">✕</button>
+      </form>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+  <main id="list"></main>
+</div>
+
+<script src="search-index.js"></script>
+<script>
+(function(){
+  const IDX = (window.ORBIT_INDEX && window.ORBIT_INDEX.items) || [];
+  const TABS = [['alle','Alle'],['seite','Seiten'],['bild','Bilder'],['audio','Audio'],['video','Video']];
+  const CHIPS = ['Aetheris','Astrion','Deep Anchor','Path of the Stars','NEXUS','FOUNDRY','Domus Prime','Dyson-Sphäre','Musik','Ränge','Sternzeit','Impressum'];
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const enc = p => p.split('/').map(encodeURIComponent).join('/');
+
+  // längenerhaltende Normalisierung (ä->a, ß->s ...), damit Trefferpositionen stimmen
+  const MAP = {'ä':'a','ö':'o','ü':'u','ß':'s','é':'e','è':'e','à':'a','á':'a','ô':'o','ç':'c'};
+  const norm = s => String(s||'').toLowerCase().replace(/[äöüßéèàáôç]/g, c => MAP[c]);
+  const variants = t => { const a = t.replace(/ae/g,'a').replace(/oe/g,'o').replace(/ue/g,'u'); return a !== t ? [t,a] : [t]; };
+
+  // Felder vorab normalisieren
+  IDX.forEach(it => {
+    if(it.t === 'seite'){
+      it._title = norm(it.title); it._h = norm((it.h||[]).join(' | ')); it._d = norm(it.d); it._x = norm(it.x);
+      it._p = norm(it.u.replace(/[\/_\-.]+/g,' ')); it._g = norm(it.g + ' ' + it.k);
+    } else {
+      it._title = norm(it.n); it._p = norm(it.w); it._g = norm(it.g + ' ' + it.t); it._h = it._d = it._x = '';
+    }
+  });
+
+  const _wb = {};
+  const wbRe = v => _wb[v] || (_wb[v] = new RegExp('(^|[^a-z0-9])' + v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  function score(it, toks){
+    let total = 0;
+    for(const vs of toks){
+      let best = 0;
+      for(const v of vs){
+        let s = 0;
+        const wb = wbRe(v);
+        if(it._title.includes(v)) s = Math.max(s, wb.test(it._title) ? 12 : 8);
+        if(wb.test(it._h))        s = Math.max(s, 6);
+        if(it._p.includes(v))     s = Math.max(s, wb.test(it._p) ? 7 : 4);
+        if(it._g.includes(v))     s = Math.max(s, 5);
+        if(wb.test(it._d))        s = Math.max(s, 4);
+        if(wb.test(it._x))        s = Math.max(s, 2);
+        best = Math.max(best, s);
+      }
+      if(!best) return 0;
+      total += best;
+    }
+    if(it.t === 'seite'){ total += 3; if(it.k === 'Infoseite' || it.k === 'Hub') total += 3; if(it.k === 'Spiel') total += 2; if(it.k === 'Rechtliches') total -= 2; }
+    return total;
+  }
+
+  function search(q){
+    const toks = norm(q).split(/\s+/).filter(Boolean).map(variants);
+    if(!toks.length) return {hits:[], toks};
+    const hits = [];
+    for(const it of IDX){ const s = score(it, toks); if(s > 0) hits.push([s, it]); }
+    hits.sort((a,b)=> b[0]-a[0] || a[1].u.localeCompare(b[1].u));
+    return {hits: hits.map(h=>h[1]), toks};
+  }
+
+  function highlight(text, toks){
+    const n = norm(text), r = [];
+    toks.forEach(vs => vs.forEach(v => { let i = -1; while((i = n.indexOf(v, i+1)) !== -1) r.push([i, i+v.length]); }));
+    r.sort((a,b)=>a[0]-b[0]);
+    const m = []; r.forEach(x => { const l = m[m.length-1]; if(l && x[0] <= l[1]) l[1] = Math.max(l[1], x[1]); else m.push(x.slice()); });
+    let out = '', p = 0;
+    m.forEach(([a,b]) => { out += esc(text.slice(p,a)) + '<mark>' + esc(text.slice(a,b)) + '</mark>'; p = b; });
+    return out + esc(text.slice(p));
+  }
+  function snippet(it, toks){
+    const src = [it.d, it.x].filter(Boolean);
+    for(const t of src){
+      const n = norm(t); let pos = -1;
+      for(const vs of toks) for(const v of vs){ const i = n.indexOf(v); if(i !== -1 && (pos === -1 || i < pos)) pos = i; }
+      if(pos !== -1){
+        const a = Math.max(0, pos - 70), b = Math.min(t.length, pos + 190);
+        return (a > 0 ? '… ' : '') + highlight(t.slice(a,b), toks) + (b < t.length ? ' …' : '');
+      }
+    }
+    const t = it.d || (it.x||'').slice(0,200);
+    return esc(t.slice(0,220)) + (t.length > 220 ? ' …' : '');
+  }
+  const crumbs = u => 'mc-orca-games.de › ' + u.split('/').join(' › ');
+
+  function rowHTML(it, toks){
+    const href = enc(it.u);
+    if(it.t === 'seite'){
+      return `<div class="r"><div class="u">${esc(crumbs(it.u))} <b>${esc(it.k)}</b> <b>${esc(it.g)}</b></div>
+        <h3><a href="${href}">${highlight(it.title, toks)}</a></h3><p>${snippet(it, toks)}</p></div>`;
+    }
+    const meta = `<div class="u">${esc(crumbs(it.u))} <b>${esc(it.g)}</b></div>`;
+    if(it.t === 'bild')
+      return `<div class="r media"><a class="th" href="${href}" style="background-image:url('${href}')" aria-label="${esc(it.n)}"></a><div>${meta}<h3><a href="${href}">${highlight(it.n, toks)}</a></h3></div></div>`;
+    if(it.t === 'audio')
+      return `<div class="r">${meta}<h3><a href="${href}">${highlight(it.n, toks)}</a></h3><audio controls preload="none" src="${href}"></audio></div>`;
+    return `<div class="r">${meta}<h3><a href="${href}">${highlight(it.n, toks)}</a></h3><video controls preload="none" src="${href}"></video></div>`;
+  }
+  function gridHTML(items){
+    return '<div class="grid">' + items.map(it => { const h = enc(it.u);
+      return `<a href="${h}" title="${esc(it.u)}"><div class="im" style="background-image:url('${h}')"></div><span>${esc(it.n)}</span></a>`; }).join('') + '</div>';
+  }
+
+  // ---------- Zustand & Rendering ----------
+  let state = {q:'', tab:'alle', shown:10}, cache = null;
+  function setInputs(v){ $$('[data-q]').forEach(i => i.value = v); $$('[data-clear]').forEach(b => b.style.display = v ? 'block' : 'none'); }
+
+  function render(){
+    const q = state.q.trim();
+    $('#home').style.display = q ? 'none' : 'flex';
+    $('#res').style.display = q ? 'block' : 'none';
+    document.title = q ? q + ' – ORBIT' : 'ORBIT – Suche im MC-ORCA-Universum';
+    if(!q) return;
+    const t0 = performance.now();
+    cache = search(q);
+    const dt = ((performance.now() - t0) / 1000).toFixed(3).replace('.', ',');
+    const cnt = {alle: cache.hits.length};
+    TABS.slice(1).forEach(([k]) => cnt[k] = cache.hits.filter(h => h.t === k).length);
+    $('#tabs').innerHTML = TABS.filter(([k]) => k === 'alle' || cnt[k] || k === state.tab).map(([k,l]) =>
+      `<button class="tab${k===state.tab?' on':''}" data-tab="${k}">${l}<i>${cnt[k]}</i></button>`).join('');
+    const hits = state.tab === 'alle' ? cache.hits : cache.hits.filter(h => h.t === state.tab);
+    const list = $('#list');
+    if(!hits.length){
+      list.innerHTML = `<div class="none">Keine Treffer für <b>${esc(q)}</b>.<br>Tipps: weniger oder allgemeinere Begriffe verwenden, oder nach einem Spielnamen suchen (z. B. „Aetheris“, „Astrion“, „NEXUS“).</div>`;
+      return;
+    }
+    const part = hits.slice(0, state.shown);
+    let html = `<div class="meta">${hits.length} Ergebnis${hits.length===1?'':'se'} (${dt} Sek.) · <a href="assistent.html?q=${encodeURIComponent(q)}" style="color:var(--teal)">Lieber fragen? T-7 antworten lassen →</a></div>`;
+    html += state.tab === 'bild' ? gridHTML(part) : part.map(it => rowHTML(it, cache.toks)).join('');
+    if(hits.length > state.shown) html += `<button class="btn more" data-more>Mehr anzeigen (${hits.length - state.shown} weitere)</button>`;
+    list.innerHTML = html;
+  }
+
+  function go(q, tab, push){
+    state.q = q; state.tab = tab || 'alle'; state.shown = state.tab === 'bild' ? 40 : 10;
+    setInputs(q);
+    const url = q.trim() ? '?q=' + encodeURIComponent(q.trim()) + (state.tab !== 'alle' ? '&t=' + state.tab : '') : location.pathname;
+    try{ (push ? history.pushState : history.replaceState).call(history, null, '', url); }catch(e){}
+    render(); window.scrollTo(0,0);
+  }
+
+  // Events
+  $$('[data-f]').forEach(f => f.addEventListener('submit', e => { e.preventDefault(); go(f.querySelector('[data-q]').value, 'alle', true); }));
+  $$('[data-q]').forEach(i => i.addEventListener('input', () => setInputs(i.value)));
+  $$('[data-clear]').forEach(b => b.addEventListener('click', () => { setInputs(''); const i = b.parentElement.querySelector('[data-q]'); i.focus(); }));
+  $('[data-go]').addEventListener('click', () => go($('#home [data-q]').value, 'alle', true));
+  $('[data-lucky]').addEventListener('click', () => {
+    const q = $('#home [data-q]').value.trim(); if(!q) return;
+    const r = search(q).hits[0]; if(r) location.href = enc(r.u); else go(q, 'alle', true);
+  });
+  $('#miniLogo').addEventListener('click', () => go('', 'alle', true));
+  $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if(b) go(state.q, b.dataset.tab, true); });
+  $('#list').addEventListener('click', e => { if(e.target.closest('[data-more]')){ state.shown += state.tab === 'bild' ? 40 : 15; render(); } });
+  $('#chips').innerHTML = CHIPS.map(c => `<button class="chip">${esc(c)}</button>`).join('');
+  $('#chips').addEventListener('click', e => { const c = e.target.closest('.chip'); if(c) go(c.textContent, 'alle', true); });
+  document.addEventListener('keydown', e => {
+    if(e.key === '/' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); ($('#home').style.display !== 'none' ? $('#home [data-q]') : $('#res [data-q]')).focus(); }
+  });
+  window.addEventListener('popstate', () => { const p = new URLSearchParams(location.search); go(p.get('q') || '', p.get('t') || 'alle', false); });
+
+  // Start
+  const built = window.ORBIT_INDEX && window.ORBIT_INDEX.built;
+  const np = IDX.filter(i => i.t === 'seite').length;
+  $('#stat').textContent = IDX.length ? `${np} Seiten · ${IDX.length - np} Medien indexiert${built ? ' · Stand ' + built : ''}` : 'Kein Index gefunden (search-index.js fehlt)';
+  const p = new URLSearchParams(location.search);
+  go(p.get('q') || '', p.get('t') || 'alle', false);
+  if(!p.get('q')) $('#home [data-q]').focus();
+})();
+</script>
+</body>
+</html>
