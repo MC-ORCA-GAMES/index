@@ -6,7 +6,11 @@
                  (nur 5 % Lautstärke), .ogg-Kanäle über signals.json, Decoder-Fix erste Zeile,
                  erstes SSTV-Signal signal_echo1847.ogg im Archiv;
                  Fund-Mechanik: Datei liegt in unbenannter_ordner (Doppelklick -> Audioplayer), Kanal erscheint
-                 im Analysator erst nach dem Anhören.
+                 im Analysator erst nach dem Anhören; T-7 kennt echo_1847.ogg im Ordner.
+                 Neu: Musikarchiv (Icon + Startmenü): Spielauswahl links, Titelliste rechts, Player unten.
+                 MUSIC_LIB = alle Musiktitel der Spiele, aus dem echten Code gelesen (113 Titel, 7 Spiele;
+                 Domus Prime und Nexus: Breach haben keine eigene Musik). Pfade sind spielordner-relativ,
+                 die OST-Dateien selbst liegen nur auf dem Live-Server.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -143,6 +147,25 @@
   .frow:hover{background:rgba(212,175,55,.07);}
   .frow.sel, .frow:focus{outline:none; background:rgba(33,199,184,.12); border-color:rgba(33,199,184,.45);}
   .frow .fi{display:inline-block; width:18px; opacity:.7;}
+  /* Musikarchiv */
+  .mus-body{padding:0 !important; max-height:none !important; overflow:hidden !important; display:flex; flex-direction:column;}
+  .mus-main{display:flex; height:290px; min-height:0; border-bottom:1px solid var(--panel-border);}
+  .mus-games{width:34%; overflow:auto; padding:6px; border-right:1px solid var(--panel-border);}
+  .mus-tracks{flex:1; overflow:auto; padding:6px;}
+  .mus-game{display:flex; justify-content:space-between; gap:6px;}
+  .mus-game.mus-empty{opacity:.45;}
+  .mus-n{opacity:.5; font-size:11px; font-variant-numeric:tabular-nums;}
+  .mus-head{font-family:'Space Grotesk',sans-serif; font-size:11px; letter-spacing:.08em; opacity:.55; text-transform:uppercase; margin:8px 4px 3px;}
+  .mus-track.playing{color:var(--teal);}
+  .mus-track.playing .fi{opacity:1;}
+  .mus-player{padding:10px 14px 12px;}
+  .mus-now{font-size:13px; min-height:20px;}
+  .mus-from{opacity:.5; font-size:11.5px;}
+  .mus-seek{cursor:pointer; padding:4px 0;}
+  .mus-seek .ap-bar{margin-top:0;}
+  .sig-btn.on{border-color:var(--teal); color:var(--teal);}
+  .mus-status{margin-top:6px; word-break:break-all;}
+  @media (max-width:640px){ .mus-main{flex-direction:column; height:330px;} .mus-games{width:auto; height:110px; border-right:0; border-bottom:1px solid var(--panel-border);} }
   /* Audioplayer */
   .ap-name{font-size:13px; margin:0 0 8px;}
   .ap-row{display:flex; align-items:center; gap:10px; margin-top:8px; font-size:12px;}
@@ -220,6 +243,7 @@
     <div class="icon" data-open="system" tabindex="0"><div class="glyph">◍</div><div class="label">Systeminfo</div></div>
     <div class="icon" data-open="papierkorb" tabindex="0"><div class="glyph">▥</div><div class="label">Papierkorb</div></div>
     <div class="icon" data-open="ordner" tabindex="0"><div class="glyph">▦</div><div class="label">unbenannter_ordner</div></div>
+    <div class="icon" data-open="musik" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg></div><div class="label">Musikarchiv</div></div>
     <div class="icon" data-open="signal" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h2l2-7 3 14 3-11 2 4h6"/></svg></div><div class="label">Frequenzanalysator</div></div>
   </div>
 </div>
@@ -236,6 +260,7 @@
 
 <div id="startmenu">
   <div data-open="terminal">Terminal</div>
+  <div data-open="musik">Musikarchiv</div>
   <div data-open="system">Systeminfo</div>
   <div id="shutdown">Herunterfahren</div>
 </div>
@@ -392,6 +417,7 @@
     if(key === 'suche') return openBrowser('suche.html', 'ORBIT Suche', 'suche');
     if(key.startsWith('game:')){ const g = GAMES.find(x=>'game:'+x.id===key); if(g) openBrowser(g.url, g.name, key); return; }
     if(key === 'medien') return openMediaArchive();
+    if(key === 'musik') return openMusicArchive();
     if(key === 'signal') return openSignalAnalyzer();
     if(openWinIds.has(key)){ focusWin(key); return; }
     const data = CONTENT[key];
@@ -1298,6 +1324,306 @@ Gib 'hilfe' ein für Befehle.
   {g:"Sonstiges / Root",t:"image",p:"assets/avatars/rocket.svg",n:"rocket.svg"},
   {g:"Sonstiges / Root",t:"image",p:"bilder/logo.png",n:"logo.png"}
 ];
+
+  // ---- Musikarchiv: alle Musiktitel des MC-ORCA-Portfolios, aus dem tatsächlichen Code jedes Spiels gelesen
+  // (nicht geraten). Pfade sind relativ zum Spielordner (base). Neue Tracks einfach hier ergänzen.
+  // Optionales Feld g = Untergruppe innerhalb eines Spiels (z. B. Playlist-Name).
+  const MUSIC_LIB = [
+    {id:"aetheris", label:"Aetheris", base:"aetheris/", tracks:[
+      {file:"musik/haupttitel/AETHERIS — Echoes of an Eternal Empire.ogg", title:"AETHERIS – Echoes of an Eternal Empire (Titelmusik)"},
+      {file:"musik/hintergrundmusik_ost/OST 01 - Imperial Colony.ogg", title:"Imperial Colony"},
+      {file:"musik/hintergrundmusik_ost/OST 02 - Expansion Protocol.ogg", title:"Expansion Protocol"},
+      {file:"musik/hintergrundmusik_ost/OST 03 - Research Nexus.ogg", title:"Research Nexus"},
+      {file:"musik/hintergrundmusik_ost/OST 04 - War Council.ogg", title:"War Council"},
+      {file:"musik/hintergrundmusik_ost/OST 05 - Star Charts.ogg", title:"Star Charts"},
+      {file:"musik/hintergrundmusik_ost/OST 06 - Merchant Guild.ogg", title:"Merchant Guild"},
+      {file:"musik/hintergrundmusik_ost/OST 07 - Imperial Shipyards.ogg", title:"Imperial Shipyards"},
+      {file:"musik/hintergrundmusik_ost/OST 08 - Ancient Lifeforms.ogg", title:"Ancient Lifeforms"},
+      {file:"musik/hintergrundmusik_ost/OST 09 - Eternal Night.ogg", title:"Eternal Night"},
+    ]},
+    {id:"astrion", label:"Astrion", base:"astrion/", tracks:[
+      {file:"art/audio/title_theme_set1.ogg", title:"Titelmusik – Erwachen der Sterne"},
+      {file:"art/audio/ost/set1/01.ogg", title:"Aufbruch (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/02.ogg", title:"Erste Signale (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/03.ogg", title:"Fremde Sterne (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/04.ogg", title:"Erster Kontakt (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/05.ogg", title:"Kollision der Kulturen (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/06.ogg", title:"Bündnis (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/07.ogg", title:"Erwachen der Sterne (Erwachen der Sterne)"},
+      {file:"art/audio/title_theme_set2.ogg", title:"Titelmusik – Galaxie außer Rand und Band"},
+      {file:"art/audio/ost/set2/01.ogg", title:"Der Unfall (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/02.ogg", title:"Kettenreaktion (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/03.ogg", title:"Chaos-Karneval (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/04.ogg", title:"Waschbär auf Abwegen (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/05.ogg", title:"Spinnenfabrik außer Kontrolle (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/06.ogg", title:"Lavaschlangen-Tango (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/07.ogg", title:"Alles auf Anfang (Galaxie außer Rand und Band)"},
+      {file:"art/audio/title_theme_set3.ogg", title:"Titelmusik – The Void – Das unbekannte Signal"},
+      {file:"art/audio/ost/set3/01.ogg", title:"Stille (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/02.ogg", title:"Das erste Rauschen (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/03.ogg", title:"Wer hört zu? (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/04.ogg", title:"Frequenz Null (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/05.ogg", title:"Echo ohne Ursprung (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/06.ogg", title:"Der Ruf (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/07.ogg", title:"Leere Stimme (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/title_theme_set4.ogg", title:"Titelmusik – The Shard – Die Scherbenwelt"},
+      {file:"art/audio/ost/set4/01.ogg", title:"Der Riss (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/02.ogg", title:"Gespiegelt (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/03.ogg", title:"Zwei Echos (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/04.ogg", title:"Scherbentanz (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/05.ogg", title:"Rekursion (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/06.ogg", title:"Fusion (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/07.ogg", title:"Ganz in Scherben (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/events/cny_theme.ogg", title:"Frühlingsfest-Special (Event-Titelmusik)"},
+      {file:"art/audio/events/valentinstag_theme.ogg", title:"Valentinsspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/weihnachten_theme.ogg", title:"Weihnachtsspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/ostern_theme.ogg", title:"Osterspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/sommer_theme.ogg", title:"Sommerspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/erntedank_theme.ogg", title:"Erntedankspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/halloween_theme.ogg", title:"Halloweenspecial (Event-Titelmusik)"},
+    ]},
+    {id:"deepanchor", label:"Deep Anchor", base:"deepanchor/", tracks:[
+      {file:"art/audio/ost/01_Deep_Anchor_Main_Theme.ogg", title:"Deep Anchor Main Theme"},
+      {file:"art/audio/ost/02_Fertigungshalle.ogg", title:"Fertigungshalle"},
+      {file:"art/audio/ost/03_Countdown.ogg", title:"Countdown"},
+      {file:"art/audio/ost/04_Stille_Bahnen.ogg", title:"Stille Bahnen"},
+      {file:"art/audio/ost/05_Sonde_im_Dunkeln.ogg", title:"Sonde im Dunkeln"},
+      {file:"art/audio/ost/06_Roter_Planet.ogg", title:"Roter Planet"},
+      {file:"art/audio/ost/07_Terraforming.ogg", title:"Terraforming"},
+      {file:"art/audio/ost/08_Erstkontakt.ogg", title:"Erstkontakt"},
+      {file:"art/audio/ost/09_Wartungsdrohnen.ogg", title:"Wartungsdrohnen"},
+      {file:"art/audio/ost/10_Kolonie_unter_fremden_Sternen.ogg", title:"Kolonie unter fremden Sternen"},
+    ]},
+    {id:"foundry", label:"FOUNDRY", base:"foundry/", tracks:[
+      {file:"art/music/Opening Bell.ogg", title:"Opening Bell (Titelmusik)"},
+      {file:"art/music/Ledger Lights.ogg", title:"Ledger Lights"},
+      {file:"art/music/Quiet Capital.ogg", title:"Quiet Capital"},
+      {file:"art/music/Market Momentum.ogg", title:"Market Momentum"},
+      {file:"art/music/Cold Numbers.ogg", title:"Cold Numbers"},
+    ]},
+    {id:"nexus", label:"NEXUS", base:"nexus/", tracks:[
+      {file:"art/music/NEXUS Gateway.ogg", title:"NEXUS Gateway (Titelmusik)"},
+      {file:"art/music/01 NEXUS Idle Core.ogg", title:"NEXUS Idle Core"},
+      {file:"art/music/02 NEXUS Silent Mining.ogg", title:"NEXUS Silent Mining"},
+      {file:"art/music/03 NEXUS Data Flow.ogg", title:"NEXUS Data Flow"},
+      {file:"art/music/04 NEXUS Market Drift.ogg", title:"NEXUS Market Drift"},
+      {file:"art/music/05 NEXUS Nova-Rift.ogg", title:"NEXUS Nova-Rift"},
+      {file:"art/music/06 NEXUS Deep Reserve.ogg", title:"NEXUS Deep Reserve"},
+      {file:"art/music/07 NEXUS Network Pulse.ogg", title:"NEXUS Network Pulse"},
+      {file:"art/music/08 NEXUS Eclipse Protocol.ogg", title:"NEXUS Eclipse Protocol"},
+      {file:"art/music/09 NEXUS Ascension.ogg", title:"NEXUS Ascension"},
+      {file:"art/music/10 NEXUS Rebirth.ogg", title:"NEXUS Rebirth"},
+    ]},
+    {id:"nexus_singularity", label:"NEXUS Singularity", base:"nexus/nexus_singularity/", tracks:[
+      {file:"art/music/ogg/Before_Awakening.ogg", title:"Before Awakening"},
+      {file:"art/music/ogg/Awakened_Dominance.ogg", title:"Awakened Dominance"},
+      {file:"art/music/ogg/Awakened_Threat.ogg", title:"Awakened Threat"},
+    ]},
+    {id:"pathofthestars", label:"Path of the Stars", base:"pathofthestars/", tracks:[
+      {file:"musik/sandbox/Path of the Stars.ogg", title:"Path Of The Stars", g:"Sandbox"},
+      {file:"musik/sandbox/FIRST JUMP.ogg", title:"First Jump", g:"Sandbox"},
+      {file:"musik/sandbox/DRIFTING WORLDS.ogg", title:"Drifting Worlds", g:"Sandbox"},
+      {file:"musik/sandbox/TRADE WINDS.ogg", title:"Trade Winds", g:"Sandbox"},
+      {file:"musik/sandbox/FRONTIER STATION.ogg", title:"Frontier Station", g:"Sandbox"},
+      {file:"musik/sandbox/SILENT NEBULA.ogg", title:"Silent Nebula", g:"Sandbox"},
+      {file:"musik/sandbox/GHOST SIGNALS.ogg", title:"Ghost Signals", g:"Sandbox"},
+      {file:"musik/sandbox/FORGOTTEN FLEET.ogg", title:"Forgotten Fleet", g:"Sandbox"},
+      {file:"musik/sandbox/DYSON REMNANTS.ogg", title:"Dyson Remnants", g:"Sandbox"},
+      {file:"musik/sandbox/ECHOES OF ASCENDANCY.ogg", title:"Echoes Of Ascendancy", g:"Sandbox"},
+      {file:"musik/sandbox/WARP CORRIDOR.ogg", title:"Warp Corridor", g:"Sandbox"},
+      {file:"musik/sandbox/THE LAST COORDINATES.ogg", title:"The Last Coordinates", g:"Sandbox"},
+      {file:"musik/sandbox/THE ASCENDANCY AWAKENS.ogg", title:"The Ascendancy Awakens", g:"Sandbox"},
+      {file:"musik/sandbox/NEW HORIZONS.ogg", title:"New Horizons", g:"Sandbox"},
+      {file:"musik/sandbox/ENDLESS STARS.ogg", title:"Endless Stars", g:"Sandbox"},
+      {file:"musik/drifting_worlds/Main Theme - The Last Dawn.ogg", title:"MAIN THEME - THE LAST DAWN", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 02 - The Dying Sun.ogg", title:"OST 02 — The Dying Sun", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 03 - The Journey Begins.ogg", title:"OST 03 — The Journey Begins", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 04 - The Ancient Route.ogg", title:"OST 04 — The Ancient Route", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 05 - The Wanderer.ogg", title:"OST 05 — The Wanderer", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 06 - Echoes Between Stars.ogg", title:"OST 06 — Echoes Between Stars", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 07 - The Silent Archives.ogg", title:"OST 07 — The Silent Archives", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 08 - The First Builders.ogg", title:"OST 08 — The First Builders", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 09 - Beyond Forgotten Time.ogg", title:"OST 09 — Beyond Forgotten Time", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 10 - The Construct.ogg", title:"OST 10 — The Construct", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 11 - The Living Network.ogg", title:"OST 11 — The Living Network", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 12 - The Heart of the Route.ogg", title:"OST 12 — The Heart of the Route", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 13 - Voices of Eternity.ogg", title:"OST 13 — Voices of Eternity", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 14 - Toward the Core.ogg", title:"OST 14 — Toward the Core", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 15 - The Origin Calls.ogg", title:"OST 15 — The Origin Calls", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 16 - The Final Pilgrimage.ogg", title:"OST 16 — The Final Pilgrimage", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 17 - The Last Gate.ogg", title:"OST 17 — The Last Gate", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 18 - Beyond Creation.ogg", title:"OST 18 — Beyond Creation", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 19 - The Origin.ogg", title:"OST 19 — The Origin", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 20 - Drifting Worlds (End Credits).ogg", title:"OST 20 — Drifting Worlds (End Credits)", g:"Drifting Worlds"},
+    ]},
+    {id:"domusprime", label:"Domus Prime: Verdantis", base:"domus-prime/", note:"Keine eigene Musik – nur synthetisierte Soundeffekte.", tracks:[
+    ]},
+    {id:"nexusbreach", label:"Nexus: Breach", base:"nexus-breach/", note:"Keine eigene Musik – alle Sounds sind per WebAudio synthetisiert.", tracks:[
+    ]},
+  ];
+
+  // ---- Musikarchiv-Player: spielt Titel aus MUSIC_LIB (Spielauswahl links, Titelliste rechts, Player unten) ----
+  function openMusicArchive(){
+    if(openWinIds.has('musik')){ focusWin('musik'); return; }
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const fmt = t => isFinite(t) ? Math.floor(t/60) + ':' + String(Math.floor(t%60)).padStart(2,'0') : '–:––';
+    const srcOf = (g, t) => (g.base + t.file).split('/').map(encodeURIComponent).join('/');
+    const total = MUSIC_LIB.reduce((n, g) => n + g.tracks.length, 0);
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = 'musik';
+    win.style.left = '70px'; win.style.top = '24px';
+    win.style.width = 'min(680px, 94vw)';
+    win.innerHTML = `<div class="bar"><span>Musikarchiv — ${total} Titel</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+      <div class="body mus-body">
+        <div class="mus-main">
+          <div class="mus-games"></div>
+          <div class="mus-tracks"></div>
+        </div>
+        <div class="mus-player">
+          <div class="mus-now">Nichts ausgewählt.</div>
+          <div class="mus-seek"><div class="ap-bar"><div class="ap-fill"></div></div></div>
+          <div class="ap-row">
+            <button class="sig-btn" data-mus="prev" title="Vorheriger Titel">⏮</button>
+            <button class="sig-btn" data-mus="play" title="Abspielen / Pause">▶</button>
+            <button class="sig-btn" data-mus="next" title="Nächster Titel">⏭</button>
+            <button class="sig-btn" data-mus="shuffle" title="Zufällige Reihenfolge">⤮ zufällig</button>
+            <span class="ap-time mus-time">0:00 / –:––</span>
+          </div>
+          <div class="ap-row"><span style="opacity:.6;">Lautstärke</span><input class="ap-vol" type="range" min="0" max="100" value="60"></div>
+          <div class="sig-status mus-status"></div>
+        </div>
+        <audio class="mus-audio" preload="none"></audio>
+      </div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    openWinIds.add('musik');
+    addTaskItem('musik', 'Musikarchiv', win);
+
+    const audio = win.querySelector('.mus-audio');
+    const gamesEl = win.querySelector('.mus-games');
+    const tracksEl = win.querySelector('.mus-tracks');
+    const nowEl = win.querySelector('.mus-now');
+    const playBtn = win.querySelector('[data-mus="play"]');
+    const shufBtn = win.querySelector('[data-mus="shuffle"]');
+    const timeEl = win.querySelector('.mus-time');
+    const statusEl = win.querySelector('.mus-status');
+    const fill = win.querySelector('.ap-fill');
+    const seek = win.querySelector('.mus-seek');
+    const vol = win.querySelector('.ap-vol');
+
+    let view = 'all';            // aktuell angezeigte Spielauswahl ('all' oder Spiel-id)
+    let queue = [];              // Wiedergabeliste [{g, t}]
+    let qi = -1;                 // Position in der Wiedergabeliste
+    let shuffle = false;
+    let failStreak = 0;          // aufeinanderfolgende Ladefehler (verhindert Endlosschleife)
+
+    let savedVol = 60;
+    try{ const v = parseInt(localStorage.getItem('t7-music-vol'), 10); if(v >= 0 && v <= 100) savedVol = v; }catch(e){}
+    vol.value = savedVol; audio.volume = savedVol / 100;
+    vol.oninput = ()=>{ audio.volume = vol.value / 100; try{ localStorage.setItem('t7-music-vol', vol.value); }catch(e){} };
+
+    win.querySelector('.x').onclick = ()=>{ audio.pause(); audio.removeAttribute('src'); audio.load(); closeWin(win, 'musik'); };
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+
+    const entries = id => id === 'all'
+      ? MUSIC_LIB.flatMap(g => g.tracks.map(t => ({g, t})))
+      : (MUSIC_LIB.find(g => g.id === id) || {tracks:[]}).tracks.map(t => ({g: MUSIC_LIB.find(x => x.id === id), t}));
+
+    function renderGames(){
+      gamesEl.innerHTML = `<div class="frow mus-game${view === 'all' ? ' sel' : ''}" data-game="all" tabindex="0">▤ Alle Spiele <span class="mus-n">${total}</span></div>` +
+        MUSIC_LIB.map(g => `<div class="frow mus-game${view === g.id ? ' sel' : ''}${g.tracks.length ? '' : ' mus-empty'}" data-game="${g.id}" tabindex="0">${esc(g.label)} <span class="mus-n">${g.tracks.length}</span></div>`).join('');
+      gamesEl.querySelectorAll('.mus-game').forEach(el => {
+        const go = ()=>{ view = el.dataset.game; renderGames(); renderTracks(); };
+        el.addEventListener('click', go);
+        el.addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
+      });
+    }
+
+    function renderTracks(){
+      const list = entries(view);
+      const cur = qi >= 0 ? queue[qi] : null;
+      if(!list.length){
+        const g = MUSIC_LIB.find(x => x.id === view);
+        tracksEl.innerHTML = `<p style="opacity:.55; font-size:12px; padding:8px;">${esc(g && g.note ? g.note : 'Keine Titel.')}</p>`;
+        return;
+      }
+      let html = '', lastHead = null;
+      list.forEach((e, i) => {
+        const head = (view === 'all' ? e.g.label : '') + (e.t.g ? (view === 'all' ? ' · ' : '') + e.t.g : '');
+        if(head && head !== lastHead){ html += `<div class="mus-head">${esc(head)}</div>`; }
+        lastHead = head;
+        const playing = cur && cur.t === e.t;
+        html += `<div class="frow mus-track${playing ? ' playing' : ''}" data-i="${i}" tabindex="0"><span class="fi">${playing ? '♪' : '▸'}</span>${esc(e.t.title)}</div>`;
+      });
+      tracksEl.innerHTML = html;
+      tracksEl.querySelectorAll('.mus-track').forEach(el => {
+        const go = ()=>{ queue = list.slice(); startAt(parseInt(el.dataset.i, 10)); };
+        el.addEventListener('dblclick', go);
+        el.addEventListener('click', ()=>{ tracksEl.querySelectorAll('.mus-track.sel').forEach(r => r.classList.remove('sel')); el.classList.add('sel'); });
+        el.addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
+        // Touch: zweimal kurz tippen
+        let lt = 0;
+        el.addEventListener('touchend', ()=>{ const n = Date.now(); if(n - lt < 450) go(); lt = n; });
+      });
+    }
+
+    function startAt(i){
+      if(!queue.length) return;
+      qi = ((i % queue.length) + queue.length) % queue.length;
+      const e = queue[qi];
+      statusEl.textContent = '';
+      audio.src = srcOf(e.g, e.t);
+      nowEl.innerHTML = `♪ ${esc(e.t.title)}<span class="mus-from"> — ${esc(e.g.label)}</span>`;
+      audio.play().catch(()=>{});
+      renderTracks();
+      const cur = tracksEl.querySelector('.mus-track.playing');
+      if(cur) cur.scrollIntoView({block:'nearest'});
+    }
+
+    function step(dir){
+      if(!queue.length){ queue = entries(view); if(!queue.length) return; startAt(0); return; }
+      if(shuffle && queue.length > 1){
+        let n; do { n = Math.floor(Math.random() * queue.length); } while(n === qi);
+        startAt(n);
+      } else startAt(qi + dir);
+    }
+
+    win.querySelector('[data-mus="prev"]').onclick = ()=>{ if(audio.currentTime > 3) audio.currentTime = 0; else step(-1); };
+    win.querySelector('[data-mus="next"]').onclick = ()=> step(1);
+    playBtn.onclick = ()=>{
+      if(qi < 0){ step(1); return; }
+      if(audio.paused) audio.play().catch(()=>{}); else audio.pause();
+    };
+    shufBtn.onclick = ()=>{ shuffle = !shuffle; shufBtn.classList.toggle('on', shuffle); };
+    seek.addEventListener('click', e => {
+      const r = seek.getBoundingClientRect();
+      if(audio.duration) audio.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * audio.duration;
+    });
+
+    audio.addEventListener('play', ()=>{ playBtn.textContent = '⏸'; });
+    audio.addEventListener('pause', ()=>{ playBtn.textContent = '▶'; });
+    audio.addEventListener('playing', ()=>{ failStreak = 0; statusEl.textContent = ''; });
+    const upd = ()=>{
+      timeEl.textContent = fmt(audio.currentTime) + ' / ' + fmt(audio.duration);
+      fill.style.width = (audio.duration ? audio.currentTime / audio.duration * 100 : 0) + '%';
+    };
+    audio.addEventListener('timeupdate', upd);
+    audio.addEventListener('loadedmetadata', upd);
+    audio.addEventListener('durationchange', upd);
+    audio.addEventListener('ended', ()=> step(1));
+    audio.addEventListener('error', ()=>{
+      if(qi < 0) return;
+      failStreak++;
+      statusEl.textContent = 'Datei nicht gefunden (liegt nur auf dem Live-Server): ' + queue[qi].t.file;
+      if(failStreak < queue.length) setTimeout(()=>{ if(audio.error) step(1); }, 1200);
+      else { statusEl.textContent = 'Keine der Dateien ist hier erreichbar. Das Musikarchiv spielt auf dem echten Server.'; }
+    });
+
+    renderGames();
+    renderTracks();
+  }
 
   function openMediaArchive(){
     if(openWinIds.has('medien')){ focusWin('medien'); return; }
