@@ -63,7 +63,7 @@ for dp, dn, fn in os.walk(ROOT):
             try: p.feed(open(full, encoding='utf-8', errors='ignore').read())
             except Exception: continue
             text = ' '.join(p.text)[:4000]
-            kind = KIND.get(f, 'Seite') if '/' in rel else {'index.html': 'Hub', 'impressum.html': 'Rechtliches', 'nutzungsbedingungen.html': 'Rechtliches'}.get(f, 'Seite')
+            kind = KIND.get(f, 'Seite') if '/' in rel else {'index.html': 'Startseite', 'portal.html': 'Hub', 'impressum.html': 'Rechtliches', 'nutzungsbedingungen.html': 'Rechtliches'}.get(f, 'Seite')
             pages.append({'t': 'seite', 'u': rel, 'title': p.title or f, 'd': p.desc, 'h': p.h[:12], 'x': text, 'g': game, 'k': kind})
         elif ext in IMG | AUD | VID:
             t = 'bild' if ext in IMG else 'audio' if ext in AUD else 'video'
