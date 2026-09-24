@@ -1,0 +1,37 @@
+name: Audio-Manifest bauen
+
+# Läuft, sobald sich etwas in assets/audio/ ändert (neue .wav hochgeladen/gelöscht/umbenannt)
+# oder wenn das Skript selbst geändert wird. Baut assets/audio/signals.json neu und committet
+# das Ergebnis zurück ins Repo — der Frequenzanalysator (desktop.html) lädt diese Datei
+# per fetch() und braucht danach keine manuelle Eintragung mehr.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/audio/**'
+      - 'tools/build_audio_manifest.py'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Manifest bauen
+        run: python3 tools/build_audio_manifest.py .
+
+      - name: Manifest committen, falls geändert
+        run: |
+          if git diff --quiet -- assets/audio/signals.json; then
+            echo "signals.json unverändert — nichts zu committen."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/audio/signals.json
+          git commit -m "chore: assets/audio/signals.json automatisch aktualisiert"
+          git push

@@ -446,18 +446,30 @@ Gib 'hilfe' ein für Befehle.
   // Optionale Felder pro Eintrag (nur für Farb-Signale aus dem Bild→Audio-Tool im Modus "Farbe"):
   //   color:true  -> Analysator startet direkt in der RGB-Ansicht
   //   fmin/fmax   -> Frequenzbereich, den du im Tool eingestellt hast (Standard 300–7000 Hz)
-  // Das Tool zeigt dir nach dem Erzeugen die fertige Zeile zum Kopieren an.
-  const SIGNAL_FILES = [
-    {file:'signal_sektor4.wav', label:'signal_sektor4.wav'},
-    {file:'signal.wav', label:'signal.wav (Farbe)', color:true, fmin:300, fmax:7000}
+  // Die Liste wird nicht mehr von Hand gepflegt: assets/audio/signals.json wird beim Deploy
+  // automatisch aus tools/build_audio_manifest.py erzeugt (jede signal_*.wav in assets/audio/
+  // taucht darin auf). Dieser Fallback-Eintrag greift nur, falls das Manifest mal fehlt.
+  let SIGNAL_FILES = [
+    {file:'signal_sektor4.wav', label:'signal_sektor4.wav'}
   ];
+  const signalsReady = fetch('assets/audio/signals.json')
+    .then(r => r.ok ? r.json() : [])
+    .then(list => {
+      if(!Array.isArray(list)) return;
+      list.forEach(entry => {
+        const i = SIGNAL_FILES.findIndex(s => s.file === entry.file);
+        if(i >= 0) SIGNAL_FILES[i] = entry; else SIGNAL_FILES.push(entry);
+      });
+    })
+    .catch(()=>{}); // kein Manifest (z.B. lokal ohne Server) -> Fallback-Liste bleibt bestehen
   let sigAudioCtx = null;
   let sigWinRefs = null; // Referenzen des offenen Analysator-Fensters, falls schon offen
 
   // file/label optional: ohne Argument wird das erste bekannte Signal geladen.
   // Kann von überall aufgerufen werden (z.B. wenn ein neues Signal im Spiel gefunden wird),
   // auch während das Fenster schon offen ist — dann wechselt es nur den Kanal.
-  function openSignalAnalyzer(file, label){
+  async function openSignalAnalyzer(file, label){
+    await signalsReady;
     if(file && !SIGNAL_FILES.find(s=>s.file===file)){
       SIGNAL_FILES.push({file, label: label || file});
     }

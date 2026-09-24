@@ -42,7 +42,7 @@
 </head>
 <body>
 <h1>Bild → Audio (Spektrogramm)</h1>
-<p class="hint">Internes Tool, nicht für Besucher gedacht. Lädt ein Bild lokal im Browser (nichts wird hochgeladen) und erzeugt eine .wav-Datei, deren Spektrogramm das Bild zeigt. Die fertige Datei legst du in <code>assets/audio/</code> und trägst sie in <code>SIGNAL_FILES</code> (desktop.html) ein — das Tool gibt dir die fertige Zeile dafür aus.</p>
+<p class="hint">Internes Tool, nicht für Besucher gedacht. Lädt ein Bild lokal im Browser (nichts wird hochgeladen) und erzeugt eine .wav-Datei, deren Spektrogramm das Bild zeigt. Einfach die fertige Datei nach <code>assets/audio/</code> legen — der Dateiname folgt automatisch dem Namensschema, das <code>tools/build_audio_manifest.py</code> beim Deploy erkennt. Kein manuelles Eintragen mehr nötig.</p>
 
 <div class="card">
   <label>Bild wählen<input type="file" id="file" accept="image/*"></label>
@@ -107,19 +107,14 @@
     <label>Max-Frequenz (Hz)<input type="number" id="fmax" value="7000" min="1000" max="16000" step="100"></label>
   </div>
   <div class="row">
-    <label>Dateiname<input type="text" id="fname" value="signal_theta1.wav"></label>
-    <label>Anzeigename im Analysator<input type="text" id="flabel" value="THETA-1 — unbekannte Quelle"></label>
+    <label>Kennung (nur Buchstaben/Zahlen, wird zum Dateinamen)<input type="text" id="signame" value="theta1"></label>
   </div>
+  <p class="hint" style="margin:0; text-align:left;">Dateiname wird automatisch gebaut: <code id="fnamePreview">signal_theta1_rgb_300-7000.wav</code></p>
 
   <button id="go" disabled>Audio erzeugen</button>
   <div id="status"></div>
   <a id="dl" style="display:none" download="signal.wav">⬇ signal.wav herunterladen</a>
-
-  <div id="snippetBox">
-    <span style="font-size:12px; color:var(--dim);">Diese Zeile in <code>SIGNAL_FILES</code> (desktop.html) ergänzen:</span>
-    <div id="snippet"></div>
-    <button class="small" id="copySnippet" style="align-self:flex-start;">Zeile kopieren</button>
-  </div>
+  <p class="hint" id="afterHint" style="display:none; margin:0;">Datei nach <code>assets/audio/</code> legen und pushen — <code>build_audio_manifest.py</code> nimmt sie beim nächsten Deploy automatisch in den Analysator auf.</p>
 </div>
 
 <script>
@@ -135,8 +130,9 @@
   const goBtn = document.getElementById('go');
   const statusEl = document.getElementById('status');
   const dl = document.getElementById('dl');
-  const snippetBox = document.getElementById('snippetBox');
-  const snippetEl = document.getElementById('snippet');
+  const afterHint = document.getElementById('afterHint');
+  const signameEl = document.getElementById('signame');
+  const fnamePreview = document.getElementById('fnamePreview');
 
   const gridWEl = document.getElementById('gridW');
   const gridHEl = document.getElementById('gridH');
@@ -168,6 +164,22 @@
   }
 
   function isColorMode(){ return modeEl.value === 'color'; }
+
+  // Baut den Dateinamen nach dem Schema, das tools/build_audio_manifest.py erkennt:
+  //   signal_<kennung>.wav                 -> Graustufen
+  //   signal_<kennung>_rgb_<fmin>-<fmax>.wav -> Farbe mit Frequenzbereich
+  function computeFilename(){
+    const slug = (signameEl.value || 'signal').trim().toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,40) || 'signal';
+    const freqMin = parseFloat(document.getElementById('fmin').value) || 300;
+    const freqMax = parseFloat(document.getElementById('fmax').value) || 7000;
+    return isColorMode()
+      ? `signal_${slug}_rgb_${freqMin}-${freqMax}.wav`
+      : `signal_${slug}.wav`;
+  }
+
+  function updateFnamePreview(){
+    fnamePreview.textContent = computeFilename();
+  }
 
   function updateModeUI(){
     colorLegend.style.display = isColorMode() ? 'flex' : 'none';
@@ -347,13 +359,18 @@
       gridHVal.textContent = gridHEl.value;
       updateModeUI();
       updateGridPreview();
+      updateFnamePreview();
     });
+  });
+  [signameEl, document.getElementById('fmin'), document.getElementById('fmax')].forEach(el=>{
+    el.addEventListener('input', updateFnamePreview);
   });
   contrastVal.textContent = parseFloat(contrastEl.value).toFixed(1);
   levelsVal.textContent = levelsEl.value;
   gridWVal.textContent = gridWEl.value;
   gridHVal.textContent = gridHEl.value;
   updateModeUI();
+  updateFnamePreview();
 
   fileInput.addEventListener('change', ()=>{
     const f = fileInput.files[0];
@@ -433,32 +450,14 @@
     return new Blob([buf], {type:'audio/wav'});
   }
 
-  function showSnippet(fname, label, freqMin, freqMax){
-    const esc = s => s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    snippetEl.textContent = isColorMode()
-      ? `{file:'${esc(fname)}', label:'${esc(label)}', color:true, fmin:${freqMin}, fmax:${freqMax}},`
-      : `{file:'${esc(fname)}', label:'${esc(label)}'},`;
-    snippetBox.style.display = 'flex';
-  }
-
-  document.getElementById('copySnippet').addEventListener('click', async (e)=>{
-    try{ await navigator.clipboard.writeText(snippetEl.textContent); e.target.textContent = 'kopiert ✓'; }
-    catch(err){ e.target.textContent = 'bitte manuell markieren'; }
-    setTimeout(()=>{ e.target.textContent = 'Zeile kopieren'; }, 1800);
-  });
-
   goBtn.addEventListener('click', async ()=>{
     if(!img) return;
     goBtn.disabled = true;
-    snippetBox.style.display = 'none';
+    afterHint.style.display = 'none';
     statusEl.textContent = 'erzeuge audio … 0%';
     await new Promise(r=>setTimeout(r, 30)); // UI kurz atmen lassen
     const duration = parseFloat(document.getElementById('dur').value) || 8;
-    const freqMin = parseFloat(document.getElementById('fmin').value) || 300;
-    const freqMax = parseFloat(document.getElementById('fmax').value) || 7000;
-    let fname = (document.getElementById('fname').value || 'signal.wav').trim();
-    if(!/\.wav$/i.test(fname)) fname += '.wav';
-    const label = (document.getElementById('flabel').value || fname).trim();
+    const fname = computeFilename();
     try{
       const sig = buildSignal();
       drawGridPreview(sig);
@@ -470,7 +469,7 @@
       dl.download = fname;
       dl.textContent = '⬇ ' + fname + ' herunterladen';
       dl.style.display = 'inline-block';
-      showSnippet(fname, label, freqMin, freqMax);
+      afterHint.style.display = 'block';
       statusEl.textContent = 'fertig — ' + (blob.size/1024).toFixed(0) + ' KB, ' + duration + 's, ' + sig.W + '×' + sig.H;
     } catch(e){
       statusEl.textContent = 'Fehler: ' + e.message;
