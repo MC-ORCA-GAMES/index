@@ -64,15 +64,26 @@
     </div>
   </fieldset>
 
+  <fieldset>
+    <legend>Dateiformat</legend>
+    <div class="radiorow">
+      <label><input type="radio" name="fmt" value="ogg" checked> OGG (Opus, 48&nbsp;kHz, klein &ndash; ca. 0,3&ndash;0,7&nbsp;MB)</label>
+      <label><input type="radio" name="fmt" value="wav"> WAV (verlustfrei, 44,1&nbsp;kHz, ca. 3&ndash;6&nbsp;MB)</label>
+    </div>
+    <p class="hint" id="fmtNote" style="margin:6px 0 0; text-align:left; display:none;"></p>
+  </fieldset>
+
   <div class="row">
-    <label>Kennung (nur Buchstaben/Zahlen, wird zum Dateinamen)<input type="text" id="signame" value="theta1"></label>
+    <label>Präfix (frei änderbar, leer = keins; für <code>desktop.html</code> muss der Name mit <code>signal</code> beginnen)<input type="text" id="sigprefix" value="signal_"></label>
+    <label>Kennung (nur Buchstaben/Zahlen)<input type="text" id="signame" value="theta1"></label>
   </div>
-  <p class="hint" style="margin:0; text-align:left;">Dateiname: <code id="fnamePreview">sstv_theta1_robot36.wav</code></p>
+  <label style="display:flex; gap:8px; align-items:center; margin:0 0 6px;"><input type="checkbox" id="sigmodesuffix" checked style="width:auto; margin:0;"> Modus an den Namen hängen (<code>_robot36</code> / <code>_robot72</code>)</label>
+  <p class="hint" style="margin:0; text-align:left;">Dateiname: <code id="fnamePreview">signal_theta1_robot36.ogg</code></p>
 
   <button id="go" disabled>SSTV-Audio erzeugen</button>
   <div id="status"></div>
-  <a id="dl" style="display:none" download="signal.wav">⬇ Datei herunterladen</a>
-  <p class="hint" id="afterHint">Zum Testen: Datei mit einer SSTV-Decoder-App abspielen/einspeisen lassen — Modus wird automatisch per VIS-Code erkannt.</p>
+  <a id="dl" style="display:none" download="signal.ogg">⬇ Datei herunterladen</a>
+  <p class="hint" id="afterHint">Zum Testen: Datei mit einer SSTV-Decoder-App abspielen/einspeisen lassen — Modus wird automatisch per VIS-Code erkannt. Für das Spiel: Datei nach <code>assets/audio/</code> legen und pushen &ndash; <code>build_audio_manifest.py</code> nimmt sie auf (Name muss mit <code>signal</code> beginnen).</p>
 
   <details>
     <summary>Technische Details</summary>
@@ -82,7 +93,7 @@
       <strong>Robot 72 Color</strong>, VIS-Code 12 (dezimal), 320×240 Pixel, 240 Zeilen, ca. 72&nbsp;s.<br>
       Pro Zeile: Sync 9&nbsp;ms@1200&nbsp;Hz, Sync-Porch 3&nbsp;ms@1500&nbsp;Hz, Y-Scan 138&nbsp;ms, Separator 4,5&nbsp;ms@1500&nbsp;Hz, Porch 1,5&nbsp;ms@1900&nbsp;Hz, R-Y-Scan 69&nbsp;ms, Separator 4,5&nbsp;ms@1500&nbsp;Hz, Porch 1,5&nbsp;ms@1900&nbsp;Hz, B-Y-Scan 69&nbsp;ms (beide Differenzsignale in jeder Zeile).<br><br>
       Farbkonvertierung nach ITU-R BT.601 (Y/R-Y/B-Y mit 16/128-Offset), Frequenzmapping 1500–2300&nbsp;Hz linear über 0–255.<br>
-      44,1&nbsp;kHz / 16&nbsp;Bit / Mono WAV, durchgehende Phasenkontinuität (keine Klick-Artefakte an Segmentgrenzen).
+      WAV: 44,1&nbsp;kHz / 16&nbsp;Bit / Mono. OGG: Opus (96&nbsp;kbit/s, 48&nbsp;kHz, Mono) über die WebCodecs-API des Browsers, selbst in einen Ogg-Container verpackt &ndash; nötig ist ein aktueller Chrome/Edge/Firefox; sonst wird automatisch WAV erzeugt. Durchgehende Phasenkontinuität (keine Klick-Artefakte an Segmentgrenzen).
     </p>
   </details>
 </div>
@@ -102,6 +113,10 @@
   const fnamePreview = document.getElementById('fnamePreview');
   const fitRadios = document.querySelectorAll('input[name=fit]');
   const modeRadios = document.querySelectorAll('input[name=mode]');
+  const fmtRadios = document.querySelectorAll('input[name=fmt]');
+  const prefixEl = document.getElementById('sigprefix');
+  const suffixEl = document.getElementById('sigmodesuffix');
+  const fmtNote = document.getElementById('fmtNote');
 
   const W = 320, H = 240;
   let img = null;
@@ -120,14 +135,39 @@
     return 'robot36';
   }
 
+  function currentFmt(){
+    for(const r of fmtRadios) if(r.checked) return r.value;
+    return 'wav';
+  }
   function computeFilename(){
+    const prefix = (prefixEl.value || '').trim().toLowerCase().replace(/[^a-z0-9_\-]+/g,'').slice(0,30);
     const slug = (signameEl.value || 'signal').trim().toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,40) || 'signal';
-    return `sstv_${slug}_${currentMode()}.wav`;
+    const suffix = suffixEl.checked ? '_' + currentMode() : '';
+    return `${prefix}${slug}${suffix}.${currentFmt()}`;
   }
   function updateFnamePreview(){ fnamePreview.textContent = computeFilename(); }
-  signameEl.addEventListener('input', updateFnamePreview);
+  [signameEl, prefixEl].forEach(el => el.addEventListener('input', updateFnamePreview));
+  suffixEl.addEventListener('change', updateFnamePreview);
   modeRadios.forEach(r => r.addEventListener('change', updateFnamePreview));
+  fmtRadios.forEach(r => r.addEventListener('change', updateFnamePreview));
   updateFnamePreview();
+
+  // OGG (Opus) braucht die WebCodecs-API (AudioEncoder). Ohne Unterstützung -> WAV vorwählen.
+  const OPUS_CFG = {codec:'opus', sampleRate:48000, numberOfChannels:1, bitrate:96000};
+  async function opusSupported(){
+    try{
+      if(typeof AudioEncoder === 'undefined' || typeof AudioData === 'undefined') return false;
+      const r = await AudioEncoder.isConfigSupported(OPUS_CFG);
+      return !!(r && r.supported);
+    }catch(e){ return false; }
+  }
+  opusSupported().then(ok => {
+    if(ok) return;
+    for(const r of fmtRadios) r.checked = (r.value === 'wav');
+    fmtNote.style.display = 'block';
+    fmtNote.textContent = 'Dieser Browser kann kein OGG (Opus) erzeugen – es wird WAV verwendet. Zum Konvertieren z. B. Audacity oder: ffmpeg -i datei.wav -c:a libvorbis -q:a 4 datei.ogg';
+    updateFnamePreview();
+  });
 
   // Baut die 320x240-Vorschau (formatfüllend beschnitten oder mit Rand) —
   // exakt das Canvas, aus dem später auch die Pixel für die Kodierung kommen.
@@ -262,9 +302,10 @@
   // Rechnet Segmente in Samples um — fortlaufende Phase, Stufenfunktion pro
   // Segment (wie in gängigen Referenz-Encodern), damit reale Decoder das
   // Timing exakt wiedererkennen.
-  async function renderSegmentsAsync(segs, onProgress){
+  async function renderSegmentsAsync(segs, onProgress, sr){
+    sr = sr || SAMPLE_RATE;
     let total = 0;
-    const counts = segs.map(s => { const n = Math.round(SAMPLE_RATE*s.ms/1000); total += n; return n; });
+    const counts = segs.map(s => { const n = Math.round(sr*s.ms/1000); total += n; return n; });
     const out = new Float32Array(total);
     let ptr = 0, phase = 0;
     for(let si=0; si<segs.length; si++){
@@ -274,7 +315,7 @@
       for(let i=0;i<n;i++){
         let pos = Math.floor((i+1)/n*L) - 1;
         if(pos < 0) pos = 0; else if(pos >= L) pos = L-1;
-        phase += 2*Math.PI*freqs[pos]/SAMPLE_RATE;
+        phase += 2*Math.PI*freqs[pos]/sr;
         out[ptr++] = Math.sin(phase) * 0.9;
       }
       if(si % 20 === 0){
@@ -309,6 +350,96 @@
     return new Blob([buf], {type:'audio/wav'});
   }
 
+  // ---- OGG/Opus: Opus-Pakete per WebCodecs, Ogg-Container (RFC 3533 / RFC 7845) selbst gebaut ----
+  let crcTab = null;
+  function oggCrc(bytes){
+    if(!crcTab){
+      crcTab = new Uint32Array(256);
+      for(let i = 0; i < 256; i++){
+        let r = i << 24;
+        for(let j = 0; j < 8; j++) r = (r & 0x80000000) ? ((r << 1) ^ 0x04c11db7) : (r << 1);
+        crcTab[i] = r >>> 0;
+      }
+    }
+    let crc = 0;
+    for(let i = 0; i < bytes.length; i++) crc = ((crc << 8) ^ crcTab[((crc >>> 24) ^ bytes[i]) & 0xff]) >>> 0;
+    return crc >>> 0;
+  }
+  function oggPage(type, granule, serial, seq, pkts){
+    const lace = [];
+    let dataLen = 0;
+    for(const p of pkts){ let l = p.length; dataLen += l; while(l >= 255){ lace.push(255); l -= 255; } lace.push(l); }
+    const out = new Uint8Array(27 + lace.length + dataLen);
+    const dv = new DataView(out.buffer);
+    out.set([0x4f, 0x67, 0x67, 0x53], 0); out[4] = 0; out[5] = type;
+    dv.setUint32(6, granule % 4294967296, true); dv.setUint32(10, Math.floor(granule / 4294967296), true);
+    dv.setUint32(14, serial, true); dv.setUint32(18, seq, true);
+    out[26] = lace.length; out.set(lace, 27);
+    let o = 27 + lace.length;
+    for(const p of pkts){ out.set(p, o); o += p.length; }
+    dv.setUint32(22, oggCrc(out), true);
+    return out;
+  }
+  async function encodeOggOpus(samples){
+    const RATE = OPUS_CFG.sampleRate;
+    const packets = [];
+    let head = null, encError = null;
+    const enc = new AudioEncoder({
+      output: (chunk, meta) => {
+        if(!head && meta && meta.decoderConfig && meta.decoderConfig.description){
+          const d = meta.decoderConfig.description;
+          head = new Uint8Array(d instanceof ArrayBuffer ? d : d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength));
+        }
+        const b = new Uint8Array(chunk.byteLength); chunk.copyTo(b);
+        packets.push({data: b, n: Math.round(chunk.duration * RATE / 1e6)});
+      },
+      error: e => { encError = e; }
+    });
+    enc.configure(OPUS_CFG);
+    const CH = 48000;
+    for(let off = 0; off < samples.length; off += CH){
+      const part = samples.subarray(off, Math.min(samples.length, off + CH));
+      enc.encode(new AudioData({format:'f32', sampleRate:RATE, numberOfFrames:part.length, numberOfChannels:1,
+        timestamp: Math.round(off / RATE * 1e6), data: part}));
+    }
+    await enc.flush();
+    enc.close();
+    if(encError) throw encError;
+    if(!packets.length) throw new Error('Opus-Encoder lieferte keine Daten');
+
+    // OpusHead (Pre-Skip aus dem Encoder, sonst 312) + OpusTags
+    let preSkip = 312;
+    if(head && head.length >= 19 && String.fromCharCode(...head.slice(0, 8)) === 'OpusHead') preSkip = head[10] | (head[11] << 8);
+    const headPkt = new Uint8Array(19);
+    headPkt.set([0x4f,0x70,0x75,0x73,0x48,0x65,0x61,0x64], 0);          // "OpusHead"
+    headPkt[8] = 1; headPkt[9] = 1;                                      // Version, 1 Kanal
+    headPkt[10] = preSkip & 255; headPkt[11] = preSkip >> 8;
+    new DataView(headPkt.buffer).setUint32(12, 44100, true);             // Original-Samplerate (nur Info)
+    const vendor = new TextEncoder().encode('MC-ORCA-SSTV');
+    const tagPkt = new Uint8Array(8 + 4 + vendor.length + 4);
+    tagPkt.set([0x4f,0x70,0x75,0x73,0x54,0x61,0x67,0x73], 0);           // "OpusTags"
+    new DataView(tagPkt.buffer).setUint32(8, vendor.length, true);
+    tagPkt.set(vendor, 12);
+
+    const serial = (Math.random() * 4294967295) >>> 0;
+    const pages = [];
+    let seq = 0;
+    pages.push(oggPage(0x02, 0, serial, seq++, [headPkt]));
+    pages.push(oggPage(0x00, 0, serial, seq++, [tagPkt]));
+    let granule = 0, batch = [];
+    for(let i = 0; i < packets.length; i++){
+      batch.push(packets[i].data);
+      granule += packets[i].n;
+      const last = i === packets.length - 1;
+      if(batch.length >= 40 || last){
+        const g = last ? Math.min(granule, samples.length + preSkip) : granule;
+        pages.push(oggPage(last ? 0x04 : 0x00, g, serial, seq++, batch));
+        batch = [];
+      }
+    }
+    return new Blob(pages, {type:'audio/ogg'});
+  }
+
   goBtn.addEventListener('click', async ()=>{
     if(!img) return;
     goBtn.disabled = true;
@@ -320,17 +451,31 @@
     try{
       const frame = buildFrame();
       const segs = buildSegments(frame, mode);
+      let fmt = currentFmt();
+      if(fmt === 'ogg' && !(await opusSupported())) fmt = 'wav';
+      const sr = fmt === 'ogg' ? OPUS_CFG.sampleRate : SAMPLE_RATE;
       const samples = await renderSegmentsAsync(segs, (frac)=>{
         statusEl.textContent = 'erzeuge audio … ' + Math.round(frac*100) + '%';
-      });
-      const blob = encodeWav(samples, SAMPLE_RATE);
+      }, sr);
+      let blob, outName = fname, note = '';
+      if(fmt === 'ogg'){
+        statusEl.textContent = 'kodiere OGG (Opus) …';
+        try{ blob = await encodeOggOpus(samples); }
+        catch(e){
+          fmt = 'wav'; note = ' (OGG fehlgeschlagen: ' + e.message + ' – stattdessen WAV)';
+          blob = encodeWav(samples, sr);
+        }
+      } else {
+        blob = encodeWav(samples, sr);
+      }
+      if(fmt === 'wav') outName = fname.replace(/\.ogg$/, '.wav');
       dl.href = URL.createObjectURL(blob);
-      dl.download = fname;
-      dl.textContent = '⬇ ' + fname + ' herunterladen';
+      dl.download = outName;
+      dl.textContent = '⬇ ' + outName + ' herunterladen';
       dl.style.display = 'inline-block';
       afterHint.style.display = 'block';
-      const secs = (samples.length/SAMPLE_RATE).toFixed(1);
-      statusEl.textContent = 'fertig — ' + (blob.size/1024).toFixed(0) + ' KB, ' + secs + 's, ' + MODES[mode].label + ' (320×240)';
+      const secs = (samples.length/sr).toFixed(1);
+      statusEl.textContent = 'fertig — ' + (blob.size/1024).toFixed(0) + ' KB, ' + secs + 's, ' + MODES[mode].label + ' (320×240)' + note;
     } catch(e){
       statusEl.textContent = 'Fehler: ' + e.message;
     }
