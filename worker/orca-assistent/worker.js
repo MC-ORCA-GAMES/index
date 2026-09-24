@@ -2,8 +2,8 @@
 // Keine Datenbank, keine Speicherung: Anfrage rein -> Modell -> Antwort raus.
 
 const ALLOWED = ['https://www.mc-orca-games.de', 'https://mc-orca-games.de']; // erlaubte Webseiten
-const MODEL = '@cf/meta/llama-3.1-8b-instruct'; // bei Bedarf ändern (Modell-Liste: dash.cloudflare.com -> Workers AI)
-const MAX_MSG = 6, MAX_LEN = 500, MAX_CTX = 3200, MAX_TOKENS = 320;
+const MODEL = '@cf/zai-org/glm-4.7-flash'; // llama-3.1-8b-instruct wurde von Cloudflare am 30.05.2026 abgeschaltet -> deshalb kam nur noch der Archiv-Modus. GLM-4.7-Flash: 131k Kontext, mehrsprachig, weiterhin im kostenlosen Kontingent (Modell-Liste: dash.cloudflare.com -> Workers AI)
+const MAX_MSG = 6, MAX_LEN = 500, MAX_CTX = 3200, MAX_TOKENS = 400;
 const LIMIT = 12, WINDOW_MS = 10 * 60 * 1000;   // je IP: 12 Fragen / 10 Min (best effort, im Speicher)
 const seen = new Map();
 
