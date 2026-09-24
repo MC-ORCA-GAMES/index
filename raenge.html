@@ -1,0 +1,2571 @@
+<!--
+  MC ORCA GAMES — Ränge (spielübergreifende Rangliste)
+  Datei-Version: v1.0
+
+  Zieht Cloud-Spielstände ALLER Spieler über die Supabase-Funktion
+  `leaderboard_rows()` (siehe leaderboard_rpc.sql) und berechnet daraus
+  pro Spiel eine Punktzahl aus Level/Fortschritt + Erfolgen + Ressourcen.
+  Die Punktzahlen aller vier Spiele werden zu EINER Gesamt-Rangliste
+  aufsummiert; per Chip kann optional nach einzelnem Spiel gefiltert werden,
+  damit man nicht zwischen 5 getrennten Seiten hin- und herspringen muss.
+
+  Ohne die SQL-Funktion in Supabase liefert der Aufruf einen Fehler
+  ("Funktion nicht gefunden") — die Seite zeigt dann einen Hinweis
+  mit den nötigen Einrichtungsschritten.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ränge — MC ORCA Games</title>
+<meta name="description" content="Spielübergreifende Rangliste aller MC ORCA Games: Aetheris, Path of the Stars, Astrion und Deep Anchor zusammen.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b12;
+    --bg-alt:#12141f;
+    --panel:#151726;
+    --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2;
+    --fg-dim:#8b8fa3;
+    --fg-faint:#565a6e;
+
+    --gold:#D4AF37;
+    --gold-dim:rgba(212,175,55,0.14);
+    --red:#D6303F;
+    --red-dim:rgba(214,48,63,0.14);
+    --violet:#B23AFF;
+    --violet-dim:rgba(178,58,255,0.14);
+    --orange:#FF6A2B;
+    --blue:#2F8CFF;
+    --blue-dim:rgba(47,140,255,0.14);
+    --orange-dim:rgba(255,106,43,0.14);
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:'Inter',ui-sans-serif,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  h1,h2,h3,.display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--gold); color:#0a0b12; }
+  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; }
+  }
+
+  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
+  .wrap{ position:relative; z-index:2; max-width:880px; margin:0 auto; padding:0 24px 90px; }
+
+  .nav{
+    position:sticky; top:0; z-index:10;
+    background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75));
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    max-width:880px; margin:0 auto; padding:16px 24px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+  }
+  .nav-left{ display:flex; align-items:center; gap:14px; }
+  .nav-back{ font-size:13px; color:var(--fg-dim); transition:color .15s; }
+  .nav-back:hover{ color:var(--fg); }
+  .nav-brand{ display:flex; align-items:center; gap:9px; font-family:'Space Grotesk'; font-weight:700; font-size:14px; letter-spacing:0.04em; }
+  .nav-brand .mark{
+    width:20px; height:20px; border-radius:50%;
+    background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--gold));
+    box-shadow:0 0 12px rgba(212,175,55,0.35); flex-shrink:0;
+  }
+  .nav-cta{
+    font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px;
+    border:1px solid var(--line); color:var(--fg-dim);
+  }
+  .nav-right{ display:flex; align-items:center; gap:10px; }
+
+  /* ---------- burger menu (Seiten-Navigation) ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+    max-height:min(75vh, 520px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; border-bottom:none !important; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
+  .hero{ padding:64px 0 34px; }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--fg-dim); margin-bottom:18px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); box-shadow:0 0 8px var(--gold); }
+  .hero h1{ font-size:clamp(30px,5vw,44px); line-height:1.08; font-weight:700; letter-spacing:-0.01em; margin:0 0 16px; }
+  .hero p{ font-size:15.5px; line-height:1.65; color:var(--fg-dim); max-width:560px; margin:0; }
+
+  .chips{ display:flex; gap:9px; flex-wrap:wrap; margin:0 0 26px; }
+  .cat-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:30px 0 16px; }
+  .cat-tab{
+    font-family:'Space Grotesk'; font-size:14px; font-weight:700;
+    padding:10px 18px; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel); color:var(--fg-dim); cursor:pointer;
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  .cat-tab:hover{ color:var(--fg); border-color:var(--fg-faint); }
+  .cat-tab.active{ color:#0a0b12; background:var(--gold); border-color:var(--gold); }
+  .chip{
+    font-family:'Space Grotesk'; font-size:13px; font-weight:600;
+    padding:9px 16px; border-radius:999px; border:1px solid var(--line);
+    color:var(--fg-dim); cursor:pointer; transition:border-color .15s, color .15s, background .15s;
+    display:inline-flex; align-items:center; gap:7px;
+  }
+  .chip .sw{ width:7px; height:7px; border-radius:50%; }
+  .chip:hover{ color:var(--fg); border-color:var(--fg-faint); }
+  .chip.active{ color:#0a0b12; background:var(--fg); border-color:var(--fg); }
+  .chip.active .sw{ background:#0a0b12 !important; }
+
+  .board{ border:1px solid var(--line); border-radius:16px; background:var(--panel); overflow:hidden; }
+  .board-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; border-bottom:1px solid var(--line);
+    font-size:12px; color:var(--fg-faint);
+  }
+  .board-head .status{ display:flex; align-items:center; gap:7px; }
+  .board-head .status .pulse{ width:6px; height:6px; border-radius:50%; background:var(--gold); box-shadow:0 0 8px var(--gold); }
+
+  .row{
+    display:flex; align-items:center; gap:14px;
+    padding:14px 20px; border-top:1px solid var(--line);
+    cursor:pointer; transition:background .15s;
+  }
+  .row:hover{ background:rgba(255,255,255,0.035); }
+  .row:first-child{ border-top:none; }
+  .row.me{ background:rgba(212,175,55,0.07); }
+  .r-rank{
+    font-family:'Space Grotesk'; font-weight:700; font-size:15px; color:var(--fg-faint);
+    width:34px; flex-shrink:0; text-align:center;
+  }
+  .row:nth-child(2) .r-rank{ color:var(--gold); }
+  .row:nth-child(3) .r-rank{ color:#C7CCD6; }
+  .row:nth-child(4) .r-rank{ color:#C88A4E; }
+  .r-avatar{
+    width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    background:var(--bg-alt); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:17px; overflow:hidden;
+  }
+  .r-avatar img{ width:100%; height:100%; object-fit:cover; }
+  .r-main{ flex:1; min-width:0; }
+  .r-name{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* Prestige-Kosmetik (Nexus) auf dem Namen -- gleiche Farbe/Glow-Logik wie im Spiel selbst. */
+  .r-name.cosmetic-skin{ font-weight:700; }
+  .r-name.cosmetic-fx{ animation:rNameGlow 1.8s ease-in-out infinite; }
+  @keyframes rNameGlow{
+    0%,100%{ text-shadow:0 0 3px var(--cosmetic-name-color, var(--gold)); }
+    50%{ text-shadow:0 0 10px var(--cosmetic-name-color, var(--gold)), 0 0 18px var(--cosmetic-name-color, var(--gold)); }
+  }
+  .r-badges{ display:flex; gap:6px; margin-top:5px; flex-wrap:wrap; }
+  .r-badge{
+    font-size:10px; font-weight:600; letter-spacing:0.02em; padding:2px 7px; border-radius:999px;
+    color:var(--fg-dim); border:1px solid var(--line);
+  }
+  .r-title{ font-size:11px; font-weight:600; color:var(--gold); margin-bottom:2px; letter-spacing:0.01em; }
+  .r-points{ font-family:'Space Grotesk'; font-weight:700; font-size:16px; flex-shrink:0; text-align:right; }
+  .r-points .u{ font-size:10.5px; font-weight:500; color:var(--fg-faint); margin-left:3px; }
+
+  /* ---------- Profil-Popup ---------- */
+  .profile-overlay{
+    position:fixed; inset:0; z-index:50; background:rgba(6,7,12,0.72); backdrop-filter:blur(4px);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+    opacity:0; pointer-events:none; transition:opacity .18s;
+  }
+  .profile-overlay.open{ opacity:1; pointer-events:auto; }
+  .profile-modal{
+    width:100%; max-width:400px; max-height:85vh; overflow-y:auto;
+    background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:26px;
+    box-shadow:0 24px 60px rgba(0,0,0,0.55);
+    transform:translateY(10px) scale(0.98); transition:transform .18s;
+  }
+  .profile-overlay.open .profile-modal{ transform:translateY(0) scale(1); }
+  .profile-close{
+    float:right; width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
+    background:transparent; color:var(--fg-dim); cursor:pointer; font-size:16px; line-height:1;
+  }
+  .profile-close:hover{ color:var(--fg); border-color:var(--fg-faint); }
+  .profile-head{ display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+  .profile-avatar{
+    width:58px; height:58px; border-radius:50%; flex-shrink:0; overflow:hidden;
+    background:var(--bg-alt); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+  }
+  .profile-avatar img{ width:100%; height:100%; object-fit:cover; }
+  .profile-name{ font-family:'Space Grotesk'; font-weight:700; font-size:19px; }
+  .profile-title{ font-size:12px; font-weight:600; color:var(--gold); margin-top:2px; }
+  .profile-bio{ font-size:13.5px; color:var(--fg-dim); line-height:1.6; margin-bottom:18px; }
+  .profile-stats{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
+  .profile-stat{ background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .profile-stat .label{ font-size:10.5px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:0.05em; }
+  .profile-stat .value{ font-family:'Space Grotesk'; font-weight:700; font-size:16px; margin-top:2px; }
+  .profile-badges-title{ font-size:11px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px; }
+  .profile-loading, .profile-err{ padding:30px 0; text-align:center; color:var(--fg-dim); font-size:13.5px; }
+  .profile-err{ color:var(--red); }
+
+  .empty, .err, .loading{ padding:48px 20px; text-align:center; color:var(--fg-dim); font-size:14px; line-height:1.7; }
+  .err{ color:var(--red); }
+  .err code{
+    display:block; margin-top:10px; padding:10px 12px; border-radius:8px;
+    background:var(--bg-alt); color:var(--fg-dim); font-size:12px; text-align:left; overflow-x:auto;
+  }
+  .note{ margin-top:16px; font-size:12.5px; color:var(--fg-faint); line-height:1.7; }
+
+  @media (max-width:560px){
+    .hero{ padding:44px 0 24px; }
+    .row{ padding:12px 14px; gap:11px; }
+    .r-name{ font-size:13.5px; }
+    .r-points{ font-size:14.5px; }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MC ORCA — SITE-SKIN "DEEP DECK 2600"  (v1.0)
+     Reine Optik-Schicht. Liegt bewusst ganz am Ende des Style-Blocks,
+     ueberschreibt nur Aussehen -- keine IDs, keine Klassen-Logik,
+     kein Layout-Bruch. Rueckbau = diesen Block (und den gleichnamigen
+     Script-Block am Ende des <body>) ersatzlos loeschen.
+     prefers-reduced-motion schaltet saemtliche Bewegung ab.
+     ══════════════════════════════════════════════════════════════════ */
+
+  :root{
+    /* Akzent dieser Seite als RGB-Dreier -- alles unten haengt daran */
+    --acc:255,206,69;
+    --acc2:53,228,255;
+
+    /* Untergrund: kein Schwarz, sondern kaltes Vakuum */
+    --bg:#04060C; --bg-alt:#070C16;
+    --panel:rgba(10,17,30,0.62);
+    --panel-solid:#0A111E;
+    --line:rgba(var(--acc),0.14);
+    --line-hot:rgba(var(--acc),0.42);
+    --fg:#DCF2FF; --fg-dim:#7B9AB4; --fg-faint:#47657C;
+
+    --accent:rgb(var(--acc));
+    --accent-dim:rgba(var(--acc),0.13);
+    --accent-soft:rgba(var(--acc),0.85);
+    --plasma:rgb(var(--acc2));
+    --plasma-dim:rgba(var(--acc2),0.13);
+
+    --green:#14F195; --up:#14F195; --warn:#FFB347; --down:#FF3D6E;
+    --gold:#FFC64D; --gold-dim:rgba(255,198,77,0.13);
+    --red:#FF4060;  --red-dim:rgba(255,64,96,0.13);
+    --violet:#C86BFF; --violet-dim:rgba(200,107,255,0.13);
+    --orange:#FF8A3D; --orange-dim:rgba(255,138,61,0.13);
+    --blue:#35E4FF; --blue-dim:rgba(53,228,255,0.13);
+    --teal:#2BF5DE; --teal-dim:rgba(43,245,222,0.13);
+
+    --dd-glow:0 0 12px rgba(var(--acc),0.55);
+    --dd-glow2:0 0 14px rgba(var(--acc2),0.45);
+    --dd-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --dd-cut:7px;
+  }
+
+  /* ---------- Untergrund: Vakuum + Nebel + Raster ---------- */
+  body{
+    background:
+      radial-gradient(1200px 720px at 80% -12%, rgba(var(--acc2),0.10), transparent 62%),
+      radial-gradient(1000px 820px at 6% 104%, rgba(var(--acc),0.11), transparent 60%),
+      radial-gradient(900px 620px at 50% 38%, rgba(16,46,92,0.18), transparent 72%),
+      #04060C;
+    background-attachment:fixed;
+  }
+  body::before{
+    content:''; position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:
+      repeating-linear-gradient(90deg, rgba(var(--acc),0.05) 0 1px, transparent 1px 92px),
+      repeating-linear-gradient(0deg,  rgba(var(--acc),0.038) 0 1px, transparent 1px 92px);
+    mask-image:radial-gradient(125% 92% at 50% 0%, #000 8%, transparent 76%);
+    -webkit-mask-image:radial-gradient(125% 92% at 50% 0%, #000 8%, transparent 76%);
+  }
+
+  /* Alles Inhaltliche sicher ueber Raster + Hintergrund-Canvas heben */
+  .wrap, .nav, footer, .hero, .sec, .games, .game, .constellation, .rule,
+  .board, .layout, .closing, .features, .how, .games-strip, .main-col,
+  .foot-inner, .updates-list, .stagelist{ position:relative; z-index:2; }
+  .nav{ z-index:30; }
+
+  #stars{ opacity:0.32; z-index:0; }
+  #ddFx{ position:fixed; inset:0; z-index:0; pointer-events:none; }
+
+  /* CRT-Auflage: Zeilenraster, Vignette, wandernder Lichtbalken */
+  #ddCrt{
+    position:fixed; inset:0; z-index:900; pointer-events:none;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px),
+      radial-gradient(132% 100% at 50% 50%, transparent 50%, rgba(2,4,9,0.74) 100%);
+    opacity:0.5; mix-blend-mode:multiply;
+  }
+  #ddCrt::after{
+    content:''; position:absolute; left:0; right:0; height:44vh;
+    background:linear-gradient(to bottom, transparent, rgba(var(--acc),0.038) 60%, transparent);
+    animation:ddSweep 9s linear infinite;
+  }
+  @keyframes ddSweep{ 0%{ top:-46vh; } 100%{ top:106vh; } }
+
+  ::selection{ background:rgb(var(--acc)); color:#02060C; }
+  :focus-visible{ outline:2px solid rgb(var(--acc)); outline-offset:2px; border-radius:0; }
+
+  html{ scrollbar-color:rgba(var(--acc),0.45) #05080F; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:#05080F; }
+  ::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg, rgba(var(--acc),0.5), rgba(var(--acc),0.16));
+    border:2px solid #05080F; border-radius:0;
+  }
+  ::-webkit-scrollbar-thumb:hover{ background:rgba(var(--acc),0.72); }
+
+  /* ---------- Kopfleiste: Datenschiene ---------- */
+  .nav{
+    background:linear-gradient(to bottom, rgba(4,7,14,0.94), rgba(4,7,14,0.70));
+    backdrop-filter:blur(14px) saturate(1.35);
+    border-bottom:1px solid var(--line-hot);
+    box-shadow:0 14px 44px -24px rgba(var(--acc),0.4);
+  }
+  .nav::after{
+    content:''; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+    background:linear-gradient(90deg, transparent, rgb(var(--acc)), rgb(var(--acc2)), transparent);
+    background-size:42% 100%; background-repeat:no-repeat;
+    animation:ddRail 7s linear infinite; opacity:0.9;
+  }
+  @keyframes ddRail{ 0%{ background-position:-45% 0; } 100%{ background-position:145% 0; } }
+
+  .brand, .nav-brand{ letter-spacing:0.14em; }
+  .brand .sub, .brand .game-pill{ color:rgb(var(--acc)); text-shadow:var(--dd-glow); }
+  .brand .game-pill{ border-radius:0; clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); letter-spacing:0.14em; }
+  .brand .mark, .nav-brand .mark{
+    position:relative; border-radius:50%;
+    box-shadow:0 0 18px rgba(var(--acc),0.5);
+  }
+  /* rotierender Energiebogen um das Logo -- das Logo selbst dreht sich nicht */
+  .brand .mark::before, .nav-brand .mark::before{
+    content:''; position:absolute; inset:-4px; border-radius:50%;
+    background:conic-gradient(from 0deg, transparent 0 58%, rgba(var(--acc),0.9) 80%, rgba(var(--acc2),0.9) 92%, transparent 100%);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+    animation:ddSpin 4.5s linear infinite;
+  }
+  .brand .mark::after, .nav-brand .mark::after{
+    content:''; position:absolute; inset:-5px; border-radius:50%;
+    border:1px solid rgba(var(--acc),0.4); animation:ddRing 2.8s ease-out infinite;
+  }
+  @keyframes ddSpin{ to{ transform:rotate(360deg); } }
+  @keyframes ddRing{ 0%{ transform:scale(0.72); opacity:0.9; } 100%{ transform:scale(1.4); opacity:0; } }
+  .brand .divider{ background:var(--line-hot); }
+
+  /* ---------- Schaltflaechen: abgeschraegte Plaketten ---------- */
+  .btn, .nav-cta, .acct-btn, .g-btn, .cta, .sr-btn, .cosmetic-btn,
+  .cat-tab, .demo-tab, .sp-tab, .quiz-opt, .nav-back, .btn-primary,
+  .btn-ghost, .btn-danger, .btn-danger-outline, .cosmetic-tab{
+    border-radius:0 !important;
+    clip-path:polygon(var(--dd-cut) 0,100% 0,100% calc(100% - var(--dd-cut)),calc(100% - var(--dd-cut)) 100%,0 100%,0 var(--dd-cut));
+    letter-spacing:0.06em;
+    background-image:linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.22) 46%, transparent 62%);
+    background-size:280% 100%; background-position:135% 0; background-repeat:no-repeat;
+    transition:background-position .55s ease, box-shadow .2s, color .2s, border-color .2s, transform .2s;
+  }
+  .btn:hover, .nav-cta:hover, .acct-btn:hover, .g-btn:hover, .cta:hover,
+  .sr-btn:hover, .cosmetic-btn:hover, .cat-tab:hover, .demo-tab:hover,
+  .sp-tab:hover, .nav-back:hover{
+    background-position:-35% 0;
+  }
+  .btn-primary, .g-btn.primary, .cta, .cosmetic-btn.primary{
+    background-color:rgb(var(--acc)); color:#02060C !important; font-weight:700;
+    box-shadow:0 0 0 1px rgba(var(--acc),0.5), 0 10px 30px -12px rgba(var(--acc),0.7);
+  }
+  .btn-primary:hover, .g-btn.primary:hover, .cta:hover{
+    transform:translateY(-2px); filter:none;
+    box-shadow:0 0 0 1px rgba(var(--acc),0.9), 0 16px 40px -12px rgba(var(--acc),0.85);
+  }
+  .btn-ghost, .nav-cta, .acct-btn, .g-btn.secondary, .cat-tab, .demo-tab, .sp-tab, .cosmetic-tab{
+    background-color:rgba(var(--acc),0.05);
+    border:1px solid var(--line) !important;
+    color:var(--fg-dim);
+  }
+  .btn-ghost:hover, .nav-cta:hover, .acct-btn:hover, .g-btn.secondary:hover,
+  .cat-tab:hover, .demo-tab:hover, .sp-tab:hover, .cosmetic-tab:hover{
+    border-color:rgb(var(--acc)) !important; color:rgb(var(--acc));
+    background-color:rgba(var(--acc),0.10);
+    box-shadow:inset 0 0 20px rgba(var(--acc),0.14), 0 0 18px -6px rgba(var(--acc),0.6);
+  }
+  .cat-tab.active, .demo-tab.active, .sp-tab.active, .cosmetic-tab.active, .chip.active{
+    border-color:rgb(var(--acc)) !important; color:rgb(var(--acc)) !important;
+    background-color:rgba(var(--acc),0.14) !important;
+    box-shadow:inset 0 -2px 0 rgb(var(--acc)), 0 0 22px -8px rgba(var(--acc),0.8);
+  }
+
+  /* ---------- Buergermenue ---------- */
+  .burger-btn{
+    border-radius:0; border-color:var(--line);
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  }
+  .burger-btn:hover{ border-color:rgb(var(--acc)); box-shadow:0 0 18px -4px rgba(var(--acc),0.6); }
+  .burger-btn span{ background:rgb(var(--acc)); box-shadow:0 0 6px rgba(var(--acc),0.7); }
+  .burger-panel, .acct-panel, .profile-modal, .music-panel{
+    background:rgba(7,12,22,0.93) !important; backdrop-filter:blur(16px) saturate(1.2);
+    border:1px solid var(--line-hot) !important; border-radius:2px !important;
+    box-shadow:0 26px 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(var(--acc),0.2);
+  }
+  .burger-panel a, .acct-panel a.acct-btn{ border-radius:0 !important; }
+  .burger-panel a:hover{ background:rgba(var(--acc),0.12); color:rgb(var(--acc)) !important; }
+  .burger-panel.open a{ animation:ddSlideIn .32s ease backwards; }
+  .burger-panel.open .burger-group:nth-child(1) a{ animation-delay:.02s; }
+  .burger-panel.open .burger-group:nth-child(2) a{ animation-delay:.06s; }
+  .burger-panel.open .burger-group:nth-child(3) a{ animation-delay:.10s; }
+  .burger-panel.open .burger-group:nth-child(4) a{ animation-delay:.14s; }
+  .burger-panel.open .burger-group:nth-child(5) a{ animation-delay:.18s; }
+  @keyframes ddSlideIn{ from{ opacity:0; transform:translateX(10px); } to{ opacity:1; transform:none; } }
+  .burger-label{ color:rgb(var(--acc)); opacity:0.7; letter-spacing:0.18em; font-family:var(--dd-mono); }
+  .acct-panel input, #usernameInput, #bioInput, #deleteConfirmInput, .contract select{
+    border-radius:0 !important; background:#060B14 !important;
+    border:1px solid var(--line) !important; font-family:var(--dd-mono) !important;
+  }
+  .acct-panel input:focus, #usernameInput:focus, #bioInput:focus{
+    border-color:rgb(var(--acc)) !important; box-shadow:0 0 0 1px rgba(var(--acc),0.4), inset 0 0 18px rgba(var(--acc),0.08);
+  }
+
+  /* ---------- Platten: Hardlight-Glas mit Eckklammern ---------- */
+  .card, .panel, .update-item, .feature, .how-step, .syncbox, .notice,
+  .stats-game, .cosmetic-item, .shot-slot, .video-slot, .sound-player,
+  .demo-panel, .species-card, .danger-card, .stat-tile, .board, .rcard,
+  .nexus-tap, .live-ticker, .profile-stat, .monument-empty, .avatar-opt,
+  blockquote.chron, .preview{
+    position:relative; border-radius:2px !important;
+    background:
+      linear-gradient(180deg, rgba(var(--acc),0.05), transparent 140px),
+      var(--panel);
+    backdrop-filter:blur(9px);
+    border:1px solid var(--line);
+    box-shadow:inset 0 1px 0 rgba(var(--acc),0.10), 0 20px 44px -30px rgba(0,0,0,0.95);
+    transition:border-color .25s, box-shadow .25s, transform .25s;
+  }
+  .card:hover, .update-item:hover, .feature:hover, .how-step:hover,
+  .cosmetic-item:hover, .shot-slot:hover, .video-slot:hover,
+  .species-card:hover, .stat-tile:hover, .rcard:hover, .nexus-tap:hover{
+    border-color:var(--line-hot);
+    box-shadow:inset 0 1px 0 rgba(var(--acc),0.2), 0 24px 52px -28px rgba(var(--acc),0.5);
+  }
+  blockquote.chron{ border-left:2px solid rgb(var(--acc)) !important; }
+
+  /* Eckklammern + zeigerfolgender Lichtreflex (Element wird per Script gesetzt) */
+  .dd-fx{
+    position:absolute; inset:0; pointer-events:none; border-radius:inherit;
+    background:radial-gradient(340px circle at var(--dd-mx,50%) var(--dd-my,50%), rgba(var(--acc),0.10), transparent 62%);
+    opacity:0; transition:opacity .3s; overflow:hidden;
+  }
+  .dd-fx::before, .dd-fx::after{
+    content:''; position:absolute; width:14px; height:14px;
+    border-color:rgba(var(--acc),0.75); border-style:solid; opacity:.85;
+  }
+  .dd-fx::before{ top:-1px; left:-1px; border-width:1px 0 0 1px; }
+  .dd-fx::after{ right:-1px; bottom:-1px; border-width:0 1px 1px 0; }
+  .dd-host > .dd-fx{ opacity:.55; }
+  .dd-host:hover > .dd-fx{ opacity:1; }
+
+  /* ---------- Abschnitte ---------- */
+  .sec{ border-top:1px solid var(--line); }
+  .sec::before{
+    content:''; position:absolute; top:-1px; left:0; height:1px; width:100%;
+    background:linear-gradient(90deg, transparent, rgb(var(--acc)), transparent);
+    background-size:30% 100%; background-repeat:no-repeat;
+    animation:ddRail 11s linear infinite; opacity:.7;
+  }
+  .sec-kicker, .kicker, .gs-head .kicker, .constellation-head .kicker,
+  .how-head .kicker, .eyebrow, .burger-label, .g-eyebrow,
+  .sec-head .kicker, .flabel, .kv .k, .hero-meta .m .k, .g-meta .m .k{
+    font-family:var(--dd-mono); letter-spacing:0.16em; text-transform:uppercase;
+  }
+  .foot-links, .foot-brand{ font-family:var(--dd-mono); letter-spacing:0.06em; }
+  .sec-kicker, .kicker, .g-eyebrow, .sec-head .kicker{ color:rgb(var(--acc)); text-shadow:var(--dd-glow); }
+  .sec-kicker::before, .kicker::before{
+    content:''; display:inline-block; width:18px; height:2px; margin-right:2px;
+    background:rgb(var(--acc)); box-shadow:var(--dd-glow); animation:ddBar 2.4s ease-in-out infinite;
+  }
+  @keyframes ddBar{ 0%,100%{ transform:scaleX(.5); opacity:.55; } 50%{ transform:scaleX(1); opacity:1; } }
+  .eyebrow{ color:var(--accent-soft); }
+  .eyebrow .dot, .g-eyebrow .ver, .lt-dot, .nt-dot, .sr-dot{
+    box-shadow:0 0 10px rgba(var(--acc),0.9); animation:ddBlink 2.2s ease-in-out infinite;
+  }
+  @keyframes ddBlink{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+
+  h1, h2, h3{ letter-spacing:-0.01em; }
+  /* BUGFIX: hier stand vorher die background-Kurzschreibweise mit !important --
+     die setzt background-clip implizit auf border-box zurueck und schlaegt dabei
+     das nachfolgende, nicht-wichtige background-clip:text. Ergebnis war ein
+     massiver Farbblock statt Verlaufsschrift. Jetzt nur background-image. */
+  .hero h1 .accent, .sec h2 .accent{
+    background-color:transparent !important;
+    background-image:linear-gradient(100deg, rgb(var(--acc)) 0%, #FFFFFF 38%, rgb(var(--acc2)) 62%, rgb(var(--acc)) 100%) !important;
+    background-size:260% 100% !important;
+    background-repeat:no-repeat !important;
+    -webkit-background-clip:text !important; background-clip:text !important;
+    -webkit-text-fill-color:transparent !important; color:transparent !important;
+    animation:ddShine 8s linear infinite;
+  }
+  @keyframes ddShine{ 0%{ background-position:0% 0; } 100%{ background-position:260% 0; } }
+
+  ul.flist li::before{ content:'>'; color:rgb(var(--acc)); text-shadow:var(--dd-glow); font-family:var(--dd-mono); }
+
+  /* ---------- Kennzahlen: Mono-Plaketten ---------- */
+  .hero-meta .m .v, .g-meta .m .v, .stat-tile .val, .profile-stat .value,
+  .r-points, .kv .v, .update-ver, .sp-time, .nt-value, .lt-price,
+  .demo-res .n, .stage-row .num, .how-step .num, .val{
+    font-family:var(--dd-mono) !important; color:rgb(var(--acc));
+    text-shadow:0 0 10px rgba(var(--acc),0.45);
+  }
+  .update-ver{
+    background:rgba(var(--acc),0.14) !important; border:1px solid rgba(var(--acc),0.35);
+    border-radius:0 !important; clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%);
+  }
+  .dd-flash{ animation:ddFlash .7s ease; }
+  @keyframes ddFlash{ 0%{ text-shadow:0 0 22px rgba(var(--acc),1); filter:brightness(1.7); } 100%{ } }
+
+  /* ---------- Fortschrittsbalken: laufende Energie ---------- */
+  .sp-bar, .healthbar, .progress-bar, .bar{ border-radius:0 !important; background:#060B14 !important; }
+  .sp-bar-fill, .fill, .progress-bar > div, .bar > div{
+    border-radius:0 !important;
+    background-image:repeating-linear-gradient(115deg, rgba(255,255,255,0.28) 0 7px, transparent 7px 16px);
+    background-size:34px 100%;
+    animation:ddHatch 1.1s linear infinite;
+    box-shadow:0 0 14px rgba(var(--acc),0.6);
+  }
+  @keyframes ddHatch{ to{ background-position:34px 0; } }
+  .stage-row .fill{ background-image:none; animation:none; box-shadow:none; border-bottom:1px dashed var(--line) !important; }
+
+  /* ---------- Reveal: "Kompilieren" statt bloss einblenden ---------- */
+  .reveal, .dd-rise{
+    opacity:0; transform:translateY(22px);
+    filter:blur(7px) saturate(1.7);
+    transition:opacity .6s cubic-bezier(.16,.8,.3,1), transform .6s cubic-bezier(.16,.8,.3,1), filter .6s ease;
+  }
+  .reveal.in, .dd-rise.in{ opacity:1; transform:none; filter:none; }
+
+  .dd-boot{ animation:ddBoot .85s cubic-bezier(.16,.8,.3,1) both; }
+  @keyframes ddBoot{
+    0%{ opacity:0; filter:blur(10px) saturate(2.4) brightness(1.5); transform:translateY(14px) scale(.995); }
+    55%{ opacity:1; filter:blur(2px) saturate(1.5); }
+    100%{ opacity:1; filter:none; transform:none; }
+  }
+
+  /* ---------- Hub: Spielkacheln + Sternenkarte ---------- */
+  .g-visual{ border-radius:2px !important; overflow:hidden; position:relative; }
+  .g-visual .ring{ filter:drop-shadow(0 0 14px currentColor); animation:ddSpin 26s linear infinite; }
+  .g-visual .ring.r2{ animation-direction:reverse; animation-duration:38s; }
+  .g-visual .wordmark{ font-family:var(--dd-mono); letter-spacing:0.22em; }
+  .game{ transition:transform .3s ease; }
+  .game:hover .g-visual{ box-shadow:inset 0 0 60px -10px rgba(var(--acc),0.35); }
+  .g-title{ text-shadow:0 0 26px rgba(var(--acc),0.25); }
+  .const-node circle.core{ filter:drop-shadow(0 0 8px currentColor); }
+  .const-node-halo{ animation:ddHalo 3.4s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
+  @keyframes ddHalo{ 0%,100%{ opacity:.35; } 50%{ opacity:.9; } }
+  .const-label, .const-hub-label{ font-family:var(--dd-mono); letter-spacing:0.14em; }
+  .const-line{ stroke-dasharray:4 7; animation:ddDash 22s linear infinite; }
+  @keyframes ddDash{ to{ stroke-dashoffset:-220; } }
+
+  /* ---------- Sync-/Statuszeilen ---------- */
+  .sync-row, .sat-list-row, .cosmetic-item, .sp-item, .row, .mod-row{
+    position:relative; border-radius:0 !important;
+    transition:background .2s, color .2s, padding-left .2s;
+  }
+  .sync-row::before, .sp-item::before, .row::before, .cosmetic-item::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:2px;
+    background:rgb(var(--acc)); transform:scaleY(0); transform-origin:center;
+    transition:transform .22s ease; box-shadow:var(--dd-glow);
+  }
+  .sync-row:hover::before, .sp-item:hover::before, .row:hover::before,
+  .cosmetic-item:hover::before, .sp-item.active::before, .row.me::before{ transform:scaleY(1); }
+  .sync-row:hover, .sp-item:hover, .row:hover{ background:rgba(var(--acc),0.06); }
+
+  /* ---------- Medien: Holo-Folie ---------- */
+  .shot-slot, .video-slot{ overflow:hidden; }
+  .shot-slot::after, .video-slot::after{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(115deg, transparent 34%, rgba(var(--acc),0.22) 48%, rgba(var(--acc2),0.18) 54%, transparent 68%);
+    background-size:260% 100%; background-position:135% 0; background-repeat:no-repeat;
+    transition:background-position .7s ease;
+  }
+  .shot-slot:hover::after, .video-slot:hover::after{ background-position:-40% 0; }
+  .shot-slot .icon, .video-slot .icon{ filter:drop-shadow(0 0 12px rgba(var(--acc),0.6)); }
+
+  /* ---------- Fusszeile ---------- */
+  footer{ border-top:1px solid var(--line); }
+  .foot-links a{ position:relative; }
+  .foot-links a::after{
+    content:''; position:absolute; left:0; right:0; bottom:-3px; height:1px;
+    background:rgb(var(--acc)); transform:scaleX(0); transform-origin:left;
+    transition:transform .25s ease; box-shadow:var(--dd-glow);
+  }
+  .foot-links a:hover::after{ transform:scaleX(1); }
+  .foot-links a:hover{ color:rgb(var(--acc)); }
+  .foot-links .sep{ color:rgba(var(--acc),0.3); }
+
+  /* ---------- Rest: Kanten begradigen ---------- */
+  .chip, .r-badge, .badge, .orbit-tag, .rtag, .dotc, .sr-btn, .music-btn,
+  .avatar-opt, .cosmetic-swatch, .r-avatar, .profile-avatar{ border-radius:2px !important; }
+  .r-avatar, .profile-avatar, .acct-avatar img, .pv-avatar img{ border-radius:50% !important; }
+  .r-rank, .r-points, .profile-stat .value{ font-family:var(--dd-mono); }
+  .profile-overlay{ backdrop-filter:blur(6px); background:rgba(2,4,9,0.8) !important; }
+
+  @media (prefers-reduced-motion: reduce){
+    #ddCrt::after, .nav::after, .sec::before, .brand .mark::before, .brand .mark::after,
+    .nav-brand .mark::before, .nav-brand .mark::after, .hero h1 .accent, .g-visual .ring,
+    .const-node-halo, .const-line, .sec-kicker::before, .kicker::before,
+    .eyebrow .dot, .sp-bar-fill, .fill, .progress-bar > div, .bar > div,
+    .burger-panel.open a, .dd-boot{
+      animation:none !important;
+    }
+    .reveal, .dd-rise{ filter:none; }
+  }
+  /* ══════════════════════ Ende SITE-SKIN "DEEP DECK 2600" ══════════════════════ */
+
+
+  /* ══════════════════════════════════════════════════════════════════
+     MC ORCA — SITE-SKIN "DEEP DECK 2600", Ausbaustufe (v1.1)
+     Setzt auf v1.0 auf und dreht die Bewegung hoch: Boot-Sequenz,
+     Fortschrittsstrahl, Zeichenregen, Panel-Scanner, Tastmarken an
+     Buttons, nummerierte Abschnitte, Glitch auf Links.
+     Eigenstaendiger Block -- loeschbar, ohne v1.0 anzufassen.
+     ══════════════════════════════════════════════════════════════════ */
+
+  :root{ --dd2-beam:2px; }
+
+  /* ---------- Zeichenregen (zweite Canvas-Ebene) ---------- */
+  #ddRain{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.55; }
+
+  /* ---------- Umgebungslicht am Zeiger ---------- */
+  #ddAura{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:radial-gradient(420px circle at var(--dd-ax,50%) var(--dd-ay,40%),
+      rgba(var(--acc),0.07), transparent 70%);
+    transition:background-position .2s;
+  }
+
+  /* ---------- Fortschrittsstrahl ganz oben ---------- */
+  #ddBeam{
+    position:fixed; top:0; left:0; height:var(--dd2-beam); width:0%;
+    z-index:950; pointer-events:none;
+    background:linear-gradient(90deg, rgb(var(--acc)), rgb(var(--acc2)));
+    box-shadow:0 0 14px rgba(var(--acc),0.9);
+  }
+  #ddBeam::after{
+    content:''; position:absolute; right:0; top:-3px; width:8px; height:8px;
+    background:rgb(var(--acc2)); box-shadow:0 0 14px rgb(var(--acc2));
+    clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);
+  }
+
+  /* ---------- Boot-Sequenz beim Laden ---------- */
+  #ddBoot{
+    position:fixed; inset:0; z-index:960; pointer-events:none;
+    background:#04060C;
+    display:flex; align-items:center; justify-content:center;
+    animation:ddBootOut .5s ease 1.05s forwards;
+  }
+  #ddBoot .bl{
+    font-family:var(--dd-mono); font-size:12px; letter-spacing:0.38em;
+    color:rgb(var(--acc)); text-shadow:var(--dd-glow);
+    white-space:nowrap; opacity:0; animation:ddBootText 1.05s ease forwards;
+  }
+  #ddBoot::before{
+    content:''; position:absolute; left:0; right:0; top:50%; height:2px;
+    background:linear-gradient(90deg, transparent, rgb(var(--acc)), rgb(var(--acc2)), transparent);
+    box-shadow:0 0 22px rgba(var(--acc),0.9);
+    animation:ddBootLine 1.05s cubic-bezier(.7,0,.2,1) forwards;
+  }
+  #ddBoot::after{
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(0deg, rgba(var(--acc),0.05) 0 1px, transparent 1px 4px);
+  }
+  @keyframes ddBootLine{
+    0%{ transform:scaleX(0); opacity:0; }
+    25%{ transform:scaleX(1); opacity:1; }
+    70%{ transform:scaleX(1) scaleY(1); opacity:1; }
+    100%{ transform:scaleX(1) scaleY(120); opacity:0; }
+  }
+  @keyframes ddBootText{
+    0%,18%{ opacity:0; letter-spacing:0.9em; }
+    42%{ opacity:1; letter-spacing:0.38em; }
+    80%{ opacity:1; }
+    100%{ opacity:0; }
+  }
+  @keyframes ddBootOut{ to{ opacity:0; visibility:hidden; } }
+
+  /* ---------- Panels: Scanner + Chromkante ---------- */
+  .dd-fx::after{ box-shadow:0 0 14px rgba(var(--acc),0.5); }
+  .dd-host > .dd-fx > .dd-scan{
+    position:absolute; left:0; right:0; height:38%;
+    background:linear-gradient(to bottom, transparent, rgba(var(--acc),0.07) 55%, transparent);
+    opacity:0; transition:opacity .3s;
+    animation:ddPanelScan 4.2s linear infinite;
+  }
+  .dd-host:hover > .dd-fx > .dd-scan{ opacity:1; }
+  @keyframes ddPanelScan{ 0%{ top:-40%; } 100%{ top:110%; } }
+  .dd-host:hover{
+    box-shadow:
+      inset 0 1px 0 rgba(var(--acc),0.25),
+      -1px 0 0 rgba(var(--acc2),0.45),
+      1px 0 0 rgba(var(--acc),0.45),
+      0 26px 56px -28px rgba(var(--acc),0.55) !important;
+  }
+
+  /* ---------- Buttons: Tastmarken + Klick-Impuls ---------- */
+  .btn, .g-btn, .nav-cta, .acct-btn, .cta, .cosmetic-btn, .cat-tab, .demo-tab, .sp-tab{
+    position:relative;
+  }
+  .btn::after, .g-btn::after, .nav-cta::after, .cta::after{
+    content:''; position:absolute; right:5px; top:50%; width:3px; height:3px;
+    transform:translateY(-50%); background:currentColor; opacity:.35;
+    box-shadow:0 5px 0 currentColor, 0 -5px 0 currentColor;
+    transition:opacity .2s;
+  }
+  .btn:hover::after, .g-btn:hover::after, .nav-cta:hover::after, .cta:hover::after{ opacity:.9; }
+  .dd-hit{ animation:ddHit .38s ease; }
+  @keyframes ddHit{
+    0%{ box-shadow:0 0 0 0 rgba(var(--acc),0.75); }
+    100%{ box-shadow:0 0 0 18px rgba(var(--acc),0); }
+  }
+
+  /* ---------- Abschnitte: laufende Nummer + Wischkante ---------- */
+  .sec[data-dd-idx]::after{
+    content:attr(data-dd-idx);
+    position:absolute; top:14px; right:4px;
+    font-family:var(--dd-mono); font-size:11px; letter-spacing:0.3em;
+    color:rgba(var(--acc),0.4); pointer-events:none;
+  }
+  .sec h2{ position:relative; }
+  .sec h2::after{
+    content:''; position:absolute; left:0; bottom:-8px; height:1px; width:0;
+    background:linear-gradient(90deg, rgb(var(--acc)), transparent);
+    transition:width .8s cubic-bezier(.16,.8,.3,1);
+  }
+  .sec.in h2::after, .reveal.in h2::after{ width:min(280px, 60%); }
+
+  /* ---------- Links: kurzer Glitch ---------- */
+  .foot-links a:hover, .burger-panel a:hover, .nav-back:hover, .back-link:hover{
+    animation:ddGlitch .3s steps(2) 1;
+  }
+  @keyframes ddGlitch{
+    0%{ text-shadow:1px 0 rgb(var(--acc2)), -1px 0 rgb(var(--acc)); }
+    50%{ text-shadow:-1px 0 rgb(var(--acc2)), 1px 0 rgb(var(--acc)); }
+    100%{ text-shadow:none; }
+  }
+
+  /* ---------- Kennzahlen: leichtes Dauerflackern ---------- */
+  .hero-meta .m .v, .g-meta .m .v, .stat-tile .val, .nt-value, .lt-price{
+    animation:ddFlicker 6s ease-in-out infinite;
+  }
+  @keyframes ddFlicker{
+    0%,92%,100%{ opacity:1; }
+    94%{ opacity:.55; }
+    96%{ opacity:1; }
+    97%{ opacity:.7; }
+  }
+
+  /* ---------- Marke: Rasterpuls beim Ueberfahren ---------- */
+  .brand:hover .mark::before, .nav-brand:hover .mark::before{ animation-duration:1.1s; }
+
+  @media (prefers-reduced-motion: reduce){
+    #ddBoot{ display:none !important; }
+    #ddRain, #ddAura{ display:none !important; }
+    .dd-host > .dd-fx > .dd-scan,
+    .hero-meta .m .v, .g-meta .m .v, .stat-tile .val, .nt-value, .lt-price,
+    .foot-links a:hover, .burger-panel a:hover, .nav-back:hover, .back-link:hover,
+    .dd-hit{ animation:none !important; }
+  }
+  /* ════════════════ Ende SITE-SKIN "DEEP DECK 2600" v1.1 ════════════════ */
+
+
+
+  /* ══════════════════════════════════════════════════════════════════
+     MC ORCA — ORCA-LINK v1.0  (Seitenbreite + Kosmetik-Effekte)
+     Reine Optik-Schicht, haengt an den Body-Klassen, die der
+     ORCA-LINK-Script-Block am Ende des <body> setzt.
+     Rueckbau = diesen Block und den Script-Block loeschen.
+     ══════════════════════════════════════════════════════════════════ */
+
+  :root{ --orca-page-w:1180px; }
+  .wrap{ max-width:var(--orca-page-w); }
+  .nav-inner, .foot-inner{ max-width:var(--orca-page-w); }
+
+  /* ---------- Avatar-Rahmen (slot: frame) ---------- */
+  .ofx-ring{
+    position:absolute; inset:0; border-radius:inherit;
+    pointer-events:none; display:block;
+  }
+  .ofx-host{ position:relative; }
+
+  body[data-ofx-frame="orbit"] .ofx-ring{
+    background:conic-gradient(from 0deg,
+      transparent 0deg, rgba(var(--acc),0.05) 200deg,
+      rgb(var(--acc)) 330deg, #fff 352deg, transparent 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    animation:ofxSpin 3.6s linear infinite;
+  }
+  body[data-ofx-frame="hexlock"] .ofx-ring{
+    border:2px solid rgba(var(--acc),0.75);
+    border-radius:inherit;
+    box-shadow:inset 0 0 0 4px rgba(var(--acc),0.10);
+    -webkit-mask:repeating-conic-gradient(#000 0 22deg, transparent 22deg 30deg);
+    mask:repeating-conic-gradient(#000 0 22deg, transparent 22deg 30deg);
+    animation:ofxSpin 9s steps(12) infinite;
+  }
+  body[data-ofx-frame="corona"] .ofx-ring{
+    border:2px solid rgba(var(--acc),0.9);
+    box-shadow:inset 0 0 14px 2px rgba(var(--acc),0.55), 0 0 18px -2px rgba(var(--acc),0.8);
+    animation:ofxCorona 2.8s ease-in-out infinite;
+  }
+  body[data-ofx-frame="comet_tail"] .ofx-ring{
+    background:conic-gradient(from 0deg,
+      rgb(var(--acc2)) 0deg, rgba(var(--acc2),0.35) 26deg, transparent 90deg, transparent 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    animation:ofxSpin 2.4s linear infinite;
+  }
+  @keyframes ofxSpin{ to{ transform:rotate(360deg); } }
+  @keyframes ofxCorona{
+    0%,100%{ box-shadow:inset 0 0 10px 1px rgba(var(--acc),0.40), 0 0 12px -4px rgba(var(--acc),0.6); }
+    50%    { box-shadow:inset 0 0 20px 3px rgba(var(--acc),0.70), 0 0 26px 0 rgba(var(--acc),0.9); }
+  }
+
+  /* ---------- Namensschilder (slot: nameplate) ---------- */
+  body[data-ofx-nameplate="chrome"] .ofx-name{
+    background-image:linear-gradient(180deg,#ffffff 0%,#cfe3f2 38%,#7e97ab 52%,#ffffff 74%,#b9cede 100%);
+    -webkit-background-clip:text !important; background-clip:text !important;
+    -webkit-text-fill-color:transparent !important; color:transparent !important;
+    text-shadow:0 1px 0 rgba(0,0,0,0.45);
+  }
+  body[data-ofx-nameplate="glitch"] .ofx-name{
+    position:relative; animation:ofxGlitch 5s steps(1) infinite;
+  }
+  @keyframes ofxGlitch{
+    0%,92%,100%{ text-shadow:none; transform:translate(0,0); }
+    93%{ text-shadow:-2px 0 rgba(255,79,216,.9), 2px 0 rgba(53,228,255,.9); transform:translate(1px,0); }
+    95%{ text-shadow:2px 0 rgba(255,79,216,.9), -2px 0 rgba(53,228,255,.9); transform:translate(-1px,0); }
+    97%{ text-shadow:-1px 0 rgba(255,79,216,.7), 1px 0 rgba(53,228,255,.7); transform:translate(0,1px); }
+  }
+  body[data-ofx-nameplate="prism"] .ofx-name{
+    background-image:linear-gradient(100deg,
+      rgb(var(--acc)) 0%, #ffffff 22%, rgb(var(--acc2)) 44%,
+      rgb(var(--acc)) 66%, #ffffff 82%, rgb(var(--acc2)) 100%);
+    background-size:280% 100%;
+    -webkit-background-clip:text !important; background-clip:text !important;
+    -webkit-text-fill-color:transparent !important; color:transparent !important;
+    animation:ofxPrismSlide 5.5s linear infinite;
+  }
+  @keyframes ofxPrismSlide{ to{ background-position:280% 0; } }
+
+  /* ---------- Abzeichen (slot: badge) ---------- */
+  .ofx-badge{
+    display:inline-block; width:0.72em; height:0.72em; margin-left:0.42em;
+    border-radius:50%; vertical-align:baseline; flex-shrink:0;
+  }
+  body[data-ofx-badge="pulsar"] .ofx-badge{
+    background:rgb(var(--acc)); box-shadow:0 0 0 0 rgba(var(--acc),0.65);
+    animation:ofxPulsar 2s ease-out infinite;
+  }
+  @keyframes ofxPulsar{
+    0%{ box-shadow:0 0 0 0 rgba(var(--acc),0.6); }
+    70%{ box-shadow:0 0 0 0.7em rgba(var(--acc),0); }
+    100%{ box-shadow:0 0 0 0 rgba(var(--acc),0); }
+  }
+  body[data-ofx-badge="singularity"] .ofx-badge{
+    background:
+      radial-gradient(circle at 50% 50%, #000 0 34%, transparent 35%),
+      conic-gradient(from 0deg, rgba(var(--acc),0) 0deg, rgb(var(--acc)) 120deg,
+                     #ffffff 200deg, rgba(var(--acc2),0.9) 280deg, rgba(var(--acc),0) 360deg);
+    box-shadow:0 0 8px -1px rgba(var(--acc),0.9);
+    animation:ofxSpin 2.4s linear infinite;
+  }
+
+  /* ---------- Zeiger-Effekt (slot: cursor_fx) ---------- */
+  #ofxCursor{ position:fixed; inset:0; z-index:2147482000; pointer-events:none; }
+
+  /* ---------- Hub-Dock (Rueckweg aus den Spielen) ---------- */
+  #ofxDock{
+    position:fixed; left:14px; bottom:14px; z-index:2147483000;
+    font-family:var(--dd-mono,'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace);
+    font-size:12px; line-height:1; display:flex; flex-direction:column-reverse;
+    align-items:flex-start; gap:8px; pointer-events:none;
+  }
+  #ofxDock > *{ pointer-events:auto; }
+  .ofx-dock-btn{
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    padding:9px 13px; color:#DCF2FF; font-weight:700; letter-spacing:.06em;
+    background:linear-gradient(180deg, rgba(8,14,26,0.96), rgba(4,7,14,0.92));
+    border:1px solid rgba(var(--acc,255,206,69),0.42);
+    box-shadow:0 10px 30px -14px rgba(0,0,0,0.9), 0 0 14px -6px rgba(var(--acc,255,206,69),0.55);
+    clip-path:polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+    backdrop-filter:blur(8px);
+    transition:border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .ofx-dock-btn:hover{ border-color:rgba(var(--acc,255,206,69),0.9); transform:translateY(-1px); }
+  .ofx-dock-btn .ofx-dot{
+    width:7px; height:7px; border-radius:50%; background:rgb(var(--acc,255,206,69));
+    box-shadow:0 0 9px rgba(var(--acc,255,206,69),0.9); flex-shrink:0;
+    animation:ofxBlink 2.6s ease-in-out infinite;
+  }
+  @keyframes ofxBlink{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .ofx-dock-panel{
+    display:none; min-width:210px; max-height:64vh; overflow:auto;
+    padding:10px; color:#DCF2FF;
+    background:linear-gradient(180deg, rgba(8,14,26,0.97), rgba(4,7,14,0.95));
+    border:1px solid rgba(var(--acc,255,206,69),0.34);
+    box-shadow:0 22px 60px -22px #000;
+    clip-path:polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+    backdrop-filter:blur(10px);
+  }
+  .ofx-dock-panel.open{ display:block; animation:ofxDockIn .18s ease-out; }
+  @keyframes ofxDockIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  .ofx-dock-panel .ofx-lbl{
+    font-size:9.5px; letter-spacing:.22em; text-transform:uppercase;
+    color:rgba(var(--acc,255,206,69),0.85); padding:8px 8px 5px;
+  }
+  .ofx-dock-panel a{
+    display:block; padding:7px 9px; color:#9FBBD0; text-decoration:none;
+    border-left:2px solid transparent; font-size:12px;
+  }
+  .ofx-dock-panel a:hover{
+    color:#fff; background:rgba(var(--acc,255,206,69),0.09);
+    border-left-color:rgb(var(--acc,255,206,69));
+  }
+  .ofx-dock-panel a.ofx-home{ color:#fff; font-weight:700; }
+  @media (max-width:520px){ #ofxDock{ left:10px; bottom:10px; } .ofx-dock-panel{ min-width:176px; } }
+
+  @media (prefers-reduced-motion: reduce){
+    .ofx-ring, .ofx-badge, .ofx-name, .ofx-dock-btn .ofx-dot{ animation:none !important; }
+    #ofxCursor{ display:none !important; }
+  }
+  /* ════════════════════ Ende ORCA-LINK v1.0 (CSS) ════════════════════ */
+
+
+  /* ══════════════════════════════════════════════════════════════════
+     RÄNGE — Podium, Suche, Sprungmarke (additiv, v1.0)
+     ══════════════════════════════════════════════════════════════════ */
+  .lb-tools{
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:0 0 16px;
+  }
+  .lb-search{
+    flex:1; min-width:190px; max-width:340px;
+    display:flex; align-items:center; gap:8px; padding:9px 12px;
+    border:1px solid var(--line); background:var(--bg-alt);
+    clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+  }
+  .lb-search input{
+    flex:1; background:none; border:none; outline:none; color:var(--fg);
+    font-family:inherit; font-size:13px;
+  }
+  .lb-search input::placeholder{ color:var(--fg-faint); }
+  .lb-search .ic{ color:rgba(var(--acc),0.8); flex-shrink:0; display:flex; }
+  .lb-jump{
+    font-size:12px; font-weight:600; padding:9px 14px; cursor:pointer; white-space:nowrap;
+    border:1px solid rgba(var(--acc),0.5); color:rgb(var(--acc)); background:rgba(var(--acc),0.08);
+    clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+    transition:.15s;
+  }
+  .lb-jump:hover{ background:rgba(var(--acc),0.18); }
+  .lb-jump[hidden]{ display:none; }
+  .lb-count{ font-size:11.5px; color:var(--fg-faint); font-family:var(--dd-mono); }
+
+  /* ---------- Podium ---------- */
+  .lb-podium{
+    display:grid; grid-template-columns:1fr 1.16fr 1fr; gap:12px;
+    align-items:end; margin:0 0 20px;
+  }
+  .lb-podium[hidden]{ display:none; }
+  .pod{
+    position:relative; overflow:hidden; text-align:center;
+    border:1px solid var(--line); background:var(--panel);
+    padding:16px 12px 14px;
+    clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px);
+  }
+  .pod::before{
+    content:''; position:absolute; left:0; right:0; top:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--pod-c), transparent);
+  }
+  .pod.p1{ --pod-c:#FFC64D; padding-top:24px; padding-bottom:20px;
+           box-shadow:inset 0 -60px 70px -60px #FFC64D; }
+  .pod.p2{ --pod-c:#C7CCD6; }
+  .pod.p3{ --pod-c:#C88A4E; }
+  .pod .pod-rank{
+    font-family:var(--dd-mono); font-size:11px; letter-spacing:.24em;
+    color:var(--pod-c); margin-bottom:10px;
+  }
+  .pod .pod-av{
+    width:56px; height:56px; border-radius:50%; margin:0 auto 10px;
+    overflow:hidden; border:2px solid var(--pod-c); background:var(--bg-alt);
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+    box-shadow:0 0 22px -8px var(--pod-c); position:relative;
+  }
+  .pod.p1 .pod-av{ width:70px; height:70px; }
+  .pod .pod-av img{ width:100%; height:100%; object-fit:cover; }
+  .pod .pod-name{
+    font-family:'Space Grotesk'; font-weight:700; font-size:14px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;
+  }
+  .pod.p1 .pod-name{ font-size:16px; }
+  .pod .pod-pts{ font-family:var(--dd-mono); font-size:13.5px; color:var(--pod-c); font-weight:700; }
+  .pod .pod-pts small{ font-size:10px; color:var(--fg-faint); margin-left:3px; }
+  .pod.is-me{ border-color:var(--pod-c); }
+  .pod .pod-me{
+    display:inline-block; margin-top:7px; font-size:9.5px; letter-spacing:.2em;
+    text-transform:uppercase; color:var(--pod-c); border:1px solid currentColor; padding:2px 6px;
+  }
+  @media (max-width:620px){
+    .lb-podium{ grid-template-columns:1fr; }
+    .pod.p1{ order:-1; }
+  }
+  .row.lb-hidden{ display:none; }
+  .row.lb-flash{ animation:lbFlash 1.6s ease-out 1; }
+  @keyframes lbFlash{
+    0%,100%{ box-shadow:inset 0 0 0 0 rgba(var(--acc),0); }
+    25%    { box-shadow:inset 0 0 44px -6px rgba(var(--acc),0.7); }
+  }
+  /* ══════════════════ Ende RÄNGE-Ausbau ══════════════════ */
+
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<div class="profile-overlay" id="profileOverlay">
+  <div class="profile-modal" id="profileModal">
+    <button type="button" class="profile-close" id="profileCloseBtn">✕</button>
+    <div id="profileModalBody"><div class="profile-loading">Lade Profil …</div></div>
+  </div>
+</div>
+
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      <a class="nav-back" href="index.html">← Hub</a>
+      <span class="nav-brand"><span class="mark"></span> RÄNGE</span>
+    </div>
+    <div class="nav-right">
+      <a class="nav-cta" href="profil.html">☁ Profil</a>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+        <div class="burger-group">
+          <div class="burger-label">Seiten</div>
+          <a href="index.html">Hub</a>
+          <a href="profil.html">Profil &amp; Skins</a>
+          <a href="raenge.html">Ränge</a>
+          <a href="uhr.html">Sternzeit</a>
+          <a href="nexus/global.html">NEXUS global</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Spiele</div>
+          <a href="aetheris/game.html">Aetheris</a>
+          <a href="astrion/game.html">Astrion</a>
+          <a href="deepanchor/game.html">Deep Anchor</a>
+          <a href="pathofthestars/game.html">Path of the Stars</a>
+          <a href="nexus/game.html">NEXUS</a>
+          <a href="nexus/nexus_singularity/game.html">Nexus Singularity</a>
+          <a href="foundry/game.html">FOUNDRY</a>
+          <a href="domus-prime/game.html">Domus Prime: Verdantis</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Info</div>
+          <a href="aetheris/index.html">Aetheris</a>
+          <a href="astrion/index.html">Astrion</a>
+          <a href="deepanchor/index.html">Deep Anchor</a>
+          <a href="pathofthestars/index.html">Path of the Stars</a>
+          <a href="nexus/index.html">NEXUS</a>
+          <a href="nexus/nexus_singularity/index.html">Nexus Singularity</a>
+          <a href="foundry/index.html">FOUNDRY</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Rechtliches</div>
+          <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+          <a href="impressum.html">Impressum &amp; Datenschutz</a>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow"><span class="dot"></span> Spielübergreifend</div>
+    <h1>Eine Rangliste. Alle Spiele.</h1>
+    <p>Punkte aus Aetheris, Path of the Stars, Astrion und Deep Anchor werden
+       zusammengezählt — statt vier getrennten Listen gibt es eine Gesamtwertung.
+       Auf Wunsch lässt sich nach einzelnem Spiel filtern.</p>
+  </section>
+
+  <div class="cat-tabs" id="catTabs"></div>
+  <div class="chips" id="chips"></div>
+
+  <div class="lb-podium" id="lbPodium" hidden></div>
+
+  <div class="lb-tools">
+    <label class="lb-search">
+      <span class="ic" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg></span>
+      <input type="search" id="lbSearch" placeholder="Spieler suchen …" autocomplete="off" spellcheck="false">
+    </label>
+    <button type="button" class="lb-jump" id="lbJump" hidden>Zu meinem Platz</button>
+    <span class="lb-count" id="lbCount"></span>
+  </div>
+
+  <div class="board">
+    <div class="board-head">
+      <span id="boardTitle">Gesamtwertung</span>
+      <span class="status"><span class="pulse"></span><span id="boardHint">lädt …</span></span>
+    </div>
+    <div class="board-sub" id="boardSub" style="display:none; padding:0 18px 14px; font-size:12px; color:var(--fg-faint);"></div>
+    <div id="boardBody"><div class="loading">Rangliste wird geladen …</div></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- Supabase-Client (gleiches Projekt wie index.html/profil.html) ---------- */
+  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  var supabaseClient = (typeof window.supabase !== 'undefined')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  /* ---------- Punkte-Formeln pro Spiel ----------
+     Grobe, spielübergreifend vergleichbare Annäherung aus Level/Fortschritt +
+     Erfolgen + Ressourcen. Kein 1:1-Abbild der (teils sehr unterschiedlichen)
+     internen Punktesysteme der einzelnen Spiele, aber eine faire gemeinsame
+     Grundlage für eine Studio-weite Rangliste. */
+  var GAMES = [
+    {
+      id:'aetheris', label:'Aetheris', accent:'var(--gold)',
+      match: function(key){ return key.indexOf('aetheris_') === 0; },
+      points: function(data){
+        var planetCount = data.planets ? Object.keys(data.planets).length : 0;
+        var achievements = data.achievementsClaimed ? Object.keys(data.achievementsClaimed).length : 0;
+        var researchSum = 0;
+        if(data.research){ for(var k in data.research){ researchSum += (data.research[k]||0); } }
+        return Math.round(achievements*50 + planetCount*80 + researchSum*15);
+      }
+    },
+    {
+      id:'pots', label:'Path of the Stars', accent:'var(--red)',
+      match: function(key){ return key.indexOf('pots:') === 0; },
+      points: function(data){
+        var p = data.player || {};
+        var achievements = (p.unlockedAchievements||[]).length;
+        var officerSum = 0; if(p.officers){ for(var k in p.officers){ officerSum += (p.officers[k]||0); } }
+        var perkSum = 0; if(p.perks){ for(var k2 in p.perks){ perkSum += (p.perks[k2]||0); } }
+        var credits = p.credits || 0;
+        return Math.round(achievements*50 + (officerSum+perkSum)*30 + credits/50);
+      }
+    },
+    {
+      id:'astrion', label:'Astrion', accent:'var(--violet)',
+      match: function(key){ return key === 'astrion_save'; },
+      points: function(data){
+        var achievements = data.claimedAchievements ? Object.keys(data.claimedAchievements).length : 0;
+        var collection = data.collection ? Object.keys(data.collection).length : 0;
+        var credits = data.credits || 0;
+        return Math.round(achievements*50 + collection*10 + credits/50);
+      }
+    },
+    {
+      id:'deepanchor', label:'Deep Anchor', accent:'var(--orange)',
+      match: function(key){ return key.indexOf('deepanchor_') === 0; },
+      points: function(data){
+        var achievements = (data.achievementsUnlocked||[]).length;
+        var reputation = data.reputation || 0;
+        var money = data.money || 0;
+        return Math.round(achievements*50 + reputation*8 + money/100);
+      }
+    },
+    {
+      id:'nexus', label:'Nexus', accent:'var(--blue)'
+      /* Nexus liegt nicht im generischen Save-Blob (saves-Tabelle) wie die
+         anderen vier Spiele, sondern in platform.wallets -- kommt separat
+         über platform.nexus_leaderboard_rows() rein, siehe loadNexus() unten.
+         Formel identisch zur serverseitigen platform.nexus_points():
+         prestige_points*50 + prestige_level*30 + lifetime_mined_alltime/50 */
+    }
+  ];
+
+  /* ---------- CYCLE/SIGIL: eigene Ranglisten-Kategorien statt Teil der Nexus-
+     Gesamtpunktzahl. Zeigen die Top-Halter nach reinem Waehrungs-Bestand --
+     exakt dieselbe Sortierung/Quelle (platform.currency_holder_leaderboard()),
+     die auch serverseitig fuer die CYCLE-/SIGIL-Dividenden-Reserve-Ausschuettung
+     benutzt wird (Top 10 = die, die bei Erreichen des Schwellwerts MOGC aus der
+     jeweiligen Reserve bekommen -- siehe nexus/game.html Handelsplatz-Tab). */
+  var CURRENCY_BOARDS = [
+    { id:'cycle', symbol:'CYCLE', label:'CYCLE (Nexus)', boardTitle:'CYCLE — Top-Halter (Nexus-Dividenden-Reserve)', accent:'#3ddc84' },
+    { id:'sigil', symbol:'SIGIL', label:'SIGIL (Nexus)', boardTitle:'SIGIL — Top-Halter (Nexus-Dividenden-Reserve)', accent:'#F0B93A' },
+    { id:'relay', symbol:'RELAY', label:'RELAY (Nexus)', boardTitle:'RELAY — Top-Halter (Netzwerk-Dividenden-Reserve)', accent:'#8A63F5' },
+    /* FLUX ist die vierte Foerderlinie aus Nexus. Sie gehoert bewusst hierher
+       und nicht ins GAMES-Array: GAMES listet eigenstaendige Spiele mit eigenem
+       Save-Blob, FLUX ist -- genau wie CYCLE/SIGIL/RELAY -- eine Waehrung
+       INNERHALB von Nexus. Quelle ist dieselbe RPC
+       (platform.currency_holder_leaderboard) und dieselbe Top-10-Sortierung,
+       nach der platform.central_bank_flux_check_payout() ausschuettet. */
+    { id:'flux', symbol:'FLUX', label:'FLUX (Nexus)', boardTitle:'FLUX — Top-Halter (Resonanz-Reserve)', accent:'#2FD8C3' }
+  ];
+
+  /* ---------- Denkmal: Prestige-Ranglisten (Nexus), eigener RPC
+     platform.get_monument_leaderboard(metric, limit) -- gleiche Zeilenform wie
+     get_currency_leaderboard (rank_no/user_id/username/avatar/balance), daher
+     laesst sich renderCurrencyBoard 1:1 mitbenutzen. */
+  var MONUMENT_BOARDS = [
+    { id:'prestige', metric:'prestige_count', label:'Prestiges (Nexus)', boardTitle:'Denkmal — meiste Prestiges', accent:'#B23AFF', unit:'×' },
+    { id:'maxsigil', metric:'max_sigil', label:'Max. SIGIL (Nexus)', boardTitle:'Denkmal — höchster je gehaltener SIGIL-Bestand', accent:'#F0B93A', unit:'SIGIL' },
+    { id:'maxcycle', metric:'max_cycle', label:'Max. CYCLE (Nexus)', boardTitle:'Denkmal — höchster je gehaltener CYCLE-Bestand', accent:'#3ddc84', unit:'CYCLE' }
+  ];
+
+  /* ---------- Foundry: Gründer-Ranglisten (Solo & Corp), eigene RPCs
+     foundry.get_founder_leaderboard(limit) / foundry.get_corp_founder_leaderboard(limit).
+     Andere Zeilenform als CURRENCY_BOARDS/MONUMENT_BOARDS (kein rank_no/balance,
+     sondern player_id/username bzw. guild_id/guild_name + company_count + total_value),
+     deshalb eigene Lade-/Render-Funktion statt renderCurrencyBoard. */
+  var FOUNDER_BOARDS = [
+    { id:'founder', label:'Gründer (Solo)', boardTitle:'Foundry — Gründer-Rangliste (Solo)', accent:'#3ddc84', corp:false },
+    { id:'corpfounder', label:'Gründer (Corps)', boardTitle:'Foundry — Gründer-Rangliste (Corps)', accent:'#8A63F5', corp:true }
+  ];
+
+  function fmt(n){ try{ return Math.round(n).toLocaleString('de-DE'); }catch(e){ return String(Math.round(n)); } }
+
+  /* ---------- Kategorien (Haupt-Tabs) & Chips (Filter innerhalb der Kategorie) ---------- */
+  var CATEGORIES = [
+    { id:'games', label:'Gesamt & Spiele' },
+    { id:'nexus', label:'Nexus' },
+    { id:'foundry', label:'Foundry' }
+  ];
+  var activeFilter = 'total';
+  var activeCategory = 'games';
+  var chipsEl = document.getElementById('chips');
+  var catTabsEl = document.getElementById('catTabs');
+  var chipDefs = [{ id:'total', label:'Gesamt (alle Spiele)', accent:'var(--fg)', boardTitle:'Gesamtwertung', cat:'games' }]
+    .concat(GAMES.map(function(g){ return { id:g.id, label:g.label, accent:g.accent, boardTitle:g.label, cat:'games' }; }))
+    .concat(CURRENCY_BOARDS.map(function(c){ return { id:c.id, label:c.label, accent:c.accent, boardTitle:c.boardTitle, cat:'nexus' }; }))
+    .concat(MONUMENT_BOARDS.map(function(m){ return { id:m.id, label:m.label, accent:m.accent, boardTitle:m.boardTitle, cat:'nexus' }; }))
+    .concat(FOUNDER_BOARDS.map(function(f){ return { id:f.id, label:f.label, accent:f.accent, boardTitle:f.boardTitle, cat:'foundry' }; }));
+
+  CATEGORIES.forEach(function(cat){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cat-tab' + (cat.id === activeCategory ? ' active' : '');
+    btn.textContent = cat.label;
+    btn.addEventListener('click', function(){
+      if (activeCategory === cat.id) return;
+      activeCategory = cat.id;
+      Array.prototype.forEach.call(catTabsEl.children, function(el){ el.classList.remove('active'); });
+      btn.classList.add('active');
+      renderChipVisibility();
+      var firstInCat = chipDefs.filter(function(c){ return c.cat === cat.id; })[0];
+      if (firstInCat) selectChip(firstInCat.id);
+    });
+    catTabsEl.appendChild(btn);
+  });
+
+  function renderChipVisibility(){
+    Array.prototype.forEach.call(chipsEl.children, function(el){
+      el.style.display = (el.dataset.cat === activeCategory) ? '' : 'none';
+    });
+  }
+
+  function selectChip(id){
+    var c = chipDefs.filter(function(cd){ return cd.id === id; })[0];
+    if (!c) return;
+    activeFilter = c.id;
+    Array.prototype.forEach.call(chipsEl.children, function(el){ el.classList.remove('active'); });
+    var btnEl = chipsEl.querySelector('[data-chip-id="' + id + '"]');
+    if (btnEl) btnEl.classList.add('active');
+    document.getElementById('boardTitle').textContent = c.boardTitle;
+    var sub = document.getElementById('boardSub');
+    var isCurrency = CURRENCY_BOARDS.some(function(cb){ return cb.id === c.id; });
+    var isMonument = MONUMENT_BOARDS.some(function(mb){ return mb.id === c.id; });
+    var isFounder = FOUNDER_BOARDS.some(function(fb){ return fb.id === c.id; });
+    if(isCurrency){
+      sub.innerHTML = 'Ingame-Währung aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — wer das Spiel nicht kennt, findet hier rein.';
+      sub.style.display = 'block';
+    } else if(isMonument){
+      sub.innerHTML = 'Denkmal-Statistik aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — Prestige-Vermächtnis, kein aktueller Kontostand.';
+      sub.style.display = 'block';
+    } else if(isFounder){
+      sub.innerHTML = 'Firmenwert (Kapital + Rücklage) aus <a href="foundry/index.html" style="color:inherit; text-decoration:underline;">Foundry</a>.';
+      sub.style.display = 'block';
+    } else {
+      sub.style.display = 'none';
+    }
+    renderBoard();
+  }
+
+  chipDefs.forEach(function(c){
+    var btn = document.createElement('button');
+    btn.className = 'chip' + (c.id === activeFilter ? ' active' : '');
+    btn.type = 'button';
+    btn.dataset.cat = c.cat;
+    btn.dataset.chipId = c.id;
+    btn.style.display = (c.cat === activeCategory) ? '' : 'none';
+    btn.innerHTML = '<span class="sw" style="background:' + c.accent + '"></span>' + c.label;
+    btn.addEventListener('click', function(){ selectChip(c.id); });
+    chipsEl.appendChild(btn);
+  });
+
+  /* ---------- Daten laden & auswerten ---------- */
+  var players = {}; // user_id -> {name, avatar, perGame:{gameId:points}, total}
+  var currentUserId = null;
+  var currencyBoards = {}; // id -> array of {rank_no, id, name, avatar, balance} | null (Fehler) | undefined (noch nicht geladen)
+  var founderBoards = {}; // id -> array of {id, name, avatar, company_count, total_value} | null (Fehler) | undefined (noch nicht geladen)
+
+  function avatarHtml(avatar){
+    if(avatar && /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(avatar)){
+      return '<img src="' + avatar + '" alt="">';
+    }
+    return avatar || '<img src="/assets/avatars/rocket.svg" alt="">';
+  }
+
+  var playerCosmetics = {}; // player_id -> {skinColor, hasFx}
+
+  function nameHtml(pl){
+    var cos = playerCosmetics[pl.id];
+    var cls = 'r-name';
+    var style = '';
+    if(cos && cos.skinColor){
+      cls += ' cosmetic-skin' + (cos.hasFx ? ' cosmetic-fx' : '');
+      style = ' style="color:' + cos.skinColor + '; --cosmetic-name-color:' + cos.skinColor + ';"';
+    }
+    return '<div class="' + cls + '"' + style + '>' + escapeHtml(pl.name || 'Unbenannt') + (pl.id === currentUserId ? ' (du)' : '') + '</div>';
+  }
+
+  function renderBoard(){
+    var currencyBoard = CURRENCY_BOARDS.filter(function(c){ return c.id === activeFilter; })[0];
+    if(currencyBoard){ renderCurrencyBoard(currencyBoard, currencyBoard.symbol); return; }
+    var monumentBoard = MONUMENT_BOARDS.filter(function(m){ return m.id === activeFilter; })[0];
+    if(monumentBoard){ renderCurrencyBoard(monumentBoard, monumentBoard.unit); return; }
+    var founderBoard = FOUNDER_BOARDS.filter(function(f){ return f.id === activeFilter; })[0];
+    if(founderBoard){ renderFounderBoard(founderBoard); return; }
+
+    var body = document.getElementById('boardBody');
+    var list = Object.keys(players).map(function(id){ return players[id]; });
+    list.forEach(function(pl){
+      pl.value = activeFilter === 'total' ? pl.total : (pl.perGame[activeFilter] || 0);
+    });
+    list = list.filter(function(pl){ return pl.value > 0; });
+    list.sort(function(a,b){ return b.value - a.value; });
+
+    if(list.length === 0){
+      body.innerHTML = '<div class="empty">Noch keine Spieler mit passendem Cloud-Spielstand gefunden.<br>Einloggen, spielen und speichern — dann taucht man hier auf.</div>';
+      return;
+    }
+
+    body.innerHTML = list.map(function(pl, i){
+      var badges = GAMES.map(function(g){
+        var v = pl.perGame[g.id] || 0;
+        if(!v) return '';
+        return '<span class="r-badge" style="border-color:' + g.accent + '55">' + g.label + ' · ' + fmt(v) + '</span>';
+      }).join('');
+      return '<div class="row' + (pl.id === currentUserId ? ' me' : '') + '" data-player-id="' + pl.id + '">'
+        + '<div class="r-rank">' + (i+1) + '</div>'
+        + '<div class="r-avatar">' + avatarHtml(pl.avatar) + '</div>'
+        + '<div class="r-main">'
+        + (pl.title ? '<div class="r-title">' + escapeHtml(pl.title) + '</div>' : '')
+        + nameHtml(pl)
+        + (activeFilter === 'total' ? '<div class="r-badges">' + badges + '</div>' : '')
+        + '</div>'
+        + '<div class="r-points">' + fmt(pl.value) + '<span class="u">Pkt.</span></div>'
+        + '</div>';
+    }).join('');
+    bindRowClicks();
+  }
+
+  function renderCurrencyBoard(c, unitLabel){
+    var body = document.getElementById('boardBody');
+    var list = currencyBoards[c.id];
+    var unit = unitLabel || c.symbol;
+    if(list === undefined){
+      body.innerHTML = '<div class="loading">Rangliste wird geladen …</div>';
+      return;
+    }
+    if(list === null){
+      body.innerHTML = '<div class="err">' + c.label + '-Rangliste konnte nicht geladen werden.</div>';
+      return;
+    }
+    if(list.length === 0){
+      body.innerHTML = '<div class="empty">Noch keine Werte für ' + c.label + ' vorhanden.</div>';
+      return;
+    }
+    body.innerHTML = list.map(function(pl){
+      var title = players[pl.id] ? players[pl.id].title : null;
+      return '<div class="row' + (pl.id === currentUserId ? ' me' : '') + '" data-player-id="' + pl.id + '">'
+        + '<div class="r-rank">' + pl.rank_no + '</div>'
+        + '<div class="r-avatar">' + avatarHtml(pl.avatar) + '</div>'
+        + '<div class="r-main">'
+        + (title ? '<div class="r-title">' + escapeHtml(title) + '</div>' : '')
+        + nameHtml(pl)
+        + '</div>'
+        + '<div class="r-points">' + fmt(pl.balance) + '<span class="u">' + unit + '</span></div>'
+        + '</div>';
+    }).join('');
+    bindRowClicks();
+  }
+
+  var ICON_CORP_SM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+
+  function renderFounderBoard(f){
+    var body = document.getElementById('boardBody');
+    var list = founderBoards[f.id];
+    if(list === undefined){
+      body.innerHTML = '<div class="loading">Rangliste wird geladen …</div>';
+      return;
+    }
+    if(list === null){
+      body.innerHTML = '<div class="err">' + f.label + '-Rangliste konnte nicht geladen werden.</div>';
+      return;
+    }
+    if(list.length === 0){
+      body.innerHTML = '<div class="empty">Noch keine ' + (f.corp ? 'Corp-' : '') + 'Firmen gegründet.</div>';
+      return;
+    }
+    body.innerHTML = list.map(function(row, i){
+      var title = !f.corp && players[row.id] ? players[row.id].title : null;
+      var avatarCell = f.corp
+        ? '<div class="r-avatar" style="display:flex; align-items:center; justify-content:center; color:var(--fg-dim);">' + ICON_CORP_SM + '</div>'
+        : '<div class="r-avatar">' + avatarHtml(row.avatar) + '</div>';
+      return '<div class="row' + (row.id === currentUserId ? ' me' : '') + '" data-player-id="' + (f.corp ? '' : row.id) + '">'
+        + '<div class="r-rank">' + (i+1) + '</div>'
+        + avatarCell
+        + '<div class="r-main">'
+        + (title ? '<div class="r-title">' + escapeHtml(title) + '</div>' : '')
+        + '<div class="r-name">' + escapeHtml(row.name) + (row.id === currentUserId ? ' (du)' : '') + '</div>'
+        + '<div class="r-badges"><span class="r-badge" style="border-color:' + f.accent + '55">' + row.company_count + ' Firma' + (row.company_count === 1 ? '' : 'en') + '</span></div>'
+        + '</div>'
+        + '<div class="r-points">' + fmt(row.total_value) + '<span class="u">MOGC</span></div>'
+        + '</div>';
+    }).join('');
+    if(!f.corp) bindRowClicks();
+  }
+
+  function bindRowClicks(){
+    Array.prototype.forEach.call(document.querySelectorAll('#boardBody .row[data-player-id]'), function(row){
+      row.addEventListener('click', function(){ openProfileModal(row.dataset.playerId); });
+    });
+  }
+
+  /* ---------- Profil-Popup ---------- */
+  var profileOverlay = document.getElementById('profileOverlay');
+  var profileModalBody = document.getElementById('profileModalBody');
+  document.getElementById('profileCloseBtn').addEventListener('click', closeProfileModal);
+  profileOverlay.addEventListener('click', function(e){ if(e.target === profileOverlay) closeProfileModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeProfileModal(); });
+
+  function closeProfileModal(){ profileOverlay.classList.remove('open'); }
+
+  async function openProfileModal(playerId){
+    profileModalBody.innerHTML = '<div class="profile-loading">Lade Profil …</div>';
+    profileOverlay.classList.add('open');
+    var basic = players[playerId] || {};
+    try{
+      var res = await supabaseClient.schema('platform').rpc('get_public_profile', { p_player_id: playerId });
+      if(res.error) throw res.error;
+      var p = (res.data && res.data[0]) || {};
+      var name = p.username || basic.name || 'Unbenannt';
+      var since = p.member_since ? new Date(p.member_since).toLocaleDateString('de-DE') : '–';
+      var cosmeticLine = '';
+      if(p.active_skin_name){
+        cosmeticLine = '<div class="profile-stat" style="grid-column:1 / -1;">'
+          + '<div class="label">Aktiver Skin</div>'
+          + '<div class="value" style="color:' + (p.active_skin_color || 'inherit') + ';">' + escapeHtml(p.active_skin_name)
+          + (p.active_particle_name ? ' + ' + escapeHtml(p.active_particle_name) : '') + '</div></div>';
+      }
+      var badges = GAMES.map(function(g){
+        var v = (basic.perGame && basic.perGame[g.id]) || 0;
+        if(!v) return '';
+        return '<span class="r-badge" style="border-color:' + g.accent + '55">' + g.label + ' · ' + fmt(v) + '</span>';
+      }).join('');
+      profileModalBody.innerHTML =
+        '<div class="profile-head">'
+        + '<div class="profile-avatar">' + avatarHtml(p.avatar || basic.avatar) + '</div>'
+        + '<div>'
+        + '<div class="profile-name"' + (p.active_skin_color ? ' style="color:' + p.active_skin_color + ';"' : '') + '>' + escapeHtml(name) + '</div>'
+        + (basic.title || p.username ? '<div class="profile-title">' + escapeHtml(basic.title || '') + '</div>' : '')
+        + '</div></div>'
+        + (p.bio ? '<div class="profile-bio">' + escapeHtml(p.bio) + '</div>' : '')
+        + '<div class="profile-stats">'
+        + '<div class="profile-stat"><div class="label">Dabei seit</div><div class="value">' + since + '</div></div>'
+        + '<div class="profile-stat"><div class="label">Gesamtpunkte</div><div class="value">' + fmt(basic.total || 0) + '</div></div>'
+        + '<div class="profile-stat"><div class="label">Nexus-Prestige-Level</div><div class="value">' + (p.nexus_prestige_level != null ? p.nexus_prestige_level : '–') + '</div></div>'
+        + '<div class="profile-stat"><div class="label">Nexus-Prestiges</div><div class="value">' + (p.nexus_prestige_count != null ? p.nexus_prestige_count : '0') + '</div></div>'
+        + cosmeticLine
+        + '</div>'
+        + (badges ? '<div class="profile-badges-title">Punkte pro Spiel</div><div class="r-badges">' + badges + '</div>' : '');
+    }catch(e){
+      profileModalBody.innerHTML = '<div class="profile-err">Profil konnte nicht geladen werden.</div>';
+      console.warn('Profil-Popup Fehler:', e);
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  async function load(){
+    var hint = document.getElementById('boardHint');
+    var body = document.getElementById('boardBody');
+    if(!supabaseClient){
+      hint.textContent = 'nicht verfügbar';
+      body.innerHTML = '<div class="err">Cloud-Verbindung konnte nicht aufgebaut werden.</div>';
+      return;
+    }
+
+    try{
+      var sessionRes = await supabaseClient.auth.getSession();
+      currentUserId = (sessionRes && sessionRes.data && sessionRes.data.session) ? sessionRes.data.session.user.id : null;
+    }catch(e){ /* egal, dann bleibt niemand hervorgehoben */ }
+
+    var res = await supabaseClient.rpc('leaderboard_rows');
+    if(res.error){
+      hint.textContent = 'Fehler';
+      var notFound = /function .*leaderboard_rows.* does not exist|404/i.test(res.error.message || '');
+      body.innerHTML = '<div class="err">'
+        + (notFound
+            ? 'Die Rangliste ist auf Supabase-Seite noch nicht eingerichtet.<br>Einmalig <code>leaderboard_rpc.sql</code> im Supabase-SQL-Editor ausführen, dann lädt diese Seite automatisch.'
+            : 'Rangliste konnte nicht geladen werden: ' + escapeHtml(res.error.message))
+        + '</div>';
+      return;
+    }
+
+    var rows = res.data || [];
+    players = {};
+    rows.forEach(function(row){
+      var game = GAMES.filter(function(g){ return g.match && g.match(row.key); })[0];
+      if(!game) return;
+      var data;
+      try{ data = JSON.parse(row.value); }catch(e){ return; }
+      var pts = 0;
+      try{ pts = game.points(data) || 0; }catch(e){ pts = 0; }
+      if(!players[row.user_id]){
+        players[row.user_id] = { id: row.user_id, name: row.username, avatar: row.avatar, perGame: {}, total: 0 };
+      }
+      var pl = players[row.user_id];
+      if(!pl.name && row.username) pl.name = row.username;
+      if(!pl.avatar && row.avatar) pl.avatar = row.avatar;
+      // pro Spiel zählt der beste Spielstand (falls mehrere Speicherstände existieren)
+      pl.perGame[game.id] = Math.max(pl.perGame[game.id] || 0, pts);
+    });
+    // Nexus liegt nicht in der generischen saves-Tabelle, sondern separat in
+    // platform.wallets -- eigener RPC-Aufruf, gleiche Punkteformel wie
+    // serverseitig platform.nexus_points() (siehe zentrale-bank-Migration).
+    try{
+      var nexusRes = await supabaseClient.schema('platform').rpc('nexus_leaderboard_rows');
+      if(!nexusRes.error){
+        (nexusRes.data || []).forEach(function(row){
+          var pts = Math.round(
+            (Number(row.prestige_points) || 0) * 50
+            + (Number(row.prestige_level) || 0) * 30
+            + (Number(row.lifetime_mined_alltime) || 0) / 50
+          );
+          if(pts <= 0) return;
+          if(!players[row.user_id]){
+            players[row.user_id] = { id: row.user_id, name: row.username, avatar: row.avatar, perGame: {}, total: 0 };
+          }
+          var pl = players[row.user_id];
+          if(!pl.name && row.username) pl.name = row.username;
+          if(!pl.avatar && row.avatar) pl.avatar = row.avatar;
+          pl.perGame.nexus = Math.max(pl.perGame.nexus || 0, pts);
+        });
+      }
+    }catch(e){ /* Nexus-Werte fehlen dann einfach, Rest der Rangliste laeuft weiter */ }
+
+    // Exklusive Titel aus dem Nexus-Kometen-Event (platform.player_active_title,
+    // offene Select-Policy) -- rein kosmetisch, faellt bei Fehlern einfach weg.
+    try{
+      var titlesRes = await supabaseClient.schema('platform').from('player_active_title').select('player_id, title_text');
+      if(!titlesRes.error){
+        (titlesRes.data || []).forEach(function(row){
+          if(players[row.player_id]) players[row.player_id].title = row.title_text;
+        });
+      }
+    }catch(e){ /* Titel sind optional, Rest der Rangliste laeuft weiter */ }
+
+    // CYCLE-/SIGIL-Ranglisten laufen unabhaengig von der Punkte-basierten Auswertung
+    // oben -- eigener RPC, eigene Fehlerbehandlung, damit ein Problem hier nicht die
+    // restliche Rangliste (Gesamt/Aetheris/.../Nexus) mitreisst.
+    await Promise.all(CURRENCY_BOARDS.map(async function(c){
+      try{
+        var res = await supabaseClient.schema('platform').rpc('get_currency_leaderboard', { p_symbol: c.symbol, p_limit: 10 });
+        if(res.error){ currencyBoards[c.id] = null; return; }
+        currencyBoards[c.id] = (res.data || []).map(function(row){
+          return { rank_no: row.rank_no, id: row.user_id, name: row.username, avatar: row.avatar, balance: Number(row.balance) || 0 };
+        });
+      }catch(e){ currencyBoards[c.id] = null; }
+    }));
+
+    // Denkmal-Ranglisten (Prestige-Anzahl, Max. SIGIL/CYCLE je gehalten) --
+    // eigener RPC platform.get_monument_leaderboard(metric, limit), gleiche
+    // Zeilenform wie get_currency_leaderboard, daher gleiche Verarbeitung.
+    await Promise.all(MONUMENT_BOARDS.map(async function(m){
+      try{
+        var res = await supabaseClient.schema('platform').rpc('get_monument_leaderboard', { p_metric: m.metric, p_limit: 10 });
+        if(res.error){ currencyBoards[m.id] = null; return; }
+        currencyBoards[m.id] = (res.data || []).map(function(row){
+          return { rank_no: row.rank_no, id: row.user_id, name: row.username, avatar: row.avatar, balance: Number(row.balance) || 0 };
+        });
+      }catch(e){ currencyBoards[m.id] = null; }
+    }));
+
+    // Foundry-Gründer-Ranglisten (Solo & Corp) -- eigene RPCs mit eigener
+    // Zeilenform (player_id/username bzw. guild_id/guild_name + company_count
+    // + total_value), unabhaengig von den uebrigen Ranglisten geladen.
+    await Promise.all(FOUNDER_BOARDS.map(async function(f){
+      try{
+        var res = f.corp
+          ? await supabaseClient.schema('foundry').rpc('get_corp_founder_leaderboard', { p_limit: 10 })
+          : await supabaseClient.schema('foundry').rpc('get_founder_leaderboard', { p_limit: 10 });
+        if(res.error){ founderBoards[f.id] = null; return; }
+        founderBoards[f.id] = (res.data || []).map(function(row){
+          return f.corp
+            ? { id: row.guild_id, name: row.guild_tag ? (row.guild_tag + ' — ' + row.guild_name) : row.guild_name, company_count: row.company_count, total_value: Number(row.total_value) || 0 }
+            : { id: row.player_id, name: row.username, avatar: players[row.player_id] ? players[row.player_id].avatar : null, company_count: row.company_count, total_value: Number(row.total_value) || 0 };
+        });
+      }catch(e){ founderBoards[f.id] = null; }
+    }));
+
+    Object.keys(players).forEach(function(id){
+      var pl = players[id];
+      pl.total = GAMES.reduce(function(sum, g){ return sum + (pl.perGame[g.id] || 0); }, 0);
+    });
+
+    // Aktive Prestige-Kosmetik (Nexus) fuer alle sichtbaren Spieler auf einmal laden,
+    // damit Namen in der Rangliste den gleichen Skin/Glitzer-Effekt wie im Spiel zeigen.
+    try{
+      var allIds = {};
+      Object.keys(players).forEach(function(id){ allIds[id] = true; });
+      Object.keys(currencyBoards).forEach(function(bid){
+        (currencyBoards[bid] || []).forEach(function(pl){ allIds[pl.id] = true; });
+      });
+      var idList = Object.keys(allIds);
+      if(idList.length){
+        var cosRes = await supabaseClient.schema('platform').rpc('get_active_cosmetics_for_players', { p_player_ids: idList });
+        if(!cosRes.error){
+          playerCosmetics = {};
+          (cosRes.data || []).forEach(function(row){
+            if(!playerCosmetics[row.player_id]) playerCosmetics[row.player_id] = {};
+            if(row.slot === 'rig_skin') playerCosmetics[row.player_id].skinColor = row.color_hex;
+            if(row.slot === 'particle_effect') playerCosmetics[row.player_id].hasFx = true;
+          });
+        }
+      }
+    }catch(e){ /* Kosmetik ist rein optisch, Rest der Rangliste laeuft weiter */ }
+
+    hint.textContent = Object.keys(players).length + ' Spieler';
+    renderBoard();
+  }
+
+  load();
+})();
+</script>
+
+<script>
+  // starfield (identisch zu index.html)
+  (function(){
+    var canvas = document.getElementById('stars');
+    var ctx = canvas.getContext('2d');
+    var stars = [];
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function resize(){
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      var count = Math.floor((canvas.width * canvas.height) / 9000);
+      stars = [];
+      for(var i=0;i<count;i++){
+        stars.push({
+          x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+          r: Math.random()*1.3 + 0.2, a: Math.random()*0.6 + 0.15,
+          tw: Math.random()*0.015 + 0.003, dir: Math.random() > 0.5 ? 1 : -1
+        });
+      }
+    }
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(var i=0;i<stars.length;i++){
+        var s = stars[i];
+        ctx.beginPath();
+        ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle = 'rgba(232,230,227,'+s.a.toFixed(3)+')';
+        ctx.fill();
+        if(!reduceMotion){ s.a += s.tw * s.dir; if(s.a > 0.75 || s.a < 0.1) s.dir *= -1; }
+      }
+      if(!reduceMotion) requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+  })();
+</script>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MC ORCA — SITE-SKIN "DEEP DECK 2600", Bewegungsschicht (v1.0)
+     Rein optisch: Hintergrund-Canvas, CRT-Auflage, Panel-Eckklammern
+     mit zeigerfolgendem Licht, gestaffelter Aufbau, Wert-Impulse.
+     Kein Eingriff in Seiten-Logik. Rueckbau = diesen Block loeschen.
+     ══════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var root   = document.documentElement;
+
+  /* ---------- Mono-Schrift fuer Kennzahlen/Labels nachladen ---------- */
+  try{
+    var fl = document.createElement('link');
+    fl.rel = 'stylesheet';
+    fl.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap';
+    document.head.appendChild(fl);
+  }catch(e){}
+
+  function triplet(name, fallback){
+    var v = getComputedStyle(root).getPropertyValue(name).trim();
+    return /^\d+\s*,\s*\d+\s*,\s*\d+$/.test(v) ? v.replace(/\s+/g,'') : fallback;
+  }
+  var ACC  = triplet('--acc',  '53,228,255');
+  var ACC2 = triplet('--acc2', '255,79,216');
+  function rgba(t,a){ return 'rgba(' + t + ',' + a + ')'; }
+
+  /* ---------- CRT-Auflage ---------- */
+  var crt = document.createElement('div');
+  crt.id = 'ddCrt'; crt.setAttribute('aria-hidden','true');
+  document.body.appendChild(crt);
+
+  /* ---------- Hintergrund: Gitterhorizont, Teilchen, Datenstroeme ---------- */
+  var fx = document.createElement('canvas');
+  fx.id = 'ddFx'; fx.setAttribute('aria-hidden','true');
+  document.body.insertBefore(fx, document.body.firstChild);
+  var ctx = fx.getContext('2d');
+  var W = 0, H = 0, horizon = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var motes = [], streams = [], gridOff = 0;
+
+  function newStream(spread){
+    return { x:Math.random()*W, y: spread ? Math.random()*H : -Math.random()*240,
+             len:Math.random()*130+60, sp:Math.random()*1.5+0.5, a:Math.random()*0.22+0.06 };
+  }
+
+  function build(){
+    W = window.innerWidth; H = window.innerHeight;
+    fx.width = W*dpr; fx.height = H*dpr;
+    fx.style.width = W+'px'; fx.style.height = H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    horizon = H*0.62;
+
+    var n = Math.min(90, Math.round(W*H/24000));
+    motes = [];
+    for (var i=0;i<n;i++){
+      motes.push({ x:Math.random()*W, y:Math.random()*horizon, r:Math.random()*1.6+0.4,
+                   vx:(Math.random()-0.5)*0.14, vy:-(Math.random()*0.16+0.03),
+                   a:Math.random()*0.5+0.12, hot:Math.random()<0.18 });
+    }
+    streams = [];
+    var sc = W < 700 ? 6 : 14;
+    for (var j=0;j<sc;j++) streams.push(newStream(true));
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    var glow = ctx.createLinearGradient(0,horizon-95,0,horizon+10);
+    glow.addColorStop(0, rgba(ACC,0));
+    glow.addColorStop(1, rgba(ACC,0.13));
+    ctx.fillStyle = glow;
+    ctx.fillRect(0,horizon-95,W,105);
+
+    var vpx = W/2;
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = rgba(ACC,0.13);
+    ctx.beginPath();
+    for (var k=-16;k<=16;k++) { ctx.moveTo(vpx,horizon); ctx.lineTo(vpx + k*(W/9), H); }
+    ctx.stroke();
+
+    ctx.beginPath();
+    for (var row=0;row<16;row++){
+      var t = (row+gridOff)/16;
+      var y = horizon + (H-horizon)*t*t;
+      if (y > H) continue;
+      ctx.moveTo(0,y); ctx.lineTo(W,y);
+    }
+    ctx.strokeStyle = rgba(ACC,0.10);
+    ctx.stroke();
+
+    for (var m=0;m<motes.length;m++){
+      var p = motes[m];
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = rgba(p.hot ? ACC2 : ACC, p.a.toFixed(3));
+      ctx.fill();
+      if (!reduce){
+        p.x += p.vx; p.y += p.vy;
+        if (p.y < -6){ p.y = horizon; p.x = Math.random()*W; }
+        if (p.x < -6) p.x = W+6; else if (p.x > W+6) p.x = -6;
+      }
+    }
+
+    for (var s=0;s<streams.length;s++){
+      var st = streams[s];
+      var g = ctx.createLinearGradient(0,st.y,0,st.y+st.len);
+      g.addColorStop(0, rgba(ACC,0));
+      g.addColorStop(0.7, rgba(ACC, st.a.toFixed(3)));
+      g.addColorStop(1, rgba(ACC, Math.min(0.55, st.a*2.4).toFixed(3)));
+      ctx.fillStyle = g;
+      ctx.fillRect(st.x, st.y, 1, st.len);
+      if (!reduce){ st.y += st.sp; if (st.y > H+40) streams[s] = newStream(false); }
+    }
+
+    if (!reduce) gridOff = (gridOff + 0.012) % 1;
+  }
+
+  var last = 0, running = true;
+  function loop(ts){
+    if (running && ts-last > 33){ last = ts; draw(); }
+    if (!reduce) requestAnimationFrame(loop);
+  }
+  document.addEventListener('visibilitychange', function(){ running = !document.hidden; });
+  window.addEventListener('resize', build);
+  build(); draw();
+  if (!reduce) requestAnimationFrame(loop);
+
+  /* ---------- Eckklammern + Lichtreflex in die Platten haengen ---------- */
+  var PANEL_SEL = '.card, .panel, .update-item, .feature, .how-step, .syncbox,'
+                + '.notice, .stats-game, .cosmetic-item, .shot-slot, .video-slot,'
+                + '.sound-player, .demo-panel, .species-card, .danger-card,'
+                + '.stat-tile, .board, .rcard, .nexus-tap,'
+                + 'blockquote.chron, .preview';
+
+  function dressPanels(scope){
+    var list;
+    try{ list = (scope || document).querySelectorAll(PANEL_SEL); }catch(e){ return; }
+    for (var i=0;i<list.length;i++){
+      var el = list[i];
+      if (el.dataset.ddFx) continue;
+      el.dataset.ddFx = '1';
+      el.classList.add('dd-host');
+      var fxEl = document.createElement('i');
+      fxEl.className = 'dd-fx'; fxEl.setAttribute('aria-hidden','true');
+      el.insertBefore(fxEl, el.firstChild);
+    }
+  }
+  dressPanels(document);
+
+  if (!reduce && window.matchMedia('(pointer:fine)').matches){
+    var pending = null;
+    document.addEventListener('pointermove', function(e){
+      var host = e.target && e.target.closest ? e.target.closest('.dd-host') : null;
+      if (!host) return;
+      pending = { el:host, x:e.clientX, y:e.clientY };
+    }, { passive:true });
+    setInterval(function(){
+      if (!pending) return;
+      var r = pending.el.getBoundingClientRect();
+      pending.el.style.setProperty('--dd-mx', (pending.x - r.left) + 'px');
+      pending.el.style.setProperty('--dd-my', (pending.y - r.top) + 'px');
+      pending = null;
+    }, 60);
+  }
+
+  /* ---------- Gestaffelter Aufbau in Rastern ---------- */
+  var GRID_SEL = ['.updates-list','.shot-grid','.games','.features','.how-steps',
+                  '.stats-grid','.cosmetic-list','.sp-list','.flist','.stagelist',
+                  '.avatar-grid','.monument-grid','.board','.chips','.gs-row'];
+
+  var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function(ents){
+    ents.forEach(function(en){
+      if (!en.isIntersecting) return;
+      en.target.classList.add('in');
+      io.unobserve(en.target);
+    });
+  }, { rootMargin:'0px 0px -8% 0px', threshold:0.06 }) : null;
+
+  function rise(scope){
+    if (reduce || !io) return;
+    GRID_SEL.forEach(function(sel){
+      var grids;
+      try{ grids = (scope || document).querySelectorAll(sel); }catch(e){ return; }
+      for (var g=0; g<grids.length; g++){
+        var kids = grids[g].children, n = 0;
+        for (var i=0;i<kids.length;i++){
+          var kid = kids[i];
+          if (kid.dataset.ddRise || kid.classList.contains('reveal') || kid.classList.contains('dd-fx')) continue;
+          kid.dataset.ddRise = '1';
+          kid.classList.add('dd-rise');
+          kid.style.transitionDelay = Math.min(n * 55, 440) + 'ms';
+          io.observe(kid);
+          n++;
+        }
+      }
+    });
+  }
+  rise(document);
+
+  /* Sicherheitsnetz: nichts darf dauerhaft unsichtbar haengen bleiben */
+  function unstick(){
+    document.querySelectorAll('.dd-rise:not(.in), .reveal:not(.in)').forEach(function(el){
+      el.classList.add('in');
+    });
+  }
+  setTimeout(unstick, 3200);
+  window.addEventListener('load', function(){ setTimeout(unstick, 2600); });
+
+  /* Nachgerenderte Inhalte (Ranglisten, Kosmetik-Listen, Sync-Zeilen) mitnehmen */
+  var moTimer = null;
+  new MutationObserver(function(){
+    clearTimeout(moTimer);
+    moTimer = setTimeout(function(){ dressPanels(document); rise(document); setTimeout(unstick, 2600); }, 140);
+  }).observe(document.body, { childList:true, subtree:true });
+
+  /* ---------- Startsequenz: die Seite wird sichtbar "kompiliert" ---------- */
+  if (!reduce){
+    var boot = document.querySelector('.nav');
+    if (boot) boot.classList.add('dd-boot');
+    var hero = document.querySelector('.hero');
+    if (hero){ hero.classList.add('dd-boot'); hero.style.animationDelay = '.08s'; }
+  }
+
+  /* ---------- Zahlen, die sich aendern, blitzen kurz auf ---------- */
+  if (!reduce){
+    var VAL_SEL = '.hero-meta .m .v, .g-meta .m .v, .stat-tile .val, .profile-stat .value,'
+                + '.r-points, .nt-value, .lt-price, .sr-status';
+    var numOf = function(t){
+      var m = String(t).replace(/[^\d,.\-]/g,'').replace(/\./g,'').replace(',','.');
+      var n = parseFloat(m); return isNaN(n) ? null : n;
+    };
+    var seen = new WeakMap();
+    document.querySelectorAll(VAL_SEL).forEach(function(el){ seen.set(el, numOf(el.textContent)); });
+    new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var node = muts[i].target;
+        var el = node.nodeType === 1 ? node : node.parentElement;
+        if (!el || !el.closest) continue;
+        var hit = el.closest(VAL_SEL);
+        if (!hit) continue;
+        var now = numOf(hit.textContent), was = seen.get(hit);
+        seen.set(hit, now);
+        if (was === undefined || now === null || was === null || now === was) continue;
+        hit.classList.remove('dd-flash'); void hit.offsetWidth; hit.classList.add('dd-flash');
+        setTimeout(function(e){ return function(){ e.classList.remove('dd-flash'); }; }(hit), 700);
+      }
+    }).observe(document.body, { childList:true, characterData:true, subtree:true });
+  }
+})();
+</script>
+<!-- ══════════════ Ende SITE-SKIN "DEEP DECK 2600" (Bewegungsschicht) ══════════════ -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MC ORCA — SITE-SKIN "DEEP DECK 2600", Ausbaustufe (v1.1)
+     Zeichenregen, Umgebungslicht am Zeiger, Fortschrittsstrahl,
+     Boot-Sequenz, Panel-Scanner, Abschnittsnummern, Klick-Impuls.
+     Setzt auf den v1.0-Block auf; eigenstaendig loeschbar.
+     ══════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var root = document.documentElement;
+
+  function triplet(name, fb){
+    var v = getComputedStyle(root).getPropertyValue(name).trim();
+    return /^\d+\s*,\s*\d+\s*,\s*\d+$/.test(v) ? v.replace(/\s+/g,'') : fb;
+  }
+  var ACC  = triplet('--acc',  '53,228,255');
+  var ACC2 = triplet('--acc2', '255,79,216');
+
+  /* ---------- Boot-Sequenz (einmal pro Seitenaufruf) ---------- */
+  if (!reduce){
+    var boot = document.createElement('div');
+    boot.id = 'ddBoot'; boot.setAttribute('aria-hidden','true');
+    boot.innerHTML = '<div class="bl">DECK ONLINE</div>';
+    document.body.appendChild(boot);
+    setTimeout(function(){ if (boot.parentNode) boot.parentNode.removeChild(boot); }, 1700);
+  }
+
+  /* ---------- Fortschrittsstrahl ---------- */
+  var beam = document.createElement('div');
+  beam.id = 'ddBeam'; beam.setAttribute('aria-hidden','true');
+  document.body.appendChild(beam);
+  var beamTick = false;
+  function updateBeam(){
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    var p = h > 0 ? (window.scrollY / h) * 100 : 0;
+    beam.style.width = Math.max(0, Math.min(100, p)) + '%';
+    beamTick = false;
+  }
+  window.addEventListener('scroll', function(){
+    if (beamTick) return; beamTick = true; requestAnimationFrame(updateBeam);
+  }, { passive:true });
+  window.addEventListener('resize', updateBeam);
+  updateBeam();
+
+  /* ---------- Umgebungslicht folgt dem Zeiger ---------- */
+  if (!reduce && window.matchMedia('(pointer:fine)').matches){
+    var aura = document.createElement('div');
+    aura.id = 'ddAura'; aura.setAttribute('aria-hidden','true');
+    document.body.insertBefore(aura, document.body.firstChild);
+    var ax = 0, ay = 0, auraTick = false;
+    document.addEventListener('pointermove', function(e){
+      ax = e.clientX; ay = e.clientY;
+      if (auraTick) return; auraTick = true;
+      requestAnimationFrame(function(){
+        aura.style.setProperty('--dd-ax', ax + 'px');
+        aura.style.setProperty('--dd-ay', ay + 'px');
+        auraTick = false;
+      });
+    }, { passive:true });
+  }
+
+  /* ---------- Zeichenregen: schmale Datenspalten im Hintergrund ---------- */
+  if (!reduce){
+    var rc = document.createElement('canvas');
+    rc.id = 'ddRain'; rc.setAttribute('aria-hidden','true');
+    document.body.insertBefore(rc, document.body.firstChild);
+    var rx = rc.getContext('2d');
+    var GLYPH = '0123456789ABCDEFGHJKLMNPRSTUVWXZ/\\|<>[]{}=+*#%$&@';
+    var cols = [], RW = 0, RH = 0, RD = Math.min(window.devicePixelRatio || 1, 2);
+    var STEP = 16;
+
+    function rbuild(){
+      RW = window.innerWidth; RH = window.innerHeight;
+      rc.width = RW * RD; rc.height = RH * RD;
+      rc.style.width = RW + 'px'; rc.style.height = RH + 'px';
+      rx.setTransform(RD, 0, 0, RD, 0, 0);
+      var n = Math.max(6, Math.min(26, Math.round(RW / 90)));
+      cols = [];
+      for (var i = 0; i < n; i++){
+        cols.push({
+          x: Math.round(Math.random() * (RW - 20)) + 10,
+          y: Math.random() * RH,
+          sp: 0.5 + Math.random() * 1.5,
+          len: 6 + Math.floor(Math.random() * 12),
+          hot: Math.random() < 0.22,
+          a: 0.08 + Math.random() * 0.16
+        });
+      }
+    }
+    function rdraw(){
+      rx.clearRect(0, 0, RW, RH);
+      rx.font = '11px ui-monospace, Menlo, Consolas, monospace';
+      rx.textBaseline = 'top';
+      for (var i = 0; i < cols.length; i++){
+        var c = cols[i], base = c.hot ? ACC2 : ACC;
+        for (var k = 0; k < c.len; k++){
+          var y = c.y - k * STEP;
+          if (y < -STEP || y > RH) continue;
+          var fade = c.a * (1 - k / c.len);
+          rx.fillStyle = 'rgba(' + base + ',' + (k === 0 ? Math.min(0.75, c.a * 4) : fade).toFixed(3) + ')';
+          rx.fillText(GLYPH[(Math.random() * GLYPH.length) | 0], c.x, y);
+        }
+        c.y += c.sp;
+        if (c.y - c.len * STEP > RH){
+          c.y = -Math.random() * 200;
+          c.x = Math.round(Math.random() * (RW - 20)) + 10;
+          c.hot = Math.random() < 0.22;
+        }
+      }
+    }
+    var rlast = 0, rrun = true;
+    function rloop(ts){
+      if (rrun && ts - rlast > 90){ rlast = ts; rdraw(); }
+      requestAnimationFrame(rloop);
+    }
+    document.addEventListener('visibilitychange', function(){ rrun = !document.hidden; });
+    window.addEventListener('resize', rbuild);
+    rbuild(); rdraw(); requestAnimationFrame(rloop);
+  }
+
+  /* ---------- Panel-Scanner in die vorhandene Effekt-Ebene haengen ---------- */
+  function addScanners(){
+    var list = document.querySelectorAll('.dd-fx');
+    for (var i = 0; i < list.length; i++){
+      if (list[i].firstChild) continue;
+      var sc = document.createElement('span');
+      sc.className = 'dd-scan';
+      list[i].appendChild(sc);
+    }
+  }
+  addScanners();
+
+  /* ---------- Abschnitte durchnummerieren ---------- */
+  function numberSections(){
+    var secs = document.querySelectorAll('.sec');
+    for (var i = 0; i < secs.length; i++){
+      if (secs[i].dataset.ddIdx) continue;
+      secs[i].dataset.ddIdx = (i + 1 < 10 ? '0' : '') + (i + 1);
+    }
+  }
+  numberSections();
+
+  var t = null;
+  new MutationObserver(function(){
+    clearTimeout(t);
+    t = setTimeout(function(){ addScanners(); numberSections(); }, 220);
+  }).observe(document.body, { childList:true, subtree:true });
+
+  /* ---------- Abschnitte beim Scrollen markieren (Unterstrich faehrt aus) ---------- */
+  if ('IntersectionObserver' in window){
+    var sio = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){
+        if (en.isIntersecting){ en.target.classList.add('in'); sio.unobserve(en.target); }
+      });
+    }, { threshold:0.12 });
+    document.querySelectorAll('.sec').forEach(function(el){ sio.observe(el); });
+  }
+
+  /* ---------- Klick-Impuls auf Schaltflaechen ---------- */
+  if (!reduce){
+    document.addEventListener('pointerdown', function(e){
+      var b = e.target && e.target.closest
+        ? e.target.closest('.btn, .g-btn, .nav-cta, .acct-btn, .cta, .cosmetic-btn, .cat-tab, .demo-tab, .sp-tab, .burger-btn')
+        : null;
+      if (!b) return;
+      b.classList.remove('dd-hit'); void b.offsetWidth; b.classList.add('dd-hit');
+      setTimeout(function(){ b.classList.remove('dd-hit'); }, 420);
+    }, { passive:true });
+  }
+})();
+</script>
+<!-- ═══════════ Ende SITE-SKIN "DEEP DECK 2600" v1.1 (Bewegungsschicht) ═══════════ -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     MC ORCA — ORCA-LINK v1.0 (Skin-Sync + Hub-Dock)
+     Holt die im Profil ausgeruesteten Kosmetik-Items und faerbt damit
+     JEDE Seite ueber --acc / --acc2 um (daran haengt der komplette
+     DEEP-DECK-Skin). Laeuft ohne supabase-js: liest das Auth-Token aus
+     dem localStorage und spricht PostgREST direkt an. Ergebnis wird
+     zwischengespeichert, damit beim naechsten Seitenaufruf nichts blitzt.
+     Rueckbau = diesen Block und den gleichnamigen CSS-Block loeschen.
+     ══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+  if (window.__orcaLink) return; window.__orcaLink = true;
+
+  var URL_  = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var REF   = 'iuvckfoikhifywayuwkj';
+  var KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  var CACHE = 'mog.orcalink.v1';
+  var PREFIX = '';
+  var root  = document.documentElement;
+
+  /* ---------- kleine Helfer ---------- */
+  function rgbTriple(hex){
+    if(!hex) return null;
+    var h = String(hex).trim().replace('#','');
+    if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    if(!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16);
+  }
+  function hslTriple(h,s,l){
+    h=((h%360)+360)%360; s/=100; l/=100;
+    var c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2, r,g,b;
+    if(h<60){r=c;g=x;b=0;} else if(h<120){r=x;g=c;b=0;} else if(h<180){r=0;g=c;b=x;}
+    else if(h<240){r=0;g=x;b=c;} else if(h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}
+    return Math.round((r+m)*255)+','+Math.round((g+m)*255)+','+Math.round((b+m)*255);
+  }
+  function body(){ return document.body || document.documentElement; }
+
+  /* ---------- Anwenden ---------- */
+  var prismTimer = null;
+  var cursorState = null;
+
+  function applyTheme(rows){
+    rows = rows || [];
+    var byslot = {};
+    rows.forEach(function(r){ if(r && r.slot) byslot[r.slot] = r; });
+
+    /* Farbwelt: page_theme schlaegt den Monats-/Kometen-Skin. */
+    var theme = byslot['page_theme'] || null;
+    var fallback = byslot['rig_skin'] || byslot['month_skin'] || null;
+
+    if(prismTimer){ clearInterval(prismTimer); prismTimer = null; }
+
+    if(theme){
+      var a1 = rgbTriple(theme.color_hex), a2 = rgbTriple(theme.color_hex2);
+      if(a1){
+        root.style.setProperty('--acc', a1);
+        root.style.setProperty('--blue', theme.color_hex);
+        root.style.setProperty('--cc', theme.color_hex);
+      }
+      if(a2) root.style.setProperty('--acc2', theme.color_hex2 ? a2 : null);
+      root.setAttribute('data-orca-theme', theme.name || '');
+
+      if(theme.effect_key === 'prism_shift'){
+        var hue = (Date.now()/120) % 360;
+        prismTimer = setInterval(function(){
+          hue = (hue + 0.55) % 360;
+          root.style.setProperty('--acc',  hslTriple(hue, 92, 64));
+          root.style.setProperty('--acc2', hslTriple(hue + 148, 88, 62));
+        }, 110);
+      }
+    } else if(fallback && fallback.color_hex){
+      /* Kein eigener Farbweltkauf: der Rig-/Monats-Skin faerbt weiter mit,
+         aber nur den Hauptakzent -- die Hausfarbe des Spiels als Gegenfarbe
+         bleibt damit erhalten. */
+      var f = rgbTriple(fallback.color_hex);
+      if(f){
+        root.style.setProperty('--acc', f);
+        root.style.setProperty('--blue', fallback.color_hex);
+        root.style.setProperty('--cc', fallback.color_hex);
+      }
+    } else {
+      root.style.removeProperty('--acc');
+      root.style.removeProperty('--acc2');
+      root.style.removeProperty('--blue');
+      root.style.removeProperty('--cc');
+      root.removeAttribute('data-orca-theme');
+    }
+
+    var b = body();
+    ['frame','nameplate','badge','cursor_fx'].forEach(function(slot){
+      var attr = 'data-ofx-' + (slot === 'cursor_fx' ? 'cursor' : slot);
+      var it = byslot[slot];
+      if(it && it.effect_key) b.setAttribute(attr, it.effect_key);
+      else b.removeAttribute(attr);
+    });
+
+    decorate();
+    setupCursor(byslot['cursor_fx'] ? byslot['cursor_fx'].effect_key : null);
+    try{ window.dispatchEvent(new CustomEvent('orca-theme', { detail:{ slots:byslot } })); }catch(e){}
+  }
+
+  /* ---------- Rahmen/Name/Abzeichen an die vorhandenen Elemente haengen ---------- */
+  var AVATAR_SEL = ['.pv-avatar', '#cloudUserAvatar', '.acct-avatar',
+                    '.row.me .r-avatar', '.lb-row.me .lb-avatar', '.orca-my-avatar'];
+  var NAME_SEL   = ['.pv-name', '#cloudUserName', '.row.me .r-name',
+                    '.lb-row.me .lb-name', '.orca-my-name'];
+
+  function decorate(){
+    var b = body();
+    var hasFrame = b.hasAttribute('data-ofx-frame');
+    var hasBadge = b.hasAttribute('data-ofx-badge');
+
+    AVATAR_SEL.forEach(function(sel){
+      var nodes;
+      try{ nodes = document.querySelectorAll(sel); }catch(e){ return; }
+      Array.prototype.forEach.call(nodes, function(el){
+        el.classList.add('ofx-host');
+        var ring = el.querySelector(':scope > .ofx-ring');
+        if(hasFrame && !ring){
+          ring = document.createElement('i');
+          ring.className = 'ofx-ring';
+          ring.setAttribute('aria-hidden','true');
+          el.appendChild(ring);
+        } else if(!hasFrame && ring){ ring.remove(); }
+      });
+    });
+
+    NAME_SEL.forEach(function(sel){
+      var nodes;
+      try{ nodes = document.querySelectorAll(sel); }catch(e){ return; }
+      Array.prototype.forEach.call(nodes, function(el){
+        el.classList.add('ofx-name');
+        var bd = el.querySelector(':scope > .ofx-badge');
+        if(hasBadge && !bd){
+          bd = document.createElement('i');
+          bd.className = 'ofx-badge';
+          bd.setAttribute('aria-hidden','true');
+          el.appendChild(bd);
+        } else if(!hasBadge && bd){ bd.remove(); }
+      });
+    });
+  }
+  window.orcaDecorate = decorate;
+
+  /* ---------- Zeiger-Effekt ---------- */
+  function setupCursor(kind){
+    if(cursorState){ cursorState.stop(); cursorState = null; }
+    if(!kind) return;
+    if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if(window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+
+    var cv = document.getElementById('ofxCursor');
+    if(!cv){
+      cv = document.createElement('canvas'); cv.id = 'ofxCursor';
+      body().appendChild(cv);
+    }
+    var ctx = cv.getContext('2d'), parts = [], raf = 0, alive = true, last = {x:-999,y:-999};
+    function size(){
+      var d = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = innerWidth * d; cv.height = innerHeight * d;
+      cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
+      ctx.setTransform(d,0,0,d,0,0);
+    }
+    size();
+    function acc(){
+      var v = getComputedStyle(root).getPropertyValue('--acc').trim() || '255,206,69';
+      return v;
+    }
+    function onMove(e){
+      last.x = e.clientX; last.y = e.clientY;
+      var n = kind === 'stardust' ? 2 : 1;
+      for(var i=0;i<n;i++){
+        parts.push({
+          x:e.clientX + (Math.random()-0.5)*6,
+          y:e.clientY + (Math.random()-0.5)*6,
+          vx:(Math.random()-0.5)*(kind==='stardust'?0.7:0.25),
+          vy:kind==='stardust' ? (0.25+Math.random()*0.8) : (Math.random()-0.5)*0.25,
+          life:1, r: kind==='stardust' ? (0.7+Math.random()*1.5) : (1.2+Math.random()*1.8)
+        });
+      }
+      if(parts.length > 260) parts.splice(0, parts.length - 260);
+    }
+    function tick(){
+      if(!alive) return;
+      ctx.clearRect(0,0,innerWidth,innerHeight);
+      var c = acc();
+      for(var i=parts.length-1;i>=0;i--){
+        var p = parts[i];
+        p.x += p.vx; p.y += p.vy; p.life -= kind==='stardust' ? 0.016 : 0.034;
+        if(p.life <= 0){ parts.splice(i,1); continue; }
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba('+c+','+(p.life*0.85).toFixed(3)+')';
+        ctx.arc(p.x, p.y, p.r*p.life + 0.2, 0, 6.283);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    addEventListener('mousemove', onMove, {passive:true});
+    addEventListener('resize', size);
+    raf = requestAnimationFrame(tick);
+    cursorState = { stop:function(){
+      alive = false; cancelAnimationFrame(raf);
+      removeEventListener('mousemove', onMove); removeEventListener('resize', size);
+      if(cv && cv.parentNode) cv.parentNode.removeChild(cv);
+    }};
+  }
+
+  /* ---------- Laden: erst Cache, dann Netz ---------- */
+  function readCache(){
+    try{
+      var raw = localStorage.getItem(CACHE); if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(!o || !o.t || (Date.now() - o.t) > 30*864e5) return null;
+      return o;
+    }catch(e){ return null; }
+  }
+  function token(){
+    try{
+      var raw = localStorage.getItem('sb-'+REF+'-auth-token');
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      return (o && (o.access_token || (o.currentSession && o.currentSession.access_token))) || null;
+    }catch(e){ return null; }
+  }
+
+  var cached = readCache();
+  if(cached) applyTheme(cached.rows);
+
+  function refresh(){
+    var tok = token();
+    if(!tok){
+      if(cached){ try{ localStorage.removeItem(CACHE); }catch(e){} cached = null; applyTheme([]); }
+      return;
+    }
+    fetch(URL_ + '/rest/v1/rpc/get_my_active_theme', {
+      method:'POST',
+      headers:{ 'apikey':KEY, 'Authorization':'Bearer '+tok, 'Content-Type':'application/json',
+                'Accept-Profile':'platform', 'Content-Profile':'platform' },
+      body:'{}'
+    }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(rows){
+        if(!rows) return;
+        try{ localStorage.setItem(CACHE, JSON.stringify({ t:Date.now(), rows:rows })); }catch(e){}
+        applyTheme(rows);
+      }).catch(function(){});
+  }
+  window.orcaRefreshTheme = refresh;
+
+  /* ---------- Hub-Dock ---------- */
+  var GAMES = [
+    ['Aetheris','aetheris/game.html'], ['Astrion','astrion/game.html'],
+    ['Deep Anchor','deepanchor/game.html'], ['Path of the Stars','pathofthestars/game.html'],
+    ['NEXUS','nexus/game.html'], ['Nexus Singularity','nexus/nexus_singularity/game.html'],
+    ['FOUNDRY','foundry/game.html'], ['Domus Prime','domus-prime/game.html']
+  ];
+  function buildDock(){
+    if(document.getElementById('ofxDock')) return;
+    var d = document.createElement('div'); d.id = 'ofxDock';
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'ofx-dock-btn';
+    btn.setAttribute('aria-expanded','false');
+    btn.innerHTML = '<span class="ofx-dot"></span><span>HUB</span>';
+    var panel = document.createElement('div');
+    panel.className = 'ofx-dock-panel';
+    var html = '<div class="ofx-lbl">Navigation</div>'
+      + '<a class="ofx-home" href="'+PREFIX+'index.html">← Zurück zum Hub</a>'
+      + '<a href="'+PREFIX+'profil.html">Profil &amp; Skins</a>'
+      + '<a href="'+PREFIX+'raenge.html">Ränge</a>'
+      + '<a href="'+PREFIX+'uhr.html">Sternzeit</a>'
+      + '<div class="ofx-lbl">Spiele</div>';
+    var here = location.pathname;
+    GAMES.forEach(function(g){
+      if(here.indexOf('/'+g[1].split('/')[0]+'/') !== -1 && here.indexOf(g[1].split('/').pop()) !== -1) return;
+      html += '<a href="'+PREFIX+g[1]+'">'+g[0]+'</a>';
+    });
+    panel.innerHTML = html;
+    d.appendChild(panel); d.appendChild(btn);
+    body().appendChild(d);
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var open = panel.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function(e){
+      if(!d.contains(e.target)) panel.classList.remove('open');
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') panel.classList.remove('open');
+    });
+  }
+
+  function boot(){
+    if(false) buildDock();
+    decorate();
+    refresh();
+    /* Listen, die erst spaeter gerendert werden (Rangliste, Profil), nachdekorieren. */
+    var t = 0;
+    var mo = new MutationObserver(function(){
+      clearTimeout(t); t = setTimeout(decorate, 120);
+    });
+    try{ mo.observe(document.body, { childList:true, subtree:true }); }catch(e){}
+    setInterval(refresh, 180000);
+    addEventListener('focus', refresh);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<!-- ══════════════════ Ende ORCA-LINK v1.0 (Skin-Sync + Hub-Dock) ══════════════════ -->
+
+
+<!-- ══════════════ RÄNGE — Podium, Suche, Sprungmarke (additiv, v1.0) ══════════════ -->
+<script>
+(function(){
+  'use strict';
+  var body   = document.getElementById('boardBody');
+  var podium = document.getElementById('lbPodium');
+  var search = document.getElementById('lbSearch');
+  var jump   = document.getElementById('lbJump');
+  var count  = document.getElementById('lbCount');
+  if(!body || !podium) return;
+
+  function rows(){ return Array.prototype.slice.call(body.querySelectorAll('.row')); }
+  function txt(el, sel){ var n = el.querySelector(sel); return n ? n.textContent.trim() : ''; }
+
+  /* ---------- Podium aus den ersten drei gerenderten Zeilen ---------- */
+  function buildPodium(){
+    var rs = rows();
+    if(rs.length < 3){ podium.hidden = true; podium.innerHTML = ''; return; }
+    var top = rs.slice(0, 3);
+    /* Anzeigereihenfolge: 2. links, 1. Mitte, 3. rechts */
+    var order = [ {r:top[1], cls:'p2', n:'2'}, {r:top[0], cls:'p1', n:'1'}, {r:top[2], cls:'p3', n:'3'} ];
+    podium.innerHTML = order.map(function(o){
+      var av  = o.r.querySelector('.r-avatar');
+      var pts = o.r.querySelector('.r-points');
+      var unit = pts && pts.querySelector('.u') ? pts.querySelector('.u').textContent.trim() : '';
+      var val  = pts ? pts.textContent.replace(unit, '').trim() : '';
+      var isMe = o.r.classList.contains('me');
+      return '<div class="pod ' + o.cls + (isMe ? ' is-me' : '') + '">'
+        + '<div class="pod-rank">PLATZ ' + o.n + '</div>'
+        + '<div class="pod-av">' + (av ? av.innerHTML : '') + '</div>'
+        + '<div class="pod-name">' + txt(o.r, '.r-name') + '</div>'
+        + '<div class="pod-pts">' + val + '<small>' + unit + '</small></div>'
+        + (isMe ? '<div class="pod-me">das bist du</div>' : '')
+        + '</div>';
+    }).join('');
+    podium.hidden = false;
+  }
+
+  /* ---------- Suche ---------- */
+  function applyFilter(){
+    var q = (search.value || '').trim().toLowerCase();
+    var rs = rows(), shown = 0;
+    rs.forEach(function(r){
+      var name = txt(r, '.r-name').toLowerCase();
+      var hit = !q || name.indexOf(q) !== -1;
+      r.classList.toggle('lb-hidden', !hit);
+      if(hit) shown++;
+    });
+    if(q) count.textContent = shown + ' von ' + rs.length + ' Spielern';
+    else  count.textContent = rs.length ? rs.length + ' Spieler in dieser Wertung' : '';
+    podium.hidden = !!q || rs.length < 3;
+  }
+
+  /* ---------- Sprung zum eigenen Platz ---------- */
+  function updateJump(){
+    var me = body.querySelector('.row.me');
+    jump.hidden = !me;
+  }
+  jump.addEventListener('click', function(){
+    var me = body.querySelector('.row.me');
+    if(!me) return;
+    me.scrollIntoView({ behavior:'smooth', block:'center' });
+    me.classList.remove('lb-flash');
+    void me.offsetWidth;
+    me.classList.add('lb-flash');
+  });
+  search.addEventListener('input', applyFilter);
+
+  function refresh(){ buildPodium(); applyFilter(); updateJump(); }
+
+  var t = 0;
+  new MutationObserver(function(){
+    clearTimeout(t); t = setTimeout(refresh, 90);
+  }).observe(body, { childList:true, subtree:true });
+
+  refresh();
+})();
+</script>
+<!-- ════════════════════════ Ende RÄNGE-Ausbau ════════════════════════ -->
+
+</body>
+</html>

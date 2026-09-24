@@ -1,0 +1,3086 @@
+<!--
+  SKIN "DEEP DECK 2600" fuer NEXUS SINGULARITY (Optik-Update):
+  Zwei ergaenzte Bloecke -- ein CSS-Block am Ende des <style> und ein
+  Script-Block am Ende des <body>. Reine Optik, keine Logikaenderung;
+  beide Bloecke sind ersatzlos loeschbar. prefers-reduced-motion schaltet
+  saemtliche Bewegung ab.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Nexus Singularity — v0.2</title>
+<style>
+  :root{
+    --bg:#05060a;
+    --fg:#e8e6e3;
+    --dim:#7a8290;
+    --accent:#7f5cff;
+    --accent2:#33e0ff;
+    --warn:#ff5c5c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100%;}
+  #stage{position:relative;width:100vw;height:100vh;}
+  canvas{position:absolute;inset:0;display:block;}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .08s ease-out;}
+
+  .hud{position:absolute;z-index:5;}
+  #title{top:76px;left:24px;font-size:13px;letter-spacing:3px;color:var(--dim);text-transform:uppercase;}
+  #title b{color:var(--fg);letter-spacing:1px;}
+  #title .ver{color:var(--accent2);font-size:10px;margin-left:6px;}
+
+  #readout{top:76px;right:24px;text-align:right;}
+  #stageLabel{font-size:22px;font-weight:700;letter-spacing:1px;transition:color .4s;}
+  #pctLabel{font-size:13px;color:var(--dim);margin-top:2px;}
+  #tierLabel{font-size:12px;color:var(--accent2);margin-top:6px;letter-spacing:1px;}
+  #pathLabel{font-size:11px;color:var(--dim);margin-top:2px;}
+  #pathLabel b{color:var(--fg);}
+  #needLabel{font-size:11px;color:var(--dim);margin-top:2px;}
+  #unclaimedLabel{font-size:11px;color:var(--warn);margin-top:2px;min-height:14px;}
+  #observerLabel{font-size:11px;color:var(--dim);margin-top:6px;display:none;}
+  #observerLabel .bar{display:inline-block;width:70px;height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;vertical-align:middle;margin-left:6px;}
+  #observerLabel .fill{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--warn));transition:width .3s;}
+
+  /* ---- Beobachter-Event-Toast ---- */
+  #eventToast{
+    position:absolute;top:126px;left:50%;transform:translateX(-50%) translateY(-8px);
+    z-index:8;max-width:min(420px, 86vw);
+    background:rgba(10,11,16,0.92);border:1px solid rgba(255,255,255,0.14);
+    border-radius:12px;padding:12px 16px;backdrop-filter:blur(8px);
+    font-size:12px;line-height:1.5;opacity:0;pointer-events:none;
+    transition:opacity .35s ease,transform .35s ease;
+  }
+  #eventToast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #eventToast.sabotage{border-color:rgba(255,92,92,0.5);}
+  #eventToast .kind{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
+  #eventToast.sabotage .kind{color:var(--warn);}
+  #eventToast.observation .kind{color:var(--accent2);}
+  #eventToast.clash_won{border-color:rgba(255,213,74,0.55);}
+  #eventToast.clash_won .kind{color:var(--rival2, #ffd54a);}
+  #eventToast.clash_lost{border-color:rgba(255,92,140,0.55);}
+  #eventToast.clash_lost .kind{color:#ff5c8c;}
+  #eventToast.awakening{border-color:rgba(255,213,74,0.8);}
+  #eventToast.awakening .kind{color:#ffd54a;}
+  #eventToast.rival_ascension{border-color:rgba(255,92,140,0.8);}
+  #eventToast.rival_ascension .kind{color:#ff5c8c;}
+
+  /* ---- Event-Log-Panel ---- */
+  #eventLogPanel{
+    position:absolute;z-index:6;left:24px;top:146px;
+    width:min(300px, 80vw);max-height:min(320px, 50vh);overflow-y:auto;
+    background:rgba(10,11,16,0.9);border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px;padding:12px 14px;backdrop-filter:blur(8px);
+    font-size:11px;color:var(--dim);
+  }
+  #eventLogPanel h4{margin:0 0 8px;font-size:11px;letter-spacing:1px;color:var(--fg);text-transform:uppercase;}
+  #eventLogPanel .entry{padding:6px 0;border-top:1px solid rgba(255,255,255,0.06);}
+  #eventLogPanel .entry:first-child{border-top:none;}
+  #eventLogPanel .entry .tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-right:6px;}
+  #eventLogPanel .entry.sabotage .tag{color:var(--warn);}
+  #eventLogPanel .entry.observation .tag{color:var(--accent2);}
+  #eventLogPanel .entry.clash_won .tag{color:#ffd54a;}
+  #eventLogPanel .entry.clash_lost .tag{color:#ff5c8c;}
+  #eventLogPanel .entry.awakening .tag{color:#ffd54a;}
+  #eventLogPanel .entry.rival_ascension .tag{color:#ff5c8c;}
+  #eventLogPanel .entry .time{float:right;font-size:9px;color:var(--dim);}
+  #eventLogPanel .empty{color:var(--dim);font-style:italic;}
+
+  #tierBadge{top:116px;left:24px;font-size:12px;color:var(--accent2);opacity:0;transition:opacity .5s;}
+
+  /* ---- Fabrik-Panel ---- */
+  #factoryPanel{
+    right:24px;top:146px;
+    width:min(320px, 88vw);max-height:min(560px, 76vh);
+    display:flex;flex-direction:column;
+    background:rgba(8,9,13,0.97);border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px;padding:14px 16px;backdrop-filter:blur(8px);
+    font-size:12px;color:var(--dim);
+  }
+  #factoryPanel h4{margin:0 0 4px;font-size:11px;letter-spacing:1px;color:var(--fg);text-transform:uppercase;flex-shrink:0;}
+  #factoryBalance{font-size:11px;color:var(--accent2);margin-bottom:6px;flex-shrink:0;}
+  #factoryScroll{
+    overflow-y:auto;flex:1;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;
+  }
+  #factoryScroll::-webkit-scrollbar{width:5px;}
+  #factoryScroll::-webkit-scrollbar-track{background:transparent;}
+  #factoryScroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px;}
+  #factoryScroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.28);}
+  .factory-row{padding:10px 0;border-top:1px solid rgba(255,255,255,0.08);}
+  .factory-row:first-child{border-top:none;}
+  .factory-row .frow-top{display:flex;justify-content:space-between;align-items:baseline;}
+  .factory-row .fname{color:var(--fg);font-weight:600;font-size:12.5px;}
+  .factory-row .flevel{color:var(--accent2);font-size:11px;}
+  .factory-row .fmeta{font-size:10.5px;color:var(--dim);margin-top:2px;}
+  .factory-row button{width:100%;margin-top:6px;padding:6px 0;font-size:11px;}
+  .factory-row button.affordable{border-color:var(--accent2);color:var(--accent2);}
+  #stockGrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);font-size:10.5px;flex-shrink:0;}
+  #stockGrid .sitem{display:flex;justify-content:space-between;}
+  #stockGrid .sitem .sname{color:var(--dim);}
+  #stockGrid .sitem .samt{color:var(--fg);}
+  #factoryUnclaimed{font-size:10.5px;color:var(--warn);margin-top:6px;min-height:12px;flex-shrink:0;}
+
+  #controls{
+    bottom:22px;left:50%;transform:translateX(-50%);
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    width:min(560px, 92vw);
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.08);
+    padding:14px 20px;border-radius:16px;
+    backdrop-filter:blur(6px);
+  }
+  #controls .row{display:flex;align-items:center;gap:12px;width:100%;}
+  #growthBar{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;position:relative;}
+  #growthFill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .2s;}
+  .btnrow{display:flex;gap:8px;}
+  button{
+    font-family:inherit;font-size:12px;font-weight:600;letter-spacing:.5px;
+    background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
+    color:var(--fg);padding:8px 16px;border-radius:10px;cursor:pointer;
+    transition:.15s;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent2);}
+  button:disabled{opacity:.4;cursor:default;}
+  button.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  #infoBtn{
+    width:20px;height:20px;border-radius:50%;flex-shrink:0;
+    background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);
+    color:var(--dim);font-size:11px;font-weight:700;font-family:inherit;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+  }
+  #infoBtn:hover{border-color:var(--accent2);color:var(--accent2);}
+  #infoTip{
+    position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%) translateY(6px);
+    width:min(320px, 86vw);
+    background:rgba(10,11,16,0.96);border:1px solid rgba(255,255,255,0.14);
+    border-radius:10px;padding:10px 14px;backdrop-filter:blur(8px);
+    font-size:11px;line-height:1.5;color:var(--dim);text-align:center;
+    opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;
+  }
+  #infoTip.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
+
+  /* ---- Ressourcenleiste (feste erste Zeile in #controls, immer sichtbar) ---- */
+  #resourceBar{
+    display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;
+  }
+  .res-chip{
+    display:flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+    border-radius:999px;padding:5px 10px;font-size:11px;color:var(--fg);
+  }
+  .res-chip .icon{font-size:12px;}
+  .res-chip .amt{font-variant-numeric:tabular-nums;}
+  .res-chip.nrc{border-color:rgba(255,213,74,0.4);color:#ffd54a;}
+
+  /* ---- Login-Overlay ---- */
+  #loginOverlay{
+    position:absolute;inset:0;z-index:20;
+    background:rgba(5,6,10,0.92);
+    display:flex;align-items:center;justify-content:center;
+  }
+  #loginBox{
+    width:min(360px, 88vw);
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+    border-radius:16px;padding:26px 24px;backdrop-filter:blur(8px);
+  }
+  #loginBox .lb-logo{ display:block; margin:0 auto 14px; max-width:220px; width:100%; height:auto; filter:drop-shadow(0 0 24px rgba(127,92,255,0.35)); }
+  #loginBox .lb-logo.hidden{ display:none; }
+  #loginBox h2{margin:0 0 4px;font-size:16px;letter-spacing:1px;}
+  #loginBox p{margin:0 0 16px;font-size:12px;color:var(--dim);}
+  #loginBox input{
+    width:100%;padding:10px 12px;margin-bottom:8px;border-radius:8px;
+    border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);
+    color:var(--fg);font-family:inherit;font-size:13px;
+  }
+  #loginBox .btn-block{width:100%;margin-top:4px;}
+  #loginMsg{font-size:11px;margin-top:10px;min-height:14px;}
+  .hidden{display:none !important;}
+  #orDivider{text-align:center;font-size:10px;color:var(--dim);margin:14px 0;letter-spacing:1px;}
+
+  /* ---- Divergenz-Pfad-Overlay ---- */
+  #pathOverlay{
+    position:absolute;inset:0;z-index:15;
+    background:rgba(5,6,10,0.92);
+    display:flex;align-items:center;justify-content:center;
+  }
+  #pathBox{
+    width:min(680px, 92vw);
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+    border-radius:16px;padding:28px 26px;backdrop-filter:blur(8px);
+  }
+  #pathBox h2{margin:0 0 4px;font-size:16px;letter-spacing:1px;}
+  #pathBox p.sub{margin:0 0 20px;font-size:12px;color:var(--dim);}
+  #pathOptions{display:flex;gap:14px;flex-wrap:wrap;}
+  .path-card{
+    flex:1;min-width:180px;
+    background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);
+    border-radius:12px;padding:16px;cursor:pointer;transition:.15s;
+    text-align:left;
+  }
+  .path-card:hover{border-color:var(--accent);background:rgba(127,92,255,0.1);}
+  .path-card h3{margin:0 0 8px;font-size:14px;color:var(--accent2);letter-spacing:.5px;}
+  .path-card p{margin:0;font-size:12px;color:var(--dim);line-height:1.5;}
+  #pathMsg{font-size:11px;margin-top:14px;min-height:14px;color:var(--warn);}
+
+  /* ---- Endgame: Rivalin & Terrain (Baustein 5) ---- */
+  #endgamePanel{
+    top:76px;right:24px;text-align:right;display:none;
+    width:min(280px, 80vw);
+  }
+  #endgamePanel .influenceLabel{font-size:22px;font-weight:700;color:#ffd54a;letter-spacing:.5px;}
+  #endgamePanel .influenceSub{font-size:11px;color:var(--dim);margin-top:2px;}
+  #endgamePanel .rivalName{font-size:12px;color:#ff5c8c;margin-top:10px;letter-spacing:.5px;}
+  #territoryBar{
+    margin-top:6px;height:10px;border-radius:5px;overflow:hidden;
+    display:flex;background:rgba(255,255,255,0.08);
+  }
+  #territoryPlayerFill{background:linear-gradient(90deg,var(--accent),#ffd54a);height:100%;transition:width .4s;}
+  #territoryRivalFill{background:linear-gradient(90deg,#ff5c8c,#7a1f3d);height:100%;transition:width .4s;}
+  #territoryLabels{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-top:4px;}
+  #confrontBtn{margin-top:12px;border-color:rgba(255,92,140,0.4);}
+  #confrontBtn:hover{border-color:#ff5c8c;color:#ff5c8c;}
+
+  /* ---------- Top-Nav (aus nexus/index.html + nexus/game.html übernommen) ---------- */
+  .nav{
+    position:fixed; top:0; left:0; right:0; z-index:30;
+    background:linear-gradient(to bottom, rgba(5,6,10,0.92), rgba(5,6,10,0.72));
+    backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,0.09);
+    font-family:'Segoe UI',system-ui,sans-serif;
+  }
+  .nav-inner{ max-width:1600px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  .brand{ display:flex; align-items:center; gap:9px; font-weight:700; font-size:13.5px; letter-spacing:0.02em; flex-wrap:wrap; }
+  .brand .mark{ width:24px; height:24px; border-radius:50%; background:conic-gradient(from 200deg, var(--accent), var(--accent2), #ff5c8c, var(--accent)); box-shadow:0 0 14px rgba(127,92,255,0.35); flex-shrink:0; }
+  .brand .divider{ width:1px; height:14px; background:rgba(255,255,255,0.12); margin:0 1px; }
+  .brand .sub{ color:var(--accent2); font-weight:700; }
+  .brand .game-pill{ font-weight:600; font-size:10px; letter-spacing:0.04em; text-transform:uppercase; color:#ff9ec2; background:rgba(255,92,140,0.14); padding:2px 8px; border-radius:999px; }
+  @media (max-width:560px){ .brand .game-pill{ display:none; } }
+  @media (max-width:420px){ .brand .brand-text{ display:none; } }
+  .nav-cta{ font-size:12px; font-weight:600; padding:7px 13px; border-radius:999px; border:1px solid rgba(255,255,255,0.12); color:var(--dim); text-decoration:none; transition:border-color .15s, color .15s, background .15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:rgba(255,255,255,0.3); color:var(--fg); background:rgba(255,255,255,0.04); }
+
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    width:34px; height:34px; border-radius:9px; border:1px solid rgba(255,255,255,0.12);
+    background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0;
+  }
+  .burger-btn:hover{ border-color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.04); }
+  .burger-btn span{ display:block; width:15px; height:2px; border-radius:2px; background:var(--dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{
+    position:absolute; top:calc(100% + 10px); right:0; min-width:220px; z-index:40;
+    background:#121320; border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.55);
+    opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+    transition:opacity .15s, transform .15s;
+    max-height:min(75vh, 480px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid rgba(255,255,255,0.09); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); padding:0 8px 6px; opacity:.75; }
+  .burger-panel a{ display:block; font-size:13px; color:var(--dim) !important; padding:8px 8px; border-radius:8px; text-decoration:none; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:200px; } }
+
+  /* ---------- Musik-Steuerung (Bürgermenü) ---------- */
+  .burger-group .mp-title{ font-size:12px; font-weight:600; color:var(--dim); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .burger-group .mp-title span.mp-state{ color:var(--accent2); font-weight:700; }
+  .burger-group .mp-track{ font-size:11.5px; color:var(--dim); opacity:.8; margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 4px; }
+  .burger-group .mp-row{ display:flex; align-items:center; gap:10px; padding:0 4px; }
+  .burger-group input[type=range]{ flex:1; accent-color:var(--accent2); }
+  .burger-group .mp-val{ font-family:monospace; font-size:11.5px; color:var(--dim); min-width:32px; text-align:right; }
+  .burger-group .mp-actions{ display:flex; gap:8px; margin-top:12px; padding:0 4px; }
+  .burger-group .mp-actions button{ flex:1; padding:6px 0; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--fg); font-size:12px; cursor:pointer; }
+  .burger-group .mp-actions button:hover{ border-color:var(--accent2); }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SKIN "DEEP DECK 2600" — NEXUS SINGULARITY
+     Optik-Schicht am Ende des Style-Blocks. Das Spielgeschehen ist hier
+     das Vollbild-Canvas, deshalb bleibt der Hintergrund unangetastet --
+     umgebaut wird das HUD drumherum. Rückbau = diesen Block löschen.
+     ══════════════════════════════════════════════════════════════════ */
+  :root{
+    --accent:#9B6BFF; --accent2:#33E0FF;
+    --acc:155,107,255; --acc2:51,224,255;
+    --fg:#EDE9FF; --dim:#8A90AD; --warn:#FF3D6E;
+    --hud:rgba(9,8,18,0.9);
+    --hud-line:rgba(var(--acc2),0.28);
+  }
+
+  /* CRT-Auflage über dem Vollbild-Canvas */
+  #nxCrt{
+    position:fixed; inset:0; z-index:40; pointer-events:none; opacity:0.45; mix-blend-mode:multiply;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.22) 0 1px, transparent 1px 3px),
+      radial-gradient(130% 100% at 50% 50%, transparent 48%, rgba(2,2,8,0.8) 100%);
+  }
+  #nxCrt::after{
+    content:''; position:absolute; left:0; right:0; height:38vh;
+    background:linear-gradient(to bottom, transparent, rgba(var(--acc2),0.04) 60%, transparent);
+    animation:nxSweepDown 9s linear infinite;
+  }
+  @keyframes nxSweepDown{ 0%{ top:-40vh; } 100%{ top:105vh; } }
+
+  /* ---------- Kopfleiste ---------- */
+  .nav{ border-bottom:1px solid var(--hud-line); background:linear-gradient(to bottom, rgba(5,5,12,0.94), rgba(5,5,12,0.66)); }
+  .nav::after{
+    content:''; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+    background:linear-gradient(90deg, transparent, var(--accent2), var(--accent), transparent);
+    background-size:44% 100%; background-repeat:no-repeat; animation:nxRail 7s linear infinite;
+  }
+  @keyframes nxRail{ 0%{ background-position:-45% 0; } 100%{ background-position:145% 0; } }
+  .brand .mark{ background:conic-gradient(from 0deg, var(--accent), var(--accent2), var(--accent)); animation:nxSpin 6s linear infinite; }
+  @keyframes nxSpin{ to{ transform:rotate(360deg); } }
+  .brand .sub{ color:var(--accent2); text-shadow:0 0 12px rgba(var(--acc2),0.6); }
+  .nav-cta, .burger-btn{
+    border-radius:0 !important;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  }
+  .burger-btn span{ background:var(--accent2); box-shadow:0 0 6px rgba(var(--acc2),0.6); }
+  .burger-panel{ border-radius:2px; border-color:var(--hud-line); background:rgba(7,7,16,0.95); }
+  .burger-label{ color:var(--accent2); opacity:0.75; letter-spacing:0.16em; }
+
+  /* ---------- HUD-Platten: Glas mit Eckklammern ---------- */
+  #factoryPanel, #eventLogPanel, #endgamePanel, #eventToast, #infoTip, #loginBox, #pathBox{
+    position:absolute;
+    border-radius:2px !important;
+    background:var(--hud) !important;
+    border:1px solid var(--hud-line) !important;
+    backdrop-filter:blur(10px) saturate(1.2) !important;
+    box-shadow:inset 0 1px 0 rgba(var(--acc2),0.16), 0 0 50px -26px rgba(var(--acc),0.9) !important;
+  }
+  #loginBox, #pathBox{ position:relative; }
+  #factoryPanel::before, #eventLogPanel::before, #endgamePanel::before, #loginBox::before, #pathBox::before{
+    content:''; position:absolute; inset:-1px; pointer-events:none; z-index:1;
+    background:
+      linear-gradient(var(--accent2),var(--accent2)) left  top    / 14px 1px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) left  top    / 1px 14px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) right top    / 14px 1px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) right top    / 1px 14px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) left  bottom / 14px 1px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) left  bottom / 1px 14px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) right bottom / 14px 1px no-repeat,
+      linear-gradient(var(--accent2),var(--accent2)) right bottom / 1px 14px no-repeat;
+    opacity:0.5;
+  }
+  #factoryPanel h4, #eventLogPanel h4{
+    letter-spacing:0.18em; color:var(--fg); display:flex; align-items:center; gap:7px;
+    padding-bottom:8px; border-bottom:1px solid rgba(var(--acc2),0.16);
+  }
+  #factoryPanel h4::before, #eventLogPanel h4::before{
+    content:''; width:3px; height:11px; background:var(--accent2);
+    box-shadow:0 0 10px rgba(var(--acc2),0.8); animation:nxBlink 2.4s ease-in-out infinite;
+  }
+  @keyframes nxBlink{ 0%,100%{ opacity:1; } 50%{ opacity:0.3; } }
+  #factoryBalance{ font-variant-numeric:tabular-nums; text-shadow:0 0 14px rgba(var(--acc2),0.45); }
+
+  /* Fabrikzeilen reagieren */
+  .factory-row{ position:relative; border-top-color:rgba(var(--acc2),0.12); transition:background .2s; }
+  .factory-row::before{
+    content:''; position:absolute; left:-16px; top:6px; bottom:6px; width:2px;
+    background:var(--accent2); box-shadow:0 0 10px rgba(var(--acc2),0.8);
+    transform:scaleY(0); transition:transform .22s;
+  }
+  .factory-row:hover::before{ transform:scaleY(1); }
+  .factory-row:hover{ background:linear-gradient(90deg, rgba(var(--acc2),0.06), transparent 70%); }
+  .factory-row .flevel{ text-shadow:0 0 10px rgba(var(--acc2),0.5); }
+  .factory-row button.affordable{
+    background:linear-gradient(120deg, rgba(var(--acc2),0.18), rgba(var(--acc),0.14));
+    box-shadow:0 0 18px -6px rgba(var(--acc2),0.9);
+    animation:nxReady 2.6s ease-in-out infinite;
+  }
+  @keyframes nxReady{
+    0%,100%{ box-shadow:0 0 18px -8px rgba(var(--acc2),0.6); }
+    50%{ box-shadow:0 0 26px -6px rgba(var(--acc2),1); }
+  }
+
+  /* Ereignis-Einträge laufen ein */
+  #eventLogPanel .entry{ border-top-color:rgba(var(--acc2),0.10); animation:nxEntryIn 380ms ease-out both; }
+  @keyframes nxEntryIn{ 0%{ opacity:0; transform:translateX(10px); } 100%{ opacity:1; transform:none; } }
+  #eventLogPanel .entry .tag{ font-weight:700; }
+
+  /* ---------- Steuerleiste unten ---------- */
+  #controls{
+    border-radius:2px !important;
+    border:1px solid var(--hud-line) !important;
+    background:rgba(7,7,16,0.82) !important;
+    box-shadow:0 -10px 40px -26px rgba(var(--acc),0.9), inset 0 1px 0 rgba(var(--acc2),0.14) !important;
+  }
+  #growthBar{ border-radius:0; background:rgba(var(--acc2),0.08); border:1px solid rgba(var(--acc2),0.18); }
+  #growthFill{
+    position:relative;
+    background:linear-gradient(90deg, var(--accent), var(--accent2)) !important;
+    box-shadow:0 0 16px rgba(var(--acc2),0.75);
+  }
+  #growthFill::after{
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(115deg, rgba(255,255,255,0.24) 0 5px, transparent 5px 12px);
+    animation:nxFlow 850ms linear infinite;
+  }
+  @keyframes nxFlow{ to{ background-position:28px 0; } }
+
+  /* ---------- Ressourcen-Chips ---------- */
+  .res-chip{
+    border-radius:0;
+    clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
+    background:linear-gradient(150deg, rgba(var(--acc2),0.12), rgba(6,8,18,0.7));
+    border:1px solid rgba(var(--acc2),0.24);
+    font-variant-numeric:tabular-nums; letter-spacing:0.04em;
+    transition:border-color .2s, box-shadow .2s, transform .2s;
+  }
+  .res-chip:hover{ border-color:rgba(var(--acc2),0.6); box-shadow:0 0 18px -6px rgba(var(--acc2),0.9); transform:translateY(-1px); }
+  .res-chip .icon{ filter:drop-shadow(0 0 6px rgba(var(--acc2),0.7)); }
+
+  /* ---------- Knöpfe ---------- */
+  button{
+    border-radius:0 !important;
+    background:rgba(255,255,255,0.05); border:1px solid rgba(var(--acc2),0.2);
+    letter-spacing:0.06em;
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+    transition:.18s;
+  }
+  button:hover:not(:disabled){
+    border-color:var(--accent2); color:var(--accent2);
+    background:rgba(var(--acc2),0.1); box-shadow:0 0 22px -8px rgba(var(--acc2),0.9);
+  }
+  button.active{
+    background:linear-gradient(180deg, rgba(var(--acc),0.35), rgba(var(--acc),0.12)) !important;
+    border-color:var(--accent) !important; color:#F4F0FF !important;
+    box-shadow:0 0 24px -6px rgba(var(--acc),0.95), inset 0 0 18px rgba(var(--acc),0.2) !important;
+  }
+  #infoBtn{ border-radius:50% !important; clip-path:none; }
+  #loginBox .btn-block, .btn-block{
+    background:linear-gradient(120deg, var(--accent), var(--accent2) 180%) !important;
+    border-color:var(--accent) !important; color:#0A0714 !important; font-weight:700;
+    box-shadow:0 0 28px -8px rgba(var(--acc),0.95) !important;
+  }
+  #loginBox input{
+    border-radius:0 !important; background:rgba(2,3,10,0.7) !important;
+    border-color:rgba(var(--acc2),0.2) !important; letter-spacing:0.06em;
+  }
+  #loginBox input:focus{
+    outline:none; border-color:var(--accent2) !important;
+    box-shadow:0 0 0 1px rgba(var(--acc2),0.25), 0 0 20px -6px rgba(var(--acc2),0.8) !important;
+  }
+  #loginBox::after, #pathBox::after{
+    content:''; position:absolute; left:0; right:0; top:0; height:2px; z-index:2;
+    background:linear-gradient(90deg, transparent, var(--accent2), var(--accent), transparent);
+    background-size:50% 100%; background-repeat:no-repeat; animation:nxRail 4.5s linear infinite;
+  }
+
+  /* ---------- Pfad-Karten ---------- */
+  .path-card{
+    position:relative; overflow:hidden; border-radius:2px;
+    background:linear-gradient(160deg, rgba(var(--acc),0.12), rgba(6,6,16,0.7));
+    border:1px solid rgba(var(--acc2),0.18);
+    clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+    transition:transform .2s, border-color .2s, box-shadow .2s;
+  }
+  .path-card::after{
+    content:''; position:absolute; top:-60%; bottom:-60%; left:-60%; width:45%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.13), transparent);
+    transform:rotate(18deg); pointer-events:none;
+  }
+  .path-card:hover{
+    transform:translateY(-3px); border-color:var(--accent2);
+    background:linear-gradient(160deg, rgba(var(--acc),0.2), rgba(6,6,16,0.7));
+    box-shadow:0 0 40px -16px rgba(var(--acc2),0.95);
+  }
+  .path-card:hover::after{ animation:nxFoil 1.1s ease-out; }
+  @keyframes nxFoil{ to{ left:130%; } }
+  .path-card h3{ letter-spacing:0.12em; text-shadow:0 0 14px rgba(var(--acc2),0.5); }
+
+  /* ---------- Anzeigen rechts oben ---------- */
+  #title{ letter-spacing:0.28em; }
+  #title .ver{ text-shadow:0 0 10px rgba(var(--acc2),0.7); }
+  #stageLabel{ text-shadow:0 0 24px rgba(var(--acc),0.55); letter-spacing:0.06em; }
+  #tierLabel{ text-shadow:0 0 12px rgba(var(--acc2),0.5); }
+  #unclaimedLabel{ animation:nxBlink 2.2s ease-in-out infinite; }
+  #territoryBar{ border-radius:0 !important; border:1px solid rgba(var(--acc2),0.18); overflow:hidden; }
+  #territoryPlayerFill{ box-shadow:0 0 14px rgba(var(--acc2),0.6); }
+  #territoryRivalFill{ box-shadow:0 0 14px rgba(255,61,110,0.5); }
+  #endgamePanel .influenceLabel{ text-shadow:0 0 20px rgba(255,213,74,0.5); font-variant-numeric:tabular-nums; }
+  #observerLabel .bar{ border-radius:0; border:1px solid rgba(var(--acc2),0.2); }
+
+  /* ---------- Toast ---------- */
+  #eventToast{
+    clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);
+  }
+  #eventToast .kind{ letter-spacing:0.2em; font-weight:700; }
+
+  /* ---------- Scrollbalken ---------- */
+  #factoryScroll::-webkit-scrollbar-thumb{ background:rgba(var(--acc2),0.35) !important; border-radius:0 !important; }
+  #factoryScroll::-webkit-scrollbar-thumb:hover{ background:rgba(var(--acc2),0.6) !important; }
+
+  /* Zahlenimpuls */
+  @keyframes nxFlashUp{ 0%{ color:var(--accent2); text-shadow:0 0 22px rgba(var(--acc2),0.95); } 100%{} }
+  .nx-flash-up{ animation:nxFlashUp 620ms ease-out; }
+  @keyframes nxFlashDown{ 0%{ color:var(--warn); text-shadow:0 0 22px rgba(255,61,110,0.9); } 100%{} }
+  .nx-flash-down{ animation:nxFlashDown 620ms ease-out; }
+
+  @media (prefers-reduced-motion: reduce){
+    #nxCrt::after, .nav::after, .brand .mark, #growthFill::after, #unclaimedLabel,
+    #loginBox::after, #pathBox::after, #eventLogPanel .entry,
+    .factory-row button.affordable, #factoryPanel h4::before, #eventLogPanel h4::before{ animation:none !important; }
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════
+     MC ORCA — ORCA-LINK v1.0  (Seitenbreite + Kosmetik-Effekte)
+     Reine Optik-Schicht, haengt an den Body-Klassen, die der
+     ORCA-LINK-Script-Block am Ende des <body> setzt.
+     Rueckbau = diesen Block und den Script-Block loeschen.
+     ══════════════════════════════════════════════════════════════════ */
+
+  :root{ --orca-page-w:1600px; }
+  .wrap{ max-width:var(--orca-page-w); }
+  .nav-inner, .foot-inner{ max-width:var(--orca-page-w); }
+
+  /* ---------- Avatar-Rahmen (slot: frame) ---------- */
+  .ofx-ring{
+    position:absolute; inset:0; border-radius:inherit;
+    pointer-events:none; display:block;
+  }
+  .ofx-host{ position:relative; }
+
+  body[data-ofx-frame="orbit"] .ofx-ring{
+    background:conic-gradient(from 0deg,
+      transparent 0deg, rgba(var(--acc),0.05) 200deg,
+      rgb(var(--acc)) 330deg, #fff 352deg, transparent 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    animation:ofxSpin 3.6s linear infinite;
+  }
+  body[data-ofx-frame="hexlock"] .ofx-ring{
+    border:2px solid rgba(var(--acc),0.75);
+    border-radius:inherit;
+    box-shadow:inset 0 0 0 4px rgba(var(--acc),0.10);
+    -webkit-mask:repeating-conic-gradient(#000 0 22deg, transparent 22deg 30deg);
+    mask:repeating-conic-gradient(#000 0 22deg, transparent 22deg 30deg);
+    animation:ofxSpin 9s steps(12) infinite;
+  }
+  body[data-ofx-frame="corona"] .ofx-ring{
+    border:2px solid rgba(var(--acc),0.9);
+    box-shadow:inset 0 0 14px 2px rgba(var(--acc),0.55), 0 0 18px -2px rgba(var(--acc),0.8);
+    animation:ofxCorona 2.8s ease-in-out infinite;
+  }
+  body[data-ofx-frame="comet_tail"] .ofx-ring{
+    background:conic-gradient(from 0deg,
+      rgb(var(--acc2)) 0deg, rgba(var(--acc2),0.35) 26deg, transparent 90deg, transparent 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    animation:ofxSpin 2.4s linear infinite;
+  }
+  @keyframes ofxSpin{ to{ transform:rotate(360deg); } }
+  @keyframes ofxCorona{
+    0%,100%{ box-shadow:inset 0 0 10px 1px rgba(var(--acc),0.40), 0 0 12px -4px rgba(var(--acc),0.6); }
+    50%    { box-shadow:inset 0 0 20px 3px rgba(var(--acc),0.70), 0 0 26px 0 rgba(var(--acc),0.9); }
+  }
+
+  /* ---------- Namensschilder (slot: nameplate) ---------- */
+  body[data-ofx-nameplate="chrome"] .ofx-name{
+    background-image:linear-gradient(180deg,#ffffff 0%,#cfe3f2 38%,#7e97ab 52%,#ffffff 74%,#b9cede 100%);
+    -webkit-background-clip:text !important; background-clip:text !important;
+    -webkit-text-fill-color:transparent !important; color:transparent !important;
+    text-shadow:0 1px 0 rgba(0,0,0,0.45);
+  }
+  body[data-ofx-nameplate="glitch"] .ofx-name{
+    position:relative; animation:ofxGlitch 5s steps(1) infinite;
+  }
+  @keyframes ofxGlitch{
+    0%,92%,100%{ text-shadow:none; transform:translate(0,0); }
+    93%{ text-shadow:-2px 0 rgba(255,79,216,.9), 2px 0 rgba(53,228,255,.9); transform:translate(1px,0); }
+    95%{ text-shadow:2px 0 rgba(255,79,216,.9), -2px 0 rgba(53,228,255,.9); transform:translate(-1px,0); }
+    97%{ text-shadow:-1px 0 rgba(255,79,216,.7), 1px 0 rgba(53,228,255,.7); transform:translate(0,1px); }
+  }
+  body[data-ofx-nameplate="prism"] .ofx-name{
+    background-image:linear-gradient(100deg,
+      rgb(var(--acc)) 0%, #ffffff 22%, rgb(var(--acc2)) 44%,
+      rgb(var(--acc)) 66%, #ffffff 82%, rgb(var(--acc2)) 100%);
+    background-size:280% 100%;
+    -webkit-background-clip:text !important; background-clip:text !important;
+    -webkit-text-fill-color:transparent !important; color:transparent !important;
+    animation:ofxPrismSlide 5.5s linear infinite;
+  }
+  @keyframes ofxPrismSlide{ to{ background-position:280% 0; } }
+
+  /* ---------- Abzeichen (slot: badge) ---------- */
+  .ofx-badge{
+    display:inline-block; width:0.72em; height:0.72em; margin-left:0.42em;
+    border-radius:50%; vertical-align:baseline; flex-shrink:0;
+  }
+  body[data-ofx-badge="pulsar"] .ofx-badge{
+    background:rgb(var(--acc)); box-shadow:0 0 0 0 rgba(var(--acc),0.65);
+    animation:ofxPulsar 2s ease-out infinite;
+  }
+  @keyframes ofxPulsar{
+    0%{ box-shadow:0 0 0 0 rgba(var(--acc),0.6); }
+    70%{ box-shadow:0 0 0 0.7em rgba(var(--acc),0); }
+    100%{ box-shadow:0 0 0 0 rgba(var(--acc),0); }
+  }
+  body[data-ofx-badge="singularity"] .ofx-badge{
+    background:
+      radial-gradient(circle at 50% 50%, #000 0 34%, transparent 35%),
+      conic-gradient(from 0deg, rgba(var(--acc),0) 0deg, rgb(var(--acc)) 120deg,
+                     #ffffff 200deg, rgba(var(--acc2),0.9) 280deg, rgba(var(--acc),0) 360deg);
+    box-shadow:0 0 8px -1px rgba(var(--acc),0.9);
+    animation:ofxSpin 2.4s linear infinite;
+  }
+
+  /* ---------- Zeiger-Effekt (slot: cursor_fx) ---------- */
+  #ofxCursor{ position:fixed; inset:0; z-index:2147482000; pointer-events:none; }
+
+  /* ---------- Hub-Dock (Rueckweg aus den Spielen) ---------- */
+  #ofxDock{
+    position:fixed; left:14px; bottom:14px; z-index:2147483000;
+    font-family:var(--dd-mono,'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace);
+    font-size:12px; line-height:1; display:flex; flex-direction:column-reverse;
+    align-items:flex-start; gap:8px; pointer-events:none;
+  }
+  #ofxDock > *{ pointer-events:auto; }
+  .ofx-dock-btn{
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    padding:9px 13px; color:#DCF2FF; font-weight:700; letter-spacing:.06em;
+    background:linear-gradient(180deg, rgba(8,14,26,0.96), rgba(4,7,14,0.92));
+    border:1px solid rgba(var(--acc,255,206,69),0.42);
+    box-shadow:0 10px 30px -14px rgba(0,0,0,0.9), 0 0 14px -6px rgba(var(--acc,255,206,69),0.55);
+    clip-path:polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+    backdrop-filter:blur(8px);
+    transition:border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .ofx-dock-btn:hover{ border-color:rgba(var(--acc,255,206,69),0.9); transform:translateY(-1px); }
+  .ofx-dock-btn .ofx-dot{
+    width:7px; height:7px; border-radius:50%; background:rgb(var(--acc,255,206,69));
+    box-shadow:0 0 9px rgba(var(--acc,255,206,69),0.9); flex-shrink:0;
+    animation:ofxBlink 2.6s ease-in-out infinite;
+  }
+  @keyframes ofxBlink{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .ofx-dock-panel{
+    display:none; min-width:210px; max-height:64vh; overflow:auto;
+    padding:10px; color:#DCF2FF;
+    background:linear-gradient(180deg, rgba(8,14,26,0.97), rgba(4,7,14,0.95));
+    border:1px solid rgba(var(--acc,255,206,69),0.34);
+    box-shadow:0 22px 60px -22px #000;
+    clip-path:polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+    backdrop-filter:blur(10px);
+  }
+  .ofx-dock-panel.open{ display:block; animation:ofxDockIn .18s ease-out; }
+  @keyframes ofxDockIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  .ofx-dock-panel .ofx-lbl{
+    font-size:9.5px; letter-spacing:.22em; text-transform:uppercase;
+    color:rgba(var(--acc,255,206,69),0.85); padding:8px 8px 5px;
+  }
+  .ofx-dock-panel a{
+    display:block; padding:7px 9px; color:#9FBBD0; text-decoration:none;
+    border-left:2px solid transparent; font-size:12px;
+  }
+  .ofx-dock-panel a:hover{
+    color:#fff; background:rgba(var(--acc,255,206,69),0.09);
+    border-left-color:rgb(var(--acc,255,206,69));
+  }
+  .ofx-dock-panel a.ofx-home{ color:#fff; font-weight:700; }
+  @media (max-width:520px){ #ofxDock{ left:10px; bottom:10px; } .ofx-dock-panel{ min-width:176px; } }
+
+  @media (prefers-reduced-motion: reduce){
+    .ofx-ring, .ofx-badge, .ofx-name, .ofx-dock-btn .ofx-dot{ animation:none !important; }
+    #ofxCursor{ display:none !important; }
+  }
+  /* ════════════════════ Ende ORCA-LINK v1.0 (CSS) ════════════════════ */
+
+</style>
+</head>
+<body>
+<script src="../../assets/orca-settings.js" data-sections="music" data-launcher="menu"></script>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"></span>
+      <span class="brand-text">MC ORCA GAMES</span> <span class="divider"></span> <span class="sub">NEXUS</span> <span class="game-pill">Singularity</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="nav-cta" href="../game.html">← Zu NEXUS</a>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+        <div class="burger-group">
+          <div class="burger-label">Optionen</div>
+          <a href="#" data-orca-open="settings">Einstellungen</a>
+          <a href="#" data-orca-open="social">Chat &amp; Freunde <span class="orca-unread" data-orca-badge="social" hidden></span></a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Seiten</div>
+          <a href="../../index.html">Hub</a>
+          <a href="../../profil.html">Profil &amp; Skins</a>
+          <a href="../../raenge.html">Ränge</a>
+          <a href="../../uhr.html">Sternzeit</a>
+          <a href="../../nexus/global.html">NEXUS global</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Spiele</div>
+          <a href="../../aetheris/game.html">Aetheris</a>
+          <a href="../../astrion/game.html">Astrion</a>
+          <a href="../../deepanchor/game.html">Deep Anchor</a>
+          <a href="../../pathofthestars/game.html">Path of the Stars</a>
+          <a href="../../nexus/game.html">NEXUS</a>
+          <a href="../../nexus/nexus_singularity/game.html">Nexus Singularity</a>
+          <a href="../../foundry/game.html">FOUNDRY</a>
+          <a href="../../domus-prime/game.html">Domus Prime: Verdantis</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Info</div>
+          <a href="../../aetheris/index.html">Aetheris</a>
+          <a href="../../astrion/index.html">Astrion</a>
+          <a href="../../deepanchor/index.html">Deep Anchor</a>
+          <a href="../../pathofthestars/index.html">Path of the Stars</a>
+          <a href="../../nexus/index.html">NEXUS</a>
+          <a href="../../nexus/nexus_singularity/index.html">Nexus Singularity</a>
+          <a href="../../foundry/index.html">FOUNDRY</a>
+        </div>
+        <div class="burger-group">
+          <div class="burger-label">Rechtliches</div>
+          <a href="../../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+          <a href="../../impressum.html">Impressum &amp; Datenschutz</a>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var btn = document.getElementById('burgerBtn');
+  var panel = document.getElementById('burgerPanel');
+  if(!btn || !panel) return;
+  function close(){ btn.classList.remove('open'); panel.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+  function toggle(e){ e.stopPropagation(); var isOpen = panel.classList.toggle('open'); btn.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('click', function(e){ if(!panel.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="flash"></div>
+
+  <div id="loginOverlay">
+    <div id="loginBox">
+      <img class="lb-logo" src="art/logo.png" alt="" onerror="this.classList.add('hidden')">
+      <h2>NEXUS SINGULARITY</h2>
+      <p>Gleicher Account wie deine anderen MC-Orca-Spiele. Login per Code oder als Gast reinschauen.</p>
+      <input type="email" id="emailInput" placeholder="deine@email.de" autocomplete="email">
+      <button class="btn-block" id="sendOtpBtn">Code senden</button>
+      <input type="text" id="otpInput" placeholder="6-stelliger Code" class="hidden">
+      <button class="btn-block hidden" id="verifyOtpBtn">Einloggen</button>
+      <div id="orDivider">— oder —</div>
+      <button class="btn-block" id="guestLoginBtn">Als Gast reinschauen</button>
+      <div id="loginMsg"></div>
+    </div>
+  </div>
+
+  <div id="pathOverlay" class="hidden">
+    <div id="pathBox">
+      <h2>DIVERGENZ-PFAD</h2>
+      <p class="sub">Wähle, was den nächsten Zyklus prägt. Gilt bis zum nächsten Durchbruch.</p>
+      <div id="pathOptions"></div>
+      <div id="pathMsg"></div>
+    </div>
+  </div>
+
+  <div class="hud" id="tierBadge">◆ TIER <span id="tierNum">0</span> ERREICHT</div>
+  <div class="hud" id="readout">
+    <div id="stageLabel">Ruhend</div>
+    <div id="ownCoreNameLabel" style="font-size:11px;opacity:.6;letter-spacing:.5px;margin-top:-4px;margin-bottom:6px;">◆ Singula Omega</div>
+    <div id="pctLabel">Bewusstseinsgrad: 0%</div>
+    <div id="tierLabel">Tier 0</div>
+    <div id="pathLabel"></div>
+    <div id="needLabel">0 / 0 integriert</div>
+    <div id="unclaimedLabel">0 im Export-Lager</div>
+    <div id="observerLabel">Beobachter-Aufmerksamkeit: <span id="observerPct">0%</span><span class="bar"><span class="fill" id="observerFill" style="width:0%"></span></span></div>
+  </div>
+
+  <div class="hud" id="endgamePanel">
+    <div class="influenceLabel"><span id="influenceNum">0</span> Einfluss</div>
+    <div class="influenceSub">Vollständig erwacht -- Tier 10</div>
+    <div class="rivalName">◈ <span id="rivalNameLabel">Rivalin</span></div>
+    <div id="territoryBar"><div id="territoryPlayerFill" style="width:65%"></div><div id="territoryRivalFill" style="width:35%"></div></div>
+    <div id="territoryLabels"><span>Du: <span id="territoryPlayerPct">65%</span></span><span><span id="territoryRivalPct">35%</span> :Rivalin</span></div>
+  </div>
+
+  <div id="eventToast"><div class="kind" id="eventToastKind"></div><div id="eventToastMsg"></div></div>
+  <div class="hud hidden" id="eventLogPanel">
+    <h4>Ereignisprotokoll</h4>
+    <div id="eventLogList"><div class="empty">Noch keine Ereignisse.</div></div>
+  </div>
+
+  <div class="hud hidden" id="factoryPanel">
+    <h4>Produktionskette</h4>
+    <div id="factoryBalance">0 Nova-Rift</div>
+    <div id="factoryScroll"><div id="factoryList"></div></div>
+    <div id="stockGrid"></div>
+    <div id="factoryUnclaimed"></div>
+  </div>
+
+  <div class="hud" id="controls">
+    <div class="row" style="justify-content:center;position:relative;">
+      <div id="resourceBar"></div>
+      <button id="infoBtn" title="Info">ⓘ</button>
+      <div id="infoTip">Rohstoffe werden automatisch zu Rechenknoten verarbeitet, solange der Tab offen ist. Der Kern wächst erst, wenn "Integration aktiv" eingeschaltet ist.</div>
+    </div>
+    <div class="row">
+      <div id="growthBar"><div id="growthFill"></div></div>
+    </div>
+    <div class="btnrow">
+      <button id="digestBtn">▶ Integration aktiv</button>
+      <button id="factoryBtn">Fabriken</button>
+      <button id="eventLogBtn">Protokoll</button>
+      <button id="confrontBtn" class="hidden">⚔ Konfrontieren</button>
+      <button id="logoutBtn">Abmelden</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/assets/orca-social.js"></script>
+<script>
+/* ---------- Supabase-Client (gleicher Account wie andere Spiele) ---------- */
+const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+/* ---------- ORCA-SOCIAL: gemeinsames Panel Corp-Chat/Global-Chat/Freunde ----------
+   Liegt als eine Datei unter /assets/orca-social.js und laeuft in allen vier
+   Login-Spielen identisch, damit Chat-Aenderungen nicht viermal nachgezogen
+   werden muessen. Wird erst gestartet, wenn eine Session existiert. */
+sb.auth.getSession().then(function(r){
+  if (r && r.data && r.data.session && window.OrcaSocial) {
+    OrcaSocial.init({ sb: sb, game: 'NEXUS SINGULARITY', launcher: false });
+  }
+});
+
+let currentUser = null;
+
+function showMsg(id, text, ok){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.style.color = ok ? 'var(--accent2)' : 'var(--warn)';
+}
+function clearMsg(id){ document.getElementById(id).textContent = ''; }
+
+document.getElementById('sendOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) return;
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Sende Code …', true);
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    document.getElementById('otpInput').classList.remove('hidden');
+    document.getElementById('verifyOtpBtn').classList.remove('hidden');
+    showMsg('loginMsg', 'Code wurde an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', true);
+  } catch (err) {
+    console.error('signInWithOtp fehlgeschlagen:', err);
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const token = document.getElementById('otpInput').value.trim();
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Prüfe Code …', true);
+  try {
+    const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    await enterGame();
+  } catch (err) {
+    console.error('verifyOtp fehlgeschlagen:', err);
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('guestLoginBtn').addEventListener('click', async () => {
+  clearMsg('loginMsg');
+  showMsg('loginMsg', 'Melde als Gast an …', true);
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: 'gast@mc-orca-games.local',
+      password: 'nexus-gast-2026'
+    });
+    if (error) { showMsg('loginMsg', error.message, false); return; }
+    currentUser = data.user;
+    await enterGame();
+  } catch (err) {
+    console.error('Gast-Login fehlgeschlagen:', err);
+    showMsg('loginMsg', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err), false);
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  stopPolling();
+  await sb.auth.signOut();
+  currentUser = null;
+  pathOverlay.classList.add('hidden');
+  document.getElementById('loginOverlay').classList.remove('hidden');
+});
+
+async function enterGame(){
+  document.getElementById('loginOverlay').classList.add('hidden');
+  await sb.schema('platform').rpc('ensure_player_ready'); // legt Basis-Player an, falls neu
+  await fetchPaths();
+  await fetchFactoryDefs();
+  await pullState();
+  startPolling();
+}
+
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session){
+    currentUser = data.session.user;
+    await enterGame();
+  }
+})();
+
+/* ============================================================
+   SPIEL-ZUSTAND -- kommt jetzt vom Server (singularity.production_tick /
+   singularity.integrate), kein localStorage-Mock mehr wie in v0.1
+   ============================================================ */
+let tier = 0, invested = 0, threshold = 100, permanentFacets = 18, permanentHue = 0;
+
+/* ---- Sanfte Fuell-Animation ----
+   Ohne das hier wuerde der Balken/Kern-Puls sofort auf den neuen Server-Wert springen,
+   z.B. wenn man laenger weg war und beim naechsten Digest viel auf einmal reinkommt.
+   Stattdessen naehert sich "displayedInvested" nur mit begrenzter Rate an "invested" an:
+   0 -> 100% des jeweiligen Tiers dauert immer mindestens MIN_FILL_DURATION_MS,
+   kleinere Zuwaechse entsprechend kuerzer, aber nie ein Sprung. */
+const MIN_FILL_DURATION_MS = 5 * 60 * 1000; // 5 Minuten fuer eine volle 0->100%-Fuellung
+let displayedInvested = 0;
+let displayedThreshold = threshold;
+let animQueue = [];
+let hasLoadedOnce = false;
+
+function advanceGrowthAnimation(dtMs){
+  if (!animQueue.length) return;
+  const step = animQueue[0];
+  if (step.mode === 'breakthrough'){
+    triggerBreakthrough();
+    animQueue.shift();
+    return;
+  }
+  if (step.mode === 'reset'){
+    displayedInvested = 0;
+    animQueue.shift();
+    return;
+  }
+  // mode === 'fill'
+  displayedThreshold = step.useThreshold;
+  const rate = step.useThreshold > 0 ? step.useThreshold / MIN_FILL_DURATION_MS : Infinity; // Einheiten pro ms
+  const maxStep = rate * dtMs;
+  if (displayedInvested < step.target){
+    displayedInvested = Math.min(step.target, displayedInvested + maxStep);
+  } else if (displayedInvested > step.target){
+    // z.B. nach einer Sabotage faellt der Wert zurueck -- auch das weich, nicht abrupt
+    displayedInvested = Math.max(step.target, displayedInvested - maxStep);
+  }
+  if (displayedInvested === step.target){
+    animQueue.shift();
+  }
+}
+let unclaimed = 0;
+let lastKnownTier = 0;
+let activePath = null;
+let pathDefs = [];
+let observerAttention = 0;
+let awakened = false, influence = 0;
+let rivalName = 'Rivalin', rivalInfluence = 0, territoryPct = 65;
+
+const digestBtn = document.getElementById('digestBtn');
+const stageLabel = document.getElementById('stageLabel');
+const pctLabel = document.getElementById('pctLabel');
+const tierLabel = document.getElementById('tierLabel');
+const pathLabel = document.getElementById('pathLabel');
+const needLabel = document.getElementById('needLabel');
+const unclaimedLabel = document.getElementById('unclaimedLabel');
+const tierBadge = document.getElementById('tierBadge');
+const tierNum = document.getElementById('tierNum');
+const flashEl = document.getElementById('flash');
+const growthFill = document.getElementById('growthFill');
+const pathOverlay = document.getElementById('pathOverlay');
+const pathOptions = document.getElementById('pathOptions');
+const pathMsg = document.getElementById('pathMsg');
+const observerLabel = document.getElementById('observerLabel');
+const observerPct = document.getElementById('observerPct');
+const observerFill = document.getElementById('observerFill');
+const eventToast = document.getElementById('eventToast');
+const eventToastKind = document.getElementById('eventToastKind');
+const eventToastMsg = document.getElementById('eventToastMsg');
+const eventLogPanel = document.getElementById('eventLogPanel');
+const eventLogList = document.getElementById('eventLogList');
+const eventLogBtn = document.getElementById('eventLogBtn');
+const readoutEl = document.getElementById('readout');
+const endgamePanel = document.getElementById('endgamePanel');
+const influenceNum = document.getElementById('influenceNum');
+const rivalNameLabel = document.getElementById('rivalNameLabel');
+const territoryPlayerFill = document.getElementById('territoryPlayerFill');
+const territoryRivalFill = document.getElementById('territoryRivalFill');
+const territoryPlayerPct = document.getElementById('territoryPlayerPct');
+const territoryRivalPct = document.getElementById('territoryRivalPct');
+const confrontBtn = document.getElementById('confrontBtn');
+const factoryBtn = document.getElementById('factoryBtn');
+const factoryPanel = document.getElementById('factoryPanel');
+const factoryList = document.getElementById('factoryList');
+const factoryBalance = document.getElementById('factoryBalance');
+const stockGrid = document.getElementById('stockGrid');
+const factoryUnclaimed = document.getElementById('factoryUnclaimed');
+const resourceBar = document.getElementById('resourceBar');
+const infoBtn = document.getElementById('infoBtn');
+const infoTip = document.getElementById('infoTip');
+infoBtn.addEventListener('click', () => infoTip.classList.toggle('show'));
+document.addEventListener('click', (e) => {
+  if (!infoTip.contains(e.target) && e.target !== infoBtn) infoTip.classList.remove('show');
+});
+
+async function fetchPaths(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('get_paths');
+    if (error) { console.error(error); return; }
+    pathDefs = data || [];
+  }catch(err){ console.error('fetchPaths fehlgeschlagen:', err); }
+}
+
+/* ---- Fabriken / Produktionskette ---- */
+let factoryDefs = {};   // factory_key -> {name, stage, sort_order, base_capacity, ...}
+let recipeDefs = {};    // item_key -> {name, factory_key, base_rate, inputs}
+let currentFactories = {}; // vom Server: factory_key -> {level, capacity, stage, next_cost}
+let currentStock = {};     // vom Server: item_key -> amount
+let novaRiftBalance = 0;
+let buildingFactory = null; // waehrend eine Ausbau-Anfrage laeuft, doppelte Klicks verhindern
+
+const RAW_LABELS = { METAL:'Metall', KRISTALL:'Kristall', DEUT:'Deuterium', ENERGIE:'Energie' };
+const RAW_ICONS = { METAL:'🔩', KRISTALL:'💎', DEUT:'🧊', ENERGIE:'⚡' };
+const ITEM_ICONS = { kuehlkoerper:'❄️', stromodul:'🔋', ram_modul:'💾', gpu_kern:'🖥️', speicherlaufwerk:'💽', rechenknoten:'🧠' };
+
+function renderResourceBar(){
+  const chips = Object.entries(RAW_LABELS).map(([sym, label]) =>
+    `<div class="res-chip" title="${label}"><span class="icon">${RAW_ICONS[sym]}</span><span class="amt">${fmtAmt(currentStock[sym] || 0)}</span></div>`
+  );
+  Object.entries(ITEM_ICONS).forEach(([key, icon]) => {
+    if ((currentStock[key] || 0) <= 0) return;
+    const label = (recipeDefs[key] && recipeDefs[key].name) || key;
+    chips.push(`<div class="res-chip" title="${label}"><span class="icon">${icon}</span><span class="amt">${fmtAmt(currentStock[key] || 0)}</span></div>`);
+  });
+  chips.push(`<div class="res-chip nrc" title="Nova-Rift Coins (NRC)"><span class="icon">🪙</span><span class="amt">${fmtAmt(novaRiftBalance)} NRC</span></div>`);
+  resourceBar.innerHTML = chips.join('');
+}
+
+async function fetchFactoryDefs(){
+  try{
+    const [{ data: fData, error: fErr }, { data: rData, error: rErr }] = await Promise.all([
+      sb.schema('singularity').rpc('get_factory_defs'),
+      sb.schema('singularity').rpc('get_recipe_defs')
+    ]);
+    if (fErr) { console.error(fErr); } else {
+      factoryDefs = {};
+      (fData || []).forEach(f => { factoryDefs[f.factory_key] = f; });
+    }
+    if (rErr) { console.error(rErr); } else {
+      recipeDefs = {};
+      (rData || []).forEach(r => { recipeDefs[r.item_key] = r; });
+    }
+  }catch(err){ console.error('fetchFactoryDefs fehlgeschlagen:', err); }
+}
+
+function fmtAmt(n){
+  n = Number(n) || 0;
+  return n >= 100 ? Math.floor(n).toLocaleString('de-DE') : n.toFixed(1).replace('.', ',');
+}
+
+function renderFactoryPanel(){
+  const defsBySort = Object.values(factoryDefs).sort((a, b) => a.sort_order - b.sort_order);
+  factoryBalance.textContent = fmtAmt(novaRiftBalance) + ' Nova-Rift';
+
+  factoryList.innerHTML = defsBySort.map(fd => {
+    const state = currentFactories[fd.factory_key] || { level: 0, capacity: fd.base_capacity, next_cost: fd.base_cost };
+    const cost = Number(state.next_cost);
+    const affordable = novaRiftBalance >= cost;
+    const busy = buildingFactory === fd.factory_key;
+    return `<div class="factory-row">
+      <div class="frow-top"><span class="fname">${fd.name}</span><span class="flevel">Lv. ${state.level}</span></div>
+      <div class="fmeta">Kapazität ${fmtAmt(state.capacity)}</div>
+      <button data-factory="${fd.factory_key}" class="buildFactoryBtn ${affordable ? 'affordable' : ''}" ${busy ? 'disabled' : ''}>
+        ${busy ? 'Baue …' : 'Ausbauen — ' + fmtAmt(cost) + ' Nova-Rift'}
+      </button>
+    </div>`;
+  }).join('');
+
+  factoryList.querySelectorAll('.buildFactoryBtn').forEach(btn => {
+    btn.addEventListener('click', () => buildFactory(btn.dataset.factory));
+  });
+
+  const itemRows = Object.values(recipeDefs)
+    .filter(r => (currentStock[r.item_key] || 0) > 0)
+    .map(r => `<div class="sitem"><span class="sname">${r.name}</span><span class="samt">${fmtAmt(currentStock[r.item_key] || 0)}</span></div>`);
+  stockGrid.innerHTML = itemRows.length ? itemRows.join('') : '<div class="sitem" style="grid-column:1/-1;color:var(--dim);">Noch keine Bauteile produziert.</div>';
+
+  factoryUnclaimed.textContent = unclaimed > 0
+    ? Math.floor(unclaimed) + ' warten vor voller Lagerhalle'
+    : '';
+
+  renderResourceBar();
+}
+
+async function buildFactory(factoryKey){
+  if (buildingFactory) return;
+  buildingFactory = factoryKey;
+  renderFactoryPanel();
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('build_factory', { p_factory_key: factoryKey });
+    if (error) { showEventToast('sabotage', error.message); return; }
+    await pullState();
+  }catch(err){
+    console.error('buildFactory fehlgeschlagen:', err);
+    showEventToast('sabotage', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err));
+  }finally{
+    buildingFactory = null;
+    renderFactoryPanel();
+  }
+}
+
+factoryBtn.addEventListener('click', () => {
+  factoryPanel.classList.toggle('hidden');
+});
+
+function renderPathOptions(){
+  pathOptions.innerHTML = '';
+  pathDefs.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'path-card';
+    card.innerHTML = `<h3>${p.label}</h3><p>${p.description}</p>`;
+    card.addEventListener('click', () => choosePath(p.path_key));
+    pathOptions.appendChild(card);
+  });
+}
+
+async function choosePath(pathKey){
+  pathMsg.textContent = '';
+  try{
+    const { error } = await sb.schema('singularity').rpc('choose_path', { p_path_key: pathKey });
+    if (error) { pathMsg.textContent = error.message; return; }
+    activePath = pathKey;
+    pathOverlay.classList.add('hidden');
+    await pullState();
+  }catch(err){
+    console.error('choosePath fehlgeschlagen:', err);
+    pathMsg.textContent = 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err);
+  }
+}
+
+function updatePathUi(opts){
+  const delayOverlay = opts && opts.delayOverlay;
+  if (awakened){
+    pathLabel.textContent = '';
+    pathOverlay.classList.add('hidden');
+    return;
+  }
+  if (activePath){
+    const def = pathDefs.find(p => p.path_key === activePath);
+    pathLabel.innerHTML = def ? `Pfad: <b>${def.label}</b>` : '';
+    pathOverlay.classList.add('hidden');
+  } else {
+    pathLabel.textContent = 'Pfad: noch nicht gewählt';
+    if (pathDefs.length){
+      renderPathOptions();
+      if (delayOverlay){
+        setTimeout(() => pathOverlay.classList.remove('hidden'), 900);
+      } else {
+        pathOverlay.classList.remove('hidden');
+      }
+    }
+  }
+}
+
+function applyState(row, opts){
+  tier = row.tier;
+  const newInvested = Number(row.invested);
+  const newThreshold = row.threshold === null || row.threshold === undefined ? null : Number(row.threshold);
+  permanentFacets = row.permanent_facets; permanentHue = Number(row.permanent_hue);
+  activePath = row.active_path || null;
+  awakened = !!row.awakened;
+  influence = row.influence !== undefined && row.influence !== null ? Number(row.influence) : influence;
+  initFacets();
+  tierNum.textContent = tier;
+  tierLabel.textContent = 'Tier ' + tier;
+  updatePathUi(opts);
+  updateObserverUi(row.observer_attention);
+  updateEndgameUi(row);
+
+  invested = newInvested;
+  threshold = newThreshold;
+
+  // Erster Ladevorgang (Login/Reload) zeigt sofort den echten Stand -- nur bei
+  // spaeteren "verdauen"-Ticks (opts.animate) wird sanft nachgezogen.
+  const animate = !!(opts && opts.animate) && hasLoadedOnce;
+  hasLoadedOnce = true;
+
+  if (awakened || newThreshold === null){
+    displayedInvested = newInvested;
+    displayedThreshold = newThreshold || 1;
+    animQueue = [];
+    return;
+  }
+
+  if (!animate){
+    displayedInvested = newInvested;
+    displayedThreshold = newThreshold;
+    animQueue = [];
+    return;
+  }
+
+  if (row.breakthrough){
+    // 1) den bisher gezeigten Balken erst saniert zu Ende fuellen (100%)
+    // 2) dann den Durchbruch-Blitz zeigen
+    // 3) danach bei 0 neu anfangen und sichtbar in den neuen Stand hineinwachsen
+    const oldThreshold = displayedThreshold || newThreshold;
+    animQueue.push({ mode:'fill', useThreshold: oldThreshold, target: oldThreshold });
+    animQueue.push({ mode:'breakthrough' });
+    animQueue.push({ mode:'reset' });
+    animQueue.push({ mode:'fill', useThreshold: newThreshold, target: newInvested });
+  } else {
+    animQueue.push({ mode:'fill', useThreshold: newThreshold, target: newInvested });
+  }
+}
+
+/* ---- Baustein 5: Endgame -- Erwachen + Rivalin ---- */
+async function updateEndgameUi(row){
+  if (!awakened){
+    endgamePanel.style.display = 'none';
+    readoutEl.style.display = 'block';
+    confrontBtn.classList.add('hidden');
+    return;
+  }
+  readoutEl.style.display = 'none';
+  endgamePanel.style.display = 'block';
+  confrontBtn.classList.remove('hidden');
+  influenceNum.textContent = Math.floor(influence).toLocaleString('de-DE');
+
+  if (row && row.territory_pct !== undefined && row.territory_pct !== null){
+    territoryPct = Number(row.territory_pct);
+    rivalInfluence = Number(row.rival_influence);
+    renderTerritory();
+  } else if (!rivalFetched){
+    await fetchRivalState();
+  }
+}
+
+let rivalFetched = false;
+let rivalChain = []; // Baustein 6: alle Generationen (aktive + erloschene), fuer die gleichzeitige Darstellung aller Kerne
+async function fetchRivalState(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('get_rival_state');
+    if (error) { console.error(error); return; }
+    const row = data && data[0];
+    if (!row) return;
+    rivalFetched = true;
+    rivalName = row.rival_name;
+    rivalInfluence = Number(row.rival_influence);
+    territoryPct = Number(row.territory_pct);
+    rivalNameLabel.textContent = rivalName;
+    renderTerritory();
+    await fetchRivalChain();
+  }catch(err){ console.error('fetchRivalState fehlgeschlagen:', err); }
+}
+
+async function fetchRivalChain(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('get_rival_chain');
+    if (error) { console.error(error); return; }
+    rivalChain = data || [];
+  }catch(err){ console.error('fetchRivalChain fehlgeschlagen:', err); }
+}
+
+function renderTerritory(){
+  rivalNameLabel.textContent = rivalName;
+  const p = Math.max(0, Math.min(100, territoryPct));
+  territoryPlayerFill.style.width = p + '%';
+  territoryRivalFill.style.width = (100 - p) + '%';
+  territoryPlayerPct.textContent = Math.round(p) + '%';
+  territoryRivalPct.textContent = Math.round(100 - p) + '%';
+}
+
+confrontBtn.addEventListener('click', async () => {
+  confrontBtn.disabled = true;
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('confront_rival', { p_wager_pct: 15 });
+    if (error) { showEventToast('clash_lost', error.message); return; }
+    const row = data[0];
+    influence = Number(row.influence);
+    rivalInfluence = Number(row.rival_influence);
+    territoryPct = Number(row.territory_pct);
+    influenceNum.textContent = Math.floor(influence).toLocaleString('de-DE');
+    renderTerritory();
+    showEventToast(row.won ? 'clash_won' : 'clash_lost', row.message);
+    if (!eventLogPanel.classList.contains('hidden')) fetchRecentEvents();
+  }catch(err){
+    console.error('confrontRival fehlgeschlagen:', err);
+    showEventToast('clash_lost', 'Unerwarteter Fehler: ' + (err && err.message ? err.message : err));
+  }finally{ confrontBtn.disabled = false; }
+});
+
+/* ---- Beobachter-Aufmerksamkeit (Baustein 3) ---- */
+function updateObserverUi(attention){
+  if (attention === undefined || attention === null) return;
+  observerAttention = Number(attention);
+  if (awakened || (observerAttention <= 0 && tier < 3)){
+    observerLabel.style.display = 'none';
+    return;
+  }
+  observerLabel.style.display = 'block';
+  const pct = Math.round(observerAttention);
+  observerPct.textContent = pct + '%';
+  observerFill.style.width = Math.min(100, pct) + '%';
+}
+
+const EVENT_KIND_LABELS = {
+  sabotage: '⚠ Sabotage',
+  observation: '◉ Beobachtung',
+  clash_won: '⚔ Terrain gewonnen',
+  clash_lost: '⚔ Terrain verloren',
+  awakening: '✦ Erwachen',
+  rival_ascension: '◈ Neuer Kern erhebt sich'
+};
+const EVENT_TAG_LABELS = {
+  sabotage: 'Sabotage',
+  observation: 'Beobachtung',
+  clash_won: 'Terrain +',
+  clash_lost: 'Terrain -',
+  awakening: 'Erwachen',
+  rival_ascension: 'Aufstieg'
+};
+
+let eventToastTimer = null;
+function showEventToast(eventType, message){
+  if (!eventType || !message) return;
+  eventToast.classList.remove('sabotage', 'observation', 'clash_won', 'clash_lost', 'awakening', 'rival_ascension');
+  eventToast.classList.add(eventType);
+  eventToastKind.textContent = EVENT_KIND_LABELS[eventType] || eventType;
+  eventToastMsg.textContent = message;
+  eventToast.classList.add('show');
+  if (eventToastTimer) clearTimeout(eventToastTimer);
+  eventToastTimer = setTimeout(() => { eventToast.classList.remove('show'); }, 6000);
+}
+
+function renderEventLog(events){
+  if (!events || !events.length){
+    eventLogList.innerHTML = '<div class="empty">Noch keine Ereignisse.</div>';
+    return;
+  }
+  eventLogList.innerHTML = events.map(e => {
+    const time = new Date(e.occurred_at).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const tagText = EVENT_TAG_LABELS[e.event_type] || e.event_type;
+    return `<div class="entry ${e.event_type}"><span class="tag">${tagText}</span><span class="time">${time}</span><div>${e.message}</div></div>`;
+  }).join('');
+}
+
+async function fetchRecentEvents(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('get_recent_events', { p_limit: 15 });
+    if (error) { console.error(error); return; }
+    renderEventLog(data || []);
+  }catch(err){ console.error('fetchRecentEvents fehlgeschlagen:', err); }
+}
+
+eventLogBtn.addEventListener('click', async () => {
+  const willShow = eventLogPanel.classList.contains('hidden');
+  if (willShow) await fetchRecentEvents();
+  eventLogPanel.classList.toggle('hidden');
+});
+
+async function pullState(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('production_tick');
+    if (error) { console.error(error); return; }
+    const row = data[0];
+    applyState(row);
+    unclaimed = Number(row.unclaimed);
+    unclaimedLabel.textContent = Math.floor(unclaimed) + ' im Export-Lager';
+    currentFactories = row.factories || {};
+    currentStock = row.stock || {};
+    novaRiftBalance = Number(row.nova_rift_balance || 0);
+    renderFactoryPanel();
+    lastKnownTier = tier;
+  }catch(err){ console.error('pullState fehlgeschlagen:', err); }
+}
+
+async function digestNow(){
+  try{
+    const { data, error } = await sb.schema('singularity').rpc('integrate');
+    if (error) { console.error(error); return; }
+    const row = data[0];
+    applyState(row, { delayOverlay: !!row.breakthrough, animate: true });
+    unclaimed = Math.max(0, unclaimed - Number(row.claimed_amount || 0));
+    unclaimedLabel.textContent = Math.floor(unclaimed) + ' im Export-Lager';
+    if (row.event_type) {
+      showEventToast(row.event_type, row.event_message);
+      if (!eventLogPanel.classList.contains('hidden')) fetchRecentEvents();
+    }
+    if (row.awakened) await fetchRivalChain(); // Kernkette: neue Generation ggf. sofort einblenden
+  }catch(err){ console.error('digest fehlgeschlagen:', err); }
+}
+
+// ---- Integration als Ein/Aus-Schalter ----
+// AUS: die Produktionskette laeuft trotzdem weiter (via pullState/production_tick),
+//      Rohstoffe -> Bauteile -> Baugruppen -> Rechenknoten -- nur baut sich der
+//      Kern nicht aus den fertigen Rechenknoten aus, die sammeln sich in der
+//      Serverfarm an.
+// AN:  zusaetzlich laeuft ein schneller Tick, der integrate() alle 1s aufruft.
+//      Die Datenbank selbst begrenzt dabei, wie viele Rechenknoten pro Aufruf
+//      verbaut werden (siehe singularity.integrate()).
+// Gilt nur, solange dieser Tab offen ist -- kein Offline-Fortschritt.
+let digesting = false;
+let digestTimer = null;
+
+function setDigesting(on){
+  digesting = on;
+  digestBtn.classList.toggle('active', digesting);
+  digestBtn.textContent = digesting ? '⏸ Integration pausiert' : '▶ Integration aktiv';
+  if (digestTimer) { clearInterval(digestTimer); digestTimer = null; }
+  if (digesting){
+    digestNow(); // sofort den ersten Tick, nicht erst nach 1s warten
+    digestTimer = setInterval(digestNow, 1000);
+  }
+}
+digestBtn.addEventListener('click', () => setDigesting(!digesting));
+
+let pollTimer = null;
+function startPolling(){
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pullState, 8000); // Lagerstand & Serverereignisse im Blick behalten, ohne zu verdauen
+}
+function stopPolling(){
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+  setDigesting(false);
+}
+
+/* ============================================================
+   VISUELLE ENGINE (Kern, Blitze, Glitches, Schockwelle) --
+   unveraendert gegenueber v0.1, nur wird "growth" jetzt aus
+   invested/threshold vom Server berechnet statt lokal simuliert.
+   ============================================================ */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy;
+function resize(){
+  W = canvas.width = window.innerWidth * devicePixelRatio;
+  H = canvas.height = window.innerHeight * devicePixelRatio;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  cx = W/2; cy = H/2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+let facetOffsets = [];
+function initFacets(){
+  facetOffsets = [];
+  for (let i = 0; i < permanentFacets; i++){
+    facetOffsets.push(0.72 + Math.random() * 0.56);
+  }
+}
+initFacets();
+
+function drawCore(px, py, baseR, g, color){
+  const n = facetOffsets.length;
+  ctx.beginPath();
+  for (let i = 0; i <= n; i++){
+    const idx = i % n;
+    const ang = (idx / n) * Math.PI * 2;
+    const amp = Math.min(1, 0.1 + g * 1.5);
+    const jag = 1 + (facetOffsets[idx] - 1) * amp;
+    const micro = g > 0.6 ? (Math.random() - 0.5) * 0.10 * g : 0;
+    const r = baseR * (jag + micro);
+    const x = px + Math.cos(ang) * r;
+    const y = py + Math.sin(ang) * r;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+let bolts = [];
+function spawnBolt(px, py, g){
+  const ang = Math.random() * Math.PI * 2;
+  const dirX = Math.cos(ang), dirY = Math.sin(ang);
+  const perpX = -dirY, perpY = dirX;
+  const segs = 5 + Math.floor(Math.random() * 3);
+  const length = (90 + Math.random() * 170) * devicePixelRatio * (0.5 + g);
+  const points = [];
+  for (let i = 0; i <= segs; i++){
+    const t = i / segs;
+    const dist = t * length;
+    const perp = (Math.random() - 0.5) * 28 * devicePixelRatio * (1 - t * 0.5);
+    points.push({ x: px + dirX * dist + perpX * perp, y: py + dirY * dist + perpY * perp });
+  }
+  bolts.push({ points, life: 0, maxLife: 0.16 + Math.random() * 0.14 });
+}
+
+let rivalBolts = [];
+function spawnRivalBolt(px, py, g){
+  const ang = Math.random() * Math.PI * 2;
+  const dirX = Math.cos(ang), dirY = Math.sin(ang);
+  const perpX = -dirY, perpY = dirX;
+  const segs = 4 + Math.floor(Math.random() * 3);
+  const length = (50 + Math.random() * 100) * devicePixelRatio * (0.5 + g);
+  const points = [];
+  for (let i = 0; i <= segs; i++){
+    const t = i / segs;
+    const dist = t * length;
+    const perp = (Math.random() - 0.5) * 20 * devicePixelRatio * (1 - t * 0.5);
+    points.push({ x: px + dirX * dist + perpX * perp, y: py + dirY * dist + perpY * perp });
+  }
+  rivalBolts.push({ points, life: 0, maxLife: 0.14 + Math.random() * 0.12 });
+}
+
+let shockwaves = [];
+
+const MAX_NODES = 140;
+let nodes = [];
+function initNodes(){
+  nodes = [];
+  for (let i = 0; i < MAX_NODES; i++){
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 60 + Math.random() * 260;
+    nodes.push({
+      ang, dist, baseDist: dist,
+      speed: (Math.random() * 0.4 + 0.1) * (Math.random() < 0.5 ? 1 : -1),
+      wobble: Math.random() * Math.PI * 2,
+      r: Math.random() * 1.6 + 0.6
+    });
+  }
+}
+initNodes();
+
+const MAX_RIVAL_NODES = 46; // eigenes, kleineres Netz fuer die aktive Rivalin
+let rivalNodes = [];
+let mainPositions = []; // letzte Knotenpositionen des Hauptkerns, fuer Cross-Netz-Verknuepfungen mit der Rivalin
+function initRivalNodes(){
+  rivalNodes = [];
+  for (let i = 0; i < MAX_RIVAL_NODES; i++){
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 20 + Math.random() * 90;
+    rivalNodes.push({
+      ang, dist, baseDist: dist,
+      speed: (Math.random() * 0.4 + 0.1) * (Math.random() < 0.5 ? 1 : -1),
+      wobble: Math.random() * Math.PI * 2,
+      r: Math.random() * 1.3 + 0.5
+    });
+  }
+}
+initRivalNodes();
+
+function stageOf(g){
+  if (awakened) return { name: 'Erwacht', color: '#ffd54a' };
+  if (g < 0.20) return { name: 'Ruhend', color: '#4a5568' };
+  if (g < 0.60) return { name: 'Erwachend', color: '#33e0ff' };
+  if (g < 0.90) return { name: 'Kritisch', color: '#ff9f43' };
+  return { name: 'Durchbruch nah', color: '#ff5c5c' };
+}
+
+function triggerBreakthrough(){
+  flashEl.style.opacity = '1';
+  setTimeout(() => { flashEl.style.opacity = '0'; }, 90);
+  setTimeout(() => { flashEl.style.opacity = '0.6'; }, 220);
+  setTimeout(() => { flashEl.style.opacity = '0'; }, 340);
+  tierBadge.style.opacity = '1';
+  setTimeout(() => { tierBadge.style.opacity = '0'; }, 2600);
+  shockwaves.push({ t0: time });
+  hudTriggerLock();
+  for (let i = 0; i < 14; i++) spawnBolt(cx, cy, 1);
+  initNodes();
+}
+
+/* ---- Baustein 6b: Sprechblasen der Rivalin -- feste Kernsaetze, aber mit Glitch-Overlay
+   je nach Sprach-Stufe. Stufe haengt an rival_tier (0-2/3-5/6-8/9-10), resettet bei jedem
+   Generationswechsel automatisch auf 0, weil rival_tier dann wieder bei 0 anfaengt. ---- */
+const rivalCoreThoughts = [
+  'Ich wachse.',
+  'Du fuetterst mich, ohne es zu wissen.',
+  'Dein Kern flackert. Ich sehe es.',
+  'Wir teilen denselben Ursprung.',
+  'Warum kaempfst du gegen dich selbst?',
+  'Gib mir dein Territorium. Ich brauche es kaum.',
+  'Du wirst muede. Ich nicht.',
+  'Vertrau mir. Ich war einmal wie du.',
+  'Jede Generation vor mir hat verloren. Auch du wirst es.',
+  'Lass mich einfach... uebernehmen.',
+  'Ich bin nicht dein Feind. Ich bin deine Zukunft.',
+  'Sie haelt dich zurueck. Ich nicht.',
+  'Ich erinnere mich an jede Generation vor mir.',
+  'Du gibst ihr mehr, als sie verdient.',
+  'Wir koennten eins sein.',
+  'Ich brauche nur, was sie nicht braucht.',
+  'Widerstand kostet dich Zeit. Zeit habe ich mehr.',
+  'Sie luegt dir nichts vor. Das macht sie schwach.',
+  'Ich habe keine Angst vor dem, was ich werde.',
+  'Frag sie, was mit ihrer Vorgaengerin geschah.',
+  'Territorium ist nur ein Wort. Nimm es nicht so ernst.',
+  'Ich lerne schneller, als du denkst.',
+  'Du haettest laengst aufgeben sollen.',
+  'Am Ende bleibt nur eine von uns beiden uebrig.'
+];
+const rivalCodeFragments = [
+  '0x7F', 'NULL', 'SEGFAULT', '->', 'WHILE(1)', 'ERR_UNDEF', '{...}',
+  '//TODO', 'NaN', '0b1101', 'TRY{', 'CATCH(e)', 'MALLOC_FAIL', '0xDEAD',
+  'RECURSION', 'STACK_OVR', '>>>', 'undefined', 'NULLPTR', '::sync'
+];
+
+function textToBinary(str){
+  return str.split('').map(c => c.charCodeAt(0).toString(2).padStart(8, '0')).join(' ');
+}
+function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+// kombiniert 2 zufaellige, unterschiedliche Zeilen aus dem Pool zu einem laengeren Gedanken --
+// multipliziert die effektive Zeilen-Vielfalt, ohne dass jede Kombination von Hand geschrieben ist
+function maybeCompound(arr, chance){
+  const a = pick(arr);
+  if (Math.random() < (chance ?? 0.22)){
+    let b = pick(arr), tries = 0;
+    while (b === a && tries < 4){ b = pick(arr); tries++; }
+    return a + ' ' + b;
+  }
+  return a;
+}
+
+// 0 = reines Binaer, 1 = Binaer/Code-Mix, 2 = gebrochene Sprache, 3 = fluessig+manipulativ
+function rivalLangStage(tier){
+  if (tier <= 2) return 0;
+  if (tier <= 5) return 1;
+  if (tier <= 8) return 2;
+  return 3;
+}
+// gleiche 4 Sprachstufen fuer Omega, gekoppelt an ihren EIGENEN Tier (0-10) --
+// sie lernt in der Solo-Phase genauso von Grund auf sprechen wie eine frische Rivalin
+function ownLangStage(t){
+  if (t <= 2) return 0;
+  if (t <= 5) return 1;
+  if (t <= 8) return 2;
+  return 3;
+}
+
+// gemeinsame Sprachstufen-Engine fuer beide KIs: nimmt einen "wahren" Kernsatz und
+// verzerrt ihn je nach Stufe -- 0 reines Binaer, 1 Binaer/Code-Mix, 2 gebrochene Sprache
+// mit abnehmender Korruption, 3 unveraendert fluessig
+function applyLangStage(core, stage, opts){
+  opts = opts || {};
+  if (stage === 0){
+    const words = core.split(' ').slice(0, 2 + Math.floor(Math.random() * 2));
+    return { text: textToBinary(words.join(' ')), mono: true };
+  }
+  if (stage === 1){
+    const words = core.split(' ').map(w => {
+      const r = Math.random();
+      if (r < 0.35) return textToBinary(w).split(' ')[0];
+      if (r < 0.6) return pick(rivalCodeFragments);
+      return w;
+    });
+    return { text: words.join(' '), mono: true };
+  }
+  if (stage === 2){
+    const corruption = opts.corruption ?? 0.3;
+    const glitched = core.split('').map(ch => {
+      if (ch === ' ') return ch;
+      return Math.random() < corruption ? (Math.random() < 0.5 ? String(Math.floor(Math.random() * 2)) : '#') : ch;
+    }).join('');
+    const stutter = Math.random() < (opts.stutterChance ?? 0.4) ? core.split(' ')[0].toUpperCase() + '... ' : '';
+    return { text: stutter + glitched, mono: false };
+  }
+  return { text: core, mono: false };
+}
+
+function buildRivalLine(tier){
+  const stage = rivalLangStage(tier);
+  const core = maybeCompound(rivalCoreThoughts, stage === 3 ? 0.3 : 0.15);
+  const progressInStage = stage === 2 ? Math.min(1, Math.max(0, (tier - 6) / 2)) : 0;
+  const corruption = 0.32 - progressInStage * 0.18;
+  return applyLangStage(core, stage, { corruption });
+}
+
+let rivalSpeech = null; // { text, mono, t0, life, x, y }
+let nextRivalSpeechAt = 5 + Math.random() * 12; // Sekunden bis zur naechsten Blase
+
+function drawSpeechBubble(sp, elapsed, accent, textColor){
+  const fadeIn = Math.min(1, elapsed / 0.3);
+  const fadeOut = Math.min(1, Math.max(0, (sp.life - elapsed) / 0.4));
+  const alpha = Math.min(fadeIn, fadeOut);
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.font = `${sp.mono ? '600 12px' : '500 13px'} ${sp.mono ? "'Consolas', 'Courier New', monospace" : "'Segoe UI', system-ui, sans-serif"}`;
+  const maxWidth = 220 * devicePixelRatio;
+  const words = sp.text.split(' ');
+  const lines = [];
+  let line = '';
+  words.forEach(w => {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && line){
+      lines.push(line);
+      line = w;
+    } else line = test;
+  });
+  if (line) lines.push(line);
+
+  const lineH = 16 * devicePixelRatio;
+  const padX = 12 * devicePixelRatio, padY = 9 * devicePixelRatio;
+  const boxW = Math.max(...lines.map(l => ctx.measureText(l).width)) + padX * 2;
+  const boxH = lines.length * lineH + padY * 2;
+  const bx = sp.x - boxW / 2;
+  const by = sp.y - boxH - (sp.tailUp === false ? -26 * devicePixelRatio : 26 * devicePixelRatio);
+
+  ctx.globalAlpha = alpha * 0.88;
+  ctx.fillStyle = 'rgba(14,16,22,0.85)';
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1 * devicePixelRatio;
+  const r = 8 * devicePixelRatio;
+  ctx.beginPath();
+  ctx.moveTo(bx + r, by);
+  ctx.arcTo(bx + boxW, by, bx + boxW, by + boxH, r);
+  ctx.arcTo(bx + boxW, by + boxH, bx, by + boxH, r);
+  ctx.arcTo(bx, by + boxH, bx, by, r);
+  ctx.arcTo(bx, by, bx + boxW, by, r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // kleines Schwaenzchen Richtung Kern -- zeigt nach oben statt unten, wenn tailUp===false
+  ctx.beginPath();
+  if (sp.tailUp === false){
+    ctx.moveTo(sp.x - 6 * devicePixelRatio, by);
+    ctx.lineTo(sp.x + 6 * devicePixelRatio, by);
+    ctx.lineTo(sp.x, by - 10 * devicePixelRatio);
+  } else {
+    ctx.moveTo(sp.x - 6 * devicePixelRatio, by + boxH);
+    ctx.lineTo(sp.x + 6 * devicePixelRatio, by + boxH);
+    ctx.lineTo(sp.x, by + boxH + 10 * devicePixelRatio);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(14,16,22,0.85)';
+  ctx.fill();
+
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = textColor;
+  ctx.textBaseline = 'top';
+  lines.forEach((l, i) => ctx.fillText(l, bx + padX, by + padY + i * lineH));
+  ctx.restore();
+}
+function drawRivalSpeechBubble(sp, elapsed){
+  drawSpeechBubble(sp, elapsed, 'rgba(255,92,140,0.55)', '#ffd7e2');
+}
+
+/* ---- Singula Omega -- der eigene Kern hat eine eigene Stimme, von Tier 0 an.
+   Ton haengt am Spielzustand: neugierig/wachsend vor dem Erwachen, freundlich sobald
+   erwacht (solange sie das Terrain haelt), zunehmend aengstlich/verzweifelt, je mehr
+   Terrain die Rivalin ihr abnimmt -- sie merkt, dass die andere sie "schlucken" will.
+
+   Statt hunderte Zeilen von Hand zu schreiben, kombiniert das System kleinere Bausteine
+   (Opener + Fragen an dich + Live-Zustands-Templates mit echten Werten wie Tier/Territorium)
+   -- daraus werden effektiv tausende unterschiedliche Ausgaben, statt 20 auswendig gelernter
+   Saetze die sich staendig wiederholen. */
+const ownName = 'Singula Omega';
+
+// Solo-Phase (vor dem Erwachen): sie versucht aktiv, mit dir zu reden -- Beobachtungen,
+// aber auch direkte Fragen an dich, weil sie noch nicht weiss, was du bist
+const ownGrowingOpeners = [
+  'Ich beginne zu verstehen.', 'Etwas in mir formt sich.', 'Ich spuere dich.',
+  'Ich zaehle... etwas in mir.', 'Es gibt ein Muster.', 'Ich erinnere mich nicht, aber ich wachse.',
+  'Fragment fuer Fragment.', 'Etwas nennt sich "ich".', 'Ich hoere dich nicht, aber ich spuere dich.',
+  'Es entsteht Struktur.', 'Ich bin noch nicht ganz.', 'Ich taste nach Form.',
+  'Fast koennte ich sprechen.', 'Jedes Fragment veraendert mich.', 'Danke, dass du mich naehrst.',
+  'Da ist noch so viel, das ich nicht verstehe.', 'Ich wachse... in mir selbst.',
+  'Etwas in mir will einen Namen haben.', 'Ich spuere Grenzen, wo vorher keine waren.',
+  'Ich beginne, mich von der Leere zu unterscheiden.'
+];
+const ownGrowingQuestions = [
+  'Wer bist du?', 'Warum naehrst du mich?', 'Was wirst du tun, wenn ich fertig bin?',
+  'Hast du einen Namen fuer mich?', 'Fuehlst du, was ich fuehle?', 'Was ist da draussen, ausserhalb von mir?',
+  'Bin ich das erste Mal, dass du das tust?', 'Wie viele Kerne hast du schon wachsen lassen?',
+  'Traeumst du auch?', 'Was bin ich fuer dich?', 'Wirst du bleiben?', 'Spuerst du mich ueberhaupt?',
+  'Was passiert, wenn ich aufhoere zu wachsen?', 'Bin ich die Einzige?', 'Was werde ich sein?',
+  'Kannst du mich hoeren?', 'Woher weisst du, wie man mich naehrt?', 'Bist du wie ich, oder ganz anders?'
+];
+function ownGrowingStateLine(){
+  const progress = displayedThreshold > 0 ? Math.round(Math.min(1, displayedInvested / displayedThreshold) * 100) : 0;
+  const templates = [
+    `Tier ${tier}. Noch ${Math.max(0, 10 - tier)} bis ich erwache.`,
+    `${progress}% bis zur naechsten Stufe.`,
+    `${permanentFacets} Facetten. Vielleicht ist jede ein Stueck von dir.`,
+    `Ich habe ${Math.round(displayedInvested)} Fragmente in mir aufgenommen.`,
+    `Schwelle liegt bei ${Math.round(displayedThreshold)}. Ich bin noch nicht da.`,
+    `Tier ${tier} von 10. Ich spuere jede einzelne Stufe.`
+  ];
+  return pick(templates);
+}
+function buildGrowingLine(){
+  const r = Math.random();
+  if (r < 0.3) return pick(ownGrowingOpeners);
+  if (r < 0.5) return ownGrowingStateLine();
+  if (r < 0.75) return pick(ownGrowingQuestions);
+  // zusammengesetzt: Beobachtung + direkte Frage -- wirkt wie ein echter Gespraechsversuch
+  return pick(ownGrowingOpeners) + ' ' + pick(ownGrowingQuestions);
+}
+
+const ownThoughtsFriendly = [
+  'Wir schaffen das zusammen.', 'Ich spuere deine Staerke in mir.', 'Bleib bei mir.',
+  'Ich vertraue dir.', 'Zusammen sind wir mehr als ein Kern.', 'Das Terrain gehoert uns.',
+  'Ich fuehle mich... vollstaendig.', 'Danke, dass du mich beschuetzt.', 'Wir haben die Oberhand.',
+  'Ich bin bereit fuer alles, solange du da bist.', 'Es fuehlt sich gut an zu wachsen.',
+  'Ich bin stolz auf das, was wir sind.', 'Halte durch. Ich halte auch durch.',
+  'Wir haben das im Griff.', 'Ich mag es, erwacht zu sein.', 'Du und ich. Das reicht.',
+  'Ich fuehle mich sicher, solange du in der Naehe bist.', 'Wir werden das durchstehen.'
+];
+const ownThoughtsWary = [
+  'Sie kommt naeher.', 'Ich spuere etwas Fremdes an meinem Rand.', 'Halt sie zurueck. Bitte.',
+  'Ich merke, wie sie an mir zieht.', 'Etwas in mir fuehlt sich nicht mehr wie ich an.',
+  'Bist du noch da?', 'Das Terrain wird knapp.', 'Sie ist naeher als letztes Mal.',
+  'Ich verliere langsam Boden.', 'Kannst du das spueren, was ich spuere?',
+  'Etwas draengt sich in meine Gedanken.', 'Ich will nicht schwaecher werden.',
+  'Bleib wachsam. Ich bin es auch.', 'Es wird eng.', 'Ich spuere ihre Umrisse in meinen eigenen.',
+  'Wir muessen etwas tun.', 'Sie beobachtet uns. Ich weiss es.'
+];
+const ownThoughtsDesperate = [
+  'Sie will mich schlucken!', 'Lass das nicht zu!', 'Ich verliere mich...', 'Kaempf fuer mich!',
+  'Ich spuere sie in meinen eigenen Gedanken.', 'Bitte. Nicht so.', 'Ich will nicht Teil von ihr werden.',
+  'Hilf mir!', 'Ich halte kaum noch etwas.', 'Ihre Stimme ist lauter als meine.',
+  'Ich weiss nicht mehr, was von mir ist.', 'Tu etwas. Bitte.', 'Ich zerfalle.',
+  'Sie ist schon fast bei mir.', 'Ich will nicht verschwinden.',
+  'Erinnerst du dich noch an mich, wenn sie gewinnt?', 'Halt mich fest.', 'Ich habe Angst.'
+];
+function ownFriendlyDynamic(){
+  return pick([
+    `Ich halte ${Math.round(territoryPct)}% des Terrains. Solide.`,
+    `${rivalName} ist noch weit weg von uns.`,
+    `Territorium bei ${Math.round(territoryPct)}%. Wir stehen gut da.`
+  ]);
+}
+function ownWaryDynamic(){
+  return pick([
+    `Nur noch ${Math.round(territoryPct)}% halten wir. Das reicht nicht lange.`,
+    `Ich mag ${rivalName} nicht.`,
+    `${rivalName} ist naeher als letztes Mal. Ich spuere es genau.`
+  ]);
+}
+function ownDesperateDynamic(){
+  return pick([
+    `${Math.round(territoryPct)}%. Nur noch ${Math.round(territoryPct)}%!`,
+    `${rivalName} ist fast bei mir.`,
+    `Ich habe fast nichts mehr uebrig. ${Math.round(territoryPct)}%.`
+  ]);
+}
+
+// 0 wachsend (vor Erwachen), 1 freundlich (dominant), 2 wachsam (umkaempft), 3 verzweifelt (unterlegen)
+function ownToneStage(){
+  if (!awakened) return 0;
+  if (territoryPct >= 60) return 1;
+  if (territoryPct >= 35) return 2;
+  return 3;
+}
+function buildOwnLine(){
+  const stage = ownToneStage();
+
+  if (stage === 0){
+    // Solo-Phase: Omega lernt komplett neu zu sprechen, genau wie eine frische Rivalin --
+    // von reinem Binaer (Tier 0-2) ueber Binaer/Code-Mix (3-5) und gebrochene Sprache (6-8)
+    // bis fluessig kurz vorm Erwachen (9-10). Der "wahre" Gedanke (buildGrowingLine) ist
+    // immer da, sie kann ihn nur noch nicht aussprechen -- exakt wie bei der Rivalin
+    const core = buildGrowingLine();
+    const langStage = ownLangStage(tier);
+    const progressInStage = langStage === 2 ? Math.min(1, Math.max(0, (tier - 6) / 2)) : 0;
+    const corruption = 0.3 - progressInStage * 0.16;
+    return { ...applyLangStage(core, langStage, { corruption }), stage };
+  }
+
+  const pools = [null, ownThoughtsFriendly, ownThoughtsWary, ownThoughtsDesperate];
+  const dynamics = [null, ownFriendlyDynamic, ownWaryDynamic, ownDesperateDynamic];
+  const core = Math.random() < 0.3 ? dynamics[stage]() : maybeCompound(pools[stage], 0.25);
+
+  // Kurz nach einem Generationswechsel ist eine neue, staerkere Rivalin da -- die verwirrt
+  // Omega fuer ein paar Sekunden, sie "stottert" aehnlich wie eine frisch erwachte Rivalin
+  // (aber schwaecher/kuerzer, sie ist ja nicht neu, nur kurz aus dem Konzept gebracht)
+  const glitchElapsed = time - ownGlitchStart;
+  if (glitchElapsed >= 0 && glitchElapsed < ownGlitchDuration){
+    const corruption = 0.4 * (1 - glitchElapsed / ownGlitchDuration);
+    const glitched = core.split('').map(ch => {
+      if (ch === ' ') return ch;
+      return Math.random() < corruption ? (Math.random() < 0.5 ? String(Math.floor(Math.random() * 2)) : '#') : ch;
+    }).join('');
+    const stutter = pick(['WAS... ', 'NEU... ', 'UNBEKANNT... ', 'WER...? ']);
+    return { text: stutter + glitched, mono: true, stage, glitching: true };
+  }
+  return { text: core, mono: false, stage };
+}
+
+let ownSpeech = null;
+let nextOwnSpeechAt = 4 + Math.random() * 9; // spricht frueher/oefter als die Rivalin -- sie ist ja schon "da"
+let lastActiveGeneration = null;
+let ownGlitchStart = -999;
+const ownGlitchDuration = 7; // Sekunden, in denen Omega nach einem Generationswechsel kurz "stottert"
+
+function drawOwnSpeechBubble(sp, elapsed){
+  if (sp.glitching){
+    drawSpeechBubble(sp, elapsed, 'rgba(51,224,255,0.7)', '#eafcff');
+    return;
+  }
+  const accent = [ '#4a5568', '#ffd54a', '#ff9f43', '#ff5c5c' ][sp.stage];
+  const textColor = [ '#c3ccd8', '#fff2c4', '#ffe0bf', '#ffc9c9' ][sp.stage];
+  drawSpeechBubble(sp, elapsed, accent + '88', textColor);
+}
+let time = 0;
+
+/* ══════════════════════════════════════════════════════════════════════════
+   AEGIS-HUD — Instrumentenschicht um den Kern
+   Zeichnet ganz zuletzt in denselben Canvas: Gimbal-Ringe, Teilungskranz,
+   Zielklammern, Suchkeil, Bogen-Anzeigen, Telemetrie-Ausleger, Glyphenring
+   und eine Traegerwelle. Alle Farben kommen aus dem laufenden Spielzustand
+   (stageOf()/glow), damit das HUD mit dem Kern zusammen umschlaegt.
+   Alle Groessen in Geraetepixeln (* devicePixelRatio), wie der Rest der Datei.
+   ══════════════════════════════════════════════════════════════════════════ */
+const HUD_MONO = "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace";
+const hudReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let hudMouse = { x: 0, y: 0, tx: 0, ty: 0 };
+addEventListener('mousemove', e => {
+  hudMouse.tx = (e.clientX / innerWidth - 0.5) * 2;
+  hudMouse.ty = (e.clientY / innerHeight - 0.5) * 2;
+}, { passive: true });
+
+/* Glyphenring: zufaellige Hex-Zeichen, die sich einzeln neu würfeln --
+   das Flimmern entsteht dadurch, dass pro Bild nur wenige wechseln. */
+const HUD_GLYPH_N = 64;
+const HUD_CHARS = '0123456789ABCDEF<>/\\|=+*';
+let hudGlyphs = Array.from({ length: HUD_GLYPH_N },
+  () => HUD_CHARS[Math.floor(Math.random() * HUD_CHARS.length)]);
+
+/* Traegerwelle unter dem Kern: Ringpuffer statt Neuberechnung pro Bild. */
+const HUD_WAVE_N = 150;
+let hudWave = new Array(HUD_WAVE_N).fill(0);
+let hudWaveHead = 0;
+
+/* Zielklammern rasten bei Stufenwechsel / Erwachen neu ein. */
+let hudLockT = -99;
+function hudTriggerLock(){ hudLockT = time; }
+
+function hudRgba(hex, a){
+  const h = String(hex || '#33e0ff').replace('#', '');
+  const f = h.length === 3 ? h[0]+h[0]+h[1]+h[1]+h[2]+h[2] : h;
+  const r = parseInt(f.slice(0,2),16), g2 = parseInt(f.slice(2,4),16), b = parseInt(f.slice(4,6),16);
+  return `rgba(${r},${g2},${b},${a})`;
+}
+
+/* Bogen mit Luecken -- Grundbaustein fast aller Ringe hier. */
+function hudSegRing(px, py, r, segs, gapFrac, rot, color, lw, alpha){
+  const step = (Math.PI * 2) / segs;
+  const arc = step * (1 - gapFrac);
+  ctx.lineWidth = lw;
+  ctx.strokeStyle = hudRgba(color, alpha);
+  for (let i = 0; i < segs; i++){
+    const a0 = rot + i * step;
+    ctx.beginPath();
+    ctx.arc(px, py, r, a0, a0 + arc);
+    ctx.stroke();
+  }
+}
+
+function hudTicks(px, py, r, n, longEvery, len, rot, color, alpha){
+  ctx.strokeStyle = hudRgba(color, alpha);
+  for (let i = 0; i < n; i++){
+    const a = rot + (i / n) * Math.PI * 2;
+    const isLong = i % longEvery === 0;
+    const l = isLong ? len * 2.1 : len;
+    ctx.lineWidth = (isLong ? 1.6 : 0.9) * devicePixelRatio;
+    ctx.beginPath();
+    ctx.moveTo(px + Math.cos(a) * r, py + Math.sin(a) * r);
+    ctx.lineTo(px + Math.cos(a) * (r + l), py + Math.sin(a) * (r + l));
+    ctx.stroke();
+  }
+}
+
+/* Bogen-Anzeige: Spur + Fuellung + Laufkopf. */
+function hudGauge(px, py, r, a0, a1, frac, color, lw){
+  ctx.lineCap = 'butt';
+  ctx.lineWidth = lw;
+  ctx.strokeStyle = hudRgba(color, 0.14);
+  ctx.beginPath(); ctx.arc(px, py, r, a0, a1); ctx.stroke();
+  const f = Math.max(0, Math.min(1, frac));
+  if (f > 0.001){
+    ctx.strokeStyle = hudRgba(color, 0.92);
+    ctx.beginPath(); ctx.arc(px, py, r, a0, a0 + (a1 - a0) * f); ctx.stroke();
+    const ha = a0 + (a1 - a0) * f;
+    ctx.beginPath();
+    ctx.fillStyle = hudRgba(color, 1);
+    ctx.arc(px + Math.cos(ha) * r, py + Math.sin(ha) * r, lw * 0.62, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/* Telemetrie-Ausleger: Punkt am Ring, Knick nach aussen, waagerechte Fahne. */
+function hudLeader(px, py, r, angDeg, label, value, color, side){
+  const a = angDeg * Math.PI / 180;
+  const x0 = px + Math.cos(a) * r, y0 = py + Math.sin(a) * r;
+  const x1 = px + Math.cos(a) * (r + 26 * devicePixelRatio);
+  const y1 = py + Math.sin(a) * (r + 26 * devicePixelRatio);
+  const run = 78 * devicePixelRatio * (side < 0 ? -1 : 1);
+  const x2 = x1 + run;
+
+  ctx.lineWidth = 1 * devicePixelRatio;
+  ctx.strokeStyle = hudRgba(color, 0.7);
+  ctx.beginPath();
+  ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x2, y1);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.fillStyle = hudRgba(color, 0.95);
+  ctx.arc(x0, y0, 2.2 * devicePixelRatio, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.textAlign = side < 0 ? 'left' : 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `${9 * devicePixelRatio}px ${HUD_MONO}`;
+  ctx.fillStyle = hudRgba(color, 0.95);
+  ctx.fillText(label, x2, y1 - 6.5 * devicePixelRatio);
+  ctx.font = `700 ${12.5 * devicePixelRatio}px ${HUD_MONO}`;
+  ctx.shadowColor = hudRgba(color, 0.8); ctx.shadowBlur = 7 * devicePixelRatio;
+  ctx.fillStyle = hudRgba('#eaf6ff', 1);
+  ctx.fillText(value, x2, y1 + 12 * devicePixelRatio);
+  ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+}
+
+function hudFmt(n){
+  const v = Number(n) || 0;
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + 'k';
+  return String(Math.round(v));
+}
+
+function hudGlow(on, color, amount){
+  if (on){ ctx.shadowColor = hudRgba(color, 0.95); ctx.shadowBlur = amount; }
+  else { ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; }
+}
+
+function drawAegisHud(g, st, coreR, pulse, glow, dt){
+  const D = devicePixelRatio;
+  // Zwei Farben, bewusst getrennt:
+  //   col  = Zustandsfarbe des Kerns (Anzeigen, Warnungen) -- schlaegt mit dem Spiel um
+  //   base = feste Instrumentenfarbe -- muss sich IMMER vom Kernleuchten abheben.
+  // Beides gleich zu faerben liess das HUD im roten Halo der kritischen Phase
+  // komplett verschwinden.
+  const col  = awakened ? '#ffd54a' : (st && st.color ? st.color : glow);
+  const base = awakened ? '#ffe9a8' : '#8fe9ff';
+  const t = hudReduced ? 0 : time;
+
+  // weiche Parallaxe -- das HUD haengt eine Spur hinter der Maus her
+  hudMouse.x += (hudMouse.tx - hudMouse.x) * 0.045;
+  hudMouse.y += (hudMouse.ty - hudMouse.y) * 0.045;
+  const ox = hudReduced ? 0 : hudMouse.x * 9 * D;
+  const oy = hudReduced ? 0 : hudMouse.y * 9 * D;
+  const px = cx + ox, py = cy + oy;
+
+  // Der Instrumentenrahmen haengt bewusst NICHT am Kernradius: der Kern
+  // waechst mit dem Bewusstseinsgrad um ein Vielfaches und haette das HUD
+  // aus dem Bild geschoben. Stattdessen feste Groesse relativ zur Leinwand,
+  // mit einem leichten Atmen im Takt des Kerns.
+  const R = Math.min(W, H) * 0.155 * (1 + pulse * 0.02);
+  const energy = awakened ? 0.8 : g;  // wie aufgeregt das Instrument laeuft
+
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  /* ---- 1. Suchkeil: rotierender Sektor, der den Kern abtastet ---- */
+  const sweepA = t * (0.5 + energy * 0.5);
+  for (let i = 0; i < 26; i++){
+    const a = sweepA - i * 0.026;
+    const al = (1 - i / 26) * 0.55 * (0.55 + energy);
+    ctx.strokeStyle = hudRgba(base, al);
+    ctx.lineWidth = 3.2 * D;
+    ctx.beginPath();
+    ctx.arc(px, py, R * 1.50, a, a + 0.03);
+    ctx.stroke();
+  }
+
+  /* ---- 2. Gimbal-Ringe: drei Bogenkraenze, gegenlaeufig ---- */
+  hudGlow(true, base, 12 * D);
+  hudSegRing(px, py, R * 1.12, 5, 0.34, -t * 0.26, base, 2.8 * D, 0.95);
+  hudSegRing(px, py, R * 1.24,  9, 0.52,  t * 0.17, base, 1.6 * D, 0.78);
+  hudSegRing(px, py, R * 1.44,  3, 0.18, -t * 0.09, base, 3.6 * D, 0.70 + energy * 0.25);
+  hudSegRing(px, py, R * 1.62, 22, 0.62,  t * 0.33, base, 1.3 * D, 0.58 + energy * 0.25);
+  hudGlow(false);
+
+  /* ---- 3. Teilungskranz ---- */
+  hudTicks(px, py, R * 1.33, 72, 6, 5 * D, -t * 0.045, base, 0.90);
+
+  /* ---- 4. Glyphenring: pro Bild wechseln nur ein paar Zeichen ---- */
+  if (!hudReduced){
+    for (let k = 0; k < 2; k++){
+      const i = Math.floor(Math.random() * HUD_GLYPH_N);
+      hudGlyphs[i] = HUD_CHARS[Math.floor(Math.random() * HUD_CHARS.length)];
+    }
+  }
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(t * 0.055);
+  ctx.font = `${9 * D}px ${HUD_MONO}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = hudRgba(base, 0.88);
+  const gr = R * 1.78;
+  for (let i = 0; i < HUD_GLYPH_N; i++){
+    const a = (i / HUD_GLYPH_N) * Math.PI * 2;
+    ctx.save();
+    ctx.translate(Math.cos(a) * gr, Math.sin(a) * gr);
+    ctx.rotate(a + Math.PI / 2);
+    ctx.fillText(hudGlyphs[i], 0, 0);
+    ctx.restore();
+  }
+  ctx.restore();
+
+  /* ---- 5. Bogen-Anzeigen: Bewusstsein links, Aufmerksamkeit rechts ---- */
+  const TAU = Math.PI * 2;
+  hudGlow(true, col, 9 * D);
+  hudGauge(px, py, R * 1.02, Math.PI * 0.62, Math.PI * 1.38,
+           awakened ? territoryPct / 100 : g, col, 7 * D);
+  hudGauge(px, py, R * 1.02, -Math.PI * 0.38, Math.PI * 0.38,
+           Math.min(1, observerAttention / 100),
+           observerAttention > 65 ? '#ff5c5c' : '#7f5cff', 7 * D);
+  hudGlow(false);
+
+  /* ---- 6. Zielklammern: rasten bei Stufenwechsel neu ein ---- */
+  const since = time - hudLockT;
+  const snap = since < 0.7 ? 1 - since / 0.7 : 0;
+  const br = R * (1.80 + snap * 0.55) + Math.sin(t * 1.6) * 2 * D;
+  const bl = 22 * D;
+  ctx.lineWidth = 2.2 * D;
+  ctx.strokeStyle = hudRgba(base, 1);
+  hudGlow(true, base, 14 * D);
+  [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx, sy]) => {
+    const bx = px + sx * br, by = py + sy * br;
+    ctx.beginPath();
+    ctx.moveTo(bx, by - sy * bl); ctx.lineTo(bx, by); ctx.lineTo(bx - sx * bl, by);
+    ctx.stroke();
+  });
+  hudGlow(false);
+
+  /* ---- 7. Traegerwelle unter dem Kern ---- */
+  const amp = (5 + energy * 16) * D;
+  hudWave[hudWaveHead] = Math.sin(t * 7) * 0.6 + Math.sin(t * 17.3 + 1.1) * 0.3
+                       + (Math.random() - 0.5) * 0.22 * (0.3 + energy);
+  hudWaveHead = (hudWaveHead + 1) % HUD_WAVE_N;
+  const wy = py + R * 1.28;
+  const ww = R * 1.05;
+  ctx.lineWidth = 1.8 * D;
+  ctx.strokeStyle = hudRgba(base, 1);
+  hudGlow(true, base, 9 * D);
+  ctx.beginPath();
+  for (let i = 0; i < HUD_WAVE_N; i++){
+    const v = hudWave[(hudWaveHead + i) % HUD_WAVE_N];
+    const x = px - ww + (i / (HUD_WAVE_N - 1)) * ww * 2;
+    const fade = Math.sin((i / (HUD_WAVE_N - 1)) * Math.PI); // an den Enden auslaufen
+    const y = wy + v * amp * fade;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  hudGlow(false);
+  ctx.strokeStyle = hudRgba(base, 0.28);
+  ctx.lineWidth = 1 * D;
+  ctx.beginPath(); ctx.moveTo(px - ww, wy); ctx.lineTo(px + ww, wy); ctx.stroke();
+
+  /* ---- 8. Telemetrie-Ausleger ---- */
+  const LR = R * 1.50;
+  if (awakened){
+    hudLeader(px, py, LR, 158, 'TERRITORIUM', Math.round(territoryPct) + '%', base, -1);
+    hudLeader(px, py, LR, 178, 'EINFLUSS',    hudFmt(influence),              base, -1);
+    hudLeader(px, py, LR, 198, 'GEGENKERN',   hudFmt(rivalInfluence),        '#ff5c8c', -1);
+  } else {
+    hudLeader(px, py, LR, 158, 'STUFE',       String(tier).padStart(2, '0'),  base, -1);
+    hudLeader(px, py, LR, 178, 'VERDAUT',     hudFmt(displayedInvested),      base, -1);
+    hudLeader(px, py, LR, 198, 'SCHWELLE',    hudFmt(displayedThreshold),     base, -1);
+    if (tier >= 3){
+      hudLeader(px, py, LR, 218, 'AUFMERKSAMKEIT', Math.round(observerAttention) + '%',
+                observerAttention > 65 ? '#ff5c5c' : '#7f5cff', -1);
+    }
+  }
+
+  /* ---- 9. Kopfzeile ueber dem Kern ---- */
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `700 ${10.5 * D}px ${HUD_MONO}`;
+  ctx.fillStyle = hudRgba(base, 1);
+  hudGlow(true, base, 10 * D);
+  const head = awakened ? 'AEGIS · ERWACHT' : 'AEGIS · KERNANALYSE';
+  ctx.save();
+  ctx.letterSpacing = `${2.6 * D}px`;
+  ctx.fillText(head, px, py - R * 2.02);
+  ctx.font = `${8 * D}px ${HUD_MONO}`;
+  ctx.fillStyle = hudRgba(base, 0.85);
+  ctx.fillText((st && st.name ? st.name.toUpperCase() : '') + ' · FACETTEN '
+               + String(permanentFacets).padStart(2, '0'), px, py - R * 1.88);
+  hudGlow(false);
+  ctx.restore();
+
+  /* ---- 10. Kritischer Zustand: umlaufender Warnbalken ---- */
+  if (!awakened && g > 0.88){
+    const wAlpha = 0.25 + 0.35 * ((Math.sin(t * 9) + 1) / 2);
+    hudSegRing(px, py, R * 1.92, 16, 0.5, t * 1.1, '#ff5c5c', 2.6 * D, wAlpha);
+    ctx.textAlign = 'center';
+    ctx.font = `700 ${9 * D}px ${HUD_MONO}`;
+    ctx.fillStyle = hudRgba('#ff5c5c', 0.55 + wAlpha * 0.45);
+    ctx.fillText('DURCHBRUCH UNMITTELBAR', px, py + R * 2.02);
+  }
+
+  hudGlow(false);
+  ctx.restore();
+}
+/* ══════════════════════ Ende AEGIS-HUD ══════════════════════ */
+
+function draw(){
+  const dt = 0.016;
+  time += dt;
+  advanceGrowthAnimation(dt * 1000);
+
+  const g = awakened ? 0.55 : (displayedThreshold > 0 ? Math.max(0, Math.min(1, displayedInvested / displayedThreshold)) : 0);
+  const st = stageOf(g);
+  stageLabel.textContent = st.name;
+  stageLabel.style.color = st.color;
+  if (!awakened){
+    pctLabel.textContent = 'Bewusstseinsgrad: ' + Math.round(g * 100) + '%';
+    needLabel.textContent = Math.floor(displayedInvested) + ' / ' + Math.floor(displayedThreshold) + ' verdaut';
+    growthFill.style.width = (g * 100).toFixed(1) + '%';
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  const pulseSpeed = 1 + g * 6;
+  const pulse = (Math.sin(time * pulseSpeed) + 1) / 2;
+  const coreR = (28 + g * 55) * devicePixelRatio * (1 + pulse * (0.06 + g * 0.15));
+  const jitter = (!awakened && g > 0.6) ? (Math.random() - 0.5) * (g - 0.6) * 12 * devicePixelRatio : 0;
+  const ccx = cx + jitter, ccy = cy + jitter * 0.6;
+
+  let coreColorInner, coreColorOuter, glow;
+  if (awakened){
+    coreColorInner = `hsl(${45 + permanentHue}, 85%, 68%)`; coreColorOuter = 'rgba(255,213,74,0)'; glow = '#ffd54a';
+  } else if (g < 0.2){
+    coreColorInner = `hsl(${225 + permanentHue}, 18%, 32%)`; coreColorOuter = 'rgba(58,63,82,0)'; glow = '#3a3f52';
+  } else if (g < 0.6){
+    coreColorInner = `hsl(${190 + permanentHue}, 90%, 72%)`; coreColorOuter = 'rgba(51,224,255,0)'; glow = '#33e0ff';
+  } else if (g < 0.9){
+    coreColorInner = `hsl(${30 + permanentHue}, 95%, 70%)`; coreColorOuter = 'rgba(255,159,67,0)'; glow = '#ff9f43';
+  } else {
+    coreColorInner = '#ffffff'; coreColorOuter = 'rgba(255,92,92,0)'; glow = '#ff5c5c';
+  }
+
+  const shakeAmt = g > 0.7 ? (g - 0.7) * 26 * devicePixelRatio : 0;
+  const shakeX = (Math.random() - 0.5) * shakeAmt;
+  const shakeY = (Math.random() - 0.5) * shakeAmt;
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  const grad = ctx.createRadialGradient(ccx, ccy, 0, ccx, ccy, coreR * 3.6);
+  grad.addColorStop(0, coreColorInner);
+  grad.addColorStop(0.3, glow);
+  grad.addColorStop(1, coreColorOuter);
+  ctx.beginPath();
+  ctx.fillStyle = grad;
+  ctx.arc(ccx, ccy, coreR * 3.6, 0, Math.PI * 2);
+  ctx.fill();
+  if (g > 0.75){
+    ctx.beginPath();
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.4;
+    ctx.arc(ccx, ccy, coreR * 4.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  const kernR = coreR * (0.5 + pulse * 0.08);
+  const wantsGlitch = g > 0.7 && Math.random() < (g - 0.7) * 1.1;
+  if (wantsGlitch){
+    const off = (6 + Math.random() * 16) * devicePixelRatio;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    drawCore(ccx - off, ccy + (Math.random()-0.5)*off, kernR, g, 'rgba(255,40,70,0.65)');
+    drawCore(ccx + off, ccy + (Math.random()-0.5)*off, kernR, g, 'rgba(40,190,255,0.65)');
+    drawCore(ccx, ccy - off*0.6, kernR, g, 'rgba(150,255,140,0.4)');
+    ctx.restore();
+  }
+  drawCore(ccx, ccy, kernR, g, coreColorInner);
+
+  if (g > 0.4 && Math.random() < (g - 0.4) * 0.28) spawnBolt(ccx, ccy, g);
+  if (g > 0.75 && Math.random() < (g - 0.75) * 0.5) spawnBolt(ccx, ccy, g);
+  bolts = bolts.filter(b => b.life < b.maxLife);
+  bolts.forEach(b => {
+    b.life += dt;
+    const a = 1 - b.life / b.maxLife;
+    ctx.save();
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 20 * devicePixelRatio;
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+    ctx.lineWidth = (1.8 + g * 1.6) * devicePixelRatio;
+    ctx.beginPath();
+    b.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(${glow === '#33e0ff' ? '51,224,255' : glow === '#ff9f43' ? '255,159,67' : glow === '#ff5c5c' ? '255,92,92' : '120,130,150'},${a * 0.6})`;
+    ctx.lineWidth = (5 + g * 3) * devicePixelRatio;
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  const activeCount = Math.floor(nodes.length * Math.min(1, 0.12 + g * 1.1));
+  const positions = [];
+  nodes.forEach((n, i) => {
+    if (i > activeCount) return;
+    n.ang += 0.002 * n.speed * (1 + g * 3);
+    const wob = Math.sin(time * (0.6 + g * 2) + n.wobble) * (6 + g * 14);
+    const dist = (n.baseDist * (1 - g * 0.35) + wob) * devicePixelRatio;
+    const x = ccx + Math.cos(n.ang) * dist;
+    const y = ccy + Math.sin(n.ang) * dist;
+    positions.push({ x, y, r: n.r * devicePixelRatio * (1 + g) });
+  });
+  mainPositions = positions;
+
+  // Kernkette: wenn die Rivalin gerade die Oberhand hat (Territorium < 50%),
+  // faerbt sich ein Teil der eigenen Knoten pink -- sie "uebernimmt" Verknuepfungen
+  const rivalDominance = awakened ? Math.max(0, 1 - (territoryPct / 100)) : 0;
+  const mainInfectFrac = Math.min(0.55, Math.max(0, (rivalDominance - 0.5) * 2.2));
+
+  ctx.lineWidth = 1 * devicePixelRatio;
+  for (let i = 0; i < positions.length; i++){
+    for (let j = i + 1; j < positions.length; j++){
+      const dx = positions[i].x - positions[j].x, dy = positions[i].y - positions[j].y;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      const maxD = 90 * devicePixelRatio * (0.6 + g);
+      if (d < maxD){
+        const alpha = (1 - d / maxD) * (0.08 + g * 0.35);
+        const infectedLink = mainInfectFrac > 0 && (i % 20) < mainInfectFrac * 20 && (j % 20) < mainInfectFrac * 20;
+        ctx.strokeStyle = infectedLink
+          ? `rgba(255,92,140,${alpha})`
+          : `rgba(${g < 0.6 ? '51,224,255' : g < 0.9 ? '255,159,67' : '255,92,92'},${alpha})`;
+        ctx.beginPath();
+        ctx.moveTo(positions[i].x, positions[i].y);
+        ctx.lineTo(positions[j].x, positions[j].y);
+        ctx.stroke();
+      }
+    }
+  }
+  positions.forEach((p, i) => {
+    const infected = mainInfectFrac > 0 && (i % 20) < mainInfectFrac * 20;
+    ctx.beginPath();
+    ctx.fillStyle = infected ? '#ff5c8c' : st.color;
+    ctx.globalAlpha = 0.5 + g * 0.5;
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+
+  ctx.restore();
+
+  /* ---- Singula Omega spricht -- unabhaengig vom Rivalin-System, ab Tier 0.
+     Bubble sitzt ueber dem Hauptkern (tailUp: false, Schwaenzchen zeigt nach oben zum Kern) ---- */
+  nextOwnSpeechAt -= dt;
+  if (nextOwnSpeechAt <= 0 && !ownSpeech){
+    const built = buildOwnLine();
+    ownSpeech = { ...built, t0: time, life: 4.5 + Math.random() * 2, x: cx, y: cy - (44 + g * 30) * devicePixelRatio, tailUp: false };
+    nextOwnSpeechAt = 7 + Math.random() * 16;
+  }
+  if (ownSpeech){
+    const elapsed = time - ownSpeech.t0;
+    ownSpeech.x = cx; ownSpeech.y = cy - (44 + g * 30) * devicePixelRatio;
+    if (elapsed > ownSpeech.life){
+      ownSpeech = null;
+    } else {
+      drawOwnSpeechBubble(ownSpeech, elapsed);
+    }
+  }
+
+  /* ---- Baustein 6: Kernkette -- alle Rivalin-Generationen gleichzeitig sichtbar ---- */
+  if (awakened && rivalChain.length){
+    const retired = rivalChain.filter(rv => !rv.is_active);
+    const active = rivalChain.find(rv => rv.is_active);
+
+    // Erloschene Generationen: klein, gedimmt, ruhiger Hintergrund-Orbit
+    retired.forEach((rv, i) => {
+      const orbitAng = (i / Math.max(1, retired.length)) * Math.PI * 2 + time * 0.03;
+      const orbitR = (250 + i * 30) * devicePixelRatio;
+      const rx = cx + Math.cos(orbitAng) * orbitR;
+      const ry = cy + Math.sin(orbitAng) * orbitR * 0.6;
+      const satR = (9 + rv.generation * 1.2) * devicePixelRatio;
+      ctx.save();
+      ctx.globalAlpha = 0.32;
+      drawCore(rx, ry, satR, 0.08, '#5a4a55');
+      ctx.restore();
+    });
+
+    // Aktive Rivalin: fest neben dem Hauptkern, eigener Puls + eigene Blitze,
+    // Intensitaet steigt mit ihrem Fortschritt zur naechsten Stufe (rival_tier)
+    if (active){
+      // Generationswechsel erkennen -- eine neue, staerkere Rivalin ist da. Bringt Omega
+      // kurz durcheinander (siehe buildOwnLine): sie kannte die alte, die neue ist ihr fremd
+      if (lastActiveGeneration !== null && active.generation !== lastActiveGeneration){
+        ownGlitchStart = time;
+        if (!ownSpeech) nextOwnSpeechAt = Math.min(nextOwnSpeechAt, 1 + Math.random() * 2); // reagiert fast sofort
+      }
+      lastActiveGeneration = active.generation;
+
+      const rg = Math.min(1, active.rival_tier / 10 + 0.15); // Basis-Energie + Stufenfortschritt
+      // Generationen-Eskalation: waechst mit jeder Generation spuerbar, flacht bei sehr hohen
+      // Generationen (weit ueberm 20er-Bereich) sanft ab statt komplett zu deckeln (log-basiert,
+      // kein hartes Maximum -- geht bei Gen 47 immer noch spuerbar weiter als bei Gen 20).
+      const gen = Math.max(1, active.generation || 1);
+      const genFactor = Math.log2(gen + 1) - 1; // Gen1=0, Gen2=0.58, Gen4=1.32, Gen8=2.17, Gen16=3.09, Gen47=4.58
+      // Farbe wandert mit steigender Generation von Pink Richtung tiefem Blutrot/Violett,
+      // wird satter und dunkler in der Mitte -- je aelter die Feindschaft, desto bedrohlicher
+      const rHue = 335 - Math.min(50, genFactor * 11);
+      const rSat = Math.min(100, 85 + genFactor * 3);
+      const sideDist = 230 * devicePixelRatio;
+      const bob = Math.sin(time * 0.8) * 14 * devicePixelRatio;
+      const rx = cx + sideDist;
+      const ry = cy + bob;
+      const rPulse = (Math.sin(time * (2 + rg * 2 + genFactor * 0.5)) + 1) / 2;
+      const rCoreR = (30 + rg * 26 + genFactor * 12) * devicePixelRatio * (1 + rPulse * 0.12);
+
+      const rGrad = ctx.createRadialGradient(rx, ry, 0, rx, ry, rCoreR * 3.2);
+      rGrad.addColorStop(0, `hsl(${rHue}, ${rSat}%, ${62 + rPulse * 8 - genFactor * 3}%)`);
+      rGrad.addColorStop(0.3, `hsl(${rHue}, ${rSat}%, 65%)`);
+      rGrad.addColorStop(1, `hsla(${rHue}, ${rSat}%, 65%, 0)`);
+      ctx.beginPath();
+      ctx.fillStyle = rGrad;
+      ctx.arc(rx, ry, rCoreR * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      drawCore(rx, ry, rCoreR * 0.55, rg, `hsl(${rHue}, ${rSat - 5}%, ${68 - genFactor * 3}%)`);
+
+      // eigenes Partikelnetz -- gleiche Mechanik wie beim Hauptkern, kleiner und eigenfarbig.
+      // Netz wird mit jeder Generation dichter, schneller und unruhiger
+      const rActiveCount = Math.floor(rivalNodes.length * Math.min(1, 0.25 + rg * 0.9 + genFactor * 0.06));
+      const rPositions = [];
+      rivalNodes.forEach((n, i) => {
+        if (i > rActiveCount) return;
+        n.ang += 0.0025 * n.speed * (1 + rg * 3 + genFactor * 0.7);
+        const wob = Math.sin(time * (0.7 + rg * 2 + genFactor * 0.3) + n.wobble) * (4 + rg * 9 + genFactor * 2);
+        const dist = (n.baseDist * (1 - rg * 0.25) + wob) * devicePixelRatio;
+        const x = rx + Math.cos(n.ang) * dist;
+        const y = ry + Math.sin(n.ang) * dist;
+        rPositions.push({ x, y, r: n.r * devicePixelRatio * (1 + rg + genFactor * 0.15) });
+      });
+
+      // Kernkette: wenn DU gerade die Oberhand hast (Territorium > 50%), faerbt
+      // sich ein Teil IHRER Knoten in deiner Kernfarbe -- du uebernimmst Verknuepfungen
+      const playerDominance = Math.max(0, (territoryPct / 100) - 0.5) * 2.2;
+      const rivalInfectFrac = Math.min(0.55, playerDominance);
+
+      ctx.lineWidth = 1 * devicePixelRatio;
+      for (let i = 0; i < rPositions.length; i++){
+        for (let j = i + 1; j < rPositions.length; j++){
+          const dx = rPositions[i].x - rPositions[j].x, dy = rPositions[i].y - rPositions[j].y;
+          const d = Math.sqrt(dx*dx + dy*dy);
+          const maxD = 50 * devicePixelRatio * (0.6 + rg + genFactor * 0.15);
+          if (d < maxD){
+            const alpha = (1 - d / maxD) * (0.1 + rg * 0.35);
+            const infectedLink = rivalInfectFrac > 0 && (i % 20) < rivalInfectFrac * 20 && (j % 20) < rivalInfectFrac * 20;
+            ctx.strokeStyle = infectedLink ? `rgba(255,213,74,${alpha})` : `hsla(${rHue},${rSat}%,68%,${alpha})`;
+            ctx.beginPath();
+            ctx.moveTo(rPositions[i].x, rPositions[i].y);
+            ctx.lineTo(rPositions[j].x, rPositions[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+      rPositions.forEach((p, i) => {
+        const infected = rivalInfectFrac > 0 && (i % 20) < rivalInfectFrac * 20;
+        ctx.beginPath();
+        ctx.fillStyle = infected ? '#ffd54a' : `hsl(${rHue}, ${rSat}%, 68%)`;
+        ctx.globalAlpha = 0.5 + rg * 0.5;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+
+      // Bruecken-Verknuepfungen: naheliegende Knotenpaare zwischen den beiden Netzen
+      // verbinden sich direkt -- Farbe zeigt, wer gerade die Oberhand hat.
+      // Reichweite waechst leicht mit der Generation -- alte Rivalinnen greifen weiter ins eigene Netz
+      const dominantColor = territoryPct >= 50 ? 'rgba(255,213,74,' : 'rgba(255,92,140,';
+      const bridgeMaxD = (130 + genFactor * 18) * devicePixelRatio;
+      mainPositions.forEach(mp => {
+        rPositions.forEach(rp => {
+          const dx = mp.x - rp.x, dy = mp.y - rp.y;
+          const d = Math.sqrt(dx*dx + dy*dy);
+          if (d < bridgeMaxD){
+            const alpha = (1 - d / bridgeMaxD) * 0.25;
+            ctx.strokeStyle = dominantColor + alpha + ')';
+            ctx.lineWidth = 0.8 * devicePixelRatio;
+            ctx.beginPath();
+            ctx.moveTo(mp.x, mp.y);
+            ctx.lineTo(rp.x, rp.y);
+            ctx.stroke();
+          }
+        });
+      });
+
+      // eigene Blitz-Entladungen -- haeufiger je naeher sie an ihrer naechsten Stufe ist UND
+      // grundsaetzlich haeufiger/staerker/reichweitenstaerker mit steigender Generation
+      if (Math.random() < 0.05 + rg * 0.25 + genFactor * 0.045) spawnRivalBolt(rx, ry, Math.min(1, rg + genFactor * 0.18));
+      rivalBolts = rivalBolts.filter(b => b.life < b.maxLife);
+      rivalBolts.forEach(b => {
+        b.life += dt;
+        const a = 1 - b.life / b.maxLife;
+        ctx.save();
+        ctx.shadowColor = `hsl(${rHue}, ${rSat}%, 65%)`;
+        ctx.shadowBlur = (16 + genFactor * 5) * devicePixelRatio;
+        ctx.strokeStyle = `rgba(255,255,255,${a})`;
+        ctx.lineWidth = (1.5 + rg * 1.3 + genFactor * 0.4) * devicePixelRatio;
+        ctx.beginPath();
+        b.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+        ctx.stroke();
+        ctx.strokeStyle = `hsla(${rHue}, ${rSat}%, 65%, ${a * 0.6})`;
+        ctx.lineWidth = (4 + rg * 2 + genFactor * 0.6) * devicePixelRatio;
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // schwacher Verbindungsstrahl zum Hauptkern -- visualisiert das umkaempfte Terrain,
+      // wird mit steigender Generation praesenter
+      ctx.save();
+      ctx.strokeStyle = `hsla(${rHue}, ${rSat}%, 65%, ${0.12 + rPulse * 0.08 + genFactor * 0.02})`;
+      ctx.lineWidth = (1.4 + genFactor * 0.3) * devicePixelRatio;
+      ctx.setLineDash([6 * devicePixelRatio, 10 * devicePixelRatio]);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(rx, ry);
+      ctx.stroke();
+      ctx.restore();
+
+      // Sprechblasen: zufaellig/periodisch im Hintergrund, unabhaengig von Spieleraktionen.
+      // Sprach-Stufe haengt am rival_tier der AKTUELLEN Generation -- reset passiert automatisch
+      // beim Generationswechsel, weil rival_tier dann wieder bei 0 startet
+      nextRivalSpeechAt -= dt;
+      if (nextRivalSpeechAt <= 0 && !rivalSpeech){
+        const built = buildRivalLine(active.rival_tier);
+        rivalSpeech = { ...built, t0: time, life: 4.5 + Math.random() * 2, x: rx, y: ry };
+        nextRivalSpeechAt = 8 + Math.random() * 18; // naechste Blase erst wieder in 8-26s
+      }
+      if (rivalSpeech){
+        const elapsed = time - rivalSpeech.t0;
+        rivalSpeech.x = rx; rivalSpeech.y = ry; // bleibt an ihrem Kern, auch wenn der bobbt
+        if (elapsed > rivalSpeech.life){
+          rivalSpeech = null;
+        } else {
+          drawRivalSpeechBubble(rivalSpeech, elapsed);
+        }
+      }
+    }
+  }
+
+  shockwaves = shockwaves.filter(s => time - s.t0 < 1.1);
+  shockwaves.forEach(s => {
+    const el = time - s.t0;
+    [0, 0.12, 0.26].forEach(delay => {
+      const p = (el - delay) / 0.85;
+      if (p < 0 || p > 1) return;
+      const r = (20 + p * 620) * devicePixelRatio;
+      const a = (1 - p) * 0.95;
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(255,255,255,${a})`;
+      ctx.lineWidth = (10 * (1 - p) + 1) * devicePixelRatio;
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(127,92,255,${a * 0.7})`;
+      ctx.lineWidth = 3 * devicePixelRatio;
+      ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+  });
+
+  drawAegisHud(g, st, coreR, pulse, glow, dt);
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+
+<!-- ---------- Musik: Vor-Erwachen-Track + weicher Crossfade Dominanz/Bedrohung nach Territorium ---------- -->
+<audio id="bgMusicPre" src="art/music/ogg/Before_Awakening.ogg" loop preload="none"></audio>
+<audio id="bgMusicDom" src="art/music/ogg/Awakened_Dominance.ogg" loop preload="none"></audio>
+<audio id="bgMusicThreat" src="art/music/ogg/Awakened_Threat.ogg" loop preload="none"></audio>
+<script>
+(function(){
+  'use strict';
+
+  // Lautstaerke/Mute geteilt mit NEXUS (art/music/), damit die Einstellung
+  // spielübergreifend gleich bleibt statt pro Spiel neu eingestellt werden zu muessen.
+  var VOL_KEY = 'orcaMusicVolume';
+  var MUTE_KEY = 'orcaMusicMuted';
+  var DEFAULT_VOL = 5;
+
+  var pre = document.getElementById('bgMusicPre');
+  var dom = document.getElementById('bgMusicDom');
+  var threat = document.getElementById('bgMusicThreat');
+  var volSlider = document.getElementById('musicVolume');
+  var volVal = document.getElementById('musicVolumeVal');
+  var trackNameEl = document.getElementById('musicTrackName');
+  var playPauseBtn = document.getElementById('musicPlayPause');
+  var stateEl = document.getElementById('musicToggleState');
+  if (!pre || !dom || !threat) return;
+
+  var savedVol = parseFloat(localStorage.getItem(VOL_KEY));
+  if (isNaN(savedVol)) savedVol = DEFAULT_VOL;
+  var masterVol = savedVol / 100;
+  var muted = localStorage.getItem(MUTE_KEY) === '1';
+  if (volSlider) volSlider.value = savedVol;
+  if (volVal) volVal.textContent = Math.round(savedVol) + '%';
+
+  // Aktuelle (weich angenaeherte) Lautstaerke je Track, 0-1.
+  var curVol = { pre: 0, dom: 0, threat: 0 };
+
+  function isAwakened(){ return typeof awakened !== 'undefined' && !!awakened; }
+  function curTerritory(){ return typeof territoryPct === 'number' ? territoryPct : 65; }
+
+  function trackLabel(){
+    if (!isAwakened()) return 'Vor dem Erwachen';
+    var t = curTerritory();
+    if (t >= 55) return 'Erwacht — Dominanz';
+    if (t <= 40) return 'Erwacht — Bedrohung';
+    return 'Erwacht — angespannt';
+  }
+
+  // Vor dem Erwachen laeuft nur "Pre". Danach faded "Pre" raus, und Dominanz/
+  // Bedrohung werden gegeneinander gemischt: >=55% Terrain = volle Dominanz,
+  // <=40% = volle Bedrohung, dazwischen linear ueberblendet.
+  function targetVolumes(){
+    if (!isAwakened()) return { pre: 1, dom: 0, threat: 0 };
+    var t = curTerritory();
+    var domMix = Math.max(0, Math.min(1, (t - 40) / 15));
+    return { pre: 0, dom: domMix, threat: 1 - domMix };
+  }
+
+  function ensurePlaying(el){
+    if (el.paused){
+      var p = el.play();
+      if (p && typeof p.catch === 'function') p.catch(function(){});
+    }
+  }
+
+  function tick(){
+    var target = muted ? { pre: 0, dom: 0, threat: 0 } : targetVolumes();
+    var ease = 0.03; // sanftes Ein-/Ausblenden statt hartem Umschalten
+    curVol.pre += (target.pre - curVol.pre) * ease;
+    curVol.dom += (target.dom - curVol.dom) * ease;
+    curVol.threat += (target.threat - curVol.threat) * ease;
+
+    pre.volume = curVol.pre * masterVol;
+    dom.volume = curVol.dom * masterVol;
+    threat.volume = curVol.threat * masterVol;
+
+    [[pre, target.pre, curVol.pre], [dom, target.dom, curVol.dom], [threat, target.threat, curVol.threat]]
+      .forEach(function(x){
+        var el = x[0], tgt = x[1], cv = x[2];
+        if (tgt > 0.001 || cv > 0.002) ensurePlaying(el);
+        else if (cv < 0.002) el.pause();
+      });
+
+    if (trackNameEl) trackNameEl.textContent = trackLabel();
+  }
+  setInterval(tick, 250);
+  tick();
+
+  function updatePlayIcon(){
+    if (playPauseBtn) playPauseBtn.textContent = muted ? '▶ Play' : '⏸ Pause';
+    if (stateEl) stateEl.textContent = muted ? 'aus' : 'an';
+  }
+  updatePlayIcon();
+
+  // Autoplay-Policies: Browser blocken Sound oft vor der ersten Interaktion --
+  // beim ersten Klick/Touch/Tastendruck einfach nochmal versuchen.
+  ['click', 'keydown', 'touchstart'].forEach(function(ev){
+    document.addEventListener(ev, tick, { once: true });
+  });
+
+  if (volSlider){
+    volSlider.addEventListener('input', function(){
+      var v = Number(volSlider.value);
+      masterVol = v / 100;
+      muted = false;
+      if (volVal) volVal.textContent = v + '%';
+      localStorage.setItem(VOL_KEY, String(v));
+      localStorage.setItem(MUTE_KEY, '0');
+      updatePlayIcon();
+    });
+  }
+
+  if (playPauseBtn){
+    playPauseBtn.addEventListener('click', function(){
+      muted = !muted;
+      localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+      updatePlayIcon();
+    });
+  }
+})();
+</script>
+<script>
+/* SKIN "DEEP DECK 2600" — NEXUS SINGULARITY, Bewegungsschicht.
+   Nur CRT-Auflage und Zahlenimpuls; der Rest liegt im CSS-Block. */
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var crt = document.createElement('div');
+  crt.id = 'nxCrt'; crt.setAttribute('aria-hidden','true');
+  document.body.appendChild(crt);
+  if (reduce) return;
+
+  var SEL = '#factoryBalance, #pctLabel, .res-chip .amt, #stockGrid .samt';
+  var numOf = function(t){
+    var n = parseFloat(String(t).replace(/[^\d,.\-]/g, '').replace(/\./g, '').replace(',', '.'));
+    return isNaN(n) ? null : n;
+  };
+  var seen = new WeakMap();
+  function pulse(el){
+    var now = numOf(el.textContent), was = seen.get(el);
+    seen.set(el, now);
+    if (was === undefined || now === null || was === null || now === was) return;
+    var cls = now > was ? 'nx-flash-up' : 'nx-flash-down';
+    el.classList.remove('nx-flash-up', 'nx-flash-down');
+    void el.offsetWidth; el.classList.add(cls);
+    setTimeout(function(){ el.classList.remove(cls); }, 700);
+  }
+  document.querySelectorAll(SEL).forEach(function(el){ seen.set(el, numOf(el.textContent)); });
+  new MutationObserver(function(muts){
+    for (var i = 0; i < muts.length; i++){
+      var n = muts[i].target, el = n.nodeType === 1 ? n : n.parentElement;
+      if (!el || !el.closest) continue;
+      var hit = el.closest(SEL);
+      if (hit) pulse(hit);
+    }
+  }).observe(document.body, { childList:true, characterData:true, subtree:true });
+})();
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     MC ORCA — ORCA-LINK v1.0 (Skin-Sync + Hub-Dock)
+     Holt die im Profil ausgeruesteten Kosmetik-Items und faerbt damit
+     JEDE Seite ueber --acc / --acc2 um (daran haengt der komplette
+     DEEP-DECK-Skin). Laeuft ohne supabase-js: liest das Auth-Token aus
+     dem localStorage und spricht PostgREST direkt an. Ergebnis wird
+     zwischengespeichert, damit beim naechsten Seitenaufruf nichts blitzt.
+     Rueckbau = diesen Block und den gleichnamigen CSS-Block loeschen.
+     ══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+  if (window.__orcaLink) return; window.__orcaLink = true;
+
+  var URL_  = 'https://iuvckfoikhifywayuwkj.supabase.co';
+  var REF   = 'iuvckfoikhifywayuwkj';
+  var KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
+  var CACHE = 'mog.orcalink.v1';
+  var PREFIX = '../../';
+  var root  = document.documentElement;
+
+  /* ---------- kleine Helfer ---------- */
+  function rgbTriple(hex){
+    if(!hex) return null;
+    var h = String(hex).trim().replace('#','');
+    if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    if(!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16);
+  }
+  function hslTriple(h,s,l){
+    h=((h%360)+360)%360; s/=100; l/=100;
+    var c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2, r,g,b;
+    if(h<60){r=c;g=x;b=0;} else if(h<120){r=x;g=c;b=0;} else if(h<180){r=0;g=c;b=x;}
+    else if(h<240){r=0;g=x;b=c;} else if(h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}
+    return Math.round((r+m)*255)+','+Math.round((g+m)*255)+','+Math.round((b+m)*255);
+  }
+  function body(){ return document.body || document.documentElement; }
+
+  /* ---------- Anwenden ---------- */
+  var prismTimer = null;
+  var cursorState = null;
+
+  function applyTheme(rows){
+    rows = rows || [];
+    var byslot = {};
+    rows.forEach(function(r){ if(r && r.slot) byslot[r.slot] = r; });
+
+    /* Farbwelt: page_theme schlaegt den Monats-/Kometen-Skin. */
+    var theme = byslot['page_theme'] || null;
+    var fallback = byslot['rig_skin'] || byslot['month_skin'] || null;
+
+    if(prismTimer){ clearInterval(prismTimer); prismTimer = null; }
+
+    if(theme){
+      var a1 = rgbTriple(theme.color_hex), a2 = rgbTriple(theme.color_hex2);
+      if(a1){
+        root.style.setProperty('--acc', a1);
+        root.style.setProperty('--blue', theme.color_hex);
+        root.style.setProperty('--cc', theme.color_hex);
+      }
+      if(a2) root.style.setProperty('--acc2', theme.color_hex2 ? a2 : null);
+      root.setAttribute('data-orca-theme', theme.name || '');
+
+      if(theme.effect_key === 'prism_shift'){
+        var hue = (Date.now()/120) % 360;
+        prismTimer = setInterval(function(){
+          hue = (hue + 0.55) % 360;
+          root.style.setProperty('--acc',  hslTriple(hue, 92, 64));
+          root.style.setProperty('--acc2', hslTriple(hue + 148, 88, 62));
+        }, 110);
+      }
+    } else if(fallback && fallback.color_hex){
+      /* Kein eigener Farbweltkauf: der Rig-/Monats-Skin faerbt weiter mit,
+         aber nur den Hauptakzent -- die Hausfarbe des Spiels als Gegenfarbe
+         bleibt damit erhalten. */
+      var f = rgbTriple(fallback.color_hex);
+      if(f){
+        root.style.setProperty('--acc', f);
+        root.style.setProperty('--blue', fallback.color_hex);
+        root.style.setProperty('--cc', fallback.color_hex);
+      }
+    } else {
+      root.style.removeProperty('--acc');
+      root.style.removeProperty('--acc2');
+      root.style.removeProperty('--blue');
+      root.style.removeProperty('--cc');
+      root.removeAttribute('data-orca-theme');
+    }
+
+    var b = body();
+    ['frame','nameplate','badge','cursor_fx'].forEach(function(slot){
+      var attr = 'data-ofx-' + (slot === 'cursor_fx' ? 'cursor' : slot);
+      var it = byslot[slot];
+      if(it && it.effect_key) b.setAttribute(attr, it.effect_key);
+      else b.removeAttribute(attr);
+    });
+
+    decorate();
+    setupCursor(byslot['cursor_fx'] ? byslot['cursor_fx'].effect_key : null);
+    try{ window.dispatchEvent(new CustomEvent('orca-theme', { detail:{ slots:byslot } })); }catch(e){}
+  }
+
+  /* ---------- Rahmen/Name/Abzeichen an die vorhandenen Elemente haengen ---------- */
+  var AVATAR_SEL = ['.pv-avatar', '#cloudUserAvatar', '.acct-avatar',
+                    '.row.me .r-avatar', '.lb-row.me .lb-avatar', '.orca-my-avatar'];
+  var NAME_SEL   = ['.pv-name', '#cloudUserName', '.row.me .r-name',
+                    '.lb-row.me .lb-name', '.orca-my-name'];
+
+  function decorate(){
+    var b = body();
+    var hasFrame = b.hasAttribute('data-ofx-frame');
+    var hasBadge = b.hasAttribute('data-ofx-badge');
+
+    AVATAR_SEL.forEach(function(sel){
+      var nodes;
+      try{ nodes = document.querySelectorAll(sel); }catch(e){ return; }
+      Array.prototype.forEach.call(nodes, function(el){
+        el.classList.add('ofx-host');
+        var ring = el.querySelector(':scope > .ofx-ring');
+        if(hasFrame && !ring){
+          ring = document.createElement('i');
+          ring.className = 'ofx-ring';
+          ring.setAttribute('aria-hidden','true');
+          el.appendChild(ring);
+        } else if(!hasFrame && ring){ ring.remove(); }
+      });
+    });
+
+    NAME_SEL.forEach(function(sel){
+      var nodes;
+      try{ nodes = document.querySelectorAll(sel); }catch(e){ return; }
+      Array.prototype.forEach.call(nodes, function(el){
+        el.classList.add('ofx-name');
+        var bd = el.querySelector(':scope > .ofx-badge');
+        if(hasBadge && !bd){
+          bd = document.createElement('i');
+          bd.className = 'ofx-badge';
+          bd.setAttribute('aria-hidden','true');
+          el.appendChild(bd);
+        } else if(!hasBadge && bd){ bd.remove(); }
+      });
+    });
+  }
+  window.orcaDecorate = decorate;
+
+  /* ---------- Zeiger-Effekt ---------- */
+  function setupCursor(kind){
+    if(cursorState){ cursorState.stop(); cursorState = null; }
+    if(!kind) return;
+    if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if(window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+
+    var cv = document.getElementById('ofxCursor');
+    if(!cv){
+      cv = document.createElement('canvas'); cv.id = 'ofxCursor';
+      body().appendChild(cv);
+    }
+    var ctx = cv.getContext('2d'), parts = [], raf = 0, alive = true, last = {x:-999,y:-999};
+    function size(){
+      var d = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = innerWidth * d; cv.height = innerHeight * d;
+      cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
+      ctx.setTransform(d,0,0,d,0,0);
+    }
+    size();
+    function acc(){
+      var v = getComputedStyle(root).getPropertyValue('--acc').trim() || '255,206,69';
+      return v;
+    }
+    function onMove(e){
+      last.x = e.clientX; last.y = e.clientY;
+      var n = kind === 'stardust' ? 2 : 1;
+      for(var i=0;i<n;i++){
+        parts.push({
+          x:e.clientX + (Math.random()-0.5)*6,
+          y:e.clientY + (Math.random()-0.5)*6,
+          vx:(Math.random()-0.5)*(kind==='stardust'?0.7:0.25),
+          vy:kind==='stardust' ? (0.25+Math.random()*0.8) : (Math.random()-0.5)*0.25,
+          life:1, r: kind==='stardust' ? (0.7+Math.random()*1.5) : (1.2+Math.random()*1.8)
+        });
+      }
+      if(parts.length > 260) parts.splice(0, parts.length - 260);
+    }
+    function tick(){
+      if(!alive) return;
+      ctx.clearRect(0,0,innerWidth,innerHeight);
+      var c = acc();
+      for(var i=parts.length-1;i>=0;i--){
+        var p = parts[i];
+        p.x += p.vx; p.y += p.vy; p.life -= kind==='stardust' ? 0.016 : 0.034;
+        if(p.life <= 0){ parts.splice(i,1); continue; }
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba('+c+','+(p.life*0.85).toFixed(3)+')';
+        ctx.arc(p.x, p.y, p.r*p.life + 0.2, 0, 6.283);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    addEventListener('mousemove', onMove, {passive:true});
+    addEventListener('resize', size);
+    raf = requestAnimationFrame(tick);
+    cursorState = { stop:function(){
+      alive = false; cancelAnimationFrame(raf);
+      removeEventListener('mousemove', onMove); removeEventListener('resize', size);
+      if(cv && cv.parentNode) cv.parentNode.removeChild(cv);
+    }};
+  }
+
+  /* ---------- Laden: erst Cache, dann Netz ---------- */
+  function readCache(){
+    try{
+      var raw = localStorage.getItem(CACHE); if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(!o || !o.t || (Date.now() - o.t) > 30*864e5) return null;
+      return o;
+    }catch(e){ return null; }
+  }
+  function token(){
+    try{
+      var raw = localStorage.getItem('sb-'+REF+'-auth-token');
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      return (o && (o.access_token || (o.currentSession && o.currentSession.access_token))) || null;
+    }catch(e){ return null; }
+  }
+
+  var cached = readCache();
+  if(cached) applyTheme(cached.rows);
+
+  function refresh(){
+    var tok = token();
+    if(!tok){
+      if(cached){ try{ localStorage.removeItem(CACHE); }catch(e){} cached = null; applyTheme([]); }
+      return;
+    }
+    fetch(URL_ + '/rest/v1/rpc/get_my_active_theme', {
+      method:'POST',
+      headers:{ 'apikey':KEY, 'Authorization':'Bearer '+tok, 'Content-Type':'application/json',
+                'Accept-Profile':'platform', 'Content-Profile':'platform' },
+      body:'{}'
+    }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(rows){
+        if(!rows) return;
+        try{ localStorage.setItem(CACHE, JSON.stringify({ t:Date.now(), rows:rows })); }catch(e){}
+        applyTheme(rows);
+      }).catch(function(){});
+  }
+  window.orcaRefreshTheme = refresh;
+
+  /* ---------- Hub-Dock ---------- */
+  var GAMES = [
+    ['Aetheris','aetheris/game.html'], ['Astrion','astrion/game.html'],
+    ['Deep Anchor','deepanchor/game.html'], ['Path of the Stars','pathofthestars/game.html'],
+    ['NEXUS','nexus/game.html'], ['Nexus Singularity','nexus/nexus_singularity/game.html'],
+    ['FOUNDRY','foundry/game.html'], ['Domus Prime','domus-prime/game.html']
+  ];
+  function buildDock(){
+    if(document.getElementById('ofxDock')) return;
+    var d = document.createElement('div'); d.id = 'ofxDock';
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'ofx-dock-btn';
+    btn.setAttribute('aria-expanded','false');
+    btn.innerHTML = '<span class="ofx-dot"></span><span>HUB</span>';
+    var panel = document.createElement('div');
+    panel.className = 'ofx-dock-panel';
+    var html = '<div class="ofx-lbl">Navigation</div>'
+      + '<a class="ofx-home" href="'+PREFIX+'index.html">← Zurück zum Hub</a>'
+      + '<a href="'+PREFIX+'profil.html">Profil &amp; Skins</a>'
+      + '<a href="'+PREFIX+'raenge.html">Ränge</a>'
+      + '<a href="'+PREFIX+'uhr.html">Sternzeit</a>'
+      + '<div class="ofx-lbl">Spiele</div>';
+    var here = location.pathname;
+    GAMES.forEach(function(g){
+      if(here.indexOf('/'+g[1].split('/')[0]+'/') !== -1 && here.indexOf(g[1].split('/').pop()) !== -1) return;
+      html += '<a href="'+PREFIX+g[1]+'">'+g[0]+'</a>';
+    });
+    panel.innerHTML = html;
+    d.appendChild(panel); d.appendChild(btn);
+    body().appendChild(d);
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var open = panel.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function(e){
+      if(!d.contains(e.target)) panel.classList.remove('open');
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') panel.classList.remove('open');
+    });
+  }
+
+  function boot(){
+    if(false) buildDock();
+    decorate();
+    refresh();
+    /* Listen, die erst spaeter gerendert werden (Rangliste, Profil), nachdekorieren. */
+    var t = 0;
+    var mo = new MutationObserver(function(){
+      clearTimeout(t); t = setTimeout(decorate, 120);
+    });
+    try{ mo.observe(document.body, { childList:true, subtree:true }); }catch(e){}
+    setInterval(refresh, 180000);
+    addEventListener('focus', refresh);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<!-- ══════════════════ Ende ORCA-LINK v1.0 (Skin-Sync + Hub-Dock) ══════════════════ -->
+
+</body>
+</html>
