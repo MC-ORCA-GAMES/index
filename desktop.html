@@ -243,7 +243,7 @@
     <div class="icon" data-open="system" tabindex="0"><div class="glyph">◍</div><div class="label">Systeminfo</div></div>
     <div class="icon" data-open="papierkorb" tabindex="0"><div class="glyph">▥</div><div class="label">Papierkorb</div></div>
     <div class="icon" data-open="ordner" tabindex="0"><div class="glyph">▦</div><div class="label">unbenannter_ordner</div></div>
-    <div class="icon" data-open="musik" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg></div><div class="label">Musikarchiv</div></div>
+    <div class="icon" data-open="downloads" tabindex="0"><div class="glyph">⇩</div><div class="label">Downloads</div></div>
     <div class="icon" data-open="signal" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h2l2-7 3 14 3-11 2 4h6"/></svg></div><div class="label">Frequenzanalysator</div></div>
   </div>
 </div>
@@ -260,7 +260,6 @@
 
 <div id="startmenu">
   <div data-open="terminal">Terminal</div>
-  <div data-open="musik">Musikarchiv</div>
   <div data-open="system">Systeminfo</div>
   <div id="shutdown">Herunterfahren</div>
 </div>
@@ -409,6 +408,7 @@
   // ---------- Window manager ----------
   let zTop = 10;
   const openWinIds = new Set();
+  let iconsBooted = false; // wird true, sobald initIcons() einmal durchgelaufen ist
 
   function openWindow(key){
     if(key === 'terminal') return openTerminal();
@@ -418,6 +418,7 @@
     if(key.startsWith('game:')){ const g = GAMES.find(x=>'game:'+x.id===key); if(g) openBrowser(g.url, g.name, key); return; }
     if(key === 'medien') return openMediaArchive();
     if(key === 'musik') return openMusicArchive();
+    if(key === 'downloads') return openDownloadsFolder();
     if(key === 'signal') return openSignalAnalyzer();
     if(openWinIds.has(key)){ focusWin(key); return; }
     const data = CONTENT[key];
@@ -1202,6 +1203,182 @@ Gib 'hilfe' ein für Befehle.
     document.getElementById('icons').appendChild(el);
   });
 
+  // ---------- Fund: Musikplayer erst per Download + Installation ----------
+  // Ablauf: irgendwo im Netz (per ORBIT-Suche gefunden, nicht verlinkt) liegt eine Seite mit einem
+  // Download-Knopf. Der postet dem Desktop eine Nachricht -> Download-Manager läuft 30-60s mit
+  // simulierten Ausfällen (schlechte Leitung) -> Datei landet im Ordner "Downloads" -> Doppelklick
+  // dort installiert sie (kurze Fortschrittsanzeige) -> danach erscheint das Musikarchiv-Icon.
+  const DL_KEY = 't7-musik-dl'; // 'none' | 'downloading' | 'downloaded' | 'installed'
+  const DL_FILE = 'MusikPlayer_Setup.t7exe';
+  function getDlState(){ try{ return localStorage.getItem(DL_KEY) || 'none'; }catch(e){ return 'none'; } }
+  function setDlState(v){ try{ localStorage.setItem(DL_KEY, v); }catch(e){} }
+
+  const MUSIK_ICON_SVG = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>';
+
+  function addMusikIcon(){
+    if(!document.querySelector('.icon[data-open="musik"]')){
+      const el = document.createElement('div');
+      el.className = 'icon'; el.dataset.open = 'musik'; el.tabIndex = 0;
+      el.innerHTML = `<div class="glyph">${MUSIK_ICON_SVG}</div><div class="label">Musikarchiv</div>`;
+      document.getElementById('icons').appendChild(el);
+      if(iconsBooted) wireIcon(el); // schon gebootet -> selbst einhängen, sonst übernimmt initIcons()
+    }
+    if(!document.querySelector('#startmenu [data-open="musik"]')){
+      const item = document.createElement('div');
+      item.dataset.open = 'musik'; item.textContent = 'Musikarchiv';
+      item.addEventListener('click', ()=>{ openWindow('musik'); document.getElementById('startmenu').style.display='none'; });
+      document.getElementById('startmenu').insertBefore(item, document.getElementById('shutdown'));
+    }
+  }
+  if(getDlState() === 'installed') addMusikIcon();
+
+  // Kleines Fortschrittsfenster fürs Download-/Installations-Theater
+  function progressWin(title, key){
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = key;
+    win.style.left = (100 + Math.random()*80) + 'px';
+    win.style.top = (70 + Math.random()*60) + 'px';
+    win.style.width = '320px';
+    win.innerHTML = `<div class="bar"><span>${title}</span><span class="btns"><span class="x">✕</span></span></div>
+      <div class="body">
+        <p class="ap-name pw-label">Wird vorbereitet …</p>
+        <div class="ap-bar"><div class="ap-fill pw-fill"></div></div>
+        <div class="ap-row"><span class="sig-status pw-status">0 %</span></div>
+      </div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    let closable = false;
+    win.querySelector('.x').onclick = ()=>{ if(closable) closeWin(win, key); };
+    openWinIds.add(key);
+    addTaskItem(key, title, win);
+    return {
+      win,
+      label: win.querySelector('.pw-label'),
+      fill: win.querySelector('.pw-fill'),
+      status: win.querySelector('.pw-status'),
+      allowClose: ()=>{ closable = true; }
+    };
+  }
+
+  function startDownload(){
+    const state = getDlState();
+    if(state === 'downloading'){ toast('Download läuft bereits …'); return; }
+    if(state === 'downloaded'){ toast(DL_FILE + ' liegt schon im Ordner Downloads.'); return; }
+    if(state === 'installed'){ toast('Ist schon installiert — sieh im Musikarchiv nach.'); return; }
+    setDlState('downloading');
+    const totalMs = 30000 + Math.random()*30000; // 30-60s
+    const sizeKB = 14200 + Math.floor(Math.random()*3000);
+    const pw = progressWin('Netzscout — Download', 'dl-musik');
+    pw.label.textContent = DL_FILE + ' (' + (sizeKB/1024).toFixed(1) + ' MB)';
+    const t0 = Date.now();
+    let pct = 0;
+    let stallUntil = 0;
+    (function tick(){
+      const now = Date.now();
+      if(now < stallUntil){
+        pw.status.textContent = Math.floor(pct) + ' % — Verbindung instabil …';
+      } else {
+        // ungleichmäßige "schlechte Leitung": mal schneller, mal fast Stillstand, ab und zu Hänger
+        const elapsed = now - t0;
+        const target = Math.min(99, (elapsed / totalMs) * 100);
+        pct += (target - pct) * (0.05 + Math.random()*0.1);
+        if(Math.random() < 0.05) stallUntil = now + 800 + Math.random()*2200; // gelegentlicher Hänger
+        const kbps = 40 + Math.random()*140;
+        pw.status.textContent = Math.floor(pct) + ' % — ' + Math.floor(kbps) + ' KB/s';
+      }
+      pw.fill.style.width = Math.min(100, pct) + '%';
+      if(now - t0 < totalMs || pct < 98){
+        setTimeout(tick, 220 + Math.random()*260);
+      } else {
+        pw.fill.style.width = '100%';
+        pw.status.textContent = '100 % — abgeschlossen';
+        pw.label.textContent = DL_FILE + ' — fertig heruntergeladen';
+        setDlState('downloaded');
+        pw.allowClose();
+        renderDownloads();
+        toast('Download abgeschlossen: ' + DL_FILE + ' liegt im Ordner Downloads.');
+      }
+    })();
+  }
+
+  function installMusikplayer(){
+    if(getDlState() !== 'downloaded') return;
+    setDlState('downloading'); // vorübergehend sperren, während installiert wird
+    renderDownloads();
+    const steps = ['Setup wird vorbereitet …','Dateien werden entpackt …','Komponenten werden installiert …','Verknüpfung wird erstellt …','Fast fertig …'];
+    const pw = progressWin('Installation', 'inst-musik');
+    pw.label.textContent = DL_FILE + ' ausführen';
+    let i = 0, pct = 0;
+    const totalMs = 8000 + Math.random()*7000; // 8-15s
+    const t0 = Date.now();
+    (function tick(){
+      const elapsed = Date.now() - t0;
+      pct = Math.min(99, (elapsed / totalMs) * 100);
+      const stepIdx = Math.min(steps.length-1, Math.floor((pct/100) * steps.length));
+      pw.status.textContent = steps[stepIdx];
+      pw.fill.style.width = pct + '%';
+      if(elapsed < totalMs){
+        setTimeout(tick, 200 + Math.random()*180);
+      } else {
+        pw.fill.style.width = '100%';
+        pw.status.textContent = 'Installation abgeschlossen.';
+        pw.label.textContent = 'Musikarchiv installiert';
+        setDlState('installed');
+        pw.allowClose();
+        addMusikIcon();
+        renderDownloads();
+        toast('Musikarchiv wurde installiert — Icon liegt jetzt auf dem Desktop.');
+      }
+    })();
+  }
+
+  // Nachricht von der (in Netzscout geladenen) Download-Seite entgegennehmen
+  window.addEventListener('message', e=>{
+    const d = e.data;
+    if(d && d.type === 't7-download' && d.app === 'musikplayer') startDownload();
+  });
+
+  function openDownloadsFolder(){
+    if(openWinIds.has('downloads')){ focusWin('downloads'); renderDownloads(); return; }
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = 'downloads';
+    win.style.left = '90px'; win.style.top = '50px'; win.style.width = '340px';
+    win.innerHTML = `<div class="bar"><span>Downloads</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+      <div class="body"><div class="fl dl-list"></div><p class="fl-status">Doppelklick installiert eine heruntergeladene Datei.</p></div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    win.querySelector('.x').onclick = ()=> closeWin(win, 'downloads');
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    openWinIds.add('downloads');
+    addTaskItem('downloads', 'Downloads', win);
+    renderDownloads();
+  }
+  function renderDownloads(){
+    const win = document.querySelector('.win[data-key="downloads"]');
+    if(!win) return;
+    const list = win.querySelector('.dl-list');
+    const state = getDlState();
+    if(state === 'downloaded'){
+      list.innerHTML = `<div class="frow" data-install tabindex="0"><span class="fi">▦</span>${DL_FILE}</div>`;
+      const row = list.querySelector('[data-install]');
+      let last = 0;
+      const go = ()=> installMusikplayer();
+      row.addEventListener('dblclick', go);
+      row.addEventListener('click', ()=>{ const n = Date.now(); if(n-last<450) go(); last = n; });
+      row.addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
+    } else if(state === 'installed'){
+      list.innerHTML = `<div class="frow" style="opacity:.5;"><span class="fi">▦</span>${DL_FILE} (installiert)</div>`;
+    } else if(state === 'downloading'){
+      list.innerHTML = `<p style="opacity:.55; font-size:12px; padding:8px;">Download läuft …</p>`;
+    } else {
+      list.innerHTML = `<p style="opacity:.55; font-size:12px; padding:8px;">Keine Dateien.</p>`;
+    }
+  }
+
   // ---------- Vollbild (Alt+Enter, weil F11 dem Browser gehört) ----------
   const toastEl = document.getElementById('fs-toast');
   let toastT;
@@ -1764,66 +1941,71 @@ Gib 'hilfe' ein für Befehle.
   });
 
   // ---- Desktop-Icons frei verschiebbar (wie am echten PC), Position wird gemerkt ----
+  const ICONS_KEY = 't7-icon-pos';
+  const CELL_W = 92, CELL_H = 96, ICON_PAD = 8;
+  let iconsSaved = {};
+  try{ iconsSaved = JSON.parse(localStorage.getItem(ICONS_KEY) || '{}'); }catch(e){ iconsSaved = {}; }
+
+  function clampIcon(box, x, y){
+    const maxX = Math.max(ICON_PAD, box.clientWidth - 82 - ICON_PAD);
+    const maxY = Math.max(ICON_PAD, box.clientHeight - 84 - ICON_PAD);
+    return [Math.min(Math.max(x,ICON_PAD),maxX), Math.min(Math.max(y,ICON_PAD),maxY)];
+  }
+
+  // Verkabelt ein einzelnes Icon (Position, Drag & Klick). Wird für alle Icons beim Boot
+  // aufgerufen und zusätzlich für neu hinzukommende Icons (z.B. nach einer Installation).
+  function wireIcon(icon){
+    const box = document.getElementById('icons');
+    const id = icon.dataset.open;
+    let x, y;
+    if(iconsSaved[id]){
+      [x,y] = clampIcon(box, iconsSaved[id][0], iconsSaved[id][1]);
+    } else {
+      const rows = Math.max(1, Math.floor((box.clientHeight - ICON_PAD) / CELL_H));
+      const idx = [...box.querySelectorAll('.icon')].indexOf(icon);
+      const col = Math.floor(idx / rows), row = idx % rows;
+      [x,y] = clampIcon(box, col*CELL_W + ICON_PAD, row*CELL_H + ICON_PAD);
+    }
+    icon.style.left = x + 'px';
+    icon.style.top = y + 'px';
+
+    let sx=0, sy=0, ox=0, oy=0, moved=false, pid=null;
+    icon.addEventListener('pointerdown', e=>{
+      if(e.button !== undefined && e.button !== 0) return;
+      pid = e.pointerId; icon.setPointerCapture(pid);
+      sx = e.clientX; sy = e.clientY;
+      ox = icon.offsetLeft; oy = icon.offsetTop;
+      moved = false;
+    });
+    icon.addEventListener('pointermove', e=>{
+      if(pid === null) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if(!moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){ moved = true; icon.classList.add('dragging'); }
+      if(!moved) return;
+      const [nx,ny] = clampIcon(box, ox+dx, oy+dy);
+      icon.style.left = nx + 'px'; icon.style.top = ny + 'px';
+    });
+    icon.addEventListener('pointerup', e=>{
+      if(pid === null) return;
+      icon.releasePointerCapture(pid); pid = null;
+      icon.classList.remove('dragging');
+      if(moved){
+        iconsSaved[id] = [icon.offsetLeft, icon.offsetTop];
+        try{ localStorage.setItem(ICONS_KEY, JSON.stringify(iconsSaved)); }catch(e){}
+      }
+    });
+    // Klick öffnet nur, wenn es kein Drag war (Capture-Phase, läuft vor dem normalen Klick-Handler)
+    icon.addEventListener('click', e=>{
+      if(moved){ e.stopImmediatePropagation(); e.preventDefault(); moved = false; return; }
+      openWindow(id);
+      document.getElementById('startmenu').style.display='none';
+    }, true);
+  }
+
   function initIcons(){
     const box = document.getElementById('icons');
-    const icons = [...box.querySelectorAll('.icon')];
-    const CELL_W = 92, CELL_H = 96, PAD = 8;
-    const KEY = 't7-icon-pos';
-    let saved = {};
-    try{ saved = JSON.parse(localStorage.getItem(KEY) || '{}'); }catch(e){ saved = {}; }
-
-    function clamp(x,y){
-      const maxX = Math.max(PAD, box.clientWidth - 82 - PAD);
-      const maxY = Math.max(PAD, box.clientHeight - 84 - PAD);
-      return [Math.min(Math.max(x,PAD),maxX), Math.min(Math.max(y,PAD),maxY)];
-    }
-
-    // Default-Rasterplatz (Spalten von oben nach unten, wie vorher per Flex-Wrap)
-    const rows = Math.max(1, Math.floor((box.clientHeight - PAD) / CELL_H));
-    icons.forEach((icon, i)=>{
-      const id = icon.dataset.open;
-      let x, y;
-      if(saved[id]){
-        [x,y] = clamp(saved[id][0], saved[id][1]);
-      } else {
-        const col = Math.floor(i / rows), row = i % rows;
-        [x,y] = clamp(col*CELL_W + PAD, row*CELL_H + PAD);
-      }
-      icon.style.left = x + 'px';
-      icon.style.top = y + 'px';
-
-      let sx=0, sy=0, ox=0, oy=0, moved=false, pid=null;
-      icon.addEventListener('pointerdown', e=>{
-        if(e.button !== undefined && e.button !== 0) return;
-        pid = e.pointerId; icon.setPointerCapture(pid);
-        sx = e.clientX; sy = e.clientY;
-        ox = icon.offsetLeft; oy = icon.offsetTop;
-        moved = false;
-      });
-      icon.addEventListener('pointermove', e=>{
-        if(pid === null) return;
-        const dx = e.clientX - sx, dy = e.clientY - sy;
-        if(!moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){ moved = true; icon.classList.add('dragging'); }
-        if(!moved) return;
-        const [nx,ny] = clamp(ox+dx, oy+dy);
-        icon.style.left = nx + 'px'; icon.style.top = ny + 'px';
-      });
-      icon.addEventListener('pointerup', e=>{
-        if(pid === null) return;
-        icon.releasePointerCapture(pid); pid = null;
-        icon.classList.remove('dragging');
-        if(moved){
-          saved[id] = [icon.offsetLeft, icon.offsetTop];
-          try{ localStorage.setItem(KEY, JSON.stringify(saved)); }catch(e){}
-        }
-      });
-      // Klick öffnet nur, wenn es kein Drag war (Capture-Phase, läuft vor dem normalen Klick-Handler)
-      icon.addEventListener('click', e=>{
-        if(moved){ e.stopImmediatePropagation(); e.preventDefault(); moved = false; return; }
-        openWindow(id);
-        document.getElementById('startmenu').style.display='none';
-      }, true);
-    });
+    [...box.querySelectorAll('.icon')].forEach(wireIcon);
+    iconsBooted = true;
   }
 
   document.getElementById('start').onclick = ()=>{
