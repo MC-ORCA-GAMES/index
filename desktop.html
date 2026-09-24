@@ -4,7 +4,9 @@
   Kurz-Changelog:
     24.09.2026 – Frequenzanalysator: "SSTV entschlüsseln" (Robot 36/72), Bildaufbau live zum Ton
                  (nur 5 % Lautstärke), .ogg-Kanäle über signals.json, Decoder-Fix erste Zeile,
-                 erstes SSTV-Signal signal_echo1847.ogg im Archiv.
+                 erstes SSTV-Signal signal_echo1847.ogg im Archiv;
+                 Fund-Mechanik: Datei liegt in unbenannter_ordner (Doppelklick -> Audioplayer), Kanal erscheint
+                 im Analysator erst nach dem Anhören.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -135,6 +137,20 @@
     font-family:inherit; font-size:12px; padding:5px 6px; border-radius:2px; max-width:150px;
   }
   .sig-status{font-size:11.5px; opacity:.55;}
+  /* Ordner-Fenster (Dateiliste, Doppelklick öffnet) */
+  .fl{display:flex; flex-direction:column; gap:2px; margin-bottom:10px;}
+  .frow{padding:5px 8px; border:1px solid transparent; border-radius:2px; cursor:default; user-select:none; -webkit-user-select:none; font-size:13px;}
+  .frow:hover{background:rgba(212,175,55,.07);}
+  .frow.sel, .frow:focus{outline:none; background:rgba(33,199,184,.12); border-color:rgba(33,199,184,.45);}
+  .frow .fi{display:inline-block; width:18px; opacity:.7;}
+  /* Audioplayer */
+  .ap-name{font-size:13px; margin:0 0 8px;}
+  .ap-row{display:flex; align-items:center; gap:10px; margin-top:8px; font-size:12px;}
+  .ap-time{opacity:.6; font-variant-numeric:tabular-nums;}
+  .ap-bar{height:6px; background:#04050a; border:1px solid var(--panel-border); border-radius:2px; margin-top:10px; overflow:hidden;}
+  .ap-fill{height:100%; width:0; background:var(--teal);}
+  .ap-vol{flex:1; min-width:0; accent-color:var(--crt);}
+  .ap-found{margin-top:12px; padding-top:10px; border-top:1px dashed var(--panel-border);}
 
   #term-out{white-space:pre-wrap; font-size:13px; min-height:120px;}
   #term-line{display:flex; gap:6px; align-items:center; margin-top:6px;}
@@ -354,8 +370,14 @@
     },
     ordner: {
       title: "unbenannter_ordner",
-      body: `<p>brief_an_dich.txt</p><p>nicht_öffnen.txt</p><p>backup_backup_final.zip</p>
-             <p style="opacity:.5; font-size:12px;">Doppelklick ohne Funktion in diesem Prototyp — vielleicht später.</p>`
+      body: `<div class="fl">
+               <div class="frow" data-name="brief_an_dich.txt" tabindex="0"><span class="fi">▤</span>brief_an_dich.txt</div>
+               <div class="frow" data-name="nicht_öffnen.txt" tabindex="0"><span class="fi">▤</span>nicht_öffnen.txt</div>
+               <div class="frow" data-name="backup_backup_final.zip" tabindex="0"><span class="fi">▦</span>backup_backup_final.zip</div>
+               <div class="frow" data-fund="signal_echo1847.ogg" data-name="echo_1847.ogg" tabindex="0"><span class="fi">♪</span>echo_1847.ogg</div>
+             </div>
+             <p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet eine Datei.</p>`,
+      onOpen: wireFolder
     }
   };
 
@@ -389,6 +411,7 @@
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
     openWinIds.add(key);
     addTaskItem(key, data.title, win);
+    if(data.onOpen) data.onOpen(win);
   }
 
   function openTerminal(){
@@ -628,11 +651,27 @@ Gib 'hilfe' ein für Befehle.
   let SIGNAL_FILES = [
     {file:'signal_sektor4.wav', label:'signal_sektor4.wav'}
   ];
+  // ---- Funde: Signale, die im Analysator erst auftauchen, nachdem man sie gefunden und angehört hat ----
+  // Jeder Eintrag: file = Datei in assets/audio/ (muss im Manifest stehen), name = Anzeigename im Ordner.
+  // Ablauf: Datei liegt im Ordner (unbenannter_ordner) -> Doppelklick öffnet den Audioplayer -> nach
+  // LISTEN_SECS Sekunden Anhören erscheint "mit Frequenzanalysator analysieren" -> erst dann taucht der
+  // Kanal im Analysator auf. Der Fund-Stand wird im Browser gemerkt (localStorage 't7-found').
+  const FUNDE = [
+    {file:'signal_echo1847.ogg', name:'echo_1847.ogg'}
+  ];
+  const LISTEN_SECS = 8;
+  const FOUND_KEY = 't7-found';
+  const foundSet = (()=>{ try{ return new Set(JSON.parse(localStorage.getItem(FOUND_KEY) || '[]')); }catch(e){ return new Set(); } })();
+  const isLocked = f => FUNDE.some(x => x.file === f) && !foundSet.has(f);
+  let ALL_SIGNALS = []; // komplettes Manifest, auch noch gesperrte Signale
+
   const signalsReady = fetch('assets/audio/signals.json')
     .then(r => r.ok ? r.json() : [])
     .then(list => {
       if(!Array.isArray(list)) return;
+      ALL_SIGNALS = list;
       list.forEach(entry => {
+        if(isLocked(entry.file)) return;               // noch nicht gefunden -> nicht im Analysator
         const i = SIGNAL_FILES.findIndex(s => s.file === entry.file);
         if(i >= 0) SIGNAL_FILES[i] = entry; else SIGNAL_FILES.push(entry);
       });
@@ -640,6 +679,107 @@ Gib 'hilfe' ein für Befehle.
     .catch(()=>{}); // kein Manifest (z.B. lokal ohne Server) -> Fallback-Liste bleibt bestehen
   let sigAudioCtx = null;
   let sigWinRefs = null; // Referenzen des offenen Analysator-Fensters, falls schon offen
+
+  // Fund freischalten: Kanal erscheint ab jetzt im Analysator (auch in einem schon offenen Fenster)
+  async function unlockSignal(file){
+    await signalsReady;
+    if(!foundSet.has(file)){
+      foundSet.add(file);
+      try{ localStorage.setItem(FOUND_KEY, JSON.stringify([...foundSet])); }catch(e){}
+    }
+    if(!SIGNAL_FILES.find(s => s.file === file)){
+      const entry = ALL_SIGNALS.find(s => s.file === file);
+      if(entry) SIGNAL_FILES.push(entry);
+    }
+    if(sigWinRefs && sigWinRefs.refresh) sigWinRefs.refresh();
+  }
+
+  // Ordner-Fenster: Klick markiert, Doppelklick (oder Enter) öffnet – per Zeitabstand, damit es auch per Touch geht
+  function wireFolder(win){
+    const status = win.querySelector('.fl-status');
+    let last = null, lastT = 0;
+    win.querySelectorAll('.frow').forEach(row => {
+      const activate = ()=>{
+        const fund = FUNDE.find(f => f.file === row.dataset.fund);
+        if(fund){ status.textContent = 'Doppelklick öffnet eine Datei.'; openAudioPlayer(fund); }
+        else status.textContent = row.dataset.name + ' — keine Funktion in diesem Prototyp, vielleicht später.';
+      };
+      row.addEventListener('click', ()=>{
+        win.querySelectorAll('.frow.sel').forEach(r => r.classList.remove('sel'));
+        row.classList.add('sel');
+        const now = Date.now();
+        if(last === row && now - lastT < 450){ last = null; activate(); }
+        else { last = row; lastT = now; }
+      });
+      row.addEventListener('keydown', e => { if(e.key === 'Enter') activate(); });
+    });
+  }
+
+  // Einfacher Audioplayer für Funde (leise voreingestellt); nach LISTEN_SECS Sekunden Anhören -> Analysator-Knopf
+  function openAudioPlayer(fund){
+    const key = 'audio:' + fund.file;
+    if(openWinIds.has(key)){ focusWin(key); return; }
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = key;
+    win.style.left = (90 + Math.random()*90) + 'px';
+    win.style.top = (60 + Math.random()*70) + 'px';
+    win.style.width = '330px';
+    const title = fund.name + ' — Audioplayer';
+    win.innerHTML = `<div class="bar"><span>${title}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+      <div class="body">
+        <p class="ap-name">♪ ${fund.name}</p>
+        <div class="ap-row"><button class="sig-btn" data-ap-play>▶ abspielen</button><span class="ap-time">0:00 / –:––</span></div>
+        <div class="ap-bar"><div class="ap-fill"></div></div>
+        <div class="ap-row"><span style="opacity:.6;">Lautstärke</span><input class="ap-vol" type="range" min="0" max="100" value="30"></div>
+        <div class="ap-found" style="display:none;"><button class="sig-btn" data-ap-analyze>◧ mit Frequenzanalysator analysieren</button></div>
+        <audio class="ap-audio" preload="metadata"></audio>
+      </div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    const audio = win.querySelector('.ap-audio');
+    const playBtn = win.querySelector('[data-ap-play]');
+    const timeEl = win.querySelector('.ap-time');
+    const fill = win.querySelector('.ap-fill');
+    const vol = win.querySelector('.ap-vol');
+    const foundBox = win.querySelector('.ap-found');
+    win.querySelector('.x').onclick = ()=> { audio.pause(); closeWin(win, key); };
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    openWinIds.add(key);
+    addTaskItem(key, title, win);
+
+    const fmt = t => isFinite(t) ? Math.floor(t/60) + ':' + String(Math.floor(t%60)).padStart(2,'0') : '–:––';
+    const showFound = ()=>{ foundBox.style.display = 'block'; };
+    audio.volume = vol.value / 100;
+    vol.oninput = ()=>{ audio.volume = vol.value / 100; };
+    audio.src = 'assets/audio/' + fund.file;
+    if(foundSet.has(fund.file)) showFound();            // schon früher angehört
+
+    let unlocking = false;
+    const unlock = ()=>{
+      if(unlocking || foundSet.has(fund.file) && foundBox.style.display === 'block') return;
+      unlocking = true;
+      unlockSignal(fund.file).then(showFound);
+    };
+    audio.addEventListener('timeupdate', ()=>{
+      timeEl.textContent = fmt(audio.currentTime) + ' / ' + fmt(audio.duration);
+      fill.style.width = (audio.duration ? audio.currentTime / audio.duration * 100 : 0) + '%';
+      if(audio.currentTime >= LISTEN_SECS) unlock();
+    });
+    const showDur = ()=>{ timeEl.textContent = fmt(audio.currentTime) + ' / ' + fmt(audio.duration); };
+    audio.addEventListener('loadedmetadata', showDur);
+    audio.addEventListener('durationchange', showDur);
+    audio.addEventListener('ended', ()=>{ playBtn.textContent = '▶ abspielen'; unlock(); });
+    playBtn.onclick = ()=>{
+      if(audio.paused){ audio.play(); playBtn.textContent = '⏸ pause'; }
+      else { audio.pause(); playBtn.textContent = '▶ abspielen'; }
+    };
+    win.querySelector('[data-ap-analyze]').onclick = ()=>{
+      audio.pause(); playBtn.textContent = '▶ abspielen';
+      openSignalAnalyzer(fund.file, fund.name);
+    };
+  }
 
   // file/label optional: ohne Argument wird das erste bekannte Signal geladen.
   // Kann von überall aufgerufen werden (z.B. wenn ein neues Signal im Spiel gefunden wird),
@@ -958,7 +1098,7 @@ Gib 'hilfe' ein für Befehle.
       decodeBtn.disabled = decodeActive;
     };
 
-    sigWinRefs = {loadTrack};
+    sigWinRefs = {loadTrack, refresh: ()=> renderOptions(select.value)};
     loadTrack(track.file, track.label);
   }
 
