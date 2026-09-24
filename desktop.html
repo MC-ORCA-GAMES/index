@@ -708,7 +708,7 @@ Gib 'hilfe' ein für Befehle.
     // benutzt hat, damit die drei Drittel sauber auf Rot / Grün / Blau fallen.
     let F_MIN = 200, F_MAX = 8000;
     let viewMode = 'intensity';
-    let analyser = null, source = null, rafId = null;
+    let analyser = null, source = null, rafId = null, outGain = null;
 
     // Basisfarben der Bänder — müssen zu BAND_COLORS in tools/bild-zu-audio.html passen.
     const BAND_R = [225,80,70], BAND_G = [70,210,120], BAND_B = [90,150,235];
@@ -721,9 +721,14 @@ Gib 'hilfe' ein für Befehle.
         analyser.fftSize = 2048;
         analyser.smoothingTimeConstant = 0.35;
         source.connect(analyser);
-        analyser.connect(sigAudioCtx.destination);
+        outGain = sigAudioCtx.createGain();
+        analyser.connect(outGain);
+        outGain.connect(sigAudioCtx.destination);
       }
     }
+    // Lautstärke: beim SSTV-Entschlüsseln nur 5 % (das Signal ist ein schrilles Piepsen), sonst 100 %
+    const DECODE_VOLUME = 0.05;
+    function setDecodeVolume(on){ if(outGain) outGain.gain.value = on ? DECODE_VOLUME : 1; }
 
     function intensityColor(v){
       // Farbverlauf: dunkel -> teal -> gold/weiß bei hoher Intensität (passend zum T-7-Look)
@@ -788,7 +793,7 @@ Gib 'hilfe' ein für Befehle.
       viewSel.value = viewMode;
       audio.pause();
       if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
-      decodeActive = false; decodeStop = null; decodeBtn.textContent = '◧ SSTV entschlüsseln';
+      decodeActive = false; decodeStop = null; decodeBtn.disabled = false; setDecodeVolume(false);
       setCanvasMode(false);
       audio.src = 'assets/audio/' + f;
       audio.load();
@@ -829,6 +834,7 @@ Gib 'hilfe' ein für Befehle.
       }
       setCanvasMode(false);
       ensureAudioGraph();
+      setDecodeVolume(false);
       if(sigAudioCtx.state === 'suspended') sigAudioCtx.resume();
       const t = SIGNAL_FILES.find(s=>s.file === select.value) || track;
       if(audio.paused){
@@ -853,15 +859,15 @@ Gib 'hilfe' ein für Befehle.
     // SSTV entschlüsseln: Datei wird im Hintergrund komplett analysiert, das Bild baut sich aber
     // synchron zum Ton auf – Zeile für Zeile, genau so schnell, wie das Signal abgespielt wird.
     let decodeActive = false, decodeStop = null;
-    function finishDecode(){ decodeActive = false; decodeStop = null; decodeBtn.textContent = '◧ SSTV entschlüsseln'; }
+    function finishDecode(){ decodeActive = false; decodeStop = null; decodeBtn.disabled = false; setDecodeVolume(false); }
 
     decodeBtn.onclick = async ()=>{
-      // Läuft gerade eine Entschlüsselung: Button = "sofort anzeigen"
-      if(decodeActive && decodeStop){ decodeStop(true); return; }
+      if(decodeActive) return;                         // Entschlüsselung läuft schon
       const t = SIGNAL_FILES.find(s=>s.file === select.value) || track;
       decodeBtn.disabled = true;
       // Audio-Kontext direkt im Klick anlegen/freigeben (Autoplay-Regeln), sonst bleibt der Ton stumm
       ensureAudioGraph();
+      setDecodeVolume(true);
       if(sigAudioCtx.state === 'suspended') sigAudioCtx.resume();
       audio.pause();
       if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
@@ -919,14 +925,14 @@ Gib 'hilfe' ein für Befehle.
             status.textContent = t.label + ' — empfange ' + label + ': Zeile ' + shown + '/' + res.h;
             revealRaf = requestAnimationFrame(step);
           };
-          decodeStop = (skip) => {                     // "sofort anzeigen": Ton stoppen, komplettes Bild zeigen
+          decodeStop = () => {                         // Ton zu Ende: Bild komplettieren
             if(revealRaf){ cancelAnimationFrame(revealRaf); revealRaf = null; }
             audio.pause(); audio.currentTime = 0;
             playBtn.textContent = '▶ abspielen';
             finishDecode(); done();
           };
           decodeActive = true;
-          decodeBtn.textContent = '⏭ sofort anzeigen';
+          decodeBtn.disabled = true;
           audio.currentTime = 0;
           paint(0);
           revealRaf = requestAnimationFrame(step);
@@ -939,8 +945,9 @@ Gib 'hilfe' ein für Befehle.
         }
       }catch(e){
         status.textContent = t.label + ' — Fehler beim Lesen (' + (e && e.message ? e.message : e) + ')';
+        setDecodeVolume(false);
       }
-      decodeBtn.disabled = false;
+      decodeBtn.disabled = decodeActive;
     };
 
     sigWinRefs = {loadTrack};
