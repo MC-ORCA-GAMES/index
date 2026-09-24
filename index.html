@@ -261,6 +261,38 @@
   .icon.redfolder:hover, .icon.redfolder:focus-visible{background:rgba(217,48,37,0.14); outline:1px solid #d93025;}
   .frow.legal .fi{color:#ff6b5e;}
   .icon .glyph svg{display:block; filter:drop-shadow(0 0 4px rgba(255,255,255,.12));}
+
+  /* ---- Rechtsklick-Kontextmenü (Neuer Ordner usw.) ---- */
+  .ctxmenu{
+    position:fixed; z-index:99998; background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:3px; padding:4px; min-width:170px; box-shadow:0 6px 18px rgba(0,0,0,.45);
+    font-size:12.5px;
+  }
+  .ctxitem{padding:7px 12px; cursor:pointer; border-radius:2px; white-space:nowrap;}
+  .ctxitem:hover{background:rgba(212,175,55,0.14);}
+
+  /* ---- Explorer (Windows-artiger Datei-Explorer) ---- */
+  #explorerBtn{
+    background:var(--bg-alt); border:1px solid var(--panel-border); color:var(--crt);
+    padding:4px 10px; cursor:pointer; border-radius:2px; font-family:inherit; font-size:12px;
+  }
+  #explorerBtn:hover{background:#1b1e2c;}
+  .expl-toolbar{display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid var(--panel-border); font-size:12px;}
+  .expl-toolbar button{background:var(--bg-alt); border:1px solid var(--panel-border); color:var(--crt);
+    padding:4px 8px; cursor:pointer; border-radius:2px; font-family:inherit; font-size:12px;}
+  .expl-toolbar button:hover{border-color:var(--teal); color:var(--teal);}
+  .expl-path{opacity:.65; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .expl-body{display:flex; padding:0 !important; max-height:none !important; height:290px; overflow:hidden;}
+  .expl-tree{width:36%; overflow:auto; border-right:1px solid var(--panel-border); padding:6px 0;}
+  .expl-tnode{padding:5px 8px; cursor:pointer; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .expl-tnode:hover{background:rgba(212,175,55,.08);}
+  .expl-tnode.sel{background:rgba(33,199,184,.14); color:var(--teal);}
+  .expl-main{flex:1; overflow:auto; padding:8px; display:flex; flex-wrap:wrap; align-content:flex-start; gap:4px;}
+  .expl-item{width:78px; padding:8px 4px; text-align:center; cursor:default; border-radius:3px; border:1px solid transparent;}
+  .expl-item:hover{background:rgba(212,175,55,.08);}
+  .expl-item.sel{background:rgba(33,199,184,.14); border-color:rgba(33,199,184,.4);}
+  .expl-icon{display:block; font-size:22px;}
+  .expl-label{display:block; font-size:11px; margin-top:3px; word-break:break-word; line-height:1.2;}
 </style>
 </head>
 <body>
@@ -289,6 +321,7 @@
 
 <div id="taskbar" style="display:none;">
   <button id="start">◍ START</button>
+  <button id="explorerBtn" title="Explorer öffnen">🗀 Explorer</button>
   <div id="openwins" style="display:flex; gap:6px;"></div>
   <div class="fshint">Vollbild: Alt+Enter · Beenden: Esc</div>
   <div class="clock" id="clock">00:00</div>
@@ -298,6 +331,7 @@
 <div id="fs-toast"></div>
 
 <div id="startmenu">
+  <div data-open="explorer">Explorer</div>
   <div data-open="terminal">Terminal</div>
   <div data-open="system">Systeminfo</div>
   <div id="shutdown">Herunterfahren</div>
@@ -469,6 +503,8 @@
     if(key === 'musik') return openMusicArchive();
     if(key === 'downloads') return openDownloadsFolder();
     if(key === 'signal') return openSignalAnalyzer();
+    if(key === 'explorer') return openExplorer();
+    if(key.startsWith('vfsfolder:')) return openVfsFolder(key.slice('vfsfolder:'.length));
     if(openWinIds.has(key)){ focusWin(key); return; }
     const data = CONTENT[key];
     if(!data) return;
@@ -2030,6 +2066,268 @@ Gib 'hilfe' ein für Befehle.
     });
   });
 
+  // ---- Virtuelles Dateisystem: echte Ordner erstellen, Dateien/Icons hineinverschieben ----
+  const VFS_KEY = 't7-vfs';
+  const HIDDEN_KEY = 't7-hidden-icons';
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function loadVFS(){
+    try{
+      const raw = JSON.parse(localStorage.getItem(VFS_KEY) || 'null');
+      if(raw && raw.nodes && raw.nodes.desktop) return raw;
+    }catch(e){}
+    return { nodes: { desktop: {id:'desktop', type:'folder', name:'Desktop', parent:null, children:[]} } };
+  }
+  const VFS = loadVFS();
+  function saveVFS(){ try{ localStorage.setItem(VFS_KEY, JSON.stringify(VFS)); }catch(e){} }
+  function vfsNode(id){ return VFS.nodes[id]; }
+  function vfsChildren(id){
+    const n = vfsNode(id);
+    return n ? (n.children||[]).map(cid=>VFS.nodes[cid]).filter(Boolean) : [];
+  }
+  function vfsNewId(){ return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function vfsCreateFolder(parentId, name){
+    const id = vfsNewId();
+    VFS.nodes[id] = {id, type:'folder', name: (name||'Neuer Ordner'), parent: parentId, children:[]};
+    vfsNode(parentId).children.push(id);
+    saveVFS();
+    return id;
+  }
+  function vfsAddLink(parentId, sysKey, label){
+    const id = vfsNewId();
+    VFS.nodes[id] = {id, type:'link', name: label, parent: parentId, sysKey};
+    vfsNode(parentId).children.push(id);
+    saveVFS();
+    return id;
+  }
+  function vfsMoveNode(id, newParentId){
+    const node = vfsNode(id);
+    if(!node || !vfsNode(newParentId) || node.id === newParentId) return;
+    let p = vfsNode(newParentId);
+    while(p){ if(p.id === id) return; p = p.parent ? vfsNode(p.parent) : null; } // keine Zyklen
+    const old = node.parent ? vfsNode(node.parent) : null;
+    if(old) old.children = old.children.filter(c => c !== id);
+    node.parent = newParentId;
+    vfsNode(newParentId).children.push(id);
+    saveVFS();
+  }
+  let hiddenIcons = new Set();
+  try{ hiddenIcons = new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]')); }catch(e){ hiddenIcons = new Set(); }
+  function hideSystemIcon(key){
+    hiddenIcons.add(key);
+    try{ localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hiddenIcons])); }catch(e){}
+  }
+
+  // Kontextmenü (Rechtsklick): Neuer Ordner usw.
+  function closeCtxMenu(){ document.querySelectorAll('.ctxmenu').forEach(m => m.remove()); }
+  function showCtxMenu(x, y, items){
+    closeCtxMenu();
+    const menu = document.createElement('div');
+    menu.className = 'ctxmenu';
+    menu.style.left = Math.min(x, window.innerWidth-190) + 'px';
+    menu.style.top = Math.min(y, window.innerHeight-80) + 'px';
+    items.forEach(it=>{
+      const d = document.createElement('div');
+      d.className = 'ctxitem';
+      d.textContent = it.label;
+      d.onclick = ()=>{ closeCtxMenu(); it.action(); };
+      menu.appendChild(d);
+    });
+    document.body.appendChild(menu);
+    setTimeout(()=> document.addEventListener('click', closeCtxMenu, {once:true}), 0);
+  }
+  document.getElementById('desktop').addEventListener('contextmenu', e=>{
+    if(e.target.closest('.icon') || e.target.closest('.win')) return;
+    e.preventDefault();
+    showCtxMenu(e.clientX, e.clientY, [
+      {label:'Neuer Ordner', action: ()=>{ vfsCreateFolder('desktop', 'Neuer Ordner'); refreshDesktopVfsIcons(); }},
+      {label:'Explorer öffnen', action: ()=> openWindow('explorer')}
+    ]);
+  });
+
+  // Desktop-Icons für selbst erstellte Ordner (verschiebbar wie alle anderen Icons)
+  function refreshDesktopVfsIcons(){
+    const box = document.getElementById('icons');
+    box.querySelectorAll('.icon[data-vfs]').forEach(el => el.remove());
+    vfsChildren('desktop').filter(n => n.type === 'folder').forEach(n=>{
+      const div = document.createElement('div');
+      div.className = 'icon';
+      div.dataset.open = 'vfsfolder:' + n.id;
+      div.dataset.vfs = n.id;
+      div.tabIndex = 0;
+      div.innerHTML = `<div class="glyph">▦</div><div class="label">${escapeHtml(n.name)}</div>`;
+      box.appendChild(div);
+      wireIcon(div);
+    });
+  }
+
+  // Fenster für einen selbst erstellten Ordner (Unterordner + verschobene Icons/Dateien)
+  function openVfsFolder(id){
+    const key = 'vfsfolder:' + id;
+    const node = vfsNode(id);
+    if(!node) return;
+    if(openWinIds.has(key)){ focusWin(key); return; }
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = key;
+    win.style.left = (60 + Math.random()*120) + 'px';
+    win.style.top = (40 + Math.random()*100) + 'px';
+    win.style.width = '320px';
+    win.innerHTML = `<div class="bar"><span>${escapeHtml(node.name)}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
+                      <div class="body"><div class="fl vfs-list"></div><p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet · Rechtsklick: Neuer Ordner.</p></div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    win.querySelector('.x').onclick = ()=> closeWin(win, key);
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, key);
+    openWinIds.add(key);
+    addTaskItem(key, node.name, win);
+    wireVfsList(win, id);
+  }
+
+  function wireVfsList(win, id){
+    const listEl = win.querySelector('.vfs-list');
+    const status = win.querySelector('.fl-status');
+    function render(){
+      const kids = vfsChildren(id);
+      listEl.innerHTML = kids.length ? kids.map(n=>{
+        const icon = n.type === 'folder' ? '▦' : '▤';
+        return `<div class="frow" data-id="${n.id}" tabindex="0"><span class="fi">${icon}</span>${escapeHtml(n.name)}</div>`;
+      }).join('') : '<p style="opacity:.5; font-size:12px; padding:4px 8px;">Dieser Ordner ist leer.</p>';
+      let last = null, lastT = 0;
+      listEl.querySelectorAll('.frow').forEach(row=>{
+        const node = vfsNode(row.dataset.id);
+        const activate = ()=>{
+          if(node.type === 'folder') openVfsFolder(node.id);
+          else if(node.type === 'link') openWindow(node.sysKey);
+        };
+        row.addEventListener('click', ()=>{
+          listEl.querySelectorAll('.frow.sel').forEach(r => r.classList.remove('sel'));
+          row.classList.add('sel');
+          const now = Date.now();
+          if(last === row && now - lastT < 450){ last = null; activate(); }
+          else { last = row; lastT = now; }
+        });
+        row.addEventListener('keydown', e=>{ if(e.key === 'Enter') activate(); });
+      });
+    }
+    listEl.addEventListener('contextmenu', e=>{
+      e.preventDefault();
+      showCtxMenu(e.clientX, e.clientY, [
+        {label:'Neuer Ordner', action: ()=>{ vfsCreateFolder(id, 'Neuer Ordner'); render(); refreshDesktopVfsIcons(); status.textContent = 'Ordner erstellt.'; }}
+      ]);
+    });
+    render();
+  }
+
+  // Windows-artiger Datei-Explorer: Baum links (Dieser PC > Desktop > Unterordner), Inhalt rechts
+  function openExplorer(){
+    if(openWinIds.has('explorer')){ focusWin('explorer'); return; }
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = 'explorer';
+    win.style.left = '70px'; win.style.top = '40px'; win.style.width = '540px';
+    win.innerHTML = `<div class="bar"><span>Explorer</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
+      <div class="expl-toolbar">
+        <button class="expl-back" title="Zurück">← Zurück</button>
+        <span class="expl-path"></span>
+        <button class="expl-newfolder">＋ Neuer Ordner</button>
+      </div>
+      <div class="body expl-body">
+        <div class="expl-tree"></div>
+        <div class="expl-main"></div>
+      </div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    win.querySelector('.x').onclick = ()=> closeWin(win, 'explorer');
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, 'explorer');
+    openWinIds.add('explorer');
+    addTaskItem('explorer', 'Explorer', win);
+
+    let curFolder = 'desktop';
+    const history = [];
+
+    function buildTree(id, depth){
+      let html = '';
+      vfsChildren(id).filter(n => n.type === 'folder').forEach(n=>{
+        html += `<div class="expl-tnode${n.id === curFolder ? ' sel' : ''}" style="padding-left:${8+depth*14}px" data-id="${n.id}">📁 ${escapeHtml(n.name)}</div>`;
+        html += buildTree(n.id, depth+1);
+      });
+      return html;
+    }
+    function renderTree(){
+      const treeEl = win.querySelector('.expl-tree');
+      treeEl.innerHTML = `<div class="expl-tnode${curFolder === 'desktop' ? ' sel' : ''}" data-id="desktop">🖥 Dieser PC</div>` + buildTree('desktop', 1);
+      treeEl.querySelectorAll('.expl-tnode').forEach(el=>{
+        el.onclick = ()=>{ if(el.dataset.id !== curFolder){ history.push(curFolder); curFolder = el.dataset.id; } renderAll(); };
+      });
+    }
+    function renderMain(){
+      const mainEl = win.querySelector('.expl-main');
+      const kids = vfsChildren(curFolder);
+      if(!kids.length){ mainEl.innerHTML = '<p style="opacity:.5; font-size:12px; padding:10px;">Dieser Ordner ist leer.</p>'; return; }
+      mainEl.innerHTML = kids.map(n=>{
+        const icon = n.type === 'folder' ? '📁' : '▤';
+        return `<div class="expl-item" data-id="${n.id}" tabindex="0" draggable="true"><span class="expl-icon">${icon}</span><span class="expl-label">${escapeHtml(n.name)}</span></div>`;
+      }).join('');
+      let last = null, lastT = 0;
+      mainEl.querySelectorAll('.expl-item').forEach(row=>{
+        const node = vfsNode(row.dataset.id);
+        const activate = ()=>{
+          if(node.type === 'folder'){ history.push(curFolder); curFolder = node.id; renderAll(); }
+          else if(node.type === 'link') openWindow(node.sysKey);
+        };
+        row.addEventListener('click', ()=>{
+          mainEl.querySelectorAll('.expl-item.sel').forEach(r => r.classList.remove('sel'));
+          row.classList.add('sel');
+          const now = Date.now();
+          if(last === row && now - lastT < 450){ last = null; activate(); }
+          else { last = row; lastT = now; }
+        });
+        row.addEventListener('keydown', e=>{ if(e.key === 'Enter') activate(); });
+        row.addEventListener('dragstart', e=> e.dataTransfer.setData('text/plain', node.id));
+        if(node.type === 'folder'){
+          row.addEventListener('dragover', e=> e.preventDefault());
+          row.addEventListener('drop', e=>{
+            e.preventDefault();
+            const draggedId = e.dataTransfer.getData('text/plain');
+            if(draggedId && draggedId !== node.id){ vfsMoveNode(draggedId, node.id); renderAll(); refreshDesktopVfsIcons(); }
+          });
+        }
+      });
+    }
+    function renderPath(){
+      const parts = [];
+      let n = vfsNode(curFolder);
+      while(n){ parts.unshift(n.id === 'desktop' ? 'Dieser PC' : n.name); n = n.parent ? vfsNode(n.parent) : null; }
+      win.querySelector('.expl-path').textContent = parts.join(' \u203a ');
+    }
+    function renderAll(){ renderTree(); renderMain(); renderPath(); }
+
+    win.querySelector('.expl-back').onclick = ()=>{ if(history.length){ curFolder = history.pop(); renderAll(); } };
+    win.querySelector('.expl-newfolder').onclick = ()=>{
+      const name = prompt('Name des neuen Ordners:', 'Neuer Ordner');
+      if(name === null) return;
+      vfsCreateFolder(curFolder, name.trim() || 'Neuer Ordner');
+      renderAll();
+      refreshDesktopVfsIcons();
+    };
+    // Ablegen von Icons/Ordnern direkt im Hauptbereich -> in den aktuellen Ordner verschieben
+    const mainWrap = win.querySelector('.expl-main');
+    mainWrap.addEventListener('dragover', e=> e.preventDefault());
+    mainWrap.addEventListener('drop', e=>{
+      if(e.target.closest('.expl-item')) return; // wird schon von den Zeilen behandelt
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if(draggedId){ vfsMoveNode(draggedId, curFolder); renderAll(); refreshDesktopVfsIcons(); }
+    });
+
+    renderAll();
+  }
+
   // ---- Desktop-Icons frei verschiebbar (wie am echten PC), Position wird gemerkt ----
   const ICONS_KEY = 't7-icon-pos';
   const CELL_W = 92, CELL_H = 96, ICON_PAD = 8;
@@ -2083,6 +2381,26 @@ Gib 'hilfe' ein für Befehle.
       icon.releasePointerCapture(pid); pid = null;
       icon.classList.remove('dragging');
       if(moved){
+        // Auf einem Ordner-Icon abgelegt? -> in diesen Ordner verschieben (echte Ordnerfunktion)
+        const dropTarget = [...box.querySelectorAll('.icon[data-vfs]')].find(other=>{
+          if(other === icon) return false;
+          const a = icon.getBoundingClientRect(), b = other.getBoundingClientRect();
+          return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+        });
+        if(dropTarget){
+          const targetId = dropTarget.dataset.vfs;
+          const label = icon.querySelector('.label') ? icon.querySelector('.label').textContent : id;
+          if(icon.dataset.vfs){
+            vfsMoveNode(icon.dataset.vfs, targetId);
+          } else {
+            vfsAddLink(targetId, id, label);
+            hideSystemIcon(id);
+          }
+          icon.remove();
+          refreshDesktopVfsIcons();
+          toast('"' + label + '" nach "' + vfsNode(targetId).name + '" verschoben.');
+          return;
+        }
         iconsSaved[id] = [icon.offsetLeft, icon.offsetTop];
         try{ localStorage.setItem(ICONS_KEY, JSON.stringify(iconsSaved)); }catch(e){}
       }
@@ -2097,7 +2415,11 @@ Gib 'hilfe' ein für Befehle.
 
   function initIcons(){
     const box = document.getElementById('icons');
-    [...box.querySelectorAll('.icon')].forEach(wireIcon);
+    [...box.querySelectorAll('.icon')].forEach(icon=>{
+      if(icon.dataset.open && hiddenIcons.has(icon.dataset.open)){ icon.remove(); return; }
+      wireIcon(icon);
+    });
+    refreshDesktopVfsIcons();
     iconsBooted = true;
   }
 
@@ -2105,6 +2427,7 @@ Gib 'hilfe' ein für Befehle.
     const m = document.getElementById('startmenu');
     m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
   };
+  document.getElementById('explorerBtn').onclick = ()=> openWindow('explorer');
   document.getElementById('shutdown').onclick = ()=>{
     document.getElementById('startmenu').style.display='none';
     document.body.innerHTML = '<div style="color:#D4AF37;font-family:Consolas,monospace;padding:40px;">system wird heruntergefahren ...</div>';
