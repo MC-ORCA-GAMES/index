@@ -12,43 +12,348 @@
   p.hint{color:var(--dim); font-size:13px; max-width:560px; text-align:center; margin:0;}
   .card{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px; width:100%; max-width:560px; display:flex; flex-direction:column; gap:14px;}
   label{font-size:12.5px; color:var(--dim); display:flex; flex-direction:column; gap:4px;}
-  input[type=number]{background:#0d0e17; border:1px solid var(--line); color:var(--text); border-radius:4px; padding:6px 8px; font-size:13px;}
+  select, input[type=number], input[type=text]{background:#0d0e17; border:1px solid var(--line); color:var(--text); border-radius:4px; padding:6px 8px; font-size:13px; font-family:inherit;}
+  input[type=range]{accent-color:var(--gold);}
   .row{display:flex; gap:12px;}
   .row label{flex:1;}
   input[type=file]{color:var(--text);}
   button{background:var(--gold); color:#111; border:none; border-radius:4px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px;}
   button:disabled{opacity:.5; cursor:default;}
-  canvas#preview{width:100%; background:#000; border:1px solid var(--line); border-radius:4px;}
+  button.small{padding:5px 10px; font-size:12px;}
+  .previews{display:flex; gap:10px;}
+  .previews > div{flex:1; display:flex; flex-direction:column; gap:4px; align-items:center;}
+  .previews span{font-size:11px; color:var(--dim);}
+  canvas#preview{width:100%; aspect-ratio:16/10; background:#000; border:1px solid var(--line); border-radius:4px;}
+  canvas#previewGrid{width:100%; background:#000; border:1px solid var(--line); border-radius:4px; image-rendering:pixelated;}
+  fieldset{border:1px solid var(--line); border-radius:4px; padding:10px 12px; display:flex; flex-direction:column; gap:10px;}
+  legend{font-size:12px; color:var(--gold); padding:0 4px;}
+  .sliderrow{display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--dim);}
+  .sliderrow input[type=range]{flex:1;}
+  .sliderrow .val{width:34px; text-align:right; color:var(--text); font-variant-numeric:tabular-nums;}
+  .checkrow{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--dim);}
+  .legendrow{display:flex; gap:14px; font-size:11px; color:var(--dim); justify-content:center; flex-wrap:wrap;}
+  .legendrow span{display:flex; align-items:center; gap:5px;}
+  .swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
   #status{font-size:12.5px; color:var(--teal); min-height:18px;}
   a#dl{color:var(--gold); font-size:13px;}
+  #snippetBox{display:none; flex-direction:column; gap:6px;}
+  #snippet{background:#0d0e17; border:1px solid var(--line); border-radius:4px; padding:8px 10px; font-size:12px; color:var(--teal); font-family:ui-monospace,Consolas,monospace; word-break:break-all; user-select:all;}
 </style>
 </head>
 <body>
 <h1>Bild → Audio (Spektrogramm)</h1>
-<p class="hint">Internes Tool, nicht für Besucher gedacht. Lädt ein Bild lokal im Browser (nichts wird hochgeladen) und erzeugt eine .wav-Datei, deren Spektrogramm das Bild zeigt. Die fertige Datei kannst du z.B. als <code>assets/audio/…</code> ins Spiel legen und mit dem "Frequenzanalysator" abspielbar machen.</p>
+<p class="hint">Internes Tool, nicht für Besucher gedacht. Lädt ein Bild lokal im Browser (nichts wird hochgeladen) und erzeugt eine .wav-Datei, deren Spektrogramm das Bild zeigt. Die fertige Datei legst du in <code>assets/audio/</code> und trägst sie in <code>SIGNAL_FILES</code> (desktop.html) ein — das Tool gibt dir die fertige Zeile dafür aus.</p>
 
 <div class="card">
   <label>Bild wählen<input type="file" id="file" accept="image/*"></label>
+
+  <label>Modus
+    <select id="mode">
+      <option value="gray">Graustufen (1 Band, volle Frequenzbreite)</option>
+      <option value="color" selected>Farbe (RGB als 3 gestapelte Frequenzbänder)</option>
+    </select>
+  </label>
+  <div id="colorLegend" class="legendrow">
+    <span><span class="swatch" style="background:rgb(225,80,70)"></span>Rot — unteres Drittel (tiefste Töne)</span>
+    <span><span class="swatch" style="background:rgb(70,210,120)"></span>Grün — Mitte</span>
+    <span><span class="swatch" style="background:rgb(90,150,235)"></span>Blau — oberes Drittel (höchste Töne)</span>
+  </div>
+
+  <div class="previews">
+    <div><canvas id="preview" width="400" height="250"></canvas><span>Original</span></div>
+    <div><canvas id="previewGrid" width="200" height="180"></canvas><span id="gridLabel">So klingt's</span></div>
+  </div>
+
+  <fieldset>
+    <legend>Auflösung</legend>
+    <div class="sliderrow">
+      <label style="flex:0 0 130px">Breite (Zeitauflösung)</label>
+      <input type="range" id="gridW" min="60" max="400" step="10" value="200">
+      <span class="val" id="gridWVal">200</span>
+    </div>
+    <div class="sliderrow">
+      <label style="flex:0 0 130px" id="gridHLabel">Höhe je Kanal</label>
+      <input type="range" id="gridH" min="20" max="140" step="5" value="60">
+      <span class="val" id="gridHVal">60</span>
+    </div>
+    <p class="hint" style="margin:0; text-align:left;" id="resInfo"></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Vereinfachung (gegen Rausch-Matsch bei normalen Fotos, wirkt pro Kanal)</legend>
+    <div class="sliderrow">
+      <label style="flex:0 0 90px">Kontrast</label>
+      <input type="range" id="contrast" min="1" max="4" step="0.1" value="2">
+      <span class="val" id="contrastVal">2.0</span>
+    </div>
+    <div class="sliderrow">
+      <label style="flex:0 0 90px">Helligkeitsstufen</label>
+      <input type="range" id="levels" min="2" max="32" step="1" value="5">
+      <span class="val" id="levelsVal">5</span>
+    </div>
+    <div class="checkrow">
+      <input type="checkbox" id="autolevel" checked>
+      <label for="autolevel" style="margin:0">Auto-Kontrast (hellster/dunkelster Punkt je Kanal = weiß/schwarz)</label>
+    </div>
+    <div class="checkrow">
+      <input type="checkbox" id="smooth" checked>
+      <label for="smooth" style="margin:0">Rauschen glätten (mehrstufiges Downscaling)</label>
+    </div>
+  </fieldset>
+
   <div class="row">
-    <label>Dauer (Sek.)<input type="number" id="dur" value="5" min="1" max="30" step="0.5"></label>
+    <label>Dauer (Sek.)<input type="number" id="dur" value="8" min="1" max="30" step="0.5"></label>
     <label>Min-Frequenz (Hz)<input type="number" id="fmin" value="300" min="50" max="4000" step="50"></label>
     <label>Max-Frequenz (Hz)<input type="number" id="fmax" value="7000" min="1000" max="16000" step="100"></label>
   </div>
-  <canvas id="preview" width="400" height="200"></canvas>
+  <div class="row">
+    <label>Dateiname<input type="text" id="fname" value="signal_theta1.wav"></label>
+    <label>Anzeigename im Analysator<input type="text" id="flabel" value="THETA-1 — unbekannte Quelle"></label>
+  </div>
+
   <button id="go" disabled>Audio erzeugen</button>
   <div id="status"></div>
   <a id="dl" style="display:none" download="signal.wav">⬇ signal.wav herunterladen</a>
+
+  <div id="snippetBox">
+    <span style="font-size:12px; color:var(--dim);">Diese Zeile in <code>SIGNAL_FILES</code> (desktop.html) ergänzen:</span>
+    <div id="snippet"></div>
+    <button class="small" id="copySnippet" style="align-self:flex-start;">Zeile kopieren</button>
+  </div>
 </div>
 
 <script>
 (function(){
   const fileInput = document.getElementById('file');
+  const modeEl = document.getElementById('mode');
+  const colorLegend = document.getElementById('colorLegend');
   const preview = document.getElementById('preview');
   const pctx = preview.getContext('2d');
+  const previewGrid = document.getElementById('previewGrid');
+  const gctx = previewGrid.getContext('2d');
+  const gridLabel = document.getElementById('gridLabel');
   const goBtn = document.getElementById('go');
   const statusEl = document.getElementById('status');
   const dl = document.getElementById('dl');
+  const snippetBox = document.getElementById('snippetBox');
+  const snippetEl = document.getElementById('snippet');
+
+  const gridWEl = document.getElementById('gridW');
+  const gridHEl = document.getElementById('gridH');
+  const gridWVal = document.getElementById('gridWVal');
+  const gridHVal = document.getElementById('gridHVal');
+  const gridHLabel = document.getElementById('gridHLabel');
+  const resInfo = document.getElementById('resInfo');
+
+  const contrastEl = document.getElementById('contrast');
+  const levelsEl = document.getElementById('levels');
+  const autolevelEl = document.getElementById('autolevel');
+  const smoothEl = document.getElementById('smooth');
+  const contrastVal = document.getElementById('contrastVal');
+  const levelsVal = document.getElementById('levelsVal');
+
+  // Farben müssen 1:1 mit BAND_R/G/B im Frequenzanalysator (desktop.html) übereinstimmen,
+  // sonst passt die Vorschau hier nicht mehr zu dem, was im Spiel zu sehen ist.
+  const BAND_COLORS = { blue:[90,150,235], green:[70,210,120], red:[225,80,70] };
+
   let img = null;
+
+  function currentOpts(){
+    return {
+      contrast: parseFloat(contrastEl.value),
+      levels: parseInt(levelsEl.value, 10),
+      autolevel: autolevelEl.checked,
+      smooth: smoothEl.checked
+    };
+  }
+
+  function isColorMode(){ return modeEl.value === 'color'; }
+
+  function updateModeUI(){
+    colorLegend.style.display = isColorMode() ? 'flex' : 'none';
+    gridHLabel.textContent = isColorMode() ? 'Höhe je Kanal' : 'Höhe';
+    const W = parseInt(gridWEl.value,10), H = parseInt(gridHEl.value,10);
+    const totalH = isColorMode() ? H*3 : H;
+    resInfo.textContent = isColorMode()
+      ? `Raster: ${W} × ${totalH} (3 × ${H} Zeilen je Kanal) — größer = detailreicher, aber deutlich langsamer beim Erzeugen.`
+      : `Raster: ${W} × ${H} — größer = detailreicher, aber deutlich langsamer beim Erzeugen.`;
+  }
+
+  // Mehrstufiges Downscaling: statt in einem Sprung auf Zielgröße zu skalieren
+  // (was feines Bildrauschen direkt in Frequenzlinien "aliast"), wird schrittweise
+  // um jeweils max. Faktor 2 verkleinert. Jeder Schritt mittelt benachbarte Pixel,
+  // das wirkt wie ein Tiefpassfilter und glättet Korn/Rauschen sauber weg,
+  // bevor es auf die Zielgröße kommt. Arbeitet auf dem vollen Farbbild.
+  function multiStepDownscale(im, targetW, targetH){
+    let srcCanvas = document.createElement('canvas');
+    srcCanvas.width = im.width; srcCanvas.height = im.height;
+    let sctx = srcCanvas.getContext('2d');
+    sctx.drawImage(im, 0, 0);
+
+    let curW = im.width, curH = im.height;
+    while(curW > targetW*2 || curH > targetH*2){
+      const nextW = Math.max(targetW, Math.round(curW/2));
+      const nextH = Math.max(targetH, Math.round(curH/2));
+      const c = document.createElement('canvas');
+      c.width = nextW; c.height = nextH;
+      const cx = c.getContext('2d');
+      cx.imageSmoothingEnabled = true;
+      cx.imageSmoothingQuality = 'high';
+      cx.drawImage(srcCanvas, 0, 0, nextW, nextH);
+      srcCanvas = c; curW = nextW; curH = nextH;
+    }
+    const final = document.createElement('canvas');
+    final.width = targetW; final.height = targetH;
+    const fctx = final.getContext('2d');
+    fctx.imageSmoothingEnabled = true;
+    fctx.imageSmoothingQuality = 'high';
+    fctx.fillStyle = '#000'; fctx.fillRect(0,0,targetW,targetH);
+    const scale = Math.min(targetW/curW, targetH/curH);
+    const dw = curW*scale, dh = curH*scale;
+    fctx.drawImage(srcCanvas, (targetW-dw)/2, (targetH-dh)/2, dw, dh);
+    return final;
+  }
+
+  function directDownscale(im, targetW, targetH){
+    const c = document.createElement('canvas');
+    c.width = targetW; c.height = targetH;
+    const cx = c.getContext('2d');
+    cx.imageSmoothingEnabled = true;
+    cx.fillStyle = '#000'; cx.fillRect(0,0,targetW,targetH);
+    const scale = Math.min(targetW/im.width, targetH/im.height);
+    const dw = im.width*scale, dh = im.height*scale;
+    cx.drawImage(im, (targetW-dw)/2, (targetH-dh)/2, dw, dh);
+    return c;
+  }
+
+  function extractChannel(canvas, W, H, channelFn){
+    const cx = canvas.getContext('2d');
+    const data = cx.getImageData(0,0,W,H).data;
+    const amp = new Float32Array(W*H);
+    for(let i=0, p=0; i<amp.length; i++, p+=4) amp[i] = channelFn(data,p);
+    return amp;
+  }
+
+  // Auto-Kontrast-Stretch, manueller Kontrast, Stufen-Reduktion — arbeitet in-place auf einem Kanal.
+  function applySimplification(amp, opts){
+    let lo = 1, hi = 0;
+    for(let i=0;i<amp.length;i++){ if(amp[i]<lo) lo=amp[i]; if(amp[i]>hi) hi=amp[i]; }
+    if(opts.autolevel && hi > lo){
+      const range = hi - lo;
+      for(let i=0;i<amp.length;i++) amp[i] = (amp[i]-lo)/range;
+    }
+    const k = opts.contrast;
+    for(let i=0;i<amp.length;i++){
+      let a = 0.5 + (amp[i]-0.5)*k;
+      amp[i] = a < 0 ? 0 : (a > 1 ? 1 : a);
+    }
+    const levels = opts.levels;
+    if(levels < 64){
+      const steps = levels - 1;
+      for(let i=0;i<amp.length;i++) amp[i] = Math.round(amp[i]*steps)/steps;
+    }
+    return amp;
+  }
+
+  function buildGraySignal(im, W, H, opts, freqMin, freqMax){
+    const canvas = opts.smooth ? multiStepDownscale(im, W, H) : directDownscale(im, W, H);
+    const amp = applySimplification(
+      extractChannel(canvas, W, H, (d,p)=> (d[p]+d[p+1]+d[p+2])/3/255), opts
+    );
+    // Zeilenmitte-Frequenzen (gleiche Geometrie wie der Analysator: Zeile r sitzt in der Mitte ihres Streifens)
+    const rowHz = (freqMax-freqMin)/H;
+    const freqs = new Float32Array(H);
+    for(let r=0;r<H;r++) freqs[r] = freqMax - (r+0.5)*rowHz;
+    return {amp, freqs, W, H};
+  }
+
+  // RGB-Kanäle werden je auf ein eigenes Frequenzdrittel gelegt (tief->hoch: Rot, Grün, Blau).
+  // Innerhalb jedes Drittels bleibt die Bild-Vertikalachse erhalten (oben im Bild = oben im Band),
+  // damit alle drei Bänder optisch "im selben Bild" stehen und der Analysator sie eingefärbt zeigen
+  // oder zum Farbbild zusammensetzen kann.
+  function buildColorSignal(im, W, channelH, opts, freqMin, freqMax){
+    const canvas = opts.smooth ? multiStepDownscale(im, W, channelH) : directDownscale(im, W, channelH);
+    const rC = applySimplification(extractChannel(canvas, W, channelH, (d,p)=> d[p]/255), opts);
+    const gC = applySimplification(extractChannel(canvas, W, channelH, (d,p)=> d[p+1]/255), opts);
+    const bC = applySimplification(extractChannel(canvas, W, channelH, (d,p)=> d[p+2]/255), opts);
+
+    const H = channelH*3;
+    const amp = new Float32Array(W*H);
+    const freqs = new Float32Array(H);
+    const bandHz = (freqMax-freqMin)/3;
+    const rowHz = bandHz/channelH;
+
+    function fillBand(channelAmp, rowOffset, bandTop){
+      for(let r=0;r<channelH;r++){
+        // Zeilenmitte -> keine doppelte Frequenz an den Bandgrenzen (kein Übersprechen zwischen Kanälen)
+        freqs[rowOffset+r] = bandTop - (r+0.5)*rowHz;
+        for(let x=0;x<W;x++) amp[(rowOffset+r)*W+x] = channelAmp[r*W+x];
+      }
+    }
+    fillBand(bC, 0,          freqMax);            // Blau: oberes Drittel
+    fillBand(gC, channelH,   freqMin+2*bandHz);   // Grün: mittleres Drittel
+    fillBand(rC, channelH*2, freqMin+bandHz);     // Rot: unteres Drittel
+
+    return {amp, freqs, W, H, channelH};
+  }
+
+  function drawGridPreview(sig){
+    previewGrid.width = sig.W; previewGrid.height = sig.H;
+    const imgData = gctx.createImageData(sig.W, sig.H);
+    if(isColorMode()){
+      const ch = sig.channelH;
+      for(let row=0; row<sig.H; row++){
+        const base = row < ch ? BAND_COLORS.blue : (row < ch*2 ? BAND_COLORS.green : BAND_COLORS.red);
+        for(let x=0;x<sig.W;x++){
+          const v = sig.amp[row*sig.W+x];
+          const p = (row*sig.W+x)*4;
+          imgData.data[p]   = Math.round(base[0]*v);
+          imgData.data[p+1] = Math.round(base[1]*v);
+          imgData.data[p+2] = Math.round(base[2]*v);
+          imgData.data[p+3] = 255;
+        }
+      }
+    } else {
+      for(let i=0, p=0; i<sig.amp.length; i++, p+=4){
+        const v = Math.round(sig.amp[i]*255);
+        imgData.data[p]=v; imgData.data[p+1]=v; imgData.data[p+2]=v; imgData.data[p+3]=255;
+      }
+    }
+    gctx.putImageData(imgData, 0, 0);
+  }
+
+  function buildSignal(){
+    const W = parseInt(gridWEl.value,10);
+    const H = parseInt(gridHEl.value,10);
+    const freqMin = parseFloat(document.getElementById('fmin').value) || 300;
+    const freqMax = parseFloat(document.getElementById('fmax').value) || 7000;
+    const opts = currentOpts();
+    return isColorMode()
+      ? buildColorSignal(img, W, H, opts, freqMin, freqMax)
+      : buildGraySignal(img, W, H, opts, freqMin, freqMax);
+  }
+
+  function updateGridPreview(){
+    if(!img) return;
+    gridLabel.textContent = 'So klingt\'s (' + gridWEl.value + '×' + (isColorMode() ? gridHEl.value*3 : gridHEl.value) + ')';
+    drawGridPreview(buildSignal());
+  }
+
+  [contrastEl, levelsEl, autolevelEl, smoothEl, gridWEl, gridHEl, modeEl].forEach(el=>{
+    el.addEventListener('input', ()=>{
+      contrastVal.textContent = parseFloat(contrastEl.value).toFixed(1);
+      levelsVal.textContent = levelsEl.value;
+      gridWVal.textContent = gridWEl.value;
+      gridHVal.textContent = gridHEl.value;
+      updateModeUI();
+      updateGridPreview();
+    });
+  });
+  contrastVal.textContent = parseFloat(contrastEl.value).toFixed(1);
+  levelsVal.textContent = levelsEl.value;
+  gridWVal.textContent = gridWEl.value;
+  gridHVal.textContent = gridHEl.value;
+  updateModeUI();
 
   fileInput.addEventListener('change', ()=>{
     const f = fileInput.files[0];
@@ -63,28 +368,18 @@
       pctx.drawImage(im, (preview.width-dw)/2, (preview.height-dh)/2, dw, dh);
       goBtn.disabled = false;
       URL.revokeObjectURL(url);
+      updateGridPreview();
     };
     im.src = url;
   });
 
-  function encodeToSamples(im, opts){
-    const {W, H, freqMin, freqMax, duration, sampleRate} = opts;
-    const c = document.createElement('canvas'); c.width=W; c.height=H;
-    const cx = c.getContext('2d');
-    cx.fillStyle = '#000'; cx.fillRect(0,0,W,H);
-    const scale = Math.min(W/im.width, H/im.height);
-    const dw = im.width*scale, dh = im.height*scale;
-    cx.drawImage(im, (W-dw)/2, (H-dh)/2, dw, dh);
-    const data = cx.getImageData(0,0,W,H).data;
-    const amp = new Float32Array(W*H);
-    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
-      const i = (y*W+x)*4;
-      amp[y*W+x] = (data[i]+data[i+1]+data[i+2]) / 3 / 255;
-    }
+  // Erzeugt die Sample-Daten in Spalten-Häppchen und gibt dem Browser zwischendurch
+  // die Kontrolle zurück (await + setTimeout), damit die Seite bei großen Rastern
+  // (viel W × viel H) nicht komplett einfriert, sondern der Fortschritt sichtbar bleibt.
+  async function encodeToSamplesAsync(sig, duration, sampleRate, onProgress){
+    const {amp, freqs, W, H} = sig;
     const totalSamples = Math.floor(sampleRate*duration);
     const samplesPerCol = Math.floor(totalSamples/W);
-    const freqs = new Float32Array(H);
-    for(let r=0;r<H;r++) freqs[r] = freqMax - (r/(H-1))*(freqMax-freqMin);
     const phase = new Float32Array(H);
     const out = new Float32Array(samplesPerCol*W);
     let ptr = 0;
@@ -101,11 +396,16 @@
         }
         out[ptr++] = sample;
       }
+      if(x % 4 === 0){
+        onProgress(x/W);
+        await new Promise(res=>setTimeout(res, 0));
+      }
     }
     let max = 0;
     for(let i=0;i<out.length;i++) max = Math.max(max, Math.abs(out[i]));
     const norm = max > 0 ? 0.9/max : 1;
     for(let i=0;i<out.length;i++) out[i] *= norm;
+    onProgress(1);
     return out;
   }
 
@@ -133,21 +433,45 @@
     return new Blob([buf], {type:'audio/wav'});
   }
 
+  function showSnippet(fname, label, freqMin, freqMax){
+    const esc = s => s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    snippetEl.textContent = isColorMode()
+      ? `{file:'${esc(fname)}', label:'${esc(label)}', color:true, fmin:${freqMin}, fmax:${freqMax}},`
+      : `{file:'${esc(fname)}', label:'${esc(label)}'},`;
+    snippetBox.style.display = 'flex';
+  }
+
+  document.getElementById('copySnippet').addEventListener('click', async (e)=>{
+    try{ await navigator.clipboard.writeText(snippetEl.textContent); e.target.textContent = 'kopiert ✓'; }
+    catch(err){ e.target.textContent = 'bitte manuell markieren'; }
+    setTimeout(()=>{ e.target.textContent = 'Zeile kopieren'; }, 1800);
+  });
+
   goBtn.addEventListener('click', async ()=>{
     if(!img) return;
     goBtn.disabled = true;
-    statusEl.textContent = 'erzeuge audio …';
+    snippetBox.style.display = 'none';
+    statusEl.textContent = 'erzeuge audio … 0%';
     await new Promise(r=>setTimeout(r, 30)); // UI kurz atmen lassen
-    const duration = parseFloat(document.getElementById('dur').value) || 5;
+    const duration = parseFloat(document.getElementById('dur').value) || 8;
     const freqMin = parseFloat(document.getElementById('fmin').value) || 300;
     const freqMax = parseFloat(document.getElementById('fmax').value) || 7000;
-    const opts = {W:140, H:90, freqMin, freqMax, duration, sampleRate:44100};
+    let fname = (document.getElementById('fname').value || 'signal.wav').trim();
+    if(!/\.wav$/i.test(fname)) fname += '.wav';
+    const label = (document.getElementById('flabel').value || fname).trim();
     try{
-      const samples = encodeToSamples(img, opts);
-      const blob = encodeWav(samples, opts.sampleRate);
+      const sig = buildSignal();
+      drawGridPreview(sig);
+      const samples = await encodeToSamplesAsync(sig, duration, 44100, (frac)=>{
+        statusEl.textContent = 'erzeuge audio … ' + Math.round(frac*100) + '%';
+      });
+      const blob = encodeWav(samples, 44100);
       dl.href = URL.createObjectURL(blob);
+      dl.download = fname;
+      dl.textContent = '⬇ ' + fname + ' herunterladen';
       dl.style.display = 'inline-block';
-      statusEl.textContent = 'fertig — ' + (blob.size/1024).toFixed(0) + ' KB, ' + duration + 's';
+      showSnippet(fname, label, freqMin, freqMax);
+      statusEl.textContent = 'fertig — ' + (blob.size/1024).toFixed(0) + ' KB, ' + duration + 's, ' + sig.W + '×' + sig.H;
     } catch(e){
       statusEl.textContent = 'Fehler: ' + e.message;
     }

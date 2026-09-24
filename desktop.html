@@ -115,8 +115,8 @@
   .win .body{padding:14px; font-size:13.5px; line-height:1.55; overflow:auto; max-height:60vh;}
   .win .body p{margin:0 0 10px;}
   .win .body img.glitchimg{width:100%; filter:contrast(1.1) saturate(0.3) brightness(.8);}
-  .sig-canvas{width:100%; height:150px; display:block; background:#04050a; border:1px solid var(--panel-border); border-radius:2px;}
-  .sig-controls{display:flex; align-items:center; gap:10px; margin-top:10px;}
+  .sig-canvas{width:100%; height:200px; display:block; background:#04050a; border:1px solid var(--panel-border); border-radius:2px;}
+  .sig-controls{display:flex; align-items:center; flex-wrap:wrap; gap:8px 10px; margin-top:10px;}
   .sig-btn{
     background:transparent; border:1px solid var(--crt-dim); color:var(--crt); cursor:pointer;
     font-family:inherit; font-size:13px; padding:5px 12px; border-radius:2px;
@@ -442,6 +442,11 @@ Gib 'hilfe' ein für Befehle.
   // Bekannte Signale stehen hier in einer Liste — neue .wav-Funde einfach als weiteren
   // Eintrag ergänzen (Datei muss in assets/audio/ liegen), dann taucht sie automatisch
   // im Kanal-Wähler des Analysators auf.
+  //
+  // Optionale Felder pro Eintrag (nur für Farb-Signale aus dem Bild→Audio-Tool im Modus "Farbe"):
+  //   color:true  -> Analysator startet direkt in der RGB-Ansicht
+  //   fmin/fmax   -> Frequenzbereich, den du im Tool eingestellt hast (Standard 300–7000 Hz)
+  // Das Tool zeigt dir nach dem Erzeugen die fertige Zeile zum Kopieren an.
   const SIGNAL_FILES = [
     {file:'signal_sektor4.wav', label:'signal_sektor4.wav'}
   ];
@@ -471,10 +476,15 @@ Gib 'hilfe' ein für Befehle.
     win.innerHTML = `<div class="bar"><span>Frequenzanalysator</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
       <div class="body">
         <p style="opacity:.6; font-size:12px;">Zerlegt eingehende Audiosignale in ihr Frequenzband. Manchmal steckt darin mehr als nur Rauschen.</p>
-        <canvas class="sig-canvas" width="760" height="150"></canvas>
+        <canvas class="sig-canvas" width="760" height="200"></canvas>
         <div class="sig-controls">
           <button class="sig-btn" data-play>▶ abspielen</button>
           <select class="sig-select" title="Kanal wählen"></select>
+          <select class="sig-view" title="Ansicht">
+            <option value="intensity">Intensität</option>
+            <option value="bands">RGB-Bänder</option>
+            <option value="combined">Farbbild</option>
+          </select>
           <span class="sig-status">bereit</span>
         </div>
         <audio class="sig-audio" preload="none"></audio>
@@ -489,15 +499,23 @@ Gib 'hilfe' ein für Befehle.
     const playBtn = win.querySelector('[data-play]');
     const status = win.querySelector('.sig-status');
     const select = win.querySelector('.sig-select');
+    const viewSel = win.querySelector('.sig-view');
+    viewSel.className = 'sig-select';
 
     win.querySelector('.x').onclick = ()=> { closeWin(win, 'signal'); audio.pause(); sigWinRefs = null; };
     win.querySelector('.max').onclick = ()=> toggleMaximize(win);
     openWinIds.add('signal');
     addTaskItem('signal', 'Frequenzanalysator', win);
 
-    // Sichtbarer Frequenzbereich des Wasserfalldiagramms (Hz)
-    const F_MIN = 200, F_MAX = 8000;
+    // Sichtbarer Frequenzbereich des Wasserfalldiagramms (Hz).
+    // Farb-Signale (RGB-Bänder) werden exakt im Bereich fmin..fmax dargestellt, den das Encoder-Tool
+    // benutzt hat, damit die drei Drittel sauber auf Rot / Grün / Blau fallen.
+    let F_MIN = 200, F_MAX = 8000;
+    let viewMode = 'intensity';
     let analyser = null, source = null, rafId = null;
+
+    // Basisfarben der Bänder — müssen zu BAND_COLORS in tools/bild-zu-audio.html passen.
+    const BAND_R = [225,80,70], BAND_G = [70,210,120], BAND_B = [90,150,235];
 
     function ensureAudioGraph(){
       if(!sigAudioCtx) sigAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -511,25 +529,51 @@ Gib 'hilfe' ein für Befehle.
       }
     }
 
+    function intensityColor(v){
+      // Farbverlauf: dunkel -> teal -> gold/weiß bei hoher Intensität (passend zum T-7-Look)
+      let r,g,b;
+      if(v < 0.5){ const t=v/0.5; r=10+t*23; g=11+t*186; b=18+t*163; }
+      else { const t=(v-0.5)/0.5; r=33+t*(212-33); g=197+t*(175-197); b=180+t*(55-180); }
+      return [r,g,b];
+    }
+
     function draw(){
       const data = new Uint8Array(analyser.frequencyBinCount);
       analyser.getByteFrequencyData(data);
       const sr = sigAudioCtx.sampleRate;
       const binHz = sr / analyser.fftSize;
-      const iMin = Math.max(0, Math.floor(F_MIN / binHz));
-      const iMax = Math.min(data.length - 1, Math.ceil(F_MAX / binHz));
+      const maxBin = data.length - 1;
+      // Intensität eines Frequenzwerts, leicht gamma-korrigiert (Analyser-Werte sind dB-skaliert,
+      // ohne Korrektur wirkt das Farbbild im Vergleich zur Encoder-Vorschau zu hell)
+      const level = (hz)=>{
+        const i = Math.min(maxBin, Math.max(0, Math.round(hz / binHz)));
+        return Math.pow(data[i] / 255, 1.4);
+      };
       // Wasserfall: bestehendes Bild um 1px nach links schieben, neue Spalte rechts zeichnen
       ctx2d.drawImage(canvas, -1, 0);
       const h = canvas.height;
+      const span = F_MAX - F_MIN;
+      const bandHz = span / 3;
       for(let y = 0; y < h; y++){
-        const frac = 1 - y / h; // oben = hohe Frequenz
-        const i = iMin + Math.round(frac * (iMax - iMin));
-        const v = data[i] / 255;
-        // Farbverlauf: dunkel -> teal -> gold/weiß bei hoher Intensität (passend zum T-7-Look)
+        const frac = 1 - (y + 0.5) / h; // oben = hohe Frequenz
         let r,g,b;
-        if(v < 0.5){ const t=v/0.5; r=Math.round(10+t*23); g=Math.round(11+t*186); b=Math.round(18+t*163); }
-        else { const t=(v-0.5)/0.5; r=Math.round(33+t*(212-33)); g=Math.round(197+t*(175-197)); b=Math.round(180+t*(55-180)); }
-        ctx2d.fillStyle = `rgb(${r},${g},${b})`;
+        if(viewMode === 'combined'){
+          // Bild-Zeile f (0 = oben) steht in jedem Drittel an derselben relativen Position:
+          // Rot = unteres, Grün = mittleres, Blau = oberes Drittel. Zusammengesetzt ergibt das das Farbbild.
+          const f = (y + 0.5) / h;
+          const vR = level(F_MIN + bandHz     - f*bandHz);
+          const vG = level(F_MIN + 2*bandHz   - f*bandHz);
+          const vB = level(F_MIN + 3*bandHz   - f*bandHz);
+          r = 255*vR; g = 255*vG; b = 255*vB;
+        } else if(viewMode === 'bands'){
+          const hz = F_MIN + frac*span;
+          const v = level(hz);
+          const base = frac < 1/3 ? BAND_R : (frac < 2/3 ? BAND_G : BAND_B);
+          r = base[0]*v; g = base[1]*v; b = base[2]*v;
+        } else {
+          [r,g,b] = intensityColor(data[Math.min(maxBin, Math.round((F_MIN + frac*span)/binHz))] / 255);
+        }
+        ctx2d.fillStyle = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
         ctx2d.fillRect(canvas.width-1, y, 1, 1);
       }
       rafId = requestAnimationFrame(draw);
@@ -542,6 +586,10 @@ Gib 'hilfe' ein für Befehle.
     }
 
     function loadTrack(f, l){
+      const t = SIGNAL_FILES.find(x=>x.file===f) || {};
+      if(t.color){ F_MIN = t.fmin || 300; F_MAX = t.fmax || 7000; viewMode = 'bands'; }
+      else { F_MIN = 200; F_MAX = 8000; viewMode = 'intensity'; }
+      viewSel.value = viewMode;
       audio.pause();
       if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
       audio.src = 'assets/audio/' + f;
@@ -551,6 +599,19 @@ Gib 'hilfe' ein für Befehle.
       ctx2d.fillStyle = '#04050a'; ctx2d.fillRect(0,0,canvas.width,canvas.height);
       renderOptions(f);
     }
+
+    // Ansicht manuell umschalten; Farbansichten brauchen den Bereich des Encoders (bei
+    // Nicht-Farb-Signalen einfach ausprobieren: 300–7000 Hz ist der Tool-Standard).
+    viewSel.onchange = ()=>{
+      viewMode = viewSel.value;
+      if(viewMode !== 'intensity'){
+        const t = SIGNAL_FILES.find(x=>x.file===select.value) || {};
+        F_MIN = t.fmin || 300; F_MAX = t.fmax || 7000;
+      } else if(!(SIGNAL_FILES.find(x=>x.file===select.value)||{}).color){
+        F_MIN = 200; F_MAX = 8000;
+      }
+      ctx2d.fillStyle = '#04050a'; ctx2d.fillRect(0,0,canvas.width,canvas.height);
+    };
 
     select.onchange = ()=>{
       const f = select.value;
