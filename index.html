@@ -255,6 +255,11 @@
   body.dragging iframe{pointer-events:none;}
   body.dragging{user-select:none;}
   .win.browserwin .bar .bt{opacity:.55; font-weight:400; margin-left:8px; font-size:11px;}
+  /* Roter Ordner "Rechtliches" – fest unten links am Desktop */
+  .icon.redfolder .glyph{filter:drop-shadow(0 0 4px rgba(217,48,37,.55));}
+  .icon.redfolder .label{color:#ff8a80;}
+  .icon.redfolder:hover, .icon.redfolder:focus-visible{background:rgba(217,48,37,0.14); outline:1px solid #d93025;}
+  .frow.legal .fi{color:#ff6b5e;}
   .icon .glyph svg{display:block; filter:drop-shadow(0 0 4px rgba(255,255,255,.12));}
 </style>
 </head>
@@ -278,6 +283,7 @@
     <div class="icon" data-open="ordner" tabindex="0"><div class="glyph">▦</div><div class="label">unbenannter_ordner</div></div>
     <div class="icon" data-open="downloads" tabindex="0"><div class="glyph">⇩</div><div class="label">Downloads</div></div>
     <div class="icon" data-open="signal" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h2l2-7 3 14 3-11 2 4h6"/></svg></div><div class="label">Frequenzanalysator</div></div>
+    <div class="icon redfolder" data-open="rechtliches" data-pin="bottom" tabindex="0"><div class="glyph"><svg width="32" height="30" viewBox="0 0 32 28" fill="none"><path d="M2 6a2 2 0 0 1 2-2h8l3 3h13a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#d93025" stroke="#8f1a12" stroke-width="1.4"/><path d="M2 11h28" stroke="#ff8a80" stroke-width="1" opacity=".6"/></svg></div><div class="label">Rechtliches</div></div>
   </div>
 </div>
 
@@ -424,6 +430,16 @@
       title: "Papierkorb — leer",
       body: `<p style="opacity:.6;">0 Objekte.</p>
              <p style="opacity:.4; font-size:12px;">(war vorhin noch nicht leer)</p>`
+    },
+    rechtliches: {
+      title: "Rechtliches",
+      body: `<div class="fl">
+               <div class="frow legal" data-legal="impressum.html#impressum" data-ltitle="Impressum" data-name="Impressum" tabindex="0"><span class="fi">▤</span>Impressum</div>
+               <div class="frow legal" data-legal="impressum.html#datenschutz" data-ltitle="Datenschutz" data-name="Datenschutzerklärung" tabindex="0"><span class="fi">▤</span>Datenschutzerklärung</div>
+               <div class="frow legal" data-legal="nutzungsbedingungen.html" data-ltitle="Nutzungsbedingungen" data-name="Nutzungsbedingungen" tabindex="0"><span class="fi">▤</span>Nutzungsbedingungen</div>
+             </div>
+             <p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet die Seite im Netzscout.</p>`,
+      onOpen: wireLegalFolder
     },
     ordner: {
       title: "unbenannter_ordner",
@@ -766,6 +782,22 @@ Gib 'hilfe' ein für Befehle.
         if(fund){ status.textContent = 'Doppelklick öffnet eine Datei.'; openAudioPlayer(fund); }
         else status.textContent = row.dataset.name + ' — keine Funktion in diesem Prototyp, vielleicht später.';
       };
+      row.addEventListener('click', ()=>{
+        win.querySelectorAll('.frow.sel').forEach(r => r.classList.remove('sel'));
+        row.classList.add('sel');
+        const now = Date.now();
+        if(last === row && now - lastT < 450){ last = null; activate(); }
+        else { last = row; lastT = now; }
+      });
+      row.addEventListener('keydown', e => { if(e.key === 'Enter') activate(); });
+    });
+  }
+
+  // Ordner "Rechtliches": Klick markiert, Doppelklick/Enter öffnet die Seite im Netzscout
+  function wireLegalFolder(win){
+    let last = null, lastT = 0;
+    win.querySelectorAll('.frow').forEach(row => {
+      const activate = ()=> openBrowser(row.dataset.legal, row.dataset.ltitle, 'legal:' + row.dataset.ltitle);
       row.addEventListener('click', ()=>{
         win.querySelectorAll('.frow.sel').forEach(r => r.classList.remove('sel'));
         row.classList.add('sel');
@@ -2018,9 +2050,12 @@ Gib 'hilfe' ein für Befehle.
     let x, y;
     if(iconsSaved[id]){
       [x,y] = clampIcon(box, iconsSaved[id][0], iconsSaved[id][1]);
+    } else if(icon.dataset.pin === 'bottom'){
+      // fest unten links (auch wenn Fenstergröße wechselt)
+      x = ICON_PAD; y = Math.max(ICON_PAD, box.clientHeight - 84 - ICON_PAD);
     } else {
       const rows = Math.max(1, Math.floor((box.clientHeight - ICON_PAD) / CELL_H));
-      const idx = [...box.querySelectorAll('.icon')].indexOf(icon);
+      const idx = [...box.querySelectorAll('.icon:not([data-pin])')].indexOf(icon);
       const col = Math.floor(idx / rows), row = idx % rows;
       [x,y] = clampIcon(box, col*CELL_W + ICON_PAD, row*CELL_H + ICON_PAD);
     }
