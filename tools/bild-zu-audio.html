@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Bild → Audio (Spektrogramm-Encoder) — internes Tool</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{--bg:#0a0b12;--panel:#151726;--line:rgba(232,230,227,.15);--text:#E9E7E2;--dim:#a4a8b8;--gold:#D4AF37;--teal:#21C7B8;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; margin:0; padding:24px; display:flex; flex-direction:column; align-items:center; gap:16px;}
+  h1{font-size:18px; color:var(--gold); margin:0;}
+  p.hint{color:var(--dim); font-size:13px; max-width:560px; text-align:center; margin:0;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px; width:100%; max-width:560px; display:flex; flex-direction:column; gap:14px;}
+  label{font-size:12.5px; color:var(--dim); display:flex; flex-direction:column; gap:4px;}
+  input[type=number]{background:#0d0e17; border:1px solid var(--line); color:var(--text); border-radius:4px; padding:6px 8px; font-size:13px;}
+  .row{display:flex; gap:12px;}
+  .row label{flex:1;}
+  input[type=file]{color:var(--text);}
+  button{background:var(--gold); color:#111; border:none; border-radius:4px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px;}
+  button:disabled{opacity:.5; cursor:default;}
+  canvas#preview{width:100%; background:#000; border:1px solid var(--line); border-radius:4px;}
+  #status{font-size:12.5px; color:var(--teal); min-height:18px;}
+  a#dl{color:var(--gold); font-size:13px;}
+</style>
+</head>
+<body>
+<h1>Bild → Audio (Spektrogramm)</h1>
+<p class="hint">Internes Tool, nicht für Besucher gedacht. Lädt ein Bild lokal im Browser (nichts wird hochgeladen) und erzeugt eine .wav-Datei, deren Spektrogramm das Bild zeigt. Die fertige Datei kannst du z.B. als <code>assets/audio/…</code> ins Spiel legen und mit dem "Frequenzanalysator" abspielbar machen.</p>
+
+<div class="card">
+  <label>Bild wählen<input type="file" id="file" accept="image/*"></label>
+  <div class="row">
+    <label>Dauer (Sek.)<input type="number" id="dur" value="5" min="1" max="30" step="0.5"></label>
+    <label>Min-Frequenz (Hz)<input type="number" id="fmin" value="300" min="50" max="4000" step="50"></label>
+    <label>Max-Frequenz (Hz)<input type="number" id="fmax" value="7000" min="1000" max="16000" step="100"></label>
+  </div>
+  <canvas id="preview" width="400" height="200"></canvas>
+  <button id="go" disabled>Audio erzeugen</button>
+  <div id="status"></div>
+  <a id="dl" style="display:none" download="signal.wav">⬇ signal.wav herunterladen</a>
+</div>
+
+<script>
+(function(){
+  const fileInput = document.getElementById('file');
+  const preview = document.getElementById('preview');
+  const pctx = preview.getContext('2d');
+  const goBtn = document.getElementById('go');
+  const statusEl = document.getElementById('status');
+  const dl = document.getElementById('dl');
+  let img = null;
+
+  fileInput.addEventListener('change', ()=>{
+    const f = fileInput.files[0];
+    if(!f) return;
+    const url = URL.createObjectURL(f);
+    const im = new Image();
+    im.onload = ()=>{
+      img = im;
+      pctx.fillStyle = '#000'; pctx.fillRect(0,0,preview.width,preview.height);
+      const scale = Math.min(preview.width/im.width, preview.height/im.height);
+      const dw = im.width*scale, dh = im.height*scale;
+      pctx.drawImage(im, (preview.width-dw)/2, (preview.height-dh)/2, dw, dh);
+      goBtn.disabled = false;
+      URL.revokeObjectURL(url);
+    };
+    im.src = url;
+  });
+
+  function encodeToSamples(im, opts){
+    const {W, H, freqMin, freqMax, duration, sampleRate} = opts;
+    const c = document.createElement('canvas'); c.width=W; c.height=H;
+    const cx = c.getContext('2d');
+    cx.fillStyle = '#000'; cx.fillRect(0,0,W,H);
+    const scale = Math.min(W/im.width, H/im.height);
+    const dw = im.width*scale, dh = im.height*scale;
+    cx.drawImage(im, (W-dw)/2, (H-dh)/2, dw, dh);
+    const data = cx.getImageData(0,0,W,H).data;
+    const amp = new Float32Array(W*H);
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      const i = (y*W+x)*4;
+      amp[y*W+x] = (data[i]+data[i+1]+data[i+2]) / 3 / 255;
+    }
+    const totalSamples = Math.floor(sampleRate*duration);
+    const samplesPerCol = Math.floor(totalSamples/W);
+    const freqs = new Float32Array(H);
+    for(let r=0;r<H;r++) freqs[r] = freqMax - (r/(H-1))*(freqMax-freqMin);
+    const phase = new Float32Array(H);
+    const out = new Float32Array(samplesPerCol*W);
+    let ptr = 0;
+    for(let x=0; x<W; x++){
+      const nx = Math.min(x+1, W-1);
+      for(let s=0; s<samplesPerCol; s++){
+        const t = s/samplesPerCol;
+        let sample = 0;
+        for(let r=0; r<H; r++){
+          const a0 = amp[r*W+x], a1 = amp[r*W+nx];
+          const a = a0 + (a1-a0)*t;
+          phase[r] += 2*Math.PI*freqs[r]/sampleRate;
+          if(a > 0.06) sample += a*Math.sin(phase[r]);
+        }
+        out[ptr++] = sample;
+      }
+    }
+    let max = 0;
+    for(let i=0;i<out.length;i++) max = Math.max(max, Math.abs(out[i]));
+    const norm = max > 0 ? 0.9/max : 1;
+    for(let i=0;i<out.length;i++) out[i] *= norm;
+    return out;
+  }
+
+  function floatTo16BitPCM(samples){
+    const buf = new ArrayBuffer(samples.length*2);
+    const view = new DataView(buf);
+    for(let i=0;i<samples.length;i++){
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(i*2, s < 0 ? s*0x8000 : s*0x7FFF, true);
+    }
+    return buf;
+  }
+
+  function encodeWav(samples, sampleRate){
+    const pcm = floatTo16BitPCM(samples);
+    const buf = new ArrayBuffer(44 + pcm.byteLength);
+    const view = new DataView(buf);
+    const writeStr = (o,s)=>{ for(let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); };
+    writeStr(0,'RIFF'); view.setUint32(4, 36+pcm.byteLength, true); writeStr(8,'WAVE');
+    writeStr(12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true);
+    view.setUint16(22,1,true); view.setUint32(24,sampleRate,true);
+    view.setUint32(28,sampleRate*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true);
+    writeStr(36,'data'); view.setUint32(40,pcm.byteLength,true);
+    new Uint8Array(buf,44).set(new Uint8Array(pcm));
+    return new Blob([buf], {type:'audio/wav'});
+  }
+
+  goBtn.addEventListener('click', async ()=>{
+    if(!img) return;
+    goBtn.disabled = true;
+    statusEl.textContent = 'erzeuge audio …';
+    await new Promise(r=>setTimeout(r, 30)); // UI kurz atmen lassen
+    const duration = parseFloat(document.getElementById('dur').value) || 5;
+    const freqMin = parseFloat(document.getElementById('fmin').value) || 300;
+    const freqMax = parseFloat(document.getElementById('fmax').value) || 7000;
+    const opts = {W:140, H:90, freqMin, freqMax, duration, sampleRate:44100};
+    try{
+      const samples = encodeToSamples(img, opts);
+      const blob = encodeWav(samples, opts.sampleRate);
+      dl.href = URL.createObjectURL(blob);
+      dl.style.display = 'inline-block';
+      statusEl.textContent = 'fertig — ' + (blob.size/1024).toFixed(0) + ' KB, ' + duration + 's';
+    } catch(e){
+      statusEl.textContent = 'Fehler: ' + e.message;
+    }
+    goBtn.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>

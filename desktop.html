@@ -55,12 +55,14 @@
   .icon{
     width:82px; text-align:center; color:var(--text); cursor:pointer;
     display:inline-flex; flex-direction:column; align-items:center; gap:6px;
-    padding:8px 4px; border-radius:4px; user-select:none; margin:2px; position:relative; z-index:1;
+    padding:8px 4px; border-radius:4px; user-select:none; position:absolute; z-index:1;
+    touch-action:none;
   }
   .icon:hover, .icon:focus-visible{background:rgba(212,175,55,0.10); outline:1px solid var(--crt-dim);}
+  .icon.dragging{z-index:5; background:rgba(212,175,55,0.16); outline:1px solid var(--gold,#D4AF37);}
   .icon .glyph{font-size:28px; filter:drop-shadow(0 0 3px rgba(212,175,55,.35));}
   .icon .label{font-size:11.5px; line-height:1.25; word-break:break-word;}
-  #icons{display:flex; flex-direction:column; flex-wrap:wrap; height:calc(100% - 60px); gap:4px;}
+  #icons{position:absolute; left:0; top:0; right:0; bottom:60px;}
 
   .win{
     position:absolute; min-width:260px; max-width:92vw; background:var(--panel);
@@ -107,6 +109,14 @@
   .win .body{padding:14px; font-size:13.5px; line-height:1.55; overflow:auto; max-height:60vh;}
   .win .body p{margin:0 0 10px;}
   .win .body img.glitchimg{width:100%; filter:contrast(1.1) saturate(0.3) brightness(.8);}
+  .sig-canvas{width:100%; height:150px; display:block; background:#04050a; border:1px solid var(--panel-border); border-radius:2px;}
+  .sig-controls{display:flex; align-items:center; gap:10px; margin-top:10px;}
+  .sig-btn{
+    background:transparent; border:1px solid var(--crt-dim); color:var(--crt); cursor:pointer;
+    font-family:inherit; font-size:13px; padding:5px 12px; border-radius:2px;
+  }
+  .sig-btn:hover{border-color:var(--teal); color:var(--teal);}
+  .sig-status{font-size:11.5px; opacity:.55;}
 
   #term-out{white-space:pre-wrap; font-size:13px; min-height:120px;}
   #term-line{display:flex; gap:6px; align-items:center; margin-top:6px;}
@@ -175,6 +185,7 @@
     <div class="icon" data-open="system" tabindex="0"><div class="glyph">◍</div><div class="label">Systeminfo</div></div>
     <div class="icon" data-open="papierkorb" tabindex="0"><div class="glyph">▥</div><div class="label">Papierkorb</div></div>
     <div class="icon" data-open="ordner" tabindex="0"><div class="glyph">▦</div><div class="label">unbenannter_ordner</div></div>
+    <div class="icon" data-open="signal" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h2l2-7 3 14 3-11 2 4h6"/></svg></div><div class="label">Frequenzanalysator</div></div>
   </div>
 </div>
 
@@ -223,6 +234,7 @@
           bootEl.style.display="none";
           document.getElementById('desktop').style.display="block";
           initStars();
+          initIcons();
           document.getElementById('taskbar').style.display="flex";
         },600);
       }, 500);
@@ -340,6 +352,7 @@
     if(key === 'suche') return openBrowser('suche.html', 'ORBIT Suche', 'suche');
     if(key.startsWith('game:')){ const g = GAMES.find(x=>'game:'+x.id===key); if(g) openBrowser(g.url, g.name, key); return; }
     if(key === 'medien') return openMediaArchive();
+    if(key === 'signal') return openSignalAnalyzer();
     if(openWinIds.has(key)){ focusWin(key); return; }
     const data = CONTENT[key];
     if(!data) return;
@@ -411,6 +424,103 @@ Gib 'hilfe' ein für Befehle.
     }
     input.addEventListener('keydown', e=>{
       if(e.key === 'Enter'){ run(input.value); input.value=''; }
+    });
+  }
+
+  // ---- Frequenzanalysator: zeigt beim Abspielen ein Live-Spektrogramm (Web Audio API) ----
+  // Manche Audiodateien im Archiv sind kein Rauschen, sondern haben ein Bild ins Frequenzband codiert.
+  let sigAudioCtx = null;
+  function openSignalAnalyzer(){
+    if(openWinIds.has('signal')){ focusWin('signal'); return; }
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = 'signal';
+    win.style.left = (70 + Math.random()*100) + 'px';
+    win.style.top = (50 + Math.random()*80) + 'px';
+    win.style.width = '420px';
+    win.innerHTML = `<div class="bar"><span>Frequenzanalysator</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="x">✕</span></span></div>
+      <div class="body">
+        <p style="opacity:.6; font-size:12px;">Zerlegt eingehende Audiosignale in ihr Frequenzband. Manchmal steckt darin mehr als nur Rauschen.</p>
+        <canvas class="sig-canvas" width="760" height="150"></canvas>
+        <div class="sig-controls">
+          <button class="sig-btn" data-play>▶ abspielen</button>
+          <span class="sig-status">signal_sektor4.wav — bereit</span>
+        </div>
+        <audio class="sig-audio" src="assets/audio/signal_sektor4.wav" preload="none"></audio>
+      </div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    win.querySelector('.x').onclick = ()=> { closeWin(win, 'signal'); audio.pause(); };
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    openWinIds.add('signal');
+    addTaskItem('signal', 'Frequenzanalysator', win);
+
+    const canvas = win.querySelector('.sig-canvas');
+    const ctx2d = canvas.getContext('2d');
+    ctx2d.fillStyle = '#04050a'; ctx2d.fillRect(0,0,canvas.width,canvas.height);
+    const audio = win.querySelector('.sig-audio');
+    const playBtn = win.querySelector('[data-play]');
+    const status = win.querySelector('.sig-status');
+
+    // Sichtbarer Frequenzbereich des Wasserfalldiagramms (Hz)
+    const F_MIN = 200, F_MAX = 8000;
+    let analyser = null, source = null, rafId = null;
+
+    function ensureAudioGraph(){
+      if(!sigAudioCtx) sigAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(!source){
+        source = sigAudioCtx.createMediaElementSource(audio);
+        analyser = sigAudioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.35;
+        source.connect(analyser);
+        analyser.connect(sigAudioCtx.destination);
+      }
+    }
+
+    function draw(){
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+      const sr = sigAudioCtx.sampleRate;
+      const binHz = sr / analyser.fftSize;
+      const iMin = Math.max(0, Math.floor(F_MIN / binHz));
+      const iMax = Math.min(data.length - 1, Math.ceil(F_MAX / binHz));
+      // Wasserfall: bestehendes Bild um 1px nach links schieben, neue Spalte rechts zeichnen
+      ctx2d.drawImage(canvas, -1, 0);
+      const h = canvas.height;
+      for(let y = 0; y < h; y++){
+        const frac = 1 - y / h; // oben = hohe Frequenz
+        const i = iMin + Math.round(frac * (iMax - iMin));
+        const v = data[i] / 255;
+        // Farbverlauf: dunkel -> teal -> gold/weiß bei hoher Intensität (passend zum T-7-Look)
+        let r,g,b;
+        if(v < 0.5){ const t=v/0.5; r=Math.round(10+t*23); g=Math.round(11+t*186); b=Math.round(18+t*163); }
+        else { const t=(v-0.5)/0.5; r=Math.round(33+t*(212-33)); g=Math.round(197+t*(175-197)); b=Math.round(180+t*(55-180)); }
+        ctx2d.fillStyle = `rgb(${r},${g},${b})`;
+        ctx2d.fillRect(canvas.width-1, y, 1, 1);
+      }
+      rafId = requestAnimationFrame(draw);
+    }
+
+    playBtn.onclick = ()=>{
+      ensureAudioGraph();
+      if(sigAudioCtx.state === 'suspended') sigAudioCtx.resume();
+      if(audio.paused){
+        audio.play();
+        playBtn.textContent = '⏸ pause';
+        status.textContent = 'signal_sektor4.wav — läuft ...';
+        if(!rafId) draw();
+      } else {
+        audio.pause();
+        playBtn.textContent = '▶ abspielen';
+        status.textContent = 'signal_sektor4.wav — pausiert';
+      }
+    };
+    audio.addEventListener('ended', ()=>{
+      playBtn.textContent = '▶ abspielen';
+      status.textContent = 'signal_sektor4.wav — Ende';
+      if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
     });
   }
 
@@ -742,12 +852,75 @@ Gib 'hilfe' ein für Befehle.
     window.addEventListener('touchend', ()=>{ dragging=false; document.body.classList.remove('dragging'); });
   }
 
-  document.querySelectorAll('[data-open]').forEach(el=>{
+  document.querySelectorAll('[data-open]:not(.icon)').forEach(el=>{
     el.addEventListener('click', ()=> {
       openWindow(el.dataset.open);
       document.getElementById('startmenu').style.display='none';
     });
   });
+
+  // ---- Desktop-Icons frei verschiebbar (wie am echten PC), Position wird gemerkt ----
+  function initIcons(){
+    const box = document.getElementById('icons');
+    const icons = [...box.querySelectorAll('.icon')];
+    const CELL_W = 92, CELL_H = 96, PAD = 8;
+    const KEY = 't7-icon-pos';
+    let saved = {};
+    try{ saved = JSON.parse(localStorage.getItem(KEY) || '{}'); }catch(e){ saved = {}; }
+
+    function clamp(x,y){
+      const maxX = Math.max(PAD, box.clientWidth - 82 - PAD);
+      const maxY = Math.max(PAD, box.clientHeight - 84 - PAD);
+      return [Math.min(Math.max(x,PAD),maxX), Math.min(Math.max(y,PAD),maxY)];
+    }
+
+    // Default-Rasterplatz (Spalten von oben nach unten, wie vorher per Flex-Wrap)
+    const rows = Math.max(1, Math.floor((box.clientHeight - PAD) / CELL_H));
+    icons.forEach((icon, i)=>{
+      const id = icon.dataset.open;
+      let x, y;
+      if(saved[id]){
+        [x,y] = clamp(saved[id][0], saved[id][1]);
+      } else {
+        const col = Math.floor(i / rows), row = i % rows;
+        [x,y] = clamp(col*CELL_W + PAD, row*CELL_H + PAD);
+      }
+      icon.style.left = x + 'px';
+      icon.style.top = y + 'px';
+
+      let sx=0, sy=0, ox=0, oy=0, moved=false, pid=null;
+      icon.addEventListener('pointerdown', e=>{
+        if(e.button !== undefined && e.button !== 0) return;
+        pid = e.pointerId; icon.setPointerCapture(pid);
+        sx = e.clientX; sy = e.clientY;
+        ox = icon.offsetLeft; oy = icon.offsetTop;
+        moved = false;
+      });
+      icon.addEventListener('pointermove', e=>{
+        if(pid === null) return;
+        const dx = e.clientX - sx, dy = e.clientY - sy;
+        if(!moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){ moved = true; icon.classList.add('dragging'); }
+        if(!moved) return;
+        const [nx,ny] = clamp(ox+dx, oy+dy);
+        icon.style.left = nx + 'px'; icon.style.top = ny + 'px';
+      });
+      icon.addEventListener('pointerup', e=>{
+        if(pid === null) return;
+        icon.releasePointerCapture(pid); pid = null;
+        icon.classList.remove('dragging');
+        if(moved){
+          saved[id] = [icon.offsetLeft, icon.offsetTop];
+          try{ localStorage.setItem(KEY, JSON.stringify(saved)); }catch(e){}
+        }
+      });
+      // Klick öffnet nur, wenn es kein Drag war (Capture-Phase, läuft vor dem normalen Klick-Handler)
+      icon.addEventListener('click', e=>{
+        if(moved){ e.stopImmediatePropagation(); e.preventDefault(); moved = false; return; }
+        openWindow(id);
+        document.getElementById('startmenu').style.display='none';
+      }, true);
+    });
+  }
 
   document.getElementById('start').onclick = ()=>{
     const m = document.getElementById('startmenu');
