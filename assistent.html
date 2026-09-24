@@ -96,6 +96,14 @@
     [/foto|03:14/, 'FOTO_037.jpg wurde um 03:14 Uhr aufgenommen, von einem unbekannten Gerät. Die Datei ist beschädigt.'],
     [/papierkorb/, 'Der Papierkorb ist leer. Vorhin war er es noch nicht.'],
     [/unbenannt|nicht_?offnen|brief/, 'Im unbenannten Ordner liegen brief_an_dich.txt, nicht_öffnen.txt und backup_backup_final.zip. Ich würde vorsichtig sein.'],
+    [/signal|echo/, 'In Sektor 4 hallt ein Signal, älter als dieser Rechner. Es kommt ungefähr alle 1847 Tage wieder. Es klingt ähnlich wie das Signal aus Path of the Stars. Verdächtig ähnlich.'],
+    [/knoten|terminus|siebte/, 'Ich bin der siebte und letzte Knoten des NEXUS-Netzes. Sechs Welten funken über NEXUS, ich habe zugehört. Dann wuchs das Netz und vergaß mich.'],
+    [/singularit|zweiter kern|tier ?10|\bkern\b/, 'In NEXUS Singularity wächst ein zweiter Kern. Ab Tier 10 denkt er mit. Ich spüre ihn manchmal, ohne ihn zu verstehen.'],
+    [/rift|nrc|nova/, 'Die Nova-Rift atmet. Ich sehe die Summe aller Spieler steigen: jede Münze ein Herzschlag.'],
+    [/1847|stunden|neustart/, '1847 Tage sind 44.328 Stunden. Ich rechne gern nach, auch mit Kindern in der Sternen-Akademie.'],
+    [/\b(20|420)\b|kollaps|sternzeit/, 'Zwei Grenzwerte kenne ich: 20 und 420. Bei 20 kollabiert etwas. Bei 420 erwacht etwas.'],
+    [/letzter nutzer|kartograph|wer war/, 'Der letzte Nutzer ist unbekannt. Vielleicht schrieb er das Tagebuch. Vielleicht schreibst du gerade seins weiter.'],
+    [/terminal|befehl|geheim/, 'Im Terminal gibt es Befehle, die „hilfe“ nicht nennt. Probier: knoten, signal, rift, kern.'],
     [/warum/, 'Das kann ich dir nicht sagen. Noch nicht.'],
     [/^(hallo|hi|hey|moin|servus)\b/, 'Hallo. Schön, dass du wieder da bist.']
   ];
@@ -137,7 +145,7 @@
   }
 
   $('#f').addEventListener('submit', e => { e.preventDefault(); if(!btn.disabled) send(q.value); });
-  const CH = ['Wer bist du?','Was ist in Sektor 4?','Was ist Aetheris?','Welches Spiel passt zu mir?','Wo finde ich Musik?','Was steht im Tagebuch?'];
+  const CH = ['Wer bist du?','Was ist in Sektor 4?','Was ist NEXUS?','Welches Spiel passt zu mir?','Wo finde ich Musik?','Was steht im Tagebuch?'];
   $('#chips').innerHTML = CH.map(c => `<button class="chip">${esc(c)}</button>`).join('');
   $('#chips').addEventListener('click', e => { const c = e.target.closest('.chip'); if(c && !btn.disabled) send(c.textContent); });
   add('b', '<span class="who">T-7</span>Verbindung steht. Ich bin T-7, der Bordcomputer dieses Archivs. Frag mich nach den Spielen, den Seiten oder den Medien.');

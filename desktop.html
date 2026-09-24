@@ -391,13 +391,22 @@ Gib 'hilfe' ein für Befehle.
       log: "03:11  anmeldung fehlgeschlagen\n03:12  anmeldung fehlgeschlagen\n03:14  anmeldung erfolgreich\n03:14  unbekannter prozess gestartet",
       hallo: "hallo. schön, dass du wieder da bist.",
       warum: "das kann ich dir nicht sagen. noch nicht.",
-      exit: "diese sitzung lässt sich nicht beenden."
+      exit: "diese sitzung lässt sich nicht beenden.",
+      knoten: "netz-knoten (sechs antworten, einer hört zu):\n  1 aetheris  2 astrion  3 deep anchor  4 path of the stars  5 foundry  6 nexus\n  7 terminus  <- du bist hier",
+      signal: "sektor 4: eingehendes signal, älter als dieser rechner.\nquelle: nicht auflösbar. wiederholt sich alle 1847 tage. ungefähr.",
+      sektor4: "zugriff verweigert.\n(das echo antwortet nur, wenn jemand zuhört.)",
+      rift: "nova-rift: das feld atmet. jede geförderte münze ist ein herzschlag.",
+      kern: "kern 1: aktiv.\nkern 2: wächst.\nab tier 10 denken beide mit.",
+      ".versteckt~": "hier ist nichts. das ist mit absicht so.\n(frag T-7 nach dem brief.)",
+      t7: "verbindung zu T-7 wird aufgebaut ...",
+      sprich: "verbindung zu T-7 wird aufgebaut ..."
     };
     function run(cmd){
       const c = cmd.trim().toLowerCase();
       out.textContent += "\n> " + cmd + "\n";
       if(c === "") return;
       out.textContent += (responses[c] || "unbekannter befehl: " + cmd) + "\n";
+      if(c === "t7" || c === "sprich") setTimeout(()=> openBrowser('assistent.html', 'T-7 Assistent', 'assistent'), 500);
       out.scrollTop = out.scrollHeight;
     }
     input.addEventListener('keydown', e=>{
