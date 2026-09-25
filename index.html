@@ -402,7 +402,7 @@
       <button class="login-btn login-btn-ghost" id="loginGuestBtn" type="button" style="margin-top:8px;">Als Gast reinschauen</button>
       <div class="login-hint" style="opacity:.4; margin-top:-2px;">geteilter Account, auch für Spiele mit Login-Pflicht — ohne eigenen Spielstand</div>
       <div class="login-hint" style="cursor:pointer; text-decoration:underline; margin-top:12px; font-size:12px;" id="loginSkipBtn">nur die Seite ansehen, ohne Konto →</div>
-      <div class="login-legal" style="margin-top:10px;">Mit „Code senden“ akzeptierst du die <a href="seiten/impressum.html#datenschutz">Datenschutzerklärung</a>.</div>
+      <div class="login-legal" style="margin-top:10px;">Mit „Code senden“ akzeptierst du die <a href="seiten/impressum.html#datenschutz" id="loginPrivacyLink">Datenschutzerklärung</a>.</div>
     </div>
 
     <div id="loginStepCode" style="display:none; flex-direction:column; align-items:center; gap:14px;">
@@ -564,6 +564,16 @@
     document.getElementById('loginSkipBtn').addEventListener('click', ()=>{
       localStorage.setItem(SKIP_KEY, '1');
       dismissLogin();
+    });
+
+    // Datenschutz-Link im Login: im Netzscout-Fenster öffnen statt die ganze Seite zu verlassen —
+    // sonst kommt man ohne Login gar nicht mehr zurück zum Hub. Login-Overlay liegt bei z-index 10001,
+    // normale Fenster viel niedriger -- das Fenster deshalb gezielt darüber heben.
+    document.getElementById('loginPrivacyLink').addEventListener('click', (e)=>{
+      e.preventDefault();
+      openBrowser('seiten/impressum.html#datenschutz', 'Datenschutz', 'legal:Datenschutz');
+      const privacyWin = document.querySelector('.win[data-key="legal:Datenschutz"]');
+      if(privacyWin) privacyWin.style.zIndex = 10002;
     });
 
     if(!supabaseClient){
