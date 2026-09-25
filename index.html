@@ -453,8 +453,8 @@
 (function(){
   // Ziel-Seite, die im eingebauten "Netzscout"-Browser lädt.
   // Diese Datei IST jetzt index.html (Startseite). Die eigentliche Spiele-Hub-Seite
-  // liegt separat unter portal.html, damit hier keine Endlosschleife entsteht.
-  const SITE_URL = "portal.html";
+  // liegt separat unter seiten/portal.html, damit hier keine Endlosschleife entsteht.
+  const SITE_URL = "seiten/portal.html";
 
   // ---------- Desktop direkt anzeigen (kein Boot-Schriftzug mehr) ----------
   function showDesktop(){
@@ -492,7 +492,7 @@
       }, 400);
     }
 
-    // Gleicher Supabase-Cloud-Account wie auf portal.html / profil.html — eine Anmeldung
+    // Gleicher Supabase-Cloud-Account wie auf seiten/portal.html / seiten/profil.html — eine Anmeldung
     // gilt (per gemeinsamem localStorage) für die ganze mc-orca-games.de Seite.
     const SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
@@ -706,9 +706,9 @@
     rechtliches: {
       title: "Rechtliches",
       body: `<div class="fl">
-               <div class="frow legal" data-legal="impressum.html#impressum" data-ltitle="Impressum" data-name="Impressum" tabindex="0"><span class="fi">▤</span>Impressum</div>
-               <div class="frow legal" data-legal="impressum.html#datenschutz" data-ltitle="Datenschutz" data-name="Datenschutzerklärung" tabindex="0"><span class="fi">▤</span>Datenschutzerklärung</div>
-               <div class="frow legal" data-legal="nutzungsbedingungen.html" data-ltitle="Nutzungsbedingungen" data-name="Nutzungsbedingungen" tabindex="0"><span class="fi">▤</span>Nutzungsbedingungen</div>
+               <div class="frow legal" data-legal="seiten/impressum.html#impressum" data-ltitle="Impressum" data-name="Impressum" tabindex="0"><span class="fi">▤</span>Impressum</div>
+               <div class="frow legal" data-legal="seiten/impressum.html#datenschutz" data-ltitle="Datenschutz" data-name="Datenschutzerklärung" tabindex="0"><span class="fi">▤</span>Datenschutzerklärung</div>
+               <div class="frow legal" data-legal="seiten/nutzungsbedingungen.html" data-ltitle="Nutzungsbedingungen" data-name="Nutzungsbedingungen" tabindex="0"><span class="fi">▤</span>Nutzungsbedingungen</div>
              </div>
              <p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet die Seite im Netzscout.</p>`,
       onOpen: wireLegalFolder
@@ -760,10 +760,10 @@
   function openWindow(key){
     if(key === 'terminal') return openTerminal();
     if(key === 'browser') return openBrowser(SITE_URL);
-    if(key === 'assistent') return openBrowser('assistent.html', 'T-7 Assistent', 'assistent');
-    if(key === 'suche') return openBrowser('suche.html', 'ORBIT Suche', 'suche');
-    if(key === 'profil') return openBrowser('profil.html', 'Profil', 'profil');
-    if(key === 'raenge') return openBrowser('raenge.html', 'Ränge', 'raenge');
+    if(key === 'assistent') return openBrowser('seiten/assistent.html', 'T-7 Assistent', 'assistent');
+    if(key === 'suche') return openBrowser('seiten/suche.html', 'ORBIT Suche', 'suche');
+    if(key === 'profil') return openBrowser('seiten/profil.html', 'Profil', 'profil');
+    if(key === 'raenge') return openBrowser('seiten/raenge.html', 'Ränge', 'raenge');
     if(key.startsWith('game:')){ const g = GAMES.find(x=>'game:'+x.id===key); if(g) openBrowser(g.url, g.name, key); return; }
     if(key.startsWith('app:')){ const appId = key.slice(4); const app = APPS[appId]; if(app) return openWindow(app.openKey); return; }
     if(key === 'medien') return openMediaArchive();
@@ -849,7 +849,7 @@ Gib 'hilfe' ein für Befehle.
       } else {
         out.textContent += (responses[c] || "unbekannter befehl: " + cmd) + "\n";
       }
-      if(c === "t7" || c === "sprich") setTimeout(()=> openBrowser('assistent.html', 'T-7 Assistent', 'assistent'), 500);
+      if(c === "t7" || c === "sprich") setTimeout(()=> openBrowser('seiten/assistent.html', 'T-7 Assistent', 'assistent'), 500);
       out.scrollTop = out.scrollHeight;
     }
     input.addEventListener('keydown', e=>{
@@ -1640,7 +1640,7 @@ Gib 'hilfe' ein für Befehle.
       const v = urlInput.value.trim();
       if(!v){ frame.src = SITE_URL; return; }
       const isUrl = /^(https?:)?\/\//.test(v) || /\.(html?|png|jpe?g|svg|ogg|mp4)(\?.*)?$/i.test(v) || v.startsWith('/') || v.includes('.html');
-      frame.src = isUrl ? v : 'suche.html?q=' + encodeURIComponent(v);
+      frame.src = isUrl ? v : 'seiten/suche.html?q=' + encodeURIComponent(v);
     }
     win.querySelector('.bb-go').onclick = navigate;
     win.querySelector('.bb-reload').onclick = ()=> { frame.src = frame.src; };

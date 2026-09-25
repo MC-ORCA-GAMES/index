@@ -139,7 +139,7 @@
     (tabPage-wallet). Jetzt im echten Wallet-Tab-Grid nachgetragen (gleiche Karten wie im
     Uebersicht-Grid). Ausserdem PRSM (Prisma-Splitter) ergaenzt, wie von Jens gewuenscht: PRSM
     ist zwar technisch eine platform-Schema-Waehrung (Skin-Shop, siehe get_my_wallet_balances()
-    in profil.html) und lebt nicht in crypto_farm wie die anderen NEXUS-Coins -- wird aber laut
+    in seiten/profil.html) und lebt nicht in crypto_farm wie die anderen NEXUS-Coins -- wird aber laut
     Jens ausschliesslich in NEXUS verdient (Tagesaufgaben), gehoert also inhaltlich ins NEXUS-
     Wallet. Neuer schlanker Loader loadPrsmBalance() ruft platform.get_my_wallet_balances() auf
     und befuellt .js-balance-prsm (Uebersicht- + Wallet-Tab-Karte), angestossen beim Oeffnen von
@@ -356,9 +356,9 @@
     withdraw_from_flux_vault + tick_flux_vault_interest() nach ANCH/NVLT-Muster,
     Zentralbank-Reserve flux_reserve_balance + Top-10-Ausschuettung. do_prestige()
     nullt die Linie mit (analog PULSE/RELAY/ANCH/IONX). Eingebunden in
-    raenge.html (als CURRENCY_BOARD wie CYCLE/SIGIL/RELAY, NICHT ins GAMES-Array
+    seiten/raenge.html (als CURRENCY_BOARD wie CYCLE/SIGIL/RELAY, NICHT ins GAMES-Array
     -- GAMES listet eigenstaendige Spiele mit eigenem Save-Blob, FLUX ist eine
-    Waehrung innerhalb von Nexus) und in die Statistik-Sektion von profil.html.
+    Waehrung innerhalb von Nexus) und in die Statistik-Sektion von seiten/profil.html.
     Nebenbei: snapshot_currency_balances() liest die Symbole jetzt dynamisch aus
     platform.currencies statt aus einer festen Liste -- damit sind FLUX/FVLT und
     die in v3.34 als Fund notierten METAL/KRISTALL/DEUT/ENERGIE mit drin.
@@ -689,7 +689,7 @@
     Ressourcen"-Grid) -- beide laufen ueber die bereits generischen RPCs
     (get_my_wallet_balances/get_my_currency_history), kein weiterer Backend-
     Code noetig. Neue Akzentfarbe --indigo (#8A63F5, gleicher Ton wie der
-    RELAY-Eintrag in raenge.html) ergaenzt, damit RELAY sich von GOV (beide
+    RELAY-Eintrag in seiten/raenge.html) ergaenzt, damit RELAY sich von GOV (beide
     sonst violet) unterscheidet.
   - v3.15: RELAY-Frontend (3. Mine, kooperativ, siehe relay_konzept.md) -- neuer
     Farm-Unterreiter "<span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="3" cy="4" r="1.1" fill="currentColor"/><circle cx="11" cy="4" r="1.1" fill="currentColor"/><circle cx="7" cy="11" r="1.1" fill="currentColor"/><line x1="3" y1="4" x2="11" y2="4" stroke="currentColor" stroke-width="0.9"/><line x1="3" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/><line x1="11" y1="4" x2="7" y2="11" stroke="currentColor" stroke-width="0.9"/></svg></span> Relay" neben NRC/Pulse: Status-Karte (Balance, eigene Rate,
@@ -708,7 +708,7 @@
     relay_bank_recent_payouts sowie central_bank.relay_reserve_balance erweitert
     werden (blockierender Schritt vor jedem Frontend-Code, siehe relay_konzept.md-
     Uebergabe) -- die parameterlose Alt-Variante der Funktion bleibt unveraendert,
-    da nur die p_light-Version tatsaechlich vom Client aufgerufen wird. raenge.html
+    da nur die p_light-Version tatsaechlich vom Client aufgerufen wird. seiten/raenge.html
     bekommt RELAY als drittes CURRENCY_BOARDS-Eintrag (neben CYCLE/SIGIL) --
     lief ohne weitere Anpassung ueber die bereits generische
     platform.get_currency_leaderboard()-RPC. Hinweis: central_bank_relay_
@@ -833,7 +833,7 @@
     Prestige-Akkumulator) angezeigt wurde, ohne den laufenden Durchlauf
     (crypto_farm.player_state.total_mined) einzurechnen. Jetzt Summe aus beiden,
     genau wie serverseitig in platform.nexus_points()/nexus_leaderboard_rows()
-    (siehe raenge.html) -- der Wert faellt dadurch nie zurueck auf 0 und laeuft
+    (siehe seiten/raenge.html) -- der Wert faellt dadurch nie zurueck auf 0 und laeuft
     kontinuierlich weiter, auch ueber Prestige-Resets hinweg.
   - v3.3: Neuer erster Tab "Übersicht" (kompakte Wallet-Zeilen statt grosser
     Stat-Karten, alles auf einen Blick) -- ersetzt die bisher immer sichtbare
@@ -2578,7 +2578,7 @@
         <span class="nt-coin" aria-hidden="true"><svg viewBox="0 0 32 32" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 6.5L9 17H12.5L10.5 25.5L20 15H15.5L17.5 6.5Z" fill="currentColor"/><circle cx="22.5" cy="9.5" r="1.7" fill="currentColor"/></svg></span>
         <span class="nt-value" id="nexusGlobalTap">…</span>
       </a>
-      <a class="nav-cta" href="../raenge.html"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2H10V5.5C10 7.5 8.5 9 7 9C5.5 9 4 7.5 4 5.5V2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M4 3H2.5C2.5 5 3.5 6 4.5 6" fill="none" stroke="currentColor" stroke-width="1"/><path d="M10 3H11.5C11.5 5 10.5 6 9.5 6" fill="none" stroke="currentColor" stroke-width="1"/><line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="12.5" x2="9.5" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="7" y1="11" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1"/></svg></span> Ränge</a>
+      <a class="nav-cta" href="../seiten/raenge.html"><span class="nx-icon" style="display:inline-flex;vertical-align:-2px;width:1em;height:1em;" aria-hidden="true"><svg viewBox="0 0 14 14" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><path d="M4 2H10V5.5C10 7.5 8.5 9 7 9C5.5 9 4 7.5 4 5.5V2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M4 3H2.5C2.5 5 3.5 6 4.5 6" fill="none" stroke="currentColor" stroke-width="1"/><path d="M10 3H11.5C11.5 5 10.5 6 9.5 6" fill="none" stroke="currentColor" stroke-width="1"/><line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="12.5" x2="9.5" y2="12.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="7" y1="11" x2="7" y2="12.5" stroke="currentColor" stroke-width="1.1"/></svg></span> Ränge</a>
       <div class="burger-wrap">
         <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
           <span></span><span></span><span></span>
@@ -2591,10 +2591,10 @@
         </div>
         <div class="burger-group">
           <div class="burger-label">Seiten</div>
-          <a href="../portal.html">Hub</a>
-          <a href="../profil.html">Profil &amp; Skins</a>
-          <a href="../raenge.html">Ränge</a>
-          <a href="../uhr.html">Sternzeit</a>
+          <a href="../seiten/portal.html">Hub</a>
+          <a href="../seiten/profil.html">Profil &amp; Skins</a>
+          <a href="../seiten/raenge.html">Ränge</a>
+          <a href="../seiten/uhr.html">Sternzeit</a>
           <a href="../nexus/global.html">NEXUS global</a>
         </div>
         <div class="burger-group">
@@ -2620,8 +2620,8 @@
         </div>
         <div class="burger-group">
           <div class="burger-label">Rechtliches</div>
-          <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
-          <a href="../impressum.html">Impressum &amp; Datenschutz</a>
+          <a href="../seiten/nutzungsbedingungen.html">Nutzungsbedingungen</a>
+          <a href="../seiten/impressum.html">Impressum &amp; Datenschutz</a>
         </div>
       </div>
       </div>
@@ -4444,7 +4444,7 @@
     <div class="foot-brand">MC ORCA Games — NEXUS (Idle-Mining-Spiel)</div>
     <div class="foot-links">
       <a href="../index.html">Alle Spiele</a><span class="sep">·</span>
-      <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      <a href="../seiten/nutzungsbedingungen.html">Nutzungsbedingungen</a>
     </div>
   </div>
 </footer>
@@ -8945,7 +8945,7 @@ async function loadLedger(reset){
 
 let prsmLoading = false;
 // NEU: PRSM (Prisma-Splitter) ist eine reine platform-Schema-Waehrung (Skin-Shop
-// in profil.html, ueber get_my_wallet_balances()), lebt technisch nicht im
+// in seiten/profil.html, ueber get_my_wallet_balances()), lebt technisch nicht im
 // crypto_farm-Schema wie NRC/STBL/etc. Deshalb eigener schlanker Loader statt
 // Huckepack auf eine der crypto_farm-RPCs.
 async function loadPrsmBalance(){
@@ -11886,10 +11886,10 @@ document.querySelectorAll('.am-innernav-btn').forEach(btn => btn.addEventListene
     var panel = document.createElement('div');
     panel.className = 'ofx-dock-panel';
     var html = '<div class="ofx-lbl">Navigation</div>'
-      + '<a class="ofx-home" href="'+PREFIX+'portal.html">← Zurück zum Hub</a>'
-      + '<a href="'+PREFIX+'profil.html">Profil &amp; Skins</a>'
-      + '<a href="'+PREFIX+'raenge.html">Ränge</a>'
-      + '<a href="'+PREFIX+'uhr.html">Sternzeit</a>'
+      + '<a class="ofx-home" href="'+PREFIX+'seiten/portal.html">← Zurück zum Hub</a>'
+      + '<a href="'+PREFIX+'seiten/profil.html">Profil &amp; Skins</a>'
+      + '<a href="'+PREFIX+'seiten/raenge.html">Ränge</a>'
+      + '<a href="'+PREFIX+'seiten/uhr.html">Sternzeit</a>'
       + '<div class="ofx-lbl">Spiele</div>';
     var here = location.pathname;
     GAMES.forEach(function(g){

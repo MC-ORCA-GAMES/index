@@ -12,7 +12,7 @@ ROOT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.pat
 GAMES = {'aetheris': 'Aetheris', 'astrion': 'Astrion', 'deepanchor': 'Deep Anchor',
          'pathofthestars': 'Path of the Stars', 'nexus': 'NEXUS', 'foundry': 'FOUNDRY',
          'domus-prime': 'Domus Prime', 'nexus-breach': 'NEXUS: BREACH', 'assets': 'Assets', 'bilder': 'Hub'}
-KIND = {'index.html': 'Infoseite', 'game.html': 'Spiel', 'medien.html': 'Medien', 'impressum.html': 'Rechtliches'}
+KIND = {'index.html': 'Infoseite', 'game.html': 'Spiel', 'medien.html': 'Medien', 'impressum.html': 'Rechtliches', 'portal.html': 'Hub', 'nutzungsbedingungen.html': 'Rechtliches'}
 IMG, AUD, VID = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'}, {'.ogg', '.mp3', '.wav'}, {'.mp4', '.webm'}
 SKIP_DIRS = {'.git', 'node_modules', 'tools'}
 HIDE = set()   # unveröffentlichte Test-Spiele: hier Ordner eintragen, die NICHT auffindbar sein sollen
@@ -58,7 +58,7 @@ for dp, dn, fn in os.walk(ROOT):
         game = GAMES.get(top, 'Hub')
         ext = os.path.splitext(f)[1].lower()
         if ext == '.html':
-            if f in SKIP_PAGES and '/' not in rel: continue
+            if f in SKIP_PAGES: continue
             p = P()
             try: p.feed(open(full, encoding='utf-8', errors='ignore').read())
             except Exception: continue

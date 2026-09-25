@@ -1,92 +1,37 @@
 <!--
-  MC ORCA GAMES — Ränge (spielübergreifende Rangliste)
+  MC ORCA GAMES — Zentrales Impressum & Datenschutz (gilt fuer die gesamte Domain).
   Datei-Version: v1.0
-
-  Zieht Cloud-Spielstände ALLER Spieler über die Supabase-Funktion
-  `leaderboard_rows()` (siehe leaderboard_rpc.sql) und berechnet daraus
-  pro Spiel eine Punktzahl aus Level/Fortschritt + Erfolgen + Ressourcen.
-  Die Punktzahlen aller vier Spiele werden zu EINER Gesamt-Rangliste
-  aufsummiert; per Chip kann optional nach einzelnem Spiel gefiltert werden,
-  damit man nicht zwischen 5 getrennten Seiten hin- und herspringen muss.
-
-  Ohne die SQL-Funktion in Supabase liefert der Aufruf einen Fehler
-  ("Funktion nicht gefunden") — die Seite zeigt dann einen Hinweis
-  mit den nötigen Einrichtungsschritten.
+  Loest die sechs einzelnen Spiel-Impressen ab; die alten Pfade
+  <spiel>/impressum.html leiten nur noch hierher weiter.
 -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ränge — MC ORCA Games</title>
-<meta name="description" content="Spielübergreifende Rangliste aller MC ORCA Games: Aetheris, Path of the Stars, Astrion und Deep Anchor zusammen.">
+<title>Impressum &amp; Datenschutz — MC ORCA Games</title>
+<meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0a0b12;
-    --bg-alt:#12141f;
-    --panel:#151726;
-    --line:rgba(232,230,227,0.09);
-    --fg:#E9E7E2;
-    --fg-dim:#8b8fa3;
-    --fg-faint:#565a6e;
-
-    --gold:#D4AF37;
-    --gold-dim:rgba(212,175,55,0.14);
-    --red:#D6303F;
-    --red-dim:rgba(214,48,63,0.14);
-    --violet:#B23AFF;
-    --violet-dim:rgba(178,58,255,0.14);
-    --orange:#FF6A2B;
-    --blue:#2F8CFF;
-    --blue-dim:rgba(47,140,255,0.14);
-    --orange-dim:rgba(255,106,43,0.14);
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e; --accent:#D4AF37;
   }
   *{ box-sizing:border-box; }
-  html{ scroll-behavior:smooth; }
-  body{
-    margin:0; background:var(--bg); color:var(--fg);
-    font-family:'Inter',ui-sans-serif,system-ui,sans-serif;
-    -webkit-font-smoothing:antialiased; overflow-x:hidden;
-  }
-  h1,h2,h3,.display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
-  a{ color:inherit; text-decoration:none; }
-  ::selection{ background:var(--gold); color:#0a0b12; }
-  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; line-height:1.7; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  h1,h2,h3{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; transition:border-color .15s; }
+  a:hover{ border-bottom-color:var(--accent); }
+  ::selection{ background:var(--accent); color:#0a0b12; }
 
-  @media (prefers-reduced-motion: reduce){
-    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; }
-  }
+  #stars{ position:fixed; inset:0; z-index:0; opacity:0.5; pointer-events:none; }
 
-  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.55; }
-  .wrap{ position:relative; z-index:2; max-width:880px; margin:0 auto; padding:0 24px 90px; }
-
-  .nav{
-    position:sticky; top:0; z-index:10;
-    background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75));
-    backdrop-filter:blur(10px);
-    border-bottom:1px solid var(--line);
-  }
-  .nav-inner{
-    max-width:880px; margin:0 auto; padding:16px 24px;
-    display:flex; align-items:center; justify-content:space-between; gap:16px;
-  }
-  .nav-left{ display:flex; align-items:center; gap:14px; }
-  .nav-back{ font-size:13px; color:var(--fg-dim); transition:color .15s; }
-  .nav-back:hover{ color:var(--fg); }
-  .nav-brand{ display:flex; align-items:center; gap:9px; font-family:'Space Grotesk'; font-weight:700; font-size:14px; letter-spacing:0.04em; }
-  .nav-brand .mark{
-    width:20px; height:20px; border-radius:50%;
-    background:conic-gradient(from 200deg, var(--gold), var(--red), var(--violet), var(--orange), var(--gold));
-    box-shadow:0 0 12px rgba(212,175,55,0.35); flex-shrink:0;
-  }
-  .nav-cta{
-    font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px;
-    border:1px solid var(--line); color:var(--fg-dim);
-  }
-  .nav-right{ display:flex; align-items:center; gap:10px; }
+  .nav{ position:sticky; top:0; z-index:30; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; font-size:13px; }
+  .nav-back{ color:var(--fg-dim); border-bottom:none; transition:color .15s; }
+  .nav-back:hover{ color:var(--fg); border-bottom:none; }
 
   /* ---------- burger menu (Seiten-Navigation) ---------- */
   .burger-wrap{ position:relative; flex-shrink:0; }
@@ -117,136 +62,27 @@
   .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
   @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
 
-  .hero{ padding:64px 0 34px; }
-  .eyebrow{
-    display:inline-flex; align-items:center; gap:8px;
-    font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase;
-    color:var(--fg-dim); margin-bottom:18px;
-  }
-  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); box-shadow:0 0 8px var(--gold); }
-  .hero h1{ font-size:clamp(30px,5vw,44px); line-height:1.08; font-weight:700; letter-spacing:-0.01em; margin:0 0 16px; }
-  .hero p{ font-size:15.5px; line-height:1.65; color:var(--fg-dim); max-width:560px; margin:0; }
+  .nav-brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; color:var(--accent); border-bottom:none; }
+  .nav-brand .mark{ width:22px; height:22px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px rgba(212,175,55,0.35); flex-shrink:0; }
 
-  .chips{ display:flex; gap:9px; flex-wrap:wrap; margin:0 0 26px; }
-  .cat-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:30px 0 16px; }
-  .cat-tab{
-    font-family:'Space Grotesk'; font-size:14px; font-weight:700;
-    padding:10px 18px; border-radius:10px; border:1px solid var(--line);
-    background:var(--panel); color:var(--fg-dim); cursor:pointer;
-    transition:border-color .15s, color .15s, background .15s;
-  }
-  .cat-tab:hover{ color:var(--fg); border-color:var(--fg-faint); }
-  .cat-tab.active{ color:#0a0b12; background:var(--gold); border-color:var(--gold); }
-  .chip{
-    font-family:'Space Grotesk'; font-size:13px; font-weight:600;
-    padding:9px 16px; border-radius:999px; border:1px solid var(--line);
-    color:var(--fg-dim); cursor:pointer; transition:border-color .15s, color .15s, background .15s;
-    display:inline-flex; align-items:center; gap:7px;
-  }
-  .chip .sw{ width:7px; height:7px; border-radius:50%; }
-  .chip:hover{ color:var(--fg); border-color:var(--fg-faint); }
-  .chip.active{ color:#0a0b12; background:var(--fg); border-color:var(--fg); }
-  .chip.active .sw{ background:#0a0b12 !important; }
+  .wrap{ position:relative; z-index:2; max-width:720px; margin:0 auto; padding:48px 24px 80px; }
+  .eyebrow{ font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  h1{ font-size:clamp(26px,4vw,34px); margin:0 0 36px; }
 
-  .board{ border:1px solid var(--line); border-radius:16px; background:var(--panel); overflow:hidden; }
-  .board-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:16px 20px; border-bottom:1px solid var(--line);
-    font-size:12px; color:var(--fg-faint);
-  }
-  .board-head .status{ display:flex; align-items:center; gap:7px; }
-  .board-head .status .pulse{ width:6px; height:6px; border-radius:50%; background:var(--gold); box-shadow:0 0 8px var(--gold); }
+  .sec{ padding:28px 0; border-top:1px solid var(--line); }
+  .sec:first-of-type{ border-top:none; padding-top:0; }
+  .sec h2{ font-size:16px; font-weight:600; margin:0 0 4px; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .sec h2 .tag{ font-size:10.5px; font-weight:500; color:var(--fg-faint); text-transform:none; }
+  .sec p{ font-size:14px; color:var(--fg-dim); margin:10px 0; }
+  .sec ul{ margin:10px 0; padding-left:20px; }
+  .sec li{ font-size:14px; color:var(--fg-dim); margin-bottom:6px; }
+  .sec li b{ color:var(--fg); }
 
-  .row{
-    display:flex; align-items:center; gap:14px;
-    padding:14px 20px; border-top:1px solid var(--line);
-    cursor:pointer; transition:background .15s;
-  }
-  .row:hover{ background:rgba(255,255,255,0.035); }
-  .row:first-child{ border-top:none; }
-  .row.me{ background:rgba(212,175,55,0.07); }
-  .r-rank{
-    font-family:'Space Grotesk'; font-weight:700; font-size:15px; color:var(--fg-faint);
-    width:34px; flex-shrink:0; text-align:center;
-  }
-  .row:nth-child(2) .r-rank{ color:var(--gold); }
-  .row:nth-child(3) .r-rank{ color:#C7CCD6; }
-  .row:nth-child(4) .r-rank{ color:#C88A4E; }
-  .r-avatar{
-    width:38px; height:38px; border-radius:50%; flex-shrink:0;
-    background:var(--bg-alt); border:1px solid var(--line);
-    display:flex; align-items:center; justify-content:center; font-size:17px; overflow:hidden;
-  }
-  .r-avatar img{ width:100%; height:100%; object-fit:cover; }
-  .r-main{ flex:1; min-width:0; }
-  .r-name{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  /* Prestige-Kosmetik (Nexus) auf dem Namen -- gleiche Farbe/Glow-Logik wie im Spiel selbst. */
-  .r-name.cosmetic-skin{ font-weight:700; }
-  .r-name.cosmetic-fx{ animation:rNameGlow 1.8s ease-in-out infinite; }
-  @keyframes rNameGlow{
-    0%,100%{ text-shadow:0 0 3px var(--cosmetic-name-color, var(--gold)); }
-    50%{ text-shadow:0 0 10px var(--cosmetic-name-color, var(--gold)), 0 0 18px var(--cosmetic-name-color, var(--gold)); }
-  }
-  .r-badges{ display:flex; gap:6px; margin-top:5px; flex-wrap:wrap; }
-  .r-badge{
-    font-size:10px; font-weight:600; letter-spacing:0.02em; padding:2px 7px; border-radius:999px;
-    color:var(--fg-dim); border:1px solid var(--line);
-  }
-  .r-title{ font-size:11px; font-weight:600; color:var(--gold); margin-bottom:2px; letter-spacing:0.01em; }
-  .r-points{ font-family:'Space Grotesk'; font-weight:700; font-size:16px; flex-shrink:0; text-align:right; }
-  .r-points .u{ font-size:10.5px; font-weight:500; color:var(--fg-faint); margin-left:3px; }
+  .kv{ display:flex; gap:8px; font-size:14px; padding:4px 0; flex-wrap:wrap; }
+  .kv .k{ min-width:110px; color:var(--fg-faint); }
+  .kv .v{ color:var(--fg); }
 
-  /* ---------- Profil-Popup ---------- */
-  .profile-overlay{
-    position:fixed; inset:0; z-index:50; background:rgba(6,7,12,0.72); backdrop-filter:blur(4px);
-    display:flex; align-items:center; justify-content:center; padding:20px;
-    opacity:0; pointer-events:none; transition:opacity .18s;
-  }
-  .profile-overlay.open{ opacity:1; pointer-events:auto; }
-  .profile-modal{
-    width:100%; max-width:400px; max-height:85vh; overflow-y:auto;
-    background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:26px;
-    box-shadow:0 24px 60px rgba(0,0,0,0.55);
-    transform:translateY(10px) scale(0.98); transition:transform .18s;
-  }
-  .profile-overlay.open .profile-modal{ transform:translateY(0) scale(1); }
-  .profile-close{
-    float:right; width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
-    background:transparent; color:var(--fg-dim); cursor:pointer; font-size:16px; line-height:1;
-  }
-  .profile-close:hover{ color:var(--fg); border-color:var(--fg-faint); }
-  .profile-head{ display:flex; align-items:center; gap:14px; margin-bottom:18px; }
-  .profile-avatar{
-    width:58px; height:58px; border-radius:50%; flex-shrink:0; overflow:hidden;
-    background:var(--bg-alt); border:1px solid var(--line);
-    display:flex; align-items:center; justify-content:center; font-size:24px;
-  }
-  .profile-avatar img{ width:100%; height:100%; object-fit:cover; }
-  .profile-name{ font-family:'Space Grotesk'; font-weight:700; font-size:19px; }
-  .profile-title{ font-size:12px; font-weight:600; color:var(--gold); margin-top:2px; }
-  .profile-bio{ font-size:13.5px; color:var(--fg-dim); line-height:1.6; margin-bottom:18px; }
-  .profile-stats{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
-  .profile-stat{ background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
-  .profile-stat .label{ font-size:10.5px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:0.05em; }
-  .profile-stat .value{ font-family:'Space Grotesk'; font-weight:700; font-size:16px; margin-top:2px; }
-  .profile-badges-title{ font-size:11px; color:var(--fg-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px; }
-  .profile-loading, .profile-err{ padding:30px 0; text-align:center; color:var(--fg-dim); font-size:13.5px; }
-  .profile-err{ color:var(--red); }
-
-  .empty, .err, .loading{ padding:48px 20px; text-align:center; color:var(--fg-dim); font-size:14px; line-height:1.7; }
-  .err{ color:var(--red); }
-  .err code{
-    display:block; margin-top:10px; padding:10px 12px; border-radius:8px;
-    background:var(--bg-alt); color:var(--fg-dim); font-size:12px; text-align:left; overflow-x:auto;
-  }
-  .note{ margin-top:16px; font-size:12.5px; color:var(--fg-faint); line-height:1.7; }
-
-  @media (max-width:560px){
-    .hero{ padding:44px 0 24px; }
-    .row{ padding:12px 14px; gap:11px; }
-    .r-name{ font-size:13.5px; }
-    .r-points{ font-size:14.5px; }
-  }
+  footer{ margin-top:20px; font-size:12px; color:var(--fg-faint); text-align:center; }
 
   /* ══════════════════════════════════════════════════════════════════
      MC ORCA — SITE-SKIN "DEEP DECK 2600"  (v1.0)
@@ -811,7 +647,7 @@
      Rueckbau = diesen Block und den Script-Block loeschen.
      ══════════════════════════════════════════════════════════════════ */
 
-  :root{ --orca-page-w:1180px; }
+  :root{ --orca-page-w:900px; }
   .wrap{ max-width:var(--orca-page-w); }
   .nav-inner, .foot-inner{ max-width:var(--orca-page-w); }
 
@@ -966,146 +802,51 @@
   }
   /* ════════════════════ Ende ORCA-LINK v1.0 (CSS) ════════════════════ */
 
-
-  /* ══════════════════════════════════════════════════════════════════
-     RÄNGE — Podium, Suche, Sprungmarke (additiv, v1.0)
-     ══════════════════════════════════════════════════════════════════ */
-  .lb-tools{
-    display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:0 0 16px;
-  }
-  .lb-search{
-    flex:1; min-width:190px; max-width:340px;
-    display:flex; align-items:center; gap:8px; padding:9px 12px;
-    border:1px solid var(--line); background:var(--bg-alt);
-    clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
-  }
-  .lb-search input{
-    flex:1; background:none; border:none; outline:none; color:var(--fg);
-    font-family:inherit; font-size:13px;
-  }
-  .lb-search input::placeholder{ color:var(--fg-faint); }
-  .lb-search .ic{ color:rgba(var(--acc),0.8); flex-shrink:0; display:flex; }
-  .lb-jump{
-    font-size:12px; font-weight:600; padding:9px 14px; cursor:pointer; white-space:nowrap;
-    border:1px solid rgba(var(--acc),0.5); color:rgb(var(--acc)); background:rgba(var(--acc),0.08);
-    clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
-    transition:.15s;
-  }
-  .lb-jump:hover{ background:rgba(var(--acc),0.18); }
-  .lb-jump[hidden]{ display:none; }
-  .lb-count{ font-size:11.5px; color:var(--fg-faint); font-family:var(--dd-mono); }
-
-  /* ---------- Podium ---------- */
-  .lb-podium{
-    display:grid; grid-template-columns:1fr 1.16fr 1fr; gap:12px;
-    align-items:end; margin:0 0 20px;
-  }
-  .lb-podium[hidden]{ display:none; }
-  .pod{
-    position:relative; overflow:hidden; text-align:center;
-    border:1px solid var(--line); background:var(--panel);
-    padding:16px 12px 14px;
-    clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px);
-  }
-  .pod::before{
-    content:''; position:absolute; left:0; right:0; top:0; height:2px;
-    background:linear-gradient(90deg, transparent, var(--pod-c), transparent);
-  }
-  .pod.p1{ --pod-c:#FFC64D; padding-top:24px; padding-bottom:20px;
-           box-shadow:inset 0 -60px 70px -60px #FFC64D; }
-  .pod.p2{ --pod-c:#C7CCD6; }
-  .pod.p3{ --pod-c:#C88A4E; }
-  .pod .pod-rank{
-    font-family:var(--dd-mono); font-size:11px; letter-spacing:.24em;
-    color:var(--pod-c); margin-bottom:10px;
-  }
-  .pod .pod-av{
-    width:56px; height:56px; border-radius:50%; margin:0 auto 10px;
-    overflow:hidden; border:2px solid var(--pod-c); background:var(--bg-alt);
-    display:flex; align-items:center; justify-content:center; font-size:24px;
-    box-shadow:0 0 22px -8px var(--pod-c); position:relative;
-  }
-  .pod.p1 .pod-av{ width:70px; height:70px; }
-  .pod .pod-av img{ width:100%; height:100%; object-fit:cover; }
-  .pod .pod-name{
-    font-family:'Space Grotesk'; font-weight:700; font-size:14px;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;
-  }
-  .pod.p1 .pod-name{ font-size:16px; }
-  .pod .pod-pts{ font-family:var(--dd-mono); font-size:13.5px; color:var(--pod-c); font-weight:700; }
-  .pod .pod-pts small{ font-size:10px; color:var(--fg-faint); margin-left:3px; }
-  .pod.is-me{ border-color:var(--pod-c); }
-  .pod .pod-me{
-    display:inline-block; margin-top:7px; font-size:9.5px; letter-spacing:.2em;
-    text-transform:uppercase; color:var(--pod-c); border:1px solid currentColor; padding:2px 6px;
-  }
-  @media (max-width:620px){
-    .lb-podium{ grid-template-columns:1fr; }
-    .pod.p1{ order:-1; }
-  }
-  .row.lb-hidden{ display:none; }
-  .row.lb-flash{ animation:lbFlash 1.6s ease-out 1; }
-  @keyframes lbFlash{
-    0%,100%{ box-shadow:inset 0 0 0 0 rgba(var(--acc),0); }
-    25%    { box-shadow:inset 0 0 44px -6px rgba(var(--acc),0.7); }
-  }
-  /* ══════════════════ Ende RÄNGE-Ausbau ══════════════════ */
-
+  .sec[id]{ scroll-margin-top:80px; }
 </style>
 </head>
 <body>
 
 <canvas id="stars"></canvas>
 
-<div class="profile-overlay" id="profileOverlay">
-  <div class="profile-modal" id="profileModal">
-    <button type="button" class="profile-close" id="profileCloseBtn">✕</button>
-    <div id="profileModalBody"><div class="profile-loading">Lade Profil …</div></div>
-  </div>
-</div>
-
-
 <nav class="nav">
   <div class="nav-inner">
-    <div class="nav-left">
-      <a class="nav-back" href="portal.html">← Hub</a>
-      <span class="nav-brand"><span class="mark"></span> RÄNGE</span>
-    </div>
-    <div class="nav-right">
-      <a class="nav-cta" href="profil.html">☁ Profil</a>
-      <div class="burger-wrap">
-        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
-          <span></span><span></span><span></span>
-        </button>
-        <div class="burger-panel" id="burgerPanel">
+    <a class="nav-back" href="portal.html">← Zurück zum Hub</a>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="nav-brand"><span class="mark"></span> MC ORCA GAMES</span>
+    <div class="burger-wrap">
+      <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="burger-panel" id="burgerPanel">
         <div class="burger-group">
           <div class="burger-label">Seiten</div>
           <a href="portal.html">Hub</a>
           <a href="profil.html">Profil &amp; Skins</a>
           <a href="raenge.html">Ränge</a>
           <a href="uhr.html">Sternzeit</a>
-          <a href="nexus/global.html">NEXUS global</a>
+          <a href="../nexus/global.html">NEXUS global</a>
         </div>
         <div class="burger-group">
           <div class="burger-label">Spiele</div>
-          <a href="aetheris/game.html">Aetheris</a>
-          <a href="astrion/game.html">Astrion</a>
-          <a href="deepanchor/game.html">Deep Anchor</a>
-          <a href="pathofthestars/game.html">Path of the Stars</a>
-          <a href="nexus/game.html">NEXUS</a>
-          <a href="nexus/nexus_singularity/game.html">Nexus Singularity</a>
-          <a href="foundry/game.html">FOUNDRY</a>
-          <a href="domus-prime/game.html">Domus Prime: Verdantis</a>
+          <a href="../aetheris/game.html">Aetheris</a>
+          <a href="../astrion/game.html">Astrion</a>
+          <a href="../deepanchor/game.html">Deep Anchor</a>
+          <a href="../pathofthestars/game.html">Path of the Stars</a>
+          <a href="../nexus/game.html">NEXUS</a>
+          <a href="../nexus/nexus_singularity/game.html">Nexus Singularity</a>
+          <a href="../foundry/game.html">FOUNDRY</a>
+          <a href="../domus-prime/game.html">Domus Prime: Verdantis</a>
         </div>
         <div class="burger-group">
           <div class="burger-label">Info</div>
-          <a href="aetheris/index.html">Aetheris</a>
-          <a href="astrion/index.html">Astrion</a>
-          <a href="deepanchor/index.html">Deep Anchor</a>
-          <a href="pathofthestars/index.html">Path of the Stars</a>
-          <a href="nexus/index.html">NEXUS</a>
-          <a href="nexus/nexus_singularity/index.html">Nexus Singularity</a>
-          <a href="foundry/index.html">FOUNDRY</a>
+          <a href="../aetheris/index.html">Aetheris</a>
+          <a href="../astrion/index.html">Astrion</a>
+          <a href="../deepanchor/index.html">Deep Anchor</a>
+          <a href="../pathofthestars/index.html">Path of the Stars</a>
+          <a href="../nexus/index.html">NEXUS</a>
+          <a href="../nexus/nexus_singularity/index.html">Nexus Singularity</a>
+          <a href="../foundry/index.html">FOUNDRY</a>
         </div>
         <div class="burger-group">
           <div class="burger-label">Rechtliches</div>
@@ -1113,7 +854,7 @@
           <a href="impressum.html">Impressum &amp; Datenschutz</a>
         </div>
       </div>
-      </div>
+    </div>
     </div>
   </div>
 </nav>
@@ -1131,621 +872,165 @@
 })();
 </script>
 
+
 <div class="wrap">
-  <section class="hero">
-    <div class="eyebrow"><span class="dot"></span> Spielübergreifend</div>
-    <h1>Eine Rangliste. Alle Spiele.</h1>
-    <p>Punkte aus Aetheris, Path of the Stars, Astrion und Deep Anchor werden
-       zusammengezählt — statt vier getrennten Listen gibt es eine Gesamtwertung.
-       Auf Wunsch lässt sich nach einzelnem Spiel filtern.</p>
-  </section>
+  <div class="eyebrow">Rechtliches</div>
+  <h1>Impressum &amp; Datenschutzerklärung</h1>
 
-  <div class="cat-tabs" id="catTabs"></div>
-  <div class="chips" id="chips"></div>
-
-  <div class="lb-podium" id="lbPodium" hidden></div>
-
-  <div class="lb-tools">
-    <label class="lb-search">
-      <span class="ic" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg></span>
-      <input type="search" id="lbSearch" placeholder="Spieler suchen …" autocomplete="off" spellcheck="false">
-    </label>
-    <button type="button" class="lb-jump" id="lbJump" hidden>Zu meinem Platz</button>
-    <span class="lb-count" id="lbCount"></span>
+  <div class="sec">
+    <h2>Geltungsbereich</h2>
+    <p>Dieses Impressum und diese Datenschutzerklärung gelten für die gesamte Website
+    <strong>mc-orca-games.de</strong> samt allen darauf angebotenen Spielen und Unterseiten:
+    Aetheris, Astrion, Deep Anchor, Path of the Stars, NEXUS, Nexus Singularity, FOUNDRY und
+    Domus Prime: Verdantis. Betreiber, Hosting, Konto-System und Datenverarbeitung sind für
+    alle Spiele identisch, deshalb gibt es an dieser Stelle eine gemeinsame Fassung statt
+    einer Kopie pro Spiel. Wo ein einzelnes Spiel abweicht, ist das unten ausdrücklich vermerkt.</p>
   </div>
 
-  <div class="board">
-    <div class="board-head">
-      <span id="boardTitle">Gesamtwertung</span>
-      <span class="status"><span class="pulse"></span><span id="boardHint">lädt …</span></span>
-    </div>
-    <div class="board-sub" id="boardSub" style="display:none; padding:0 18px 14px; font-size:12px; color:var(--fg-faint);"></div>
-    <div id="boardBody"><div class="loading">Rangliste wird geladen …</div></div>
+  <div class="sec" id="impressum">
+    <h2>Impressum <span class="tag">§ 5 DDG</span></h2>
+    <div class="kv"><span class="k">Name</span><span class="v">Jens Ziem</span></div>
+    <div class="kv"><span class="k">Anschrift</span><span class="v">Astonstr. 33, 39116 Magdeburg</span></div>
+    <div class="kv"><span class="k">Land</span><span class="v">Deutschland</span></div>
   </div>
+
+  <div class="sec">
+    <h2>Kontakt</h2>
+    <div class="kv"><span class="k">E-Mail</span><span class="v"><a href="mailto:hub@mc-orca-games.de">hub@mc-orca-games.de</a></span></div>
+  </div>
+
+  <div class="sec">
+    <h2>Verantwortlich für den Inhalt <span class="tag">§ 18 Abs. 2 MStV</span></h2>
+    <div class="kv"><span class="k">Name</span><span class="v">Jens Ziem</span></div>
+    <div class="kv"><span class="k">Anschrift</span><span class="v">Astonstr. 33, 39116 Magdeburg</span></div>
+  </div>
+
+  <div class="sec">
+    <h2>Haftung für Inhalte</h2>
+    <p>MC ORCA Games ist ein kostenloses, nicht-kommerzielles Hobby-/Freizeitprojekt. Als Diensteanbieter bin ich gemäß § 7 Abs. 1 DDG für eigene Inhalte auf dieser Seite nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG bin ich als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Bei Bekanntwerden entsprechender Rechtsverletzungen werde ich diese Inhalte umgehend entfernen.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Haftung für Links</h2>
+    <p>Diese Seite kann Links zu externen Webseiten Dritter enthalten, auf deren Inhalte ich keinen Einfluss habe. Deshalb kann ich für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werde ich derartige Links umgehend entfernen.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Urheberrecht</h2>
+    <p>Die durch den Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten, nicht kommerziellen Gebrauch gestattet.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Hinweis zu KI-generierten Inhalten</h2>
+    <p>Bei der Erstellung dieses Projekts kommen KI-Werkzeuge zum Einsatz:</p>
+    <ul>
+      <li><b>Bilder</b> werden mit ChatGPT (OpenAI) erstellt.</li>
+      <li><b>Musik</b> wird mit Suno erstellt.</li>
+      <li><b>Programmierung</b> erfolgt mit Unterstützung von KI-Assistenten (u. a. Claude von Anthropic).</li>
+    </ul>
+    <p>Dieser Hinweis erfolgt in Übereinstimmung mit den Transparenzvorgaben aus Art. 50 der EU-Verordnung über Künstliche Intelligenz (Verordnung (EU) 2024/1689) für künstlich erzeugte bzw. bearbeitete Bild- und Audioinhalte. Sämtliche Spiele von MC ORCA Games sind erkennbar fiktionale, kreative Unterhaltungsprojekte.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Hinweis zum Lernmodul „Sternen-Akademie“ (Astrion)</h2>
+    <p>ASTRION enthält neben dem Kartensammeln auch ein optionales Lernmodul (die „Sternen-Akademie“) mit Übungsaufgaben aus Deutsch und Mathematik im Bereich Grundschulniveau. Dieses Modul dient ausschließlich der spielerischen Wissensvermittlung innerhalb der App, ersetzt keinen schulischen Unterricht und erhebt oder überträgt dabei keine personenbezogenen Daten von Kindern — sämtliche Aufgaben werden lokal auf dem Gerät erzeugt und ausgewertet (siehe Abschnitt 02).</p>
+  </div>
+
+  <div class="sec" id="datenschutz">
+    <h2>01 · Verantwortlicher</h2>
+    <div class="kv"><span class="k">Name</span><span class="v">Jens Ziem</span></div>
+    <div class="kv"><span class="k">Anschrift</span><span class="v">Astonstr. 33, 39116 Magdeburg</span></div>
+    <div class="kv"><span class="k">E-Mail</span><span class="v"><a href="mailto:hub@mc-orca-games.de">hub@mc-orca-games.de</a></span></div>
+  </div>
+
+  <div class="sec">
+    <h2>02 · Spielstände &amp; Speicherung</h2>
+    <p>Wo dein Fortschritt liegt, hängt vom jeweiligen Spiel ab:</p>
+    <ul>
+      <li><b>Aetheris, Astrion, Deep Anchor, Path of the Stars, Nexus Singularity, Domus Prime: Verdantis</b> —
+      speichern Spielstand, Einstellungen und Fortschritt zunächst ausschließlich lokal in deinem Browser
+      (localStorage). Diese Daten verlassen zu keinem Zeitpunkt dein Gerät, werden nicht an mich oder Dritte
+      übertragen und sind nur auf dem jeweiligen Gerät/Browser verfügbar, mit dem gespielt wird. Ich habe
+      selbst keinen Zugriff darauf. Optional kannst du dich registrieren, um den Spielstand zusätzlich in der
+      Cloud zu sichern und geräteübergreifend zu synchronisieren — siehe Abschnitt 03.</li>
+      <li><b>NEXUS und FOUNDRY</b> — sind Mehrspieler-Titel mit gemeinsamer Wirtschaft (Markt, Rangliste,
+      Corps). Sie laufen serverseitig und setzen deshalb ein Konto zwingend voraus; es gibt hier keinen
+      rein lokalen Spielmodus. Der komplette Spielstand liegt in der Cloud — siehe Abschnitt 03.</li>
+    </ul>
+  </div>
+
+  <div class="sec">
+    <h2>03 · Registrierung, Login &amp; Cloud-Spielstand</h2>
+    <p>Wenn du dich auf mc-orca-games.de registrierst bzw. einloggst, wird dein Spielstand zusätzlich zur lokalen Speicherung (siehe Abschnitt 02) in der Cloud gesichert und geräteübergreifend synchronisiert. Der Login läuft passwortlos über einen 6-stelligen Code, den du per E-Mail erhältst. Dabei werden folgende Daten verarbeitet:</p>
+    <ul>
+      <li>Deine E-Mail-Adresse (zur Konto-Erstellung, zum Login-Code-Versand und für sonstige sicherheitsrelevante E-Mails)</li>
+      <li>Der einmalige, zeitlich begrenzte Login-Code bzw. das daraus erzeugte Authentifizierungs-Token (kein klassisches Passwort)</li>
+      <li>Dein Spielstand (Fortschritt, Ressourcen, Einstellungen) zur geräteübergreifenden Synchronisierung</li>
+    </ul>
+    <p>Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Erfüllung eines Vertrags bzw. vorvertragliche Maßnahmen, da du diese Funktion aktiv über die Registrierung anforderst). Für die in Abschnitt 02 als lokal gekennzeichneten Spiele ist die Registrierung freiwillig — ohne Konto laufen sie weiter mit rein lokaler Speicherung. Für NEXUS und FOUNDRY ist das Konto technisch notwendig, weil diese Spiele ohne Server-Spielstand nicht funktionieren. Siehe außerdem Abschnitt 07 (Hinweis für Eltern). Die gleiche Anmeldung gilt automatisch für alle MC-ORCA-Games-Spiele auf dieser Domain (gemeinsames Konto).</p>
+    <p>Für Datenbank und Authentifizierung nutze ich <strong>Supabase</strong> (Supabase, Inc.) als Auftragsverarbeiter. Dort werden dein Nutzerkonto (E-Mail-Adresse, Authentifizierungs-Token) sowie dein Cloud-Spielstand gespeichert. Näheres: <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase-Datenschutzerklärung</a>.</p>
+    <p>Für den Versand der Login-Codes und sonstiger Konto-E-Mails nutze ich <strong>Brevo</strong> (Brevo SA, 7 rue de Madrid, 75008 Paris, Frankreich) als E-Mail-/SMTP-Dienstleister. Dabei werden deine E-Mail-Adresse und der E-Mail-Inhalt an Brevo übermittelt. Näheres: <a href="https://www.brevo.com/de/legal/privacypolicy/" target="_blank" rel="noopener">Brevo-Datenschutzerklärung</a>.</p>
+    <p>Beide Dienste werden im Rahmen einer Auftragsverarbeitung gemäß Art. 28 DSGVO eingesetzt.</p>
+  </div>
+
+  <div class="sec">
+    <h2>04 · Hosting &amp; Server-Logfiles</h2>
+    <p>Diese Website wird über GitHub Pages gehostet, ein Angebot der GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA. Beim Aufruf der Seite verarbeitet GitHub als Hosting-Anbieter automatisch technische Zugriffsdaten (u. a. IP-Adresse, Datum und Uhrzeit des Zugriffs, aufgerufene Datei, verwendeter Browser), wie es bei praktisch jedem Webserver aus technischen Gründen üblich ist. Diese Verarbeitung dient der Auslieferung der Seite sowie der Erkennung von Angriffen/Missbrauch (Art. 6 Abs. 1 lit. f DSGVO, berechtigtes Interesse an einem sicheren und funktionsfähigen Betrieb). Die Domain mc-orca-games.de ist bei der STRATO AG registriert, was am Hosting selbst nichts ändert. Näheres: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a>.</p>
+  </div>
+
+  <div class="sec">
+    <h2>05 · Cookies, Tracking &amp; Analyse</h2>
+    <p>Diese Website setzt keine Cookies, keine Analyse- oder Tracking-Tools und keine Drittanbieter-Werbung ein. Es findet keine Profilbildung und kein Tracking über mehrere Websites hinweg statt.</p>
+    <p>Zur Darstellung von Schriftarten wird <strong>Google Fonts</strong> genutzt, ein Angebot der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Beim Aufruf der Seite werden die benötigten Schriftdateien direkt von Servern von Google geladen; dabei wird die IP-Adresse des aufrufenden Geräts an Google übertragen. Für die 3D-Ansichten (z. B. Dyson-Sphäre) wird zusätzlich die JavaScript-Bibliothek three.js über das Content Delivery Network <strong>jsDelivr</strong> (Prospect One s.r.o.) nachgeladen, wobei ebenfalls die IP-Adresse an den jeweiligen Server übertragen wird. Beide Verbindungen dienen ausschließlich der technischen Darstellung der Seite (Art. 6 Abs. 1 lit. f DSGVO, berechtigtes Interesse an einer funktionsfähigen, performanten Darstellung). Näheres: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google-Datenschutzerklärung</a>.</p>
+  </div>
+
+  <div class="sec">
+    <h2>06 · Kontaktaufnahme per E-Mail</h2>
+    <p>Wenn du mich per E-Mail kontaktierst, verarbeite ich deine Angaben (E-Mail-Adresse, ggf. Name, Inhalt der Nachricht) ausschließlich zur Bearbeitung deiner Anfrage (Art. 6 Abs. 1 lit. f DSGVO, berechtigtes Interesse an der Beantwortung). Die Daten werden gelöscht, sobald sie für die Bearbeitung nicht mehr erforderlich sind, sofern keine gesetzlichen Aufbewahrungspflichten entgegenstehen.</p>
+  </div>
+
+  <div class="sec">
+    <h2>07 · Hinweis für Eltern (Nutzung durch Kinder)</h2>
+    <p>ASTRION richtet sich mit seinem Lernmodul „Sternen-Akademie“ auch an Kinder im Grundschulalter. Das Spielen und Lernen selbst erfordert keine Registrierung: Die App fragt dafür zu keinem Zeitpunkt Name, Alter, Adresse oder sonstige personenbezogene Angaben ab und enthält keine Kommunikationsfunktionen mit anderen Nutzern und keine In-App-Käufe. Ohne Konto bleibt sämtlicher Fortschritt lokal auf dem verwendeten Gerät gespeichert (siehe Abschnitt 02).</p>
+    <p>Die optionale Registrierung zur Cloud-Sicherung des Spielstands (siehe Abschnitt 03) sollte nur von Erziehungsberechtigten bzw. mit deren Zustimmung angelegt werden, da hierbei eine E-Mail-Adresse verarbeitet und an Supabase sowie Brevo übermittelt wird.</p>
+  </div>
+
+  <div class="sec">
+    <h2>08 · Deine Rechte</h2>
+    <p>Du hast jederzeit das Recht auf Auskunft über die zu deiner Person gespeicherten Daten, sowie ggf. ein Recht auf Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch gegen die Verarbeitung. Wende dich dazu einfach an die oben genannte Kontakt-E-Mail. Außerdem steht dir ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde zu.</p>
+  </div>
+
+  <footer>Stand: August 2026 · wird bei Bedarf aktualisiert, wenn sich am Funktionsumfang der Seite etwas ändert.</footer>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+/* ---------- Sternenfeld (wie index.html) ---------- */
 (function(){
-  'use strict';
-
-  /* ---------- Supabase-Client (gleiches Projekt wie index.html/profil.html) ---------- */
-  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
-  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
-  var supabaseClient = (typeof window.supabase !== 'undefined')
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
-
-  /* ---------- Punkte-Formeln pro Spiel ----------
-     Grobe, spielübergreifend vergleichbare Annäherung aus Level/Fortschritt +
-     Erfolgen + Ressourcen. Kein 1:1-Abbild der (teils sehr unterschiedlichen)
-     internen Punktesysteme der einzelnen Spiele, aber eine faire gemeinsame
-     Grundlage für eine Studio-weite Rangliste. */
-  var GAMES = [
-    {
-      id:'aetheris', label:'Aetheris', accent:'var(--gold)',
-      match: function(key){ return key.indexOf('aetheris_') === 0; },
-      points: function(data){
-        var planetCount = data.planets ? Object.keys(data.planets).length : 0;
-        var achievements = data.achievementsClaimed ? Object.keys(data.achievementsClaimed).length : 0;
-        var researchSum = 0;
-        if(data.research){ for(var k in data.research){ researchSum += (data.research[k]||0); } }
-        return Math.round(achievements*50 + planetCount*80 + researchSum*15);
-      }
-    },
-    {
-      id:'pots', label:'Path of the Stars', accent:'var(--red)',
-      match: function(key){ return key.indexOf('pots:') === 0; },
-      points: function(data){
-        var p = data.player || {};
-        var achievements = (p.unlockedAchievements||[]).length;
-        var officerSum = 0; if(p.officers){ for(var k in p.officers){ officerSum += (p.officers[k]||0); } }
-        var perkSum = 0; if(p.perks){ for(var k2 in p.perks){ perkSum += (p.perks[k2]||0); } }
-        var credits = p.credits || 0;
-        return Math.round(achievements*50 + (officerSum+perkSum)*30 + credits/50);
-      }
-    },
-    {
-      id:'astrion', label:'Astrion', accent:'var(--violet)',
-      match: function(key){ return key === 'astrion_save'; },
-      points: function(data){
-        var achievements = data.claimedAchievements ? Object.keys(data.claimedAchievements).length : 0;
-        var collection = data.collection ? Object.keys(data.collection).length : 0;
-        var credits = data.credits || 0;
-        return Math.round(achievements*50 + collection*10 + credits/50);
-      }
-    },
-    {
-      id:'deepanchor', label:'Deep Anchor', accent:'var(--orange)',
-      match: function(key){ return key.indexOf('deepanchor_') === 0; },
-      points: function(data){
-        var achievements = (data.achievementsUnlocked||[]).length;
-        var reputation = data.reputation || 0;
-        var money = data.money || 0;
-        return Math.round(achievements*50 + reputation*8 + money/100);
-      }
-    },
-    {
-      id:'nexus', label:'Nexus', accent:'var(--blue)'
-      /* Nexus liegt nicht im generischen Save-Blob (saves-Tabelle) wie die
-         anderen vier Spiele, sondern in platform.wallets -- kommt separat
-         über platform.nexus_leaderboard_rows() rein, siehe loadNexus() unten.
-         Formel identisch zur serverseitigen platform.nexus_points():
-         prestige_points*50 + prestige_level*30 + lifetime_mined_alltime/50 */
-    }
-  ];
-
-  /* ---------- CYCLE/SIGIL: eigene Ranglisten-Kategorien statt Teil der Nexus-
-     Gesamtpunktzahl. Zeigen die Top-Halter nach reinem Waehrungs-Bestand --
-     exakt dieselbe Sortierung/Quelle (platform.currency_holder_leaderboard()),
-     die auch serverseitig fuer die CYCLE-/SIGIL-Dividenden-Reserve-Ausschuettung
-     benutzt wird (Top 10 = die, die bei Erreichen des Schwellwerts MOGC aus der
-     jeweiligen Reserve bekommen -- siehe nexus/game.html Handelsplatz-Tab). */
-  var CURRENCY_BOARDS = [
-    { id:'cycle', symbol:'CYCLE', label:'CYCLE (Nexus)', boardTitle:'CYCLE — Top-Halter (Nexus-Dividenden-Reserve)', accent:'#3ddc84' },
-    { id:'sigil', symbol:'SIGIL', label:'SIGIL (Nexus)', boardTitle:'SIGIL — Top-Halter (Nexus-Dividenden-Reserve)', accent:'#F0B93A' },
-    { id:'relay', symbol:'RELAY', label:'RELAY (Nexus)', boardTitle:'RELAY — Top-Halter (Netzwerk-Dividenden-Reserve)', accent:'#8A63F5' },
-    /* FLUX ist die vierte Foerderlinie aus Nexus. Sie gehoert bewusst hierher
-       und nicht ins GAMES-Array: GAMES listet eigenstaendige Spiele mit eigenem
-       Save-Blob, FLUX ist -- genau wie CYCLE/SIGIL/RELAY -- eine Waehrung
-       INNERHALB von Nexus. Quelle ist dieselbe RPC
-       (platform.currency_holder_leaderboard) und dieselbe Top-10-Sortierung,
-       nach der platform.central_bank_flux_check_payout() ausschuettet. */
-    { id:'flux', symbol:'FLUX', label:'FLUX (Nexus)', boardTitle:'FLUX — Top-Halter (Resonanz-Reserve)', accent:'#2FD8C3' }
-  ];
-
-  /* ---------- Denkmal: Prestige-Ranglisten (Nexus), eigener RPC
-     platform.get_monument_leaderboard(metric, limit) -- gleiche Zeilenform wie
-     get_currency_leaderboard (rank_no/user_id/username/avatar/balance), daher
-     laesst sich renderCurrencyBoard 1:1 mitbenutzen. */
-  var MONUMENT_BOARDS = [
-    { id:'prestige', metric:'prestige_count', label:'Prestiges (Nexus)', boardTitle:'Denkmal — meiste Prestiges', accent:'#B23AFF', unit:'×' },
-    { id:'maxsigil', metric:'max_sigil', label:'Max. SIGIL (Nexus)', boardTitle:'Denkmal — höchster je gehaltener SIGIL-Bestand', accent:'#F0B93A', unit:'SIGIL' },
-    { id:'maxcycle', metric:'max_cycle', label:'Max. CYCLE (Nexus)', boardTitle:'Denkmal — höchster je gehaltener CYCLE-Bestand', accent:'#3ddc84', unit:'CYCLE' }
-  ];
-
-  /* ---------- Foundry: Gründer-Ranglisten (Solo & Corp), eigene RPCs
-     foundry.get_founder_leaderboard(limit) / foundry.get_corp_founder_leaderboard(limit).
-     Andere Zeilenform als CURRENCY_BOARDS/MONUMENT_BOARDS (kein rank_no/balance,
-     sondern player_id/username bzw. guild_id/guild_name + company_count + total_value),
-     deshalb eigene Lade-/Render-Funktion statt renderCurrencyBoard. */
-  var FOUNDER_BOARDS = [
-    { id:'founder', label:'Gründer (Solo)', boardTitle:'Foundry — Gründer-Rangliste (Solo)', accent:'#3ddc84', corp:false },
-    { id:'corpfounder', label:'Gründer (Corps)', boardTitle:'Foundry — Gründer-Rangliste (Corps)', accent:'#8A63F5', corp:true }
-  ];
-
-  function fmt(n){ try{ return Math.round(n).toLocaleString('de-DE'); }catch(e){ return String(Math.round(n)); } }
-
-  /* ---------- Kategorien (Haupt-Tabs) & Chips (Filter innerhalb der Kategorie) ---------- */
-  var CATEGORIES = [
-    { id:'games', label:'Gesamt & Spiele' },
-    { id:'nexus', label:'Nexus' },
-    { id:'foundry', label:'Foundry' }
-  ];
-  var activeFilter = 'total';
-  var activeCategory = 'games';
-  var chipsEl = document.getElementById('chips');
-  var catTabsEl = document.getElementById('catTabs');
-  var chipDefs = [{ id:'total', label:'Gesamt (alle Spiele)', accent:'var(--fg)', boardTitle:'Gesamtwertung', cat:'games' }]
-    .concat(GAMES.map(function(g){ return { id:g.id, label:g.label, accent:g.accent, boardTitle:g.label, cat:'games' }; }))
-    .concat(CURRENCY_BOARDS.map(function(c){ return { id:c.id, label:c.label, accent:c.accent, boardTitle:c.boardTitle, cat:'nexus' }; }))
-    .concat(MONUMENT_BOARDS.map(function(m){ return { id:m.id, label:m.label, accent:m.accent, boardTitle:m.boardTitle, cat:'nexus' }; }))
-    .concat(FOUNDER_BOARDS.map(function(f){ return { id:f.id, label:f.label, accent:f.accent, boardTitle:f.boardTitle, cat:'foundry' }; }));
-
-  CATEGORIES.forEach(function(cat){
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'cat-tab' + (cat.id === activeCategory ? ' active' : '');
-    btn.textContent = cat.label;
-    btn.addEventListener('click', function(){
-      if (activeCategory === cat.id) return;
-      activeCategory = cat.id;
-      Array.prototype.forEach.call(catTabsEl.children, function(el){ el.classList.remove('active'); });
-      btn.classList.add('active');
-      renderChipVisibility();
-      var firstInCat = chipDefs.filter(function(c){ return c.cat === cat.id; })[0];
-      if (firstInCat) selectChip(firstInCat.id);
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], w, h;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    const count = Math.min(160, Math.floor((w*h)/13000));
+    stars = Array.from({length:count}, () => ({ x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.1+0.2, p:Math.random()*Math.PI*2, s:Math.random()*0.015+0.005 }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = '#E9E7E2';
+    stars.forEach(st=>{
+      const tw = reduced ? 0.6 : 0.5 + 0.5*Math.sin(st.p + t*st.s);
+      ctx.globalAlpha = 0.08 + tw*0.22;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
     });
-    catTabsEl.appendChild(btn);
-  });
-
-  function renderChipVisibility(){
-    Array.prototype.forEach.call(chipsEl.children, function(el){
-      el.style.display = (el.dataset.cat === activeCategory) ? '' : 'none';
-    });
+    ctx.globalAlpha = 1;
+    if(!reduced) requestAnimationFrame(draw);
   }
-
-  function selectChip(id){
-    var c = chipDefs.filter(function(cd){ return cd.id === id; })[0];
-    if (!c) return;
-    activeFilter = c.id;
-    Array.prototype.forEach.call(chipsEl.children, function(el){ el.classList.remove('active'); });
-    var btnEl = chipsEl.querySelector('[data-chip-id="' + id + '"]');
-    if (btnEl) btnEl.classList.add('active');
-    document.getElementById('boardTitle').textContent = c.boardTitle;
-    var sub = document.getElementById('boardSub');
-    var isCurrency = CURRENCY_BOARDS.some(function(cb){ return cb.id === c.id; });
-    var isMonument = MONUMENT_BOARDS.some(function(mb){ return mb.id === c.id; });
-    var isFounder = FOUNDER_BOARDS.some(function(fb){ return fb.id === c.id; });
-    if(isCurrency){
-      sub.innerHTML = 'Ingame-Währung aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — wer das Spiel nicht kennt, findet hier rein.';
-      sub.style.display = 'block';
-    } else if(isMonument){
-      sub.innerHTML = 'Denkmal-Statistik aus <a href="nexus/index.html" style="color:inherit; text-decoration:underline;">Nexus</a> — Prestige-Vermächtnis, kein aktueller Kontostand.';
-      sub.style.display = 'block';
-    } else if(isFounder){
-      sub.innerHTML = 'Firmenwert (Kapital + Rücklage) aus <a href="foundry/index.html" style="color:inherit; text-decoration:underline;">Foundry</a>.';
-      sub.style.display = 'block';
-    } else {
-      sub.style.display = 'none';
-    }
-    renderBoard();
-  }
-
-  chipDefs.forEach(function(c){
-    var btn = document.createElement('button');
-    btn.className = 'chip' + (c.id === activeFilter ? ' active' : '');
-    btn.type = 'button';
-    btn.dataset.cat = c.cat;
-    btn.dataset.chipId = c.id;
-    btn.style.display = (c.cat === activeCategory) ? '' : 'none';
-    btn.innerHTML = '<span class="sw" style="background:' + c.accent + '"></span>' + c.label;
-    btn.addEventListener('click', function(){ selectChip(c.id); });
-    chipsEl.appendChild(btn);
-  });
-
-  /* ---------- Daten laden & auswerten ---------- */
-  var players = {}; // user_id -> {name, avatar, perGame:{gameId:points}, total}
-  var currentUserId = null;
-  var currencyBoards = {}; // id -> array of {rank_no, id, name, avatar, balance} | null (Fehler) | undefined (noch nicht geladen)
-  var founderBoards = {}; // id -> array of {id, name, avatar, company_count, total_value} | null (Fehler) | undefined (noch nicht geladen)
-
-  function avatarHtml(avatar){
-    if(avatar && /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(avatar)){
-      return '<img src="' + avatar + '" alt="">';
-    }
-    return avatar || '<img src="/assets/avatars/rocket.svg" alt="">';
-  }
-
-  var playerCosmetics = {}; // player_id -> {skinColor, hasFx}
-
-  function nameHtml(pl){
-    var cos = playerCosmetics[pl.id];
-    var cls = 'r-name';
-    var style = '';
-    if(cos && cos.skinColor){
-      cls += ' cosmetic-skin' + (cos.hasFx ? ' cosmetic-fx' : '');
-      style = ' style="color:' + cos.skinColor + '; --cosmetic-name-color:' + cos.skinColor + ';"';
-    }
-    return '<div class="' + cls + '"' + style + '>' + escapeHtml(pl.name || 'Unbenannt') + (pl.id === currentUserId ? ' (du)' : '') + '</div>';
-  }
-
-  function renderBoard(){
-    var currencyBoard = CURRENCY_BOARDS.filter(function(c){ return c.id === activeFilter; })[0];
-    if(currencyBoard){ renderCurrencyBoard(currencyBoard, currencyBoard.symbol); return; }
-    var monumentBoard = MONUMENT_BOARDS.filter(function(m){ return m.id === activeFilter; })[0];
-    if(monumentBoard){ renderCurrencyBoard(monumentBoard, monumentBoard.unit); return; }
-    var founderBoard = FOUNDER_BOARDS.filter(function(f){ return f.id === activeFilter; })[0];
-    if(founderBoard){ renderFounderBoard(founderBoard); return; }
-
-    var body = document.getElementById('boardBody');
-    var list = Object.keys(players).map(function(id){ return players[id]; });
-    list.forEach(function(pl){
-      pl.value = activeFilter === 'total' ? pl.total : (pl.perGame[activeFilter] || 0);
-    });
-    list = list.filter(function(pl){ return pl.value > 0; });
-    list.sort(function(a,b){ return b.value - a.value; });
-
-    if(list.length === 0){
-      body.innerHTML = '<div class="empty">Noch keine Spieler mit passendem Cloud-Spielstand gefunden.<br>Einloggen, spielen und speichern — dann taucht man hier auf.</div>';
-      return;
-    }
-
-    body.innerHTML = list.map(function(pl, i){
-      var badges = GAMES.map(function(g){
-        var v = pl.perGame[g.id] || 0;
-        if(!v) return '';
-        return '<span class="r-badge" style="border-color:' + g.accent + '55">' + g.label + ' · ' + fmt(v) + '</span>';
-      }).join('');
-      return '<div class="row' + (pl.id === currentUserId ? ' me' : '') + '" data-player-id="' + pl.id + '">'
-        + '<div class="r-rank">' + (i+1) + '</div>'
-        + '<div class="r-avatar">' + avatarHtml(pl.avatar) + '</div>'
-        + '<div class="r-main">'
-        + (pl.title ? '<div class="r-title">' + escapeHtml(pl.title) + '</div>' : '')
-        + nameHtml(pl)
-        + (activeFilter === 'total' ? '<div class="r-badges">' + badges + '</div>' : '')
-        + '</div>'
-        + '<div class="r-points">' + fmt(pl.value) + '<span class="u">Pkt.</span></div>'
-        + '</div>';
-    }).join('');
-    bindRowClicks();
-  }
-
-  function renderCurrencyBoard(c, unitLabel){
-    var body = document.getElementById('boardBody');
-    var list = currencyBoards[c.id];
-    var unit = unitLabel || c.symbol;
-    if(list === undefined){
-      body.innerHTML = '<div class="loading">Rangliste wird geladen …</div>';
-      return;
-    }
-    if(list === null){
-      body.innerHTML = '<div class="err">' + c.label + '-Rangliste konnte nicht geladen werden.</div>';
-      return;
-    }
-    if(list.length === 0){
-      body.innerHTML = '<div class="empty">Noch keine Werte für ' + c.label + ' vorhanden.</div>';
-      return;
-    }
-    body.innerHTML = list.map(function(pl){
-      var title = players[pl.id] ? players[pl.id].title : null;
-      return '<div class="row' + (pl.id === currentUserId ? ' me' : '') + '" data-player-id="' + pl.id + '">'
-        + '<div class="r-rank">' + pl.rank_no + '</div>'
-        + '<div class="r-avatar">' + avatarHtml(pl.avatar) + '</div>'
-        + '<div class="r-main">'
-        + (title ? '<div class="r-title">' + escapeHtml(title) + '</div>' : '')
-        + nameHtml(pl)
-        + '</div>'
-        + '<div class="r-points">' + fmt(pl.balance) + '<span class="u">' + unit + '</span></div>'
-        + '</div>';
-    }).join('');
-    bindRowClicks();
-  }
-
-  var ICON_CORP_SM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
-
-  function renderFounderBoard(f){
-    var body = document.getElementById('boardBody');
-    var list = founderBoards[f.id];
-    if(list === undefined){
-      body.innerHTML = '<div class="loading">Rangliste wird geladen …</div>';
-      return;
-    }
-    if(list === null){
-      body.innerHTML = '<div class="err">' + f.label + '-Rangliste konnte nicht geladen werden.</div>';
-      return;
-    }
-    if(list.length === 0){
-      body.innerHTML = '<div class="empty">Noch keine ' + (f.corp ? 'Corp-' : '') + 'Firmen gegründet.</div>';
-      return;
-    }
-    body.innerHTML = list.map(function(row, i){
-      var title = !f.corp && players[row.id] ? players[row.id].title : null;
-      var avatarCell = f.corp
-        ? '<div class="r-avatar" style="display:flex; align-items:center; justify-content:center; color:var(--fg-dim);">' + ICON_CORP_SM + '</div>'
-        : '<div class="r-avatar">' + avatarHtml(row.avatar) + '</div>';
-      return '<div class="row' + (row.id === currentUserId ? ' me' : '') + '" data-player-id="' + (f.corp ? '' : row.id) + '">'
-        + '<div class="r-rank">' + (i+1) + '</div>'
-        + avatarCell
-        + '<div class="r-main">'
-        + (title ? '<div class="r-title">' + escapeHtml(title) + '</div>' : '')
-        + '<div class="r-name">' + escapeHtml(row.name) + (row.id === currentUserId ? ' (du)' : '') + '</div>'
-        + '<div class="r-badges"><span class="r-badge" style="border-color:' + f.accent + '55">' + row.company_count + ' Firma' + (row.company_count === 1 ? '' : 'en') + '</span></div>'
-        + '</div>'
-        + '<div class="r-points">' + fmt(row.total_value) + '<span class="u">MOGC</span></div>'
-        + '</div>';
-    }).join('');
-    if(!f.corp) bindRowClicks();
-  }
-
-  function bindRowClicks(){
-    Array.prototype.forEach.call(document.querySelectorAll('#boardBody .row[data-player-id]'), function(row){
-      row.addEventListener('click', function(){ openProfileModal(row.dataset.playerId); });
-    });
-  }
-
-  /* ---------- Profil-Popup ---------- */
-  var profileOverlay = document.getElementById('profileOverlay');
-  var profileModalBody = document.getElementById('profileModalBody');
-  document.getElementById('profileCloseBtn').addEventListener('click', closeProfileModal);
-  profileOverlay.addEventListener('click', function(e){ if(e.target === profileOverlay) closeProfileModal(); });
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeProfileModal(); });
-
-  function closeProfileModal(){ profileOverlay.classList.remove('open'); }
-
-  async function openProfileModal(playerId){
-    profileModalBody.innerHTML = '<div class="profile-loading">Lade Profil …</div>';
-    profileOverlay.classList.add('open');
-    var basic = players[playerId] || {};
-    try{
-      var res = await supabaseClient.schema('platform').rpc('get_public_profile', { p_player_id: playerId });
-      if(res.error) throw res.error;
-      var p = (res.data && res.data[0]) || {};
-      var name = p.username || basic.name || 'Unbenannt';
-      var since = p.member_since ? new Date(p.member_since).toLocaleDateString('de-DE') : '–';
-      var cosmeticLine = '';
-      if(p.active_skin_name){
-        cosmeticLine = '<div class="profile-stat" style="grid-column:1 / -1;">'
-          + '<div class="label">Aktiver Skin</div>'
-          + '<div class="value" style="color:' + (p.active_skin_color || 'inherit') + ';">' + escapeHtml(p.active_skin_name)
-          + (p.active_particle_name ? ' + ' + escapeHtml(p.active_particle_name) : '') + '</div></div>';
-      }
-      var badges = GAMES.map(function(g){
-        var v = (basic.perGame && basic.perGame[g.id]) || 0;
-        if(!v) return '';
-        return '<span class="r-badge" style="border-color:' + g.accent + '55">' + g.label + ' · ' + fmt(v) + '</span>';
-      }).join('');
-      profileModalBody.innerHTML =
-        '<div class="profile-head">'
-        + '<div class="profile-avatar">' + avatarHtml(p.avatar || basic.avatar) + '</div>'
-        + '<div>'
-        + '<div class="profile-name"' + (p.active_skin_color ? ' style="color:' + p.active_skin_color + ';"' : '') + '>' + escapeHtml(name) + '</div>'
-        + (basic.title || p.username ? '<div class="profile-title">' + escapeHtml(basic.title || '') + '</div>' : '')
-        + '</div></div>'
-        + (p.bio ? '<div class="profile-bio">' + escapeHtml(p.bio) + '</div>' : '')
-        + '<div class="profile-stats">'
-        + '<div class="profile-stat"><div class="label">Dabei seit</div><div class="value">' + since + '</div></div>'
-        + '<div class="profile-stat"><div class="label">Gesamtpunkte</div><div class="value">' + fmt(basic.total || 0) + '</div></div>'
-        + '<div class="profile-stat"><div class="label">Nexus-Prestige-Level</div><div class="value">' + (p.nexus_prestige_level != null ? p.nexus_prestige_level : '–') + '</div></div>'
-        + '<div class="profile-stat"><div class="label">Nexus-Prestiges</div><div class="value">' + (p.nexus_prestige_count != null ? p.nexus_prestige_count : '0') + '</div></div>'
-        + cosmeticLine
-        + '</div>'
-        + (badges ? '<div class="profile-badges-title">Punkte pro Spiel</div><div class="r-badges">' + badges + '</div>' : '');
-    }catch(e){
-      profileModalBody.innerHTML = '<div class="profile-err">Profil konnte nicht geladen werden.</div>';
-      console.warn('Profil-Popup Fehler:', e);
-    }
-  }
-
-  function escapeHtml(s){
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
-      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
-    });
-  }
-
-  async function load(){
-    var hint = document.getElementById('boardHint');
-    var body = document.getElementById('boardBody');
-    if(!supabaseClient){
-      hint.textContent = 'nicht verfügbar';
-      body.innerHTML = '<div class="err">Cloud-Verbindung konnte nicht aufgebaut werden.</div>';
-      return;
-    }
-
-    try{
-      var sessionRes = await supabaseClient.auth.getSession();
-      currentUserId = (sessionRes && sessionRes.data && sessionRes.data.session) ? sessionRes.data.session.user.id : null;
-    }catch(e){ /* egal, dann bleibt niemand hervorgehoben */ }
-
-    var res = await supabaseClient.rpc('leaderboard_rows');
-    if(res.error){
-      hint.textContent = 'Fehler';
-      var notFound = /function .*leaderboard_rows.* does not exist|404/i.test(res.error.message || '');
-      body.innerHTML = '<div class="err">'
-        + (notFound
-            ? 'Die Rangliste ist auf Supabase-Seite noch nicht eingerichtet.<br>Einmalig <code>leaderboard_rpc.sql</code> im Supabase-SQL-Editor ausführen, dann lädt diese Seite automatisch.'
-            : 'Rangliste konnte nicht geladen werden: ' + escapeHtml(res.error.message))
-        + '</div>';
-      return;
-    }
-
-    var rows = res.data || [];
-    players = {};
-    rows.forEach(function(row){
-      var game = GAMES.filter(function(g){ return g.match && g.match(row.key); })[0];
-      if(!game) return;
-      var data;
-      try{ data = JSON.parse(row.value); }catch(e){ return; }
-      var pts = 0;
-      try{ pts = game.points(data) || 0; }catch(e){ pts = 0; }
-      if(!players[row.user_id]){
-        players[row.user_id] = { id: row.user_id, name: row.username, avatar: row.avatar, perGame: {}, total: 0 };
-      }
-      var pl = players[row.user_id];
-      if(!pl.name && row.username) pl.name = row.username;
-      if(!pl.avatar && row.avatar) pl.avatar = row.avatar;
-      // pro Spiel zählt der beste Spielstand (falls mehrere Speicherstände existieren)
-      pl.perGame[game.id] = Math.max(pl.perGame[game.id] || 0, pts);
-    });
-    // Nexus liegt nicht in der generischen saves-Tabelle, sondern separat in
-    // platform.wallets -- eigener RPC-Aufruf, gleiche Punkteformel wie
-    // serverseitig platform.nexus_points() (siehe zentrale-bank-Migration).
-    try{
-      var nexusRes = await supabaseClient.schema('platform').rpc('nexus_leaderboard_rows');
-      if(!nexusRes.error){
-        (nexusRes.data || []).forEach(function(row){
-          var pts = Math.round(
-            (Number(row.prestige_points) || 0) * 50
-            + (Number(row.prestige_level) || 0) * 30
-            + (Number(row.lifetime_mined_alltime) || 0) / 50
-          );
-          if(pts <= 0) return;
-          if(!players[row.user_id]){
-            players[row.user_id] = { id: row.user_id, name: row.username, avatar: row.avatar, perGame: {}, total: 0 };
-          }
-          var pl = players[row.user_id];
-          if(!pl.name && row.username) pl.name = row.username;
-          if(!pl.avatar && row.avatar) pl.avatar = row.avatar;
-          pl.perGame.nexus = Math.max(pl.perGame.nexus || 0, pts);
-        });
-      }
-    }catch(e){ /* Nexus-Werte fehlen dann einfach, Rest der Rangliste laeuft weiter */ }
-
-    // Exklusive Titel aus dem Nexus-Kometen-Event (platform.player_active_title,
-    // offene Select-Policy) -- rein kosmetisch, faellt bei Fehlern einfach weg.
-    try{
-      var titlesRes = await supabaseClient.schema('platform').from('player_active_title').select('player_id, title_text');
-      if(!titlesRes.error){
-        (titlesRes.data || []).forEach(function(row){
-          if(players[row.player_id]) players[row.player_id].title = row.title_text;
-        });
-      }
-    }catch(e){ /* Titel sind optional, Rest der Rangliste laeuft weiter */ }
-
-    // CYCLE-/SIGIL-Ranglisten laufen unabhaengig von der Punkte-basierten Auswertung
-    // oben -- eigener RPC, eigene Fehlerbehandlung, damit ein Problem hier nicht die
-    // restliche Rangliste (Gesamt/Aetheris/.../Nexus) mitreisst.
-    await Promise.all(CURRENCY_BOARDS.map(async function(c){
-      try{
-        var res = await supabaseClient.schema('platform').rpc('get_currency_leaderboard', { p_symbol: c.symbol, p_limit: 10 });
-        if(res.error){ currencyBoards[c.id] = null; return; }
-        currencyBoards[c.id] = (res.data || []).map(function(row){
-          return { rank_no: row.rank_no, id: row.user_id, name: row.username, avatar: row.avatar, balance: Number(row.balance) || 0 };
-        });
-      }catch(e){ currencyBoards[c.id] = null; }
-    }));
-
-    // Denkmal-Ranglisten (Prestige-Anzahl, Max. SIGIL/CYCLE je gehalten) --
-    // eigener RPC platform.get_monument_leaderboard(metric, limit), gleiche
-    // Zeilenform wie get_currency_leaderboard, daher gleiche Verarbeitung.
-    await Promise.all(MONUMENT_BOARDS.map(async function(m){
-      try{
-        var res = await supabaseClient.schema('platform').rpc('get_monument_leaderboard', { p_metric: m.metric, p_limit: 10 });
-        if(res.error){ currencyBoards[m.id] = null; return; }
-        currencyBoards[m.id] = (res.data || []).map(function(row){
-          return { rank_no: row.rank_no, id: row.user_id, name: row.username, avatar: row.avatar, balance: Number(row.balance) || 0 };
-        });
-      }catch(e){ currencyBoards[m.id] = null; }
-    }));
-
-    // Foundry-Gründer-Ranglisten (Solo & Corp) -- eigene RPCs mit eigener
-    // Zeilenform (player_id/username bzw. guild_id/guild_name + company_count
-    // + total_value), unabhaengig von den uebrigen Ranglisten geladen.
-    await Promise.all(FOUNDER_BOARDS.map(async function(f){
-      try{
-        var res = f.corp
-          ? await supabaseClient.schema('foundry').rpc('get_corp_founder_leaderboard', { p_limit: 10 })
-          : await supabaseClient.schema('foundry').rpc('get_founder_leaderboard', { p_limit: 10 });
-        if(res.error){ founderBoards[f.id] = null; return; }
-        founderBoards[f.id] = (res.data || []).map(function(row){
-          return f.corp
-            ? { id: row.guild_id, name: row.guild_tag ? (row.guild_tag + ' — ' + row.guild_name) : row.guild_name, company_count: row.company_count, total_value: Number(row.total_value) || 0 }
-            : { id: row.player_id, name: row.username, avatar: players[row.player_id] ? players[row.player_id].avatar : null, company_count: row.company_count, total_value: Number(row.total_value) || 0 };
-        });
-      }catch(e){ founderBoards[f.id] = null; }
-    }));
-
-    Object.keys(players).forEach(function(id){
-      var pl = players[id];
-      pl.total = GAMES.reduce(function(sum, g){ return sum + (pl.perGame[g.id] || 0); }, 0);
-    });
-
-    // Aktive Prestige-Kosmetik (Nexus) fuer alle sichtbaren Spieler auf einmal laden,
-    // damit Namen in der Rangliste den gleichen Skin/Glitzer-Effekt wie im Spiel zeigen.
-    try{
-      var allIds = {};
-      Object.keys(players).forEach(function(id){ allIds[id] = true; });
-      Object.keys(currencyBoards).forEach(function(bid){
-        (currencyBoards[bid] || []).forEach(function(pl){ allIds[pl.id] = true; });
-      });
-      var idList = Object.keys(allIds);
-      if(idList.length){
-        var cosRes = await supabaseClient.schema('platform').rpc('get_active_cosmetics_for_players', { p_player_ids: idList });
-        if(!cosRes.error){
-          playerCosmetics = {};
-          (cosRes.data || []).forEach(function(row){
-            if(!playerCosmetics[row.player_id]) playerCosmetics[row.player_id] = {};
-            if(row.slot === 'rig_skin') playerCosmetics[row.player_id].skinColor = row.color_hex;
-            if(row.slot === 'particle_effect') playerCosmetics[row.player_id].hasFx = true;
-          });
-        }
-      }
-    }catch(e){ /* Kosmetik ist rein optisch, Rest der Rangliste laeuft weiter */ }
-
-    hint.textContent = Object.keys(players).length + ' Spieler';
-    renderBoard();
-  }
-
-  load();
+  window.addEventListener('resize', resize);
+  resize(); requestAnimationFrame(draw);
+  if(reduced) draw(0);
 })();
-</script>
-
-<script>
-  // starfield (identisch zu index.html)
-  (function(){
-    var canvas = document.getElementById('stars');
-    var ctx = canvas.getContext('2d');
-    var stars = [];
-    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    function resize(){
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      var count = Math.floor((canvas.width * canvas.height) / 9000);
-      stars = [];
-      for(var i=0;i<count;i++){
-        stars.push({
-          x: Math.random()*canvas.width, y: Math.random()*canvas.height,
-          r: Math.random()*1.3 + 0.2, a: Math.random()*0.6 + 0.15,
-          tw: Math.random()*0.015 + 0.003, dir: Math.random() > 0.5 ? 1 : -1
-        });
-      }
-    }
-    function draw(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      for(var i=0;i<stars.length;i++){
-        var s = stars[i];
-        ctx.beginPath();
-        ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-        ctx.fillStyle = 'rgba(232,230,227,'+s.a.toFixed(3)+')';
-        ctx.fill();
-        if(!reduceMotion){ s.a += s.tw * s.dir; if(s.a > 0.75 || s.a < 0.1) s.dir *= -1; }
-      }
-      if(!reduceMotion) requestAnimationFrame(draw);
-    }
-    window.addEventListener('resize', resize);
-    resize(); draw();
-  })();
 </script>
 
 
@@ -2193,7 +1478,7 @@
   var REF   = 'iuvckfoikhifywayuwkj';
   var KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
   var CACHE = 'mog.orcalink.v1';
-  var PREFIX = '';
+  var PREFIX = '../';
   var root  = document.documentElement;
 
   /* ---------- kleine Helfer ---------- */
@@ -2441,10 +1726,10 @@
     var panel = document.createElement('div');
     panel.className = 'ofx-dock-panel';
     var html = '<div class="ofx-lbl">Navigation</div>'
-      + '<a class="ofx-home" href="'+PREFIX+'portal.html">← Zurück zum Hub</a>'
-      + '<a href="'+PREFIX+'profil.html">Profil &amp; Skins</a>'
-      + '<a href="'+PREFIX+'raenge.html">Ränge</a>'
-      + '<a href="'+PREFIX+'uhr.html">Sternzeit</a>'
+      + '<a class="ofx-home" href="'+'portal.html">← Zurück zum Hub</a>'
+      + '<a href="'+'profil.html">Profil &amp; Skins</a>'
+      + '<a href="'+'raenge.html">Ränge</a>'
+      + '<a href="'+'uhr.html">Sternzeit</a>'
       + '<div class="ofx-lbl">Spiele</div>';
     var here = location.pathname;
     GAMES.forEach(function(g){
@@ -2485,87 +1770,6 @@
 })();
 </script>
 <!-- ══════════════════ Ende ORCA-LINK v1.0 (Skin-Sync + Hub-Dock) ══════════════════ -->
-
-
-<!-- ══════════════ RÄNGE — Podium, Suche, Sprungmarke (additiv, v1.0) ══════════════ -->
-<script>
-(function(){
-  'use strict';
-  var body   = document.getElementById('boardBody');
-  var podium = document.getElementById('lbPodium');
-  var search = document.getElementById('lbSearch');
-  var jump   = document.getElementById('lbJump');
-  var count  = document.getElementById('lbCount');
-  if(!body || !podium) return;
-
-  function rows(){ return Array.prototype.slice.call(body.querySelectorAll('.row')); }
-  function txt(el, sel){ var n = el.querySelector(sel); return n ? n.textContent.trim() : ''; }
-
-  /* ---------- Podium aus den ersten drei gerenderten Zeilen ---------- */
-  function buildPodium(){
-    var rs = rows();
-    if(rs.length < 3){ podium.hidden = true; podium.innerHTML = ''; return; }
-    var top = rs.slice(0, 3);
-    /* Anzeigereihenfolge: 2. links, 1. Mitte, 3. rechts */
-    var order = [ {r:top[1], cls:'p2', n:'2'}, {r:top[0], cls:'p1', n:'1'}, {r:top[2], cls:'p3', n:'3'} ];
-    podium.innerHTML = order.map(function(o){
-      var av  = o.r.querySelector('.r-avatar');
-      var pts = o.r.querySelector('.r-points');
-      var unit = pts && pts.querySelector('.u') ? pts.querySelector('.u').textContent.trim() : '';
-      var val  = pts ? pts.textContent.replace(unit, '').trim() : '';
-      var isMe = o.r.classList.contains('me');
-      return '<div class="pod ' + o.cls + (isMe ? ' is-me' : '') + '">'
-        + '<div class="pod-rank">PLATZ ' + o.n + '</div>'
-        + '<div class="pod-av">' + (av ? av.innerHTML : '') + '</div>'
-        + '<div class="pod-name">' + txt(o.r, '.r-name') + '</div>'
-        + '<div class="pod-pts">' + val + '<small>' + unit + '</small></div>'
-        + (isMe ? '<div class="pod-me">das bist du</div>' : '')
-        + '</div>';
-    }).join('');
-    podium.hidden = false;
-  }
-
-  /* ---------- Suche ---------- */
-  function applyFilter(){
-    var q = (search.value || '').trim().toLowerCase();
-    var rs = rows(), shown = 0;
-    rs.forEach(function(r){
-      var name = txt(r, '.r-name').toLowerCase();
-      var hit = !q || name.indexOf(q) !== -1;
-      r.classList.toggle('lb-hidden', !hit);
-      if(hit) shown++;
-    });
-    if(q) count.textContent = shown + ' von ' + rs.length + ' Spielern';
-    else  count.textContent = rs.length ? rs.length + ' Spieler in dieser Wertung' : '';
-    podium.hidden = !!q || rs.length < 3;
-  }
-
-  /* ---------- Sprung zum eigenen Platz ---------- */
-  function updateJump(){
-    var me = body.querySelector('.row.me');
-    jump.hidden = !me;
-  }
-  jump.addEventListener('click', function(){
-    var me = body.querySelector('.row.me');
-    if(!me) return;
-    me.scrollIntoView({ behavior:'smooth', block:'center' });
-    me.classList.remove('lb-flash');
-    void me.offsetWidth;
-    me.classList.add('lb-flash');
-  });
-  search.addEventListener('input', applyFilter);
-
-  function refresh(){ buildPodium(); applyFilter(); updateJump(); }
-
-  var t = 0;
-  new MutationObserver(function(){
-    clearTimeout(t); t = setTimeout(refresh, 90);
-  }).observe(body, { childList:true, subtree:true });
-
-  refresh();
-})();
-</script>
-<!-- ════════════════════════ Ende RÄNGE-Ausbau ════════════════════════ -->
 
 </body>
 </html>

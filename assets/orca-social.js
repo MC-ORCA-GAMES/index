@@ -5,7 +5,7 @@
 
   Warum eine gemeinsame Datei statt vier Kopien: die Spiele liegen in eigenen
   Unterordnern, aber alle unter derselben Domain, und /assets/ wird ohnehin schon
-  domain-root-relativ eingebunden (vgl. /assets/avatars/*.svg in profil.html).
+  domain-root-relativ eingebunden (vgl. /assets/avatars/*.svg in seiten/profil.html).
   Eine Kopie pro Spiel wuerde bedeuten, jede Chat-Aenderung viermal nachzuziehen.
 
   Einbinden (vor dem Spiel-Script):
