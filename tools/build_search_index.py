@@ -15,7 +15,7 @@ GAMES = {'aetheris': 'Aetheris', 'astrion': 'Astrion', 'deepanchor': 'Deep Ancho
 KIND = {'index.html': 'Infoseite', 'game.html': 'Spiel', 'medien.html': 'Medien', 'impressum.html': 'Rechtliches'}
 IMG, AUD, VID = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'}, {'.ogg', '.mp3', '.wav'}, {'.mp4', '.webm'}
 SKIP_DIRS = {'.git', 'node_modules', 'tools'}
-HIDE = {'nexus-breach'}   # unveröffentlichte Test-Spiele: hier Ordner eintragen, die NICHT auffindbar sein sollen
+HIDE = set()   # unveröffentlichte Test-Spiele: hier Ordner eintragen, die NICHT auffindbar sein sollen
 SKIP_PAGES = {'suche.html'}
 
 class P(HTMLParser):

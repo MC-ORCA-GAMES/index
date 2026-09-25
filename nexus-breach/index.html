@@ -1,23 +1,18 @@
 <!--
-  NEXUS: BREACH — Landingpage (Testspiel)
-  Datei-Version: v0.1
+  NEXUS: BREACH — Landingpage
+  Datei-Version: v0.2 — jetzt öffentlich (Login-Gate entfernt)
   Eigenständige, schlanke Startseite im MC-ORCA-Look (dunkles Space-Theme,
   Cyan/Amber-Akzente wie game.html), KEIN Kopieren der großen Hub-CSS —
-  bewusst kompakt gehalten, da reines Testspiel.
-
-  Zugriffs-Gate: die gesamte Seite bleibt hinter einem Login verborgen und
-  wird erst sichtbar, wenn die eingeloggte Supabase-Session zu
-  xspx110@live.de gehört. Für alle anderen (auch eingeloggt, andere Mail,
-  oder gar nicht eingeloggt) bleibt nur ein neutraler Hinweis sichtbar —
-  kein Titel, kein Screenshot, keine Spielinhalte.
+  bewusst kompakt gehalten.
 -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
-<title>NEXUS: BREACH — MC ORCA Games (Test)</title>
+<title>NEXUS: BREACH — MC ORCA Games</title>
+<meta name="description" content="NEXUS: BREACH — ein Raycast-Ego-Shooter im MC-ORCA-Universum, komplett im Browser. Fünf Sektoren, Kern-Wächter, keine Installation.">
+<link rel="canonical" href="https://www.mc-orca-games.de/nexus-breach/index.html">
 <style>
   :root{
     --bg:#04060C; --panel:#0B1220; --panel2:#0E1728; --line:rgba(220,246,255,0.09);
@@ -41,28 +36,7 @@
   .back{ font-size:13px; font-weight:600; padding:8px 14px; border-radius:999px; border:1px solid var(--line); color:var(--dim); text-decoration:none; transition:.15s; }
   .back:hover{ border-color:var(--faint); color:var(--fg); }
 
-  /* ---------- Gate ---------- */
-  #gate{ min-height:calc(100vh - 60px); display:flex; align-items:center; justify-content:center; padding:40px 20px; }
-  .gate-card{ max-width:420px; width:100%; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px 26px; text-align:center; }
-  .gate-icon{ font-size:32px; margin-bottom:10px; }
-  .gate-card h2{ font-size:19px; }
-  .gate-card p{ font-size:13.5px; }
-  .gate-form{ margin-top:18px; text-align:left; }
-  .gate-form .lbl{ font-size:12px; color:var(--dim); margin-bottom:8px; }
-  .gate-form input{ width:100%; box-sizing:border-box; padding:10px 12px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; color:var(--fg); font-size:14px; margin-bottom:9px; }
-  .gate-form input#gCode{ letter-spacing:4px; text-align:center; }
-  .gate-btn{ width:100%; padding:10px; border-radius:8px; border:1px solid rgba(53,228,255,.5); background:transparent; color:var(--fg); font-size:13.5px; font-weight:600; cursor:pointer; transition:.15s; }
-  .gate-btn:hover{ background:rgba(53,228,255,.12); }
-  .gate-btn.primary{ background:var(--cyan); color:#02131a; border-color:var(--cyan); }
-  .gate-btn.primary:hover{ background:#7CF0FF; }
-  .gate-status{ display:block; margin-top:10px; font-size:12px; min-height:1.4em; }
-  .gate-status.ok{ color:#7fd18f; }
-  .gate-status.err{ color:#e37b7b; }
-  #gate.hidden{ display:none; }
-
   /* ---------- Content ---------- */
-  #content{ display:none; }
-  #content.visible{ display:block; }
   .hero{ padding:56px 0 36px; text-align:center; }
   .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--amber);
     border:1px solid rgba(255,174,61,.35); background:rgba(255,174,61,.08); padding:6px 14px; border-radius:999px; margin-bottom:18px; }
@@ -127,34 +101,11 @@
   </div>
 </nav>
 
-<!-- ============ Gate: sichtbar bis Login geprüft ist ============ -->
-<div id="gate">
-  <div class="gate-card">
-    <div class="gate-icon">🔒</div>
-    <h2 id="gateTitle">Zugriff wird geprüft …</h2>
-    <p id="gateText">Dieser Bereich ist ein internes Testspiel und aktuell nicht öffentlich verfügbar.</p>
-    <div class="gate-form" id="gateForm" style="display:none;">
-      <div id="gStepEmail">
-        <div class="lbl">Login per Code — kein Passwort.</div>
-        <input type="email" id="gEmail" placeholder="deine@email.de" autocomplete="email">
-        <button class="gate-btn primary" id="gSend" type="button">Code senden</button>
-      </div>
-      <div id="gStepCode" style="display:none;">
-        <div class="lbl">Code aus der E-Mail eingeben:</div>
-        <input type="text" id="gCode" placeholder="123456" inputmode="numeric" maxlength="6">
-        <button class="gate-btn primary" id="gVerify" type="button">Bestätigen</button>
-      </div>
-      <span class="gate-status" id="gStatus"></span>
-    </div>
-  </div>
-</div>
-
-<!-- ============ Inhalt: nur sichtbar für die freigegebene Mail ============ -->
 <div id="content">
 
   <div class="wrap">
     <section class="hero">
-      <div class="eyebrow">⚠ Interner Test — noch nicht öffentlich</div>
+      <div class="eyebrow">🆕 Neu im MC-ORCA-Universum</div>
       <h1>NEXUS: <em>BREACH</em></h1>
       <p>Rogue-Prozesse sind ins NEXUS-Netz eingebrochen, seit der AXIOM-Kern hochgefahren wurde.
          Du bist das Wächter-Programm: ein Ego-Shooter im MC-ORCA-Universum, geradewegs zwischen
@@ -162,6 +113,7 @@
       <div class="cta-row">
         <a class="btn btn-primary" href="game.html">▶ Jetzt spielen</a>
         <a class="btn btn-ghost" href="#steuerung">Steuerung ansehen</a>
+        <a class="btn btn-ghost" href="download.html">⬇ Offline herunterladen</a>
       </div>
 
       <div class="hud-mock" aria-hidden="true">
@@ -212,81 +164,18 @@
     </section>
 
     <section class="block">
-      <div class="notice"><b>Test-Hinweis:</b> Dieser Bereich ist noch in Arbeit — neue Sektoren,
+      <div class="notice"><b>Hinweis:</b> Das Spiel ist frisch veröffentlicht — neue Sektoren,
         Gegner und Feinschliff kommen laufend dazu. Feedback ist jederzeit willkommen.</div>
     </section>
   </div>
 
   <footer>
+    <a href="download.html">Offline-Download</a>·
     <a href="../nutzungsbedingungen.html">Nutzungsbedingungen</a>·
     <a href="../impressum.html">Impressum &amp; Datenschutz</a>
   </footer>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-(function(){
-  'use strict';
-  var ALLOWED = 'xspx110@live.de';
-  var SUPABASE_URL = 'https://iuvckfoikhifywayuwkj.supabase.co';
-  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dmNrZm9pa2hpZnl3YXl1d2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDQ0NDMsImV4cCI6MjEwMzE4MDQ0M30.OFSMOOgAatxvBLXJHXDUctaSJ9bL0dDlkCa67BwU9fc';
-  var sb = (typeof window.supabase !== 'undefined') ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
-  var gate = document.getElementById('gate'), content = document.getElementById('content');
-  var gateTitle = document.getElementById('gateTitle'), gateText = document.getElementById('gateText'), gateForm = document.getElementById('gateForm');
-  var stepEmail = document.getElementById('gStepEmail'), stepCode = document.getElementById('gStepCode');
-  var statusEl = document.getElementById('gStatus');
-  var pendingEmail = '';
-
-  function setStatus(msg, isErr){ statusEl.textContent = msg || ''; statusEl.className = 'gate-status' + (isErr ? ' err' : (msg ? ' ok' : '')); }
-
-  function unlock(){
-    gate.classList.add('hidden');
-    content.classList.add('visible');
-  }
-  function lock(loggedInButWrong){
-    gate.classList.remove('hidden');
-    content.classList.remove('visible');
-    gateTitle.textContent = loggedInButWrong ? 'Kein Zugriff' : 'Nicht öffentlich';
-    gateText.textContent = loggedInButWrong
-      ? 'Dieser Account hat keinen Zugriff auf dieses Testspiel.'
-      : 'Dieser Bereich ist ein internes Testspiel und aktuell nicht öffentlich verfügbar. Falls du Zugriff haben solltest, logg dich ein.';
-    gateForm.style.display = '';
-  }
-
-  function handleSession(user){
-    if(user && user.email && user.email.toLowerCase() === ALLOWED){ unlock(); }
-    else{ lock(!!user); }
-  }
-
-  if(!sb){
-    lock(false);
-    gateForm.style.display = 'none';
-  } else {
-    sb.auth.getSession().then(function(res){ handleSession(res.data.session ? res.data.session.user : null); });
-    sb.auth.onAuthStateChange(function(event, session){ handleSession(session ? session.user : null); });
-
-    document.getElementById('gSend').addEventListener('click', async function(){
-      var email = document.getElementById('gEmail').value.trim();
-      if(!email || email.indexOf('@') === -1){ setStatus('Bitte gültige E-Mail eingeben.', true); return; }
-      setStatus('Sende Code …', false);
-      var res = await sb.auth.signInWithOtp({ email: email, options:{ shouldCreateUser:true } });
-      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
-      pendingEmail = email;
-      stepEmail.style.display = 'none'; stepCode.style.display = '';
-      setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
-    });
-    document.getElementById('gVerify').addEventListener('click', async function(){
-      var code = document.getElementById('gCode').value.trim();
-      if(!code){ setStatus('Bitte Code eingeben.', true); return; }
-      setStatus('Prüfe Code …', false);
-      var res = await sb.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' });
-      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
-      setStatus('Eingeloggt!', false);
-    });
-  }
-})();
-</script>
 <!-- PWA-INSTALL:BODY -->
 <script src="../assets/pwa-install.js" data-sw="sw.js"></script>
 </body>
