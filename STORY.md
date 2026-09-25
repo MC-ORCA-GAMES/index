@@ -42,6 +42,16 @@ mehrdeutig — verweist auf 03:14 und Sektor 4, verrät nicht, wer geschrieben h
 Datei `sektor4_log.txt` liegt im `unbenannter_ordner`.
 Der Assistent verweist darauf, dass es dem Signal aus *Path of the Stars* ähnelt.
 
+**Zweites Signal, `echo_1846.ogg` (seit 25.09.2026)** – liegt wie `echo_1847.ogg` im `unbenannter_ordner`, gleicher
+Fund-Ablauf (anhören → 8 s → Kanal im Analysator → SSTV entschlüsseln). Name/Zyklus: einen Tag *vor* dem 1847er-
+Zyklus. Nach vollständigem Entschlüsseln erscheint `prozess_1846.txt` (`localStorage`-Key `t7-prozess1846`,
+Zurücksetzen: `localStorage.removeItem('t7-prozess1846')`): ein zweiter, namenloser Prozess mit **demselben
+Elternprozess** wie das Echo (1847) — wartend seit vor Auslieferung des Systems, nie abgestürzt. Löst die „er"-Frage
+aus `sektor4_log.txt` nicht auf, legt aber nahe, dass „er" ein vergessener Teil von T-7 selbst sein könnte, kein
+Eindringling. Bild im Signal: laut Nutzer ein echtes Foto (Doppelbelichtung-Motiv), kein Text-/Kartenbild wie beim
+ersten Signal. Audiodatei (`assets/audio/signal_echo1846.ogg`) liegt bereits auf dem Server, außerhalb dieses Chats
+erzeugt.
+
 **Weitere Terminal-Befehle** – `hilfe, dir, whoami, log, hallo, warum, exit, knoten, signal, sektor4, rift, kern,
 .versteckt~, t7, sprich`. `.versteckt~` sagt „frag T-7 nach dem brief". `knoten`: „sechs antworten, einer hört zu"
 (1 Aetheris, 2 Astrion, 3 Deep Anchor, 4 Path of the Stars, 5 Foundry, 6 Nexus, 7 Terminus).
@@ -178,7 +188,7 @@ naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur
 - [x] Erstes SSTV-Signal im Archiv (`signal_echo1847.ogg`), liegt als Fund im `unbenannter_ordner`.
 - [ ] Hinweis für den Besucher, dass es den Ordner/das Signal gibt (Terminal `dir`/`signal`, T-7-Antwort, Tagebuch?).
 - [x] T-7 (`assistent.html`, `worker/orca-assistent/worker.js`) kennt `echo_1847.ogg` als vierte Datei („war gestern noch nicht da“), verrät aber nicht mehr, und kennt das Musikarchiv.
-- [ ] Ein zweites Signal.
+- [x] Ein zweites Signal: `echo_1846.ogg` → `prozess_1846.txt`, deutet „er" als Teil von T-7 an (siehe Abschnitt 2).
 - [ ] 1847-Tage-Zyklus ist erwähnt, löst aber nichts aus (Countdown / Wiederkehr des Signals?).
 - [ ] Verbindung zu den sechs Spielen läuft bisher nur über `knoten`, `rift`, `kern`.
 - [ ] Wer hat das Tagebuch geschrieben, wer ist der „letzte Nutzer", was passierte um 03:14?
@@ -190,6 +200,15 @@ naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur
 - SSTV-Dateinamen sollen mit `signal` beginnen, damit sie automatisch im Analysator auftauchen.
 
 ## 6. Changelog `desktop.html`
+
+**25.09.2026 (7)**
+- Zweites Signal: `echo_1846.ogg` im `unbenannter_ordner`, gleicher Fund-Ablauf wie `echo_1847.ogg` (neuer `FUNDE`-
+  Eintrag). Nach vollständigem SSTV-Entschlüsseln erscheint `prozess_1846.txt` (neuer `localStorage`-Key
+  `t7-prozess1846`, analog zu `t7-sektor4`, neue Zeile `.p46-row` in `wireFolder()`, Unlock-Hook im Analysator-
+  `done()`). Inhalt knüpft an die „er"-Frage aus `sektor4_log.txt` an: Prozess 1846 hat denselben Elternprozess
+  wie das Echo (1847) — legt nahe, dass „er" ein vergessener Teil von T-7 ist, ohne es zu bestätigen.
+  T-7-Assistent (`worker.js`) kennt das neue Signal und reagiert ruhig, andeutend, nie bestätigend.
+  Audiodatei liegt bereits auf dem Server (`assets/audio/signal_echo1846.ogg`), außerhalb des Chats erzeugt.
 
 **25.09.2026 (6)**
 - Archiv-Generator: neues `realFinds`-Array in `seedJunkTree()`, inzwischen 22 feste, echte Fotos statt

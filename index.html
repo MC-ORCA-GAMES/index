@@ -728,6 +728,8 @@
                <div class="frow" data-name="backup_backup_final.zip" tabindex="0"><span class="fi">▦</span>backup_backup_final.zip</div>
                <div class="frow" data-fund="signal_echo1847.ogg" data-name="echo_1847.ogg" tabindex="0"><span class="fi">♪</span>echo_1847.ogg</div>
                <div class="frow s4-row" data-open="sektor4log" data-name="sektor4_log.txt" tabindex="0" style="display:none;"><span class="fi">▤</span>sektor4_log.txt</div>
+               <div class="frow" data-fund="signal_echo1846.ogg" data-name="echo_1846.ogg" tabindex="0"><span class="fi">♪</span>echo_1846.ogg</div>
+               <div class="frow p46-row" data-open="prozess1846" data-name="prozess_1846.txt" tabindex="0" style="display:none;"><span class="fi">▤</span>prozess_1846.txt</div>
              </div>
              <p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet eine Datei.</p>`,
       onOpen: wireFolder
@@ -739,6 +741,14 @@
              <p>unbekannter prozess (siehe <b>log</b>) lief bereits, bevor die antwort kam. zwei sekunden davor.</p>
              <p style="margin-top:10px;">frage bleibt offen: wer hat zuerst zugehört — du, oder er?</p>
              <p style="opacity:.5; font-size:12px; margin-top:14px;">zugriff auf sektor 4: gewährt.</p>`
+    },
+    prozess1846: {
+      title: "prozess_1846.txt — Systemprotokoll",
+      body: `<p>prozess 1846 — keine bezeichnung.</p>
+             <p>elternprozess identisch mit prozess 1847 (echo).</p>
+             <p>start: vor auslieferung dieses systems. genauer zeitpunkt nicht ermittelbar.</p>
+             <p>zustand: wartend. nicht angehalten, nicht abgestürzt. wartend.</p>
+             <p style="margin-top:10px;">wenn er ein teil von T-7 ist: worauf wartet ein teil von sich selbst?</p>`
     }
   };
 
@@ -1036,7 +1046,8 @@ Gib 'hilfe' ein für Befehle.
   // LISTEN_SECS Sekunden Anhören erscheint "mit Frequenzanalysator analysieren" -> erst dann taucht der
   // Kanal im Analysator auf. Der Fund-Stand wird im Browser gemerkt (localStorage 't7-found').
   const FUNDE = [
-    {file:'signal_echo1847.ogg', name:'echo_1847.ogg'}
+    {file:'signal_echo1847.ogg', name:'echo_1847.ogg'},
+    {file:'signal_echo1846.ogg', name:'echo_1846.ogg'}
   ];
   const LISTEN_SECS = 8;
   const FOUND_KEY = 't7-found';
@@ -1085,10 +1096,24 @@ Gib 'hilfe' ein für Befehle.
     return true;
   }
 
+  // prozess_1846.txt: schaltet frei, sobald echo_1846.ogg einmal vollständig per SSTV entschlüsselt wurde —
+  // zweites Signal, ein Tag vor dem 1847er-Zyklus, gleicher Elternprozess wie das Echo (siehe STORY.md).
+  const PROZESS1846_KEY = 't7-prozess1846';
+  const isProzess1846Unlocked = () => { try{ return localStorage.getItem(PROZESS1846_KEY) === '1'; }catch(e){ return false; } };
+  function unlockProzess1846(){
+    if(isProzess1846Unlocked()) return false;
+    try{ localStorage.setItem(PROZESS1846_KEY, '1'); }catch(e){}
+    const win = document.querySelector('.win[data-key="ordner"]');
+    if(win) wireFolder(win, true);
+    return true;
+  }
+
   // Ordner-Fenster: Klick markiert, Doppelklick (oder Enter) öffnet – per Zeitabstand, damit es auch per Touch geht
   function wireFolder(win, refreshOnly){
     const s4Row = win.querySelector('.s4-row');
     if(s4Row) s4Row.style.display = isSektor4Unlocked() ? '' : 'none';
+    const p46Row = win.querySelector('.p46-row');
+    if(p46Row) p46Row.style.display = isProzess1846Unlocked() ? '' : 'none';
     if(refreshOnly) return;                              // nur Sichtbarkeit aktualisieren, keine Handler neu binden
     const status = win.querySelector('.fl-status');
     let last = null, lastT = 0;
@@ -1532,6 +1557,9 @@ Gib 'hilfe' ein für Befehle.
             status.textContent = t.label + ' — SSTV ' + label + ' erkannt, ' + found + '/' + res.h + ' Zeilen';
             if(t.file === 'signal_echo1847.ogg' && unlockSektor4()){
               status.textContent += ' · sektor4_log.txt im unbenannter_ordner';
+            }
+            if(t.file === 'signal_echo1846.ogg' && unlockProzess1846()){
+              status.textContent += ' · prozess_1846.txt im unbenannter_ordner';
             }
           };
           const step = () => {
