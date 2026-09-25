@@ -3,6 +3,45 @@
 Stand: 24.09.2026 (Fortsetzung). Teil des MC ORCA Games Portfolios, bewusst NICHT
 mit Supabase/Konto/MOGC verbunden.
 
+## Touch-Steuerung für Handy/Tablet ergänzt
+
+Rückmeldung: auf dem Handy ging das Spiel noch nicht — es gab bislang
+ausschließlich Maus+Tastatur-Steuerung (inkl. Pointer-Lock fürs Umschauen),
+keinerlei Touch-Eingabe. Jetzt per `isTouch`-Erkennung
+(`matchMedia('(hover:none) and (pointer:coarse)')`) eine On-Screen-Steuerung,
+die nur auf Touch-Primärgeräten eingeblendet wird (Desktop bleibt unverändert
+bei Maus/Tastatur):
+
+- **Move-Pad** unten links (fester Kreis, Finger zieht den Knauf) → Vor/
+  Zurück/Strafe, wie bisher `WASD`. Volle Auslenkung (>78% Radius) löst
+  zusätzlich Sprint aus (bisher `Shift`).
+- **Blick-Drag**: jeder Touch außerhalb von Move-Pad/Buttons dreht die
+  Kamera (horizontal) und steuert den Pitch (vertikal, siehe vorheriger
+  Punkt) — Ersatz fürs Maus-Movement, läuft komplett ohne Pointer-Lock.
+- **Feuer-Button** unten rechts (Kreis, gedrückt halten = Dauerfeuer wie
+  `Space`/Maustaste).
+- **Waffe-wechseln-Button** (⇄, zyklisch durch freigeschaltete Waffen:
+  Pistole → Fäuste → Streu-Kanone (falls gefunden) → Overclock-Gewehr (falls
+  gefunden) → zurück zur Pistole) und **Pause-Button** (❚❚) rechts oben,
+  da `1`-`4`/`P` auf Touch nicht existieren.
+- Pointer-Lock-Versuche werden auf Touch komplett übersprungen (`requestLock()`
+  ist dort ein No-Op), das lief vorher schon ins Leere, hätte aber theoretisch
+  Fehlerpfade auslösen können.
+- Viewport-Meta um `maximum-scale=1, user-scalable=no` ergänzt, damit
+  Pinch-/Doppeltipp-Zoom beim Spielen nicht dazwischenfunkt; die
+  Touch-Fläche selbst hat `touch-action:none` gegen Scroll-Geste.
+- Move-/Blick-/Feuer-Touches werden über eigene `identifier`s sauber
+  auseinandergehalten (Mehrfingerbedienung möglich) und beim Verlassen des
+  `play`-Status (Pause/Tod/Levelende) jeden Frame zurückgesetzt, damit keine
+  "hängenden" Touch-IDs überleben.
+- Menü-Overlays (Titel, Pause, Sektor geschafft) funktionieren unverändert
+  über normale Taps/Klicks — die Touch-Steuerungs-Fläche liegt im DOM vor dem
+  Overlay und ist außerhalb von `play` per `pointer-events:none` inaktiv.
+- Kein Gerätetest möglich (kein Handy hier) — nur Syntaxprüfung und Logik
+  gegengelesen. Bitte einmal live auf dem Handy testen, v.a. Move-Pad-Gefühl,
+  Blick-Sensitivität (`TOUCH_TURN`/`TOUCH_PITCH`) und ob die Button-Größen für
+  den Daumen passen — alles über cqw-Einheiten schnell nachjustierbar.
+
 ## Freie Kopfbewegung (Pitch-Begrenzung stark erweitert)
 
 Rückmeldung: nach oben/unten kucken (Maus-Pitch) war kaum spürbar möglich,

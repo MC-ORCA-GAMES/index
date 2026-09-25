@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>NEXUS: BREACH — MC ORCA Games</title>
 <!--
   NEXUS: BREACH — game.html (v0.2 — jetzt öffentlich, Login-Gate entfernt)
@@ -121,6 +121,27 @@
   .small{ font-size:clamp(10px,1.35cqw,15px); color:var(--faint); margin-top:1.2cqw; }
   @media (prefers-reduced-motion:reduce){ #msg{ transition:none; } #hpfill{ transition:none; } }
 
+  /* ---- Touch-Steuerung (nur Handy/Tablet, siehe isTouch im Skript) ---- */
+  #touchLayer{ display:none; position:absolute; inset:0; z-index:6; touch-action:none; }
+  .touchable #touchLayer{ display:block; }
+  #tcMove{ position:absolute; left:4cqw; bottom:6cqw; width:32cqw; height:32cqw; max-width:170px; max-height:170px;
+    border:2px solid rgba(53,228,255,.35); border-radius:50%; background:rgba(11,18,32,.35); }
+  #tcMoveKnob{ position:absolute; left:50%; top:50%; width:42%; height:42%; transform:translate(-50%,-50%);
+    border-radius:50%; background:rgba(53,228,255,.55); border:1px solid rgba(220,246,255,.65); }
+  #tcFireBtn{ position:absolute; right:5cqw; bottom:7cqw; width:20cqw; height:20cqw; max-width:108px; max-height:108px;
+    border-radius:50%; background:rgba(255,61,110,.26); border:2px solid rgba(255,61,110,.65);
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    font:700 clamp(12px,1.7cqw,16px) system-ui,sans-serif; letter-spacing:.05em; color:#FFDDE4; text-transform:uppercase; }
+  #tcFireBtn.active{ background:rgba(255,61,110,.55); }
+  #tcWeaponBtn,#tcPauseBtn{ position:absolute; right:1.6cqw; width:9.6cqw; height:9.6cqw; max-width:50px; max-height:50px;
+    border-radius:50%; background:rgba(11,18,32,.78); border:1px solid rgba(53,228,255,.4); color:var(--fg);
+    display:flex; align-items:center; justify-content:center; font:700 clamp(13px,1.9cqw,18px) ui-monospace,Consolas,Menlo,monospace; }
+  #tcWeaponBtn{ top:20cqw; }
+  #tcPauseBtn{ top:31cqw; font-size:clamp(10px,1.5cqw,14px); }
+  /* Overlay-Menüs (Titel/Pause/Sektor geschafft) haben eigene, große Touch-Ziele
+     und liegen im DOM nach #touchLayer, also immer oben — hier nur die
+     Spielsteuerung selbst ausblenden, wenn kein Touch-Gerät vorliegt. */
+
   /* ---- Titel-Bildschirm: Cinematic Overhaul ---- */
   button.primary{ clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
     box-shadow:0 0 0 rgba(53,228,255,0); }
@@ -188,6 +209,12 @@
     <div class="cell"><div class="lab">MOGC-Splitter</div><div class="val" id="shards">0<small>/0</small></div></div>
     <div class="cell"><div class="lab">Rogue-Prozesse</div><div class="val" id="foes">0</div></div>
   </div>
+  <div id="touchLayer">
+    <div id="tcMove"><div id="tcMoveKnob"></div></div>
+    <div id="tcFireBtn">Feuer</div>
+    <div id="tcWeaponBtn" aria-label="Waffe wechseln">⇄</div>
+    <div id="tcPauseBtn" aria-label="Pause">❚❚</div>
+  </div>
   <div id="overlay"><div class="box" id="obox"></div></div>
   <div id="fade"></div>
 </div>
@@ -215,6 +242,11 @@ const zBuf=new Float32Array(W);
 
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+// Touch-Primärgerät (Handy/Tablet ohne Maus) erkennen — zeigt die
+// On-Screen-Steuerung (Move-Pad/Blick-Drag/Feuer/Waffe/Pause) nur dort an und
+// überspringt Pointer-Lock-Versuche, die auf Touch ohnehin nichts bringen.
+const isTouch=(()=>{ try{ return matchMedia('(hover:none) and (pointer:coarse)').matches; }catch(e){ return 'ontouchstart' in window; } })();
+if(isTouch) document.body.classList.add('touchable');
 
 function shade(c,f){
   return (0xFF000000
@@ -1769,7 +1801,7 @@ document.addEventListener('mousemove',e=>{
   P.pitch=clamp(P.pitch-e.movementY*.35,-220,220);
 });
 cv.addEventListener('mousedown',e=>{
-  if(e.button!==0) return;
+  if(isTouch||e.button!==0) return;
   if(state==='play'){ mouseDown=true; if(!locked&&!lockFailed) requestLock(); }
 });
 window.addEventListener('mouseup',()=>{ mouseDown=false; });
@@ -1779,11 +1811,80 @@ document.addEventListener('pointerlockchange',()=>{
 });
 document.addEventListener('pointerlockerror',()=>{ lockFailed=true; });
 function requestLock(){
+  if(isTouch) return;   // auf Touch-Geräten gibt es kein sinnvolles Pointer-Lock — Blick läuft übers Touch-Drag
   lockWanted=true;
   try{ const r=cv.requestPointerLock&&cv.requestPointerLock(); if(r&&r.catch) r.catch(()=>{ lockFailed=true; }); }
   catch(e){ lockFailed=true; }
 }
 function releaseLock(){ lockWanted=false; try{ if(document.pointerLockElement) document.exitPointerLock(); }catch(e){} }
+
+/* ============================================================
+   Touch-Steuerung (Handy/Tablet): Move-Pad links, Blick-Drag rechts,
+   Feuer-/Waffen-/Pause-Buttons. Nur aktiv, wenn isTouch true ist (siehe
+   oben) — auf Desktop bleibt alles wie gehabt bei Maus+Tastatur.
+   ============================================================ */
+let touchFwd=0, touchStr=0, touchSprint=false, touchFireDown=false;
+if(isTouch){
+  const tcLayer=$('touchLayer'), tcMove=$('tcMove'), tcKnob=$('tcMoveKnob'),
+        tcFire=$('tcFireBtn'), tcWeapon=$('tcWeaponBtn'), tcPause=$('tcPauseBtn');
+  let moveId=null, moveCx=0, moveCy=0, moveR=1;
+  let lookId=null, lookLastX=0, lookLastY=0;
+  let fireId=null;
+  const TOUCH_TURN=0.0034, TOUCH_PITCH=0.55;
+  function resetMovePad(){ touchFwd=0; touchStr=0; touchSprint=false; tcKnob.style.transform='translate(-50%,-50%)'; }
+  function inRect(el,x,y){ const r=el.getBoundingClientRect(); return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom; }
+  function handleStart(t){
+    const x=t.clientX, y=t.clientY;
+    if(moveId===null && inRect(tcMove,x,y)){
+      const r=tcMove.getBoundingClientRect();
+      moveId=t.identifier; moveCx=r.left+r.width/2; moveCy=r.top+r.height/2; moveR=r.width/2;
+      return;
+    }
+    if(fireId===null && inRect(tcFire,x,y)){ fireId=t.identifier; touchFireDown=true; tcFire.classList.add('active'); return; }
+    if(inRect(tcWeapon,x,y)){ cycleWeapon(); return; }
+    if(inRect(tcPause,x,y)){ if(state==='play') pauseGame(); return; }
+    if(lookId===null && state==='play'){ lookId=t.identifier; lookLastX=x; lookLastY=y; }
+  }
+  function handleMove(t){
+    if(t.identifier===moveId){
+      let dx=t.clientX-moveCx, dy=t.clientY-moveCy;
+      const d=Math.hypot(dx,dy);
+      if(d>moveR){ dx=dx/d*moveR; dy=dy/d*moveR; }
+      touchStr=dx/moveR; touchFwd=-dy/moveR; touchSprint=d>moveR*.78;
+      tcKnob.style.transform='translate('+(dx-tcKnob.offsetWidth/2)+'px,'+(dy-tcKnob.offsetHeight/2)+'px)';
+    } else if(t.identifier===lookId){
+      const dx=t.clientX-lookLastX, dy=t.clientY-lookLastY;
+      lookLastX=t.clientX; lookLastY=t.clientY;
+      P.a+=dx*TOUCH_TURN;
+      P.pitch=clamp(P.pitch-dy*TOUCH_PITCH*.1,-220,220);
+    }
+  }
+  function handleEnd(t){
+    if(t.identifier===moveId){ moveId=null; resetMovePad(); }
+    else if(t.identifier===lookId){ lookId=null; }
+    else if(t.identifier===fireId){ fireId=null; touchFireDown=false; tcFire.classList.remove('active'); }
+  }
+  tcLayer.addEventListener('touchstart',e=>{ e.preventDefault(); for(const t of e.changedTouches) handleStart(t); },{passive:false});
+  tcLayer.addEventListener('touchmove',e=>{ e.preventDefault(); for(const t of e.changedTouches) handleMove(t); },{passive:false});
+  tcLayer.addEventListener('touchend',e=>{ e.preventDefault(); for(const t of e.changedTouches) handleEnd(t); },{passive:false});
+  tcLayer.addEventListener('touchcancel',e=>{ for(const t of e.changedTouches) handleEnd(t); });
+  function syncTouchLayer(){
+    const playing=state==='play';
+    tcLayer.style.pointerEvents=playing?'auto':'none';
+    if(!playing){ moveId=null; lookId=null; fireId=null; touchFireDown=false; tcFire.classList.remove('active'); resetMovePad(); }
+  }
+  window.__syncTouchLayer=syncTouchLayer;
+}
+function cycleWeapon(){
+  const order=[0,2,1,3];
+  const idx=order.indexOf(P.weapon);
+  for(let i=1;i<=order.length;i++){
+    const cand=order[(idx+i)%order.length];
+    if(cand===1&&!P.hasSG) continue;
+    if(cand===3&&!P.hasAuto) continue;
+    setWeapon(cand); break;
+  }
+}
 
 /* ============================================================
    Spiellogik
@@ -2490,12 +2591,12 @@ function update(dt){
   // Bewegung
   const turn=(keys.ArrowRight||keys.KeyE?1:0)-(keys.ArrowLeft||keys.KeyQ?1:0);
   P.a+=turn*2.4*dt;
-  const fwd=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
-  const str=(keys.KeyD?1:0)-(keys.KeyA?1:0);
+  const fwd=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)+touchFwd;
+  const str=(keys.KeyD?1:0)-(keys.KeyA?1:0)+touchStr;
   let vx=Math.cos(P.a)*fwd+(-Math.sin(P.a))*str, vy=Math.sin(P.a)*fwd+Math.cos(P.a)*str;
   const vl=Math.hypot(vx,vy);
   if(vl>0){
-    const sp=(keys.ShiftLeft||keys.ShiftRight?4.8:3.2)*dt;
+    const sp=(keys.ShiftLeft||keys.ShiftRight||touchSprint?4.8:3.2)*dt;
     const mv=tryMove(P,vx/vl*sp,vy/vl*sp,.22);
     P.moving=Math.min(1,P.moving+dt*8); P.bob+=mv*2.6;
     const stepIdx=Math.floor(P.bob/Math.PI);
@@ -2505,7 +2606,7 @@ function update(dt){
   P.fireCd=Math.max(0,P.fireCd-dt); P.recoil=Math.max(0,P.recoil-dt*5); P.flash=Math.max(0,P.flash-dt);
   if(P.overheatT>0){ P.overheatT=Math.max(0,P.overheatT-dt); if(P.overheatT===0) P.heat=0; }
   else P.heat=Math.max(0,P.heat-dt*.32);
-  if(keys.Space||mouseDown) tryFire();
+  if(keys.Space||mouseDown||touchFireDown) tryFire();
   // Welt
   if(lvl.fog) updateFog();
   flowT-=dt; if(flowT<=0){ computeFlow(); flowT=.3; }
@@ -2533,6 +2634,7 @@ function frame(now){
   else if(state==='title'){ updateDemo(dt); }
   else if(state==='dead'||state==='levelwin'||state==='gamewin'){ hurtT=Math.max(0,hurtT-dt); shakeAmt=Math.max(0,shakeAmt-dt*3.4); $('hurt').style.opacity=state==='dead'?.55:0; }
   if(lvl){ render(now/1000); if(state==='play'||state==='pause') drawMini(); updateHud(); applyShake(); }
+  if(isTouch) window.__syncTouchLayer();
   requestAnimationFrame(frame);
 }
 

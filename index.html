@@ -296,6 +296,15 @@
   .expl-item.sel{background:rgba(33,199,184,.14); border-color:rgba(33,199,184,.4);}
   .expl-icon{display:block; font-size:22px;}
   .expl-label{display:block; font-size:11px; margin-top:3px; word-break:break-word; line-height:1.2;}
+  .expl-arrow{display:inline-block; width:12px; opacity:.6; font-size:10px;}
+  .expl-search{background:var(--bg-alt); border:1px solid var(--panel-border); color:var(--crt);
+    padding:4px 6px; border-radius:2px; font-family:inherit; font-size:12px; width:120px;}
+  .expl-search:focus{outline:none; border-color:var(--teal);}
+  .expl-results{padding:4px; display:block;}
+  .expl-resrow{display:flex; align-items:baseline; gap:8px; padding:5px 8px; border-radius:2px; cursor:default;}
+  .expl-resrow:hover{background:rgba(212,175,55,.08);}
+  .expl-resrow .expl-resname{color:var(--crt); white-space:nowrap;}
+  .expl-resrow .expl-respath{opacity:.5; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
   /* ---- Login-Bildschirm (vor dem Boot) ---- */
   #loginscreen{
@@ -1614,6 +1623,8 @@ Gib 'hilfe' ein für Befehle.
     {id:'deepanchor', name:'Deep Anchor', url:'deepanchor/game.html', c:'#FF6A2B', tilt:25},
     {id:'pots', name:'Path of the Stars', url:'pathofthestars/game.html', c:'#D6303F', tilt:25},
     {id:'nexus', name:'NEXUS', url:'nexus/game.html', c:'#2F8CFF', tilt:0},
+    {id:'nexussingularity', name:'NEXUS Singularity', url:'nexus/nexus_singularity/game.html', c:'#2F8CFF', tilt:0},
+    {id:'nexusbreach', name:'Nexus: Breach', url:'nexus-breach/game.html', c:'#2F8CFF', tilt:0},
     {id:'foundry', name:'FOUNDRY', url:'foundry/game.html', c:'#21C7B8', tilt:0},
     {id:'domus', name:'Domus Prime', url:'domus-prime/game.html', c:'#14F195', tilt:-10}
   ];
@@ -1648,8 +1659,8 @@ Gib 'hilfe' ein für Befehle.
     deepanchor: { file:'DeepAnchor_Setup.t7exe', label:'Deep Anchor', icon:emblem({c:'#FF6A2B', tilt:25}), openKey:'game:deepanchor' },
     pathofthestars: { file:'PathOfTheStars_Setup.t7exe', label:'Path of the Stars', icon:emblem({c:'#D6303F', tilt:25}), openKey:'game:pots' },
     nexus: { file:'Nexus_Setup.t7exe', label:'NEXUS', icon:emblem({c:'#2F8CFF', tilt:0}), openKey:'game:nexus' },
-    nexussingularity: { file:'NexusSingularity_Setup.t7exe', label:'NEXUS Singularity', icon:emblem({c:'#2F8CFF', tilt:0}), openKey:'game:nexus' },
-    nexusbreach: { file:'NexusBreach_Setup.t7exe', label:'Nexus: Breach', icon:emblem({c:'#2F8CFF', tilt:0}), openKey:'game:nexus' },
+    nexussingularity: { file:'NexusSingularity_Setup.t7exe', label:'NEXUS Singularity', icon:emblem({c:'#2F8CFF', tilt:0}), openKey:'game:nexussingularity' },
+    nexusbreach: { file:'NexusBreach_Setup.t7exe', label:'Nexus: Breach', icon:emblem({c:'#2F8CFF', tilt:0}), openKey:'game:nexusbreach' },
     foundry: { file:'Foundry_Setup.t7exe', label:'FOUNDRY', icon:emblem({c:'#21C7B8', tilt:0}), openKey:'game:foundry' },
     domusprime: { file:'DomusPrime_Setup.t7exe', label:'Domus Prime', icon:emblem({c:'#14F195', tilt:-10}), openKey:'game:domus' }
   };
@@ -2434,6 +2445,75 @@ Gib 'hilfe' ein für Befehle.
   }
   const VFS = loadVFS();
   function saveVFS(){ try{ localStorage.setItem(VFS_KEY, JSON.stringify(VFS)); }catch(e){} }
+
+  // ---- Migration: "Dieser PC" > "Festplatte (C:)" > Desktop/Dokumente/Bilder/Musik/Archiv,
+  // statt Desktop = Wurzel. Läuft einmalig, bestehende Desktop-Inhalte bleiben unangetastet. ----
+  (function migrateVFS(){
+    if(VFS.nodes.thispc) return; // schon migriert
+    VFS.nodes.thispc = {id:'thispc', type:'folder', name:'Dieser PC', parent:null, children:['diskc']};
+    VFS.nodes.diskc = {id:'diskc', type:'folder', name:'Festplatte (C:)', parent:'thispc', children:[]};
+    const desktop = VFS.nodes.desktop;
+    desktop.parent = 'diskc';
+    VFS.nodes.diskc.children.push('desktop');
+    function mkTop(name){
+      const id = 'sys_' + name.toLowerCase().replace(/[^a-z0-9]+/g,'_');
+      VFS.nodes[id] = {id, type:'folder', name, parent:'diskc', children:[]};
+      VFS.nodes.diskc.children.push(id);
+      return id;
+    }
+    mkTop('Dokumente');
+    mkTop('Bilder');
+    mkTop('Musik');
+    const archivId = mkTop('Archiv');
+    seedJunkTree(archivId);
+    saveVFS();
+  })();
+
+  // ---- Prozedural erzeugter "Datenmüll": hunderte Ordner/Dateien zum Durchsuchen ----
+  function seedJunkTree(rootId){
+    const cats = ['Protokolle','Backups','Sensorlogs','Wartung','Vermessung','Kommunikation','Inventar','Diverses'];
+    const subWords = ['Sektor','Modul','Charge','Woche','Test','Knoten','Relais','Zyklus','Einheit','Durchlauf','Station','Kanal','Block','Segment','Probe'];
+    const fileWords = ['notiz','messwerte','protokoll','sicherung','übersicht','entwurf','bericht','auswertung','vermerk','scan','log','datensatz','konfiguration','checkliste','status'];
+    const exts = ['.txt','.log','.dat','.csv','.bak','.cfg','.tmp','.old'];
+    function rnd(n){ return Math.floor(Math.random()*n); }
+    function pick(arr){ return arr[rnd(arr.length)]; }
+    function num(){ return String(1000 + rnd(9000)); }
+    // ein paar auffindbare "echte" Notizen, zufällig unter den Datenmüll gemischt
+    const specials = [
+      ['hinweis.txt', 'Wenn hier jemand sucht: der Code steht nicht hier. Aber die Suche funktioniert. – T-7'],
+      ['checkliste_alt.txt', 'TODO: Ordner aufräumen.\nTODO: Backup prüfen.\nTODO: ???'],
+      ['wartungsplan.txt', 'Nächste Wartung: unbekannt.\nLetzte Wartung: unbekannt.\nSystem läuft trotzdem.'],
+      ['restdaten.log', '...Verbindung unterbrochen...\n...erneuter Versuch...\n...Verbindung unterbrochen...'],
+      ['notiz_privat.txt', 'Falls du das liest: Kaffee ist im dritten Schrank von links. Immer noch.']
+    ];
+    let specialsLeft = specials.slice();
+    cats.forEach(cat=>{
+      const catId = vfsCreateFolderSilent(rootId, cat);
+      const subCount = 8 + rnd(7); // 8-14 Unterordner
+      for(let i=0;i<subCount;i++){
+        const subName = pick(subWords) + '_' + num();
+        const subId = vfsCreateFolderSilent(catId, subName);
+        const fileCount = 2 + rnd(5); // 2-6 Dateien
+        for(let j=0;j<fileCount;j++){
+          if(specialsLeft.length && Math.random() < 0.04){
+            const [fname, content] = specialsLeft.pop();
+            vfsAddFile(subId, fname, content);
+          } else {
+            const fname = pick(fileWords) + '_' + String(rnd(99)).padStart(2,'0') + pick(exts);
+            vfsAddFile(subId, fname, 'Log-Eintrag #' + num() + ' — Status: nominal.');
+          }
+        }
+      }
+    });
+    // übrig gebliebene Specials notfalls direkt in die Wurzel legen, statt zu verlieren
+    specialsLeft.forEach(([fname, content])=> vfsAddFile(rootId, fname, content));
+  }
+  function vfsCreateFolderSilent(parentId, name){
+    const id = vfsNewId();
+    VFS.nodes[id] = {id, type:'folder', name, parent: parentId, children:[]};
+    vfsNode(parentId).children.push(id);
+    return id;
+  }
   function vfsNode(id){ return VFS.nodes[id]; }
   function vfsChildren(id){
     const n = vfsNode(id);
@@ -2452,6 +2532,12 @@ Gib 'hilfe' ein für Befehle.
     VFS.nodes[id] = {id, type:'link', name: label, parent: parentId, sysKey, html};
     vfsNode(parentId).children.push(id);
     saveVFS();
+    return id;
+  }
+  function vfsAddFile(parentId, name, content){
+    const id = vfsNewId();
+    VFS.nodes[id] = {id, type:'file', name, parent: parentId, content: content || ''};
+    vfsNode(parentId).children.push(id);
     return id;
   }
   function vfsRenameNode(id, name){
@@ -2481,6 +2567,47 @@ Gib 'hilfe' ein für Befehle.
     vfsNode(newParentId).children.push(id);
     saveVFS();
   }
+  // Rekursive Volltextsuche (Name + Dateiinhalt) über das gesamte virtuelle Dateisystem
+  function vfsSearch(query){
+    query = (query||'').trim().toLowerCase();
+    if(!query) return [];
+    const results = [];
+    (function walk(id){
+      vfsChildren(id).forEach(n=>{
+        const hay = n.name.toLowerCase() + (n.type === 'file' && n.content ? ' ' + n.content.toLowerCase() : '');
+        if(hay.includes(query)) results.push(n);
+        if(n.type === 'folder') walk(n.id);
+      });
+    })('thispc');
+    return results.slice(0, 80);
+  }
+  function vfsPathLabel(id){
+    const parts = [];
+    let n = vfsNode(id);
+    while(n){ parts.unshift(n.name); n = n.parent ? vfsNode(n.parent) : null; }
+    return parts.join(' \u203a ');
+  }
+  // Einfacher Lese-Viewer für generierte/gefundene Dateien
+  function openVfsFileViewer(node){
+    const key = 'vfsfile:' + node.id;
+    if(openWinIds.has(key)){ focusWin(key); return; }
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = key;
+    win.style.left = (80 + Math.random()*120) + 'px';
+    win.style.top = (60 + Math.random()*100) + 'px';
+    win.style.width = '380px';
+    win.innerHTML = `<div class="bar"><span>${escapeHtml(node.name)}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
+      <div class="body"><pre style="white-space:pre-wrap; font-size:12px; margin:0; font-family:inherit;">${escapeHtml(node.content || '(leere Datei)')}</pre></div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    win.querySelector('.x').onclick = ()=> closeWin(win, key);
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, key);
+    openWinIds.add(key);
+    addTaskItem(key, node.name, win);
+  }
   let hiddenIcons = new Set();
   try{ hiddenIcons = new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]')); }catch(e){ hiddenIcons = new Set(); }
   function hideSystemIcon(key){
@@ -2492,7 +2619,7 @@ Gib 'hilfe' ein für Befehle.
     try{ localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hiddenIcons])); }catch(e){}
   }
   // Holt ein Icon (z.B. ein Spiel), das in einen Ordner verschoben wurde, zurück auf den Desktop
-  function restoreLinkToDesktop(id){
+  function restoreLinkToDesktopSilent(id){
     const node = vfsNode(id);
     if(!node || node.type !== 'link') return;
     unhideSystemIcon(node.sysKey);
@@ -2507,8 +2634,40 @@ Gib 'hilfe' ein für Befehle.
         wireIcon(iconEl);
       }
     }
+  }
+  function restoreLinkToDesktop(id){
+    const node = vfsNode(id);
+    if(!node || node.type !== 'link') return;
+    const name = node.name;
+    restoreLinkToDesktopSilent(id);
     refreshDesktopVfsIcons();
-    toast('"' + node.name + '" auf den Desktop zurückgelegt.');
+    toast('"' + name + '" auf den Desktop zurückgelegt.');
+  }
+
+  // Löscht einen selbst erstellten Ordner (rekursiv): Unterordner werden mitgelöscht,
+  // hineinverschobene Spiele-/App-Icons kommen dabei zurück auf den Desktop (gehen nicht verloren).
+  function vfsDeleteFolder(id){
+    const node = vfsNode(id);
+    if(!node || node.type !== 'folder' || id === 'desktop') return;
+    if(!confirm('Ordner "' + node.name + '" wirklich löschen?\n\nEnthaltene Unterordner werden mitgelöscht. Verschobene Spiele-/App-Icons landen wieder auf dem Desktop.')) return;
+    (function removeRec(nid){
+      const n = vfsNode(nid);
+      if(!n) return;
+      (n.children||[]).slice().forEach(cid=>{
+        const c = vfsNode(cid);
+        if(!c) return;
+        if(c.type === 'folder') removeRec(cid);
+        else if(c.type === 'link') restoreLinkToDesktopSilent(cid);
+      });
+      const key = 'vfsfolder:' + nid;
+      if(openWinIds.has(key)){
+        const win = document.querySelector('.win[data-key="'+key+'"]');
+        if(win) closeWin(win, key);
+      }
+      vfsRemoveNode(nid);
+    })(id);
+    refreshDesktopVfsIcons();
+    toast('Ordner "' + node.name + '" gelöscht.');
   }
 
   // Kontextmenü (Rechtsklick): Neuer Ordner usw.
@@ -2538,7 +2697,7 @@ Gib 'hilfe' ein für Befehle.
     ]);
   });
 
-  // Rechtsklick auf einen selbst erstellten Ordner direkt auf dem Desktop -> Umbenennen
+  // Rechtsklick auf einen selbst erstellten Ordner direkt auf dem Desktop -> Umbenennen / Löschen
   document.getElementById('icons').addEventListener('contextmenu', e=>{
     const icon = e.target.closest('.icon[data-vfs]');
     if(!icon) return;
@@ -2552,7 +2711,8 @@ Gib 'hilfe' ein für Befehle.
         if(name === null) return;
         vfsRenameNode(id, name.trim() || node.name);
         refreshDesktopVfsIcons();
-      }}
+      }},
+      {label:'Löschen', action: ()=> vfsDeleteFolder(id)}
     ]);
   });
 
@@ -2585,7 +2745,7 @@ Gib 'hilfe' ein für Befehle.
     win.style.top = (40 + Math.random()*100) + 'px';
     win.style.width = '320px';
     win.innerHTML = `<div class="bar"><span>${escapeHtml(node.name)}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
-                      <div class="body"><div class="fl vfs-list"></div><p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet · Rechtsklick: Neuer Ordner.</p></div>`;
+                      <div class="body"><div class="fl vfs-list"></div><p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet · Rechtsklick: Neuer Ordner / Umbenennen / Löschen.</p></div>`;
     document.getElementById('desktop').appendChild(win);
     makeDraggable(win);
     focusWinEl(win);
@@ -2636,6 +2796,7 @@ Gib 'hilfe' ein für Befehle.
             vfsRenameNode(node.id, name.trim() || node.name);
             render(); refreshDesktopVfsIcons();
           }});
+          items.push({label:'Löschen', action: ()=>{ vfsDeleteFolder(node.id); render(); }});
         } else if(node && node.type === 'link'){
           items.push({label:'Auf den Desktop verschieben', action: ()=>{
             restoreLinkToDesktop(node.id);
@@ -2660,6 +2821,8 @@ Gib 'hilfe' ein für Befehle.
       <div class="expl-toolbar">
         <button class="expl-back" title="Zurück">← Zurück</button>
         <span class="expl-path"></span>
+        <input class="expl-search" type="text" placeholder="Suchen…" />
+        <button class="expl-search-btn" title="Suchen">🔍</button>
         <button class="expl-newfolder">＋ Neuer Ordner</button>
       </div>
       <div class="body expl-body">
@@ -2677,21 +2840,42 @@ Gib 'hilfe' ein für Befehle.
 
     let curFolder = 'desktop';
     const history = [];
+    const expandedTree = new Set(['thispc','diskc']);
+    let searchMode = false;
+    let searchResults = [];
 
     function buildTree(id, depth){
       let html = '';
       vfsChildren(id).filter(n => n.type === 'folder').forEach(n=>{
-        html += `<div class="expl-tnode${n.id === curFolder ? ' sel' : ''}" style="padding-left:${8+depth*14}px" data-id="${n.id}">📁 ${escapeHtml(n.name)}</div>`;
-        html += buildTree(n.id, depth+1);
+        const hasKids = vfsChildren(n.id).some(c => c.type === 'folder');
+        const open = expandedTree.has(n.id);
+        const arrow = hasKids ? `<span class="expl-arrow" data-toggle="${n.id}">${open ? '▾' : '▸'}</span>` : `<span class="expl-arrow"></span>`;
+        const ic = n.id === 'diskc' ? '💽' : '📁';
+        html += `<div class="expl-tnode${n.id === curFolder ? ' sel' : ''}" style="padding-left:${8+depth*14}px" data-id="${n.id}">${arrow}${ic} ${escapeHtml(n.name)}</div>`;
+        if(open) html += buildTree(n.id, depth+1);
       });
       return html;
     }
+    const PROTECTED_IDS = new Set(['thispc','diskc','desktop']);
     function renderTree(){
       const treeEl = win.querySelector('.expl-tree');
-      treeEl.innerHTML = `<div class="expl-tnode${curFolder === 'desktop' ? ' sel' : ''}" data-id="desktop">🖥 Dieser PC</div>` + buildTree('desktop', 1);
+      treeEl.innerHTML = `<div class="expl-tnode${curFolder === 'thispc' ? ' sel' : ''}" data-id="thispc"><span class="expl-arrow" data-toggle="thispc">${expandedTree.has('thispc') ? '▾' : '▸'}</span>🖥 Dieser PC</div>` + (expandedTree.has('thispc') ? buildTree('thispc', 1) : '');
+      treeEl.querySelectorAll('.expl-arrow[data-toggle]').forEach(arrowEl=>{
+        arrowEl.addEventListener('click', e=>{
+          e.stopPropagation();
+          const id = arrowEl.dataset.toggle;
+          if(expandedTree.has(id)) expandedTree.delete(id); else expandedTree.add(id);
+          renderTree();
+        });
+      });
       treeEl.querySelectorAll('.expl-tnode').forEach(el=>{
-        el.onclick = ()=>{ if(el.dataset.id !== curFolder){ history.push(curFolder); curFolder = el.dataset.id; } renderAll(); };
-        if(el.dataset.id !== 'desktop'){
+        el.addEventListener('click', e=>{
+          if(e.target.closest('.expl-arrow')) return;
+          searchMode = false;
+          if(el.dataset.id !== curFolder){ history.push(curFolder); curFolder = el.dataset.id; }
+          renderAll();
+        });
+        if(!PROTECTED_IDS.has(el.dataset.id)){
           el.addEventListener('contextmenu', e=>{
             e.preventDefault();
             e.stopPropagation();
@@ -2703,6 +2887,11 @@ Gib 'hilfe' ein für Befehle.
                 if(name === null) return;
                 vfsRenameNode(node.id, name.trim() || node.name);
                 renderAll(); refreshDesktopVfsIcons();
+              }},
+              {label:'Löschen', action: ()=>{
+                vfsDeleteFolder(node.id);
+                if(!vfsNode(curFolder)){ curFolder = 'desktop'; history.length = 0; }
+                renderAll();
               }}
             ]);
           });
@@ -2711,10 +2900,33 @@ Gib 'hilfe' ein für Befehle.
     }
     function renderMain(){
       const mainEl = win.querySelector('.expl-main');
+      if(searchMode){
+        mainEl.className = 'expl-main expl-results';
+        if(!searchResults.length){ mainEl.innerHTML = '<p style="opacity:.5; font-size:12px; padding:10px;">Keine Treffer.</p>'; return; }
+        mainEl.innerHTML = searchResults.map(n=>{
+          const icon = n.type === 'folder' ? '📁' : (n.type === 'link' ? '▤' : '📄');
+          return `<div class="expl-resrow" data-id="${n.id}" tabindex="0"><span class="expl-icon" style="font-size:15px;">${icon}</span><span class="expl-resname">${escapeHtml(n.name)}</span><span class="expl-respath">${escapeHtml(vfsPathLabel(n.parent))}</span></div>`;
+        }).join('');
+        mainEl.querySelectorAll('.expl-resrow').forEach(row=>{
+          const node = vfsNode(row.dataset.id);
+          const activate = ()=>{
+            if(!node) return;
+            if(node.type === 'file'){ openVfsFileViewer(node); return; }
+            searchMode = false;
+            history.push(curFolder);
+            curFolder = node.type === 'folder' ? node.id : node.parent;
+            renderAll();
+          };
+          row.addEventListener('click', activate);
+          row.addEventListener('keydown', e=>{ if(e.key === 'Enter') activate(); });
+        });
+        return;
+      }
+      mainEl.className = 'expl-main';
       const kids = vfsChildren(curFolder);
       if(!kids.length){ mainEl.innerHTML = '<p style="opacity:.5; font-size:12px; padding:10px;">Dieser Ordner ist leer.</p>'; return; }
       mainEl.innerHTML = kids.map(n=>{
-        const icon = n.type === 'folder' ? '📁' : '▤';
+        const icon = n.type === 'folder' ? (n.id === 'diskc' ? '💽' : '📁') : (n.type === 'link' ? '▤' : '📄');
         return `<div class="expl-item" data-id="${n.id}" tabindex="0" draggable="true"><span class="expl-icon">${icon}</span><span class="expl-label">${escapeHtml(n.name)}</span></div>`;
       }).join('');
       let last = null, lastT = 0;
@@ -2723,6 +2935,7 @@ Gib 'hilfe' ein für Befehle.
         const activate = ()=>{
           if(node.type === 'folder'){ history.push(curFolder); curFolder = node.id; renderAll(); }
           else if(node.type === 'link') openWindow(node.sysKey);
+          else if(node.type === 'file') openVfsFileViewer(node);
         };
         row.addEventListener('click', ()=>{
           mainEl.querySelectorAll('.expl-item.sel').forEach(r => r.classList.remove('sel'));
@@ -2746,15 +2959,35 @@ Gib 'hilfe' ein für Befehle.
           e.stopPropagation();
           const items = [];
           if(node.type === 'folder'){
+            if(!PROTECTED_IDS.has(node.id)){
+              items.push({label:'Umbenennen', action: ()=>{
+                const name = prompt('Neuer Name:', node.name);
+                if(name === null) return;
+                vfsRenameNode(node.id, name.trim() || node.name);
+                renderAll(); refreshDesktopVfsIcons();
+              }});
+              items.push({label:'Löschen', action: ()=>{
+                vfsDeleteFolder(node.id);
+                if(!vfsNode(curFolder)){ curFolder = 'desktop'; history.length = 0; }
+                renderAll();
+              }});
+            }
+          } else if(node.type === 'link'){
+            items.push({label:'Auf den Desktop verschieben', action: ()=>{
+              restoreLinkToDesktop(node.id);
+              renderAll();
+            }});
+          } else if(node.type === 'file'){
+            items.push({label:'Öffnen', action: ()=> openVfsFileViewer(node)});
             items.push({label:'Umbenennen', action: ()=>{
               const name = prompt('Neuer Name:', node.name);
               if(name === null) return;
               vfsRenameNode(node.id, name.trim() || node.name);
-              renderAll(); refreshDesktopVfsIcons();
+              renderAll();
             }});
-          } else if(node.type === 'link'){
-            items.push({label:'Auf den Desktop verschieben', action: ()=>{
-              restoreLinkToDesktop(node.id);
+            items.push({label:'Löschen', action: ()=>{
+              if(!confirm('Datei "' + node.name + '" wirklich löschen?')) return;
+              vfsRemoveNode(node.id);
               renderAll();
             }});
           }
@@ -2763,21 +2996,38 @@ Gib 'hilfe' ein für Befehle.
       });
     }
     function renderPath(){
+      if(searchMode){
+        win.querySelector('.expl-path').textContent = searchResults.length + ' Treffer';
+        return;
+      }
       const parts = [];
       let n = vfsNode(curFolder);
-      while(n){ parts.unshift(n.id === 'desktop' ? 'Dieser PC' : n.name); n = n.parent ? vfsNode(n.parent) : null; }
+      while(n){ parts.unshift(n.name); n = n.parent ? vfsNode(n.parent) : null; }
       win.querySelector('.expl-path').textContent = parts.join(' \u203a ');
     }
     function renderAll(){ renderTree(); renderMain(); renderPath(); }
 
-    win.querySelector('.expl-back').onclick = ()=>{ if(history.length){ curFolder = history.pop(); renderAll(); } };
+    win.querySelector('.expl-back').onclick = ()=>{
+      if(searchMode){ searchMode = false; renderAll(); return; }
+      if(history.length){ curFolder = history.pop(); renderAll(); }
+    };
     win.querySelector('.expl-newfolder').onclick = ()=>{
+      searchMode = false;
       const name = prompt('Name des neuen Ordners:', 'Neuer Ordner');
       if(name === null) return;
       vfsCreateFolder(curFolder, name.trim() || 'Neuer Ordner');
       renderAll();
       refreshDesktopVfsIcons();
     };
+    function runSearch(){
+      const q = searchInput.value;
+      searchResults = vfsSearch(q);
+      searchMode = !!q.trim();
+      renderAll();
+    }
+    const searchInput = win.querySelector('.expl-search');
+    win.querySelector('.expl-search-btn').onclick = runSearch;
+    searchInput.addEventListener('keydown', e=>{ if(e.key === 'Enter') runSearch(); });
     // Ablegen von Icons/Ordnern direkt im Hauptbereich -> in den aktuellen Ordner verschieben
     const mainWrap = win.querySelector('.expl-main');
     mainWrap.addEventListener('dragover', e=> e.preventDefault());
