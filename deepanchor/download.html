@@ -112,8 +112,20 @@
 </footer>
 
 <script>
-  document.getElementById('dlBtn').addEventListener('click', function(){
-    document.getElementById('status').textContent = 'Download gestartet — Datei liegt gleich im Downloads-Ordner.';
+  const dlBtn = document.getElementById('dlBtn');
+  const statusEl = document.getElementById('status');
+  // Läuft diese Seite eingebettet im TERMINUS-7-Netzscout, wird der Download simuliert
+  // (Download-Manager auf dem Desktop). Direkt im echten Browser aufgerufen bleibt es ein
+  // echter, funktionierender Download der Spieldatei.
+  const inFrame = (function(){ try{ return window.parent && window.parent !== window; }catch(e){ return false; } })();
+  dlBtn.addEventListener('click', function(e){
+    if(inFrame){
+      e.preventDefault();
+      try{ window.parent.postMessage({type:'t7-download', app:'deepanchor'}, '*'); }catch(err){}
+      statusEl.textContent = 'Download gestartet — Fortschritt im Download-Manager.';
+    } else {
+      statusEl.textContent = 'Download gestartet — Datei liegt gleich im Downloads-Ordner.';
+    }
   });
 </script>
 

@@ -725,6 +725,7 @@
     if(key === 'profil') return openBrowser('profil.html', 'Profil', 'profil');
     if(key === 'raenge') return openBrowser('raenge.html', 'Ränge', 'raenge');
     if(key.startsWith('game:')){ const g = GAMES.find(x=>'game:'+x.id===key); if(g) openBrowser(g.url, g.name, key); return; }
+    if(key.startsWith('app:')){ const appId = key.slice(4); const app = APPS[appId]; if(app) return openWindow(app.openKey); return; }
     if(key === 'medien') return openMediaArchive();
     if(key === 'musik') return openMusicArchive();
     if(key === 'downloads') return openDownloadsFolder();
@@ -1533,34 +1534,55 @@ Gib 'hilfe' ein für Befehle.
   // GAMES-Array und der 'game:'-Dispatch in openWindow() bleiben bestehen, falls
   // später wieder gezielt einzelne Spiel-Icons gesetzt werden sollen.
 
-  // ---------- Fund: Musikplayer erst per Download + Installation ----------
-  // Ablauf: irgendwo im Netz (per ORBIT-Suche gefunden, nicht verlinkt) liegt eine Seite mit einem
-  // Download-Knopf. Der postet dem Desktop eine Nachricht -> Download-Manager läuft 30-60s mit
-  // simulierten Ausfällen (schlechte Leitung) -> Datei landet im Ordner "Downloads" -> Doppelklick
-  // dort installiert sie (kurze Fortschrittsanzeige) -> danach erscheint das Musikarchiv-Icon.
-  const DL_KEY = 't7-musik-dl'; // 'none' | 'downloading' | 'downloaded' | 'installed'
-  const DL_FILE = 'MusikPlayer_Setup.t7exe';
-  function getDlState(){ try{ return localStorage.getItem(DL_KEY) || 'none'; }catch(e){ return 'none'; } }
-  function setDlState(v){ try{ localStorage.setItem(DL_KEY, v); }catch(e){} }
+  // ---------- Downloads + Installation (Musikplayer, und jedes Spiel als "echter Download") ----------
+  // Ablauf: irgendwo im Netz (per ORBIT-Suche gefunden, oder auf der Spiel-Downloadseite) liegt eine
+  // Seite mit einem Download-Knopf. Der postet dem Desktop eine Nachricht -> Download-Manager läuft
+  // 30-60s mit simulierten Ausfällen (schlechte Leitung) -> Datei landet im Ordner "Downloads" ->
+  // Doppelklick dort installiert sie (kurze Fortschrittsanzeige) -> danach erscheint ein Desktop-Icon,
+  // das die App/das Spiel öffnet.
+  const DL_STORE_KEY = 't7-downloads'; // { [appId]: 'downloading' | 'downloaded' | 'installed' }
+  function loadDlStore(){ try{ return JSON.parse(localStorage.getItem(DL_STORE_KEY)) || {}; }catch(e){ return {}; } }
+  function saveDlStore(store){ try{ localStorage.setItem(DL_STORE_KEY, JSON.stringify(store)); }catch(e){} }
+  function getDlState(appId){ return loadDlStore()[appId] || 'none'; }
+  function setDlState(appId, v){ const store = loadDlStore(); store[appId] = v; saveDlStore(store); }
 
   const MUSIK_ICON_SVG = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>';
 
-  function addMusikIcon(){
-    if(!document.querySelector('.icon[data-open="musik"]')){
+  // Registry aller Apps, die per Download+Installation aufs Terminus-7-System kommen können.
+  // 'openKey' ist der Key, den openWindow() öffnet, sobald die App installiert ist.
+  const APPS = {
+    musikplayer: { file:'MusikPlayer_Setup.t7exe', label:'Musikarchiv', icon:MUSIK_ICON_SVG, openKey:'musik' },
+    aetheris: { file:'Aetheris_Setup.t7exe', label:'Aetheris', icon:emblem({c:'#D4AF37', tilt:-25}), openKey:'game:aetheris' },
+    astrion: { file:'Astrion_Setup.t7exe', label:'Astrion', icon:emblem({c:'#B23AFF', tilt:-25}), openKey:'game:astrion' },
+    deepanchor: { file:'DeepAnchor_Setup.t7exe', label:'Deep Anchor', icon:emblem({c:'#FF6A2B', tilt:25}), openKey:'game:deepanchor' },
+    pathofthestars: { file:'PathOfTheStars_Setup.t7exe', label:'Path of the Stars', icon:emblem({c:'#D6303F', tilt:25}), openKey:'game:pots' },
+    nexus: { file:'Nexus_Setup.t7exe', label:'NEXUS', icon:emblem({c:'#2F8CFF', tilt:0}), openKey:'game:nexus' },
+    nexussingularity: { file:'NexusSingularity_Setup.t7exe', label:'NEXUS Singularity', icon:emblem({c:'#2F8CFF', tilt:0}), openKey:'game:nexus' },
+    nexusbreach: { file:'NexusBreach_Setup.t7exe', label:'Nexus: Breach', icon:emblem({c:'#2F8CFF', tilt:0}), openKey:'game:nexus' },
+    foundry: { file:'Foundry_Setup.t7exe', label:'FOUNDRY', icon:emblem({c:'#21C7B8', tilt:0}), openKey:'game:foundry' },
+    domusprime: { file:'DomusPrime_Setup.t7exe', label:'Domus Prime', icon:emblem({c:'#14F195', tilt:-10}), openKey:'game:domus' }
+  };
+
+  function addAppIcon(appId){
+    const app = APPS[appId];
+    if(!app) return;
+    const iconKey = 'app:' + appId;
+    if(!document.querySelector(`.icon[data-open="${iconKey}"]`)){
       const el = document.createElement('div');
-      el.className = 'icon'; el.dataset.open = 'musik'; el.tabIndex = 0;
-      el.innerHTML = `<div class="glyph">${MUSIK_ICON_SVG}</div><div class="label">Musikarchiv</div>`;
+      el.className = 'icon'; el.dataset.open = iconKey; el.tabIndex = 0;
+      el.innerHTML = `<div class="glyph">${app.icon}</div><div class="label">${app.label}</div>`;
       document.getElementById('icons').appendChild(el);
       if(iconsBooted) wireIcon(el); // schon gebootet -> selbst einhängen, sonst übernimmt initIcons()
     }
-    if(!document.querySelector('#startmenu [data-open="musik"]')){
+    if(!document.querySelector(`#startmenu [data-open="${iconKey}"]`)){
       const item = document.createElement('div');
-      item.dataset.open = 'musik'; item.textContent = 'Musikarchiv';
-      item.addEventListener('click', ()=>{ openWindow('musik'); document.getElementById('startmenu').style.display='none'; });
+      item.dataset.open = iconKey; item.textContent = app.label;
+      item.addEventListener('click', ()=>{ openWindow(iconKey); document.getElementById('startmenu').style.display='none'; });
       document.getElementById('startmenu').insertBefore(item, document.getElementById('shutdown'));
     }
   }
-  if(getDlState() === 'installed') addMusikIcon();
+  // Beim Laden: für jede bereits installierte App das Icon wiederherstellen
+  Object.keys(APPS).forEach(appId=>{ if(getDlState(appId) === 'installed') addAppIcon(appId); });
 
   // Kleines Fortschrittsfenster fürs Download-/Installations-Theater
   function progressWin(title, key){
@@ -1593,16 +1615,18 @@ Gib 'hilfe' ein für Befehle.
     };
   }
 
-  function startDownload(){
-    const state = getDlState();
+  function startDownload(appId){
+    const app = APPS[appId];
+    if(!app) return;
+    const state = getDlState(appId);
     if(state === 'downloading'){ toast('Download läuft bereits …'); return; }
-    if(state === 'downloaded'){ toast(DL_FILE + ' liegt schon im Ordner Downloads.'); return; }
-    if(state === 'installed'){ toast('Ist schon installiert — sieh im Musikarchiv nach.'); return; }
-    setDlState('downloading');
+    if(state === 'downloaded'){ toast(app.file + ' liegt schon im Ordner Downloads.'); return; }
+    if(state === 'installed'){ toast(app.label + ' ist schon installiert.'); return; }
+    setDlState(appId, 'downloading');
     const totalMs = 30000 + Math.random()*30000; // 30-60s
     const sizeKB = 14200 + Math.floor(Math.random()*3000);
-    const pw = progressWin('Netzscout — Download', 'dl-musik');
-    pw.label.textContent = DL_FILE + ' (' + (sizeKB/1024).toFixed(1) + ' MB)';
+    const pw = progressWin('Netzscout — Download', 'dl-' + appId);
+    pw.label.textContent = app.file + ' (' + (sizeKB/1024).toFixed(1) + ' MB)';
     const t0 = Date.now();
     let pct = 0;
     let stallUntil = 0;
@@ -1625,23 +1649,24 @@ Gib 'hilfe' ein für Befehle.
       } else {
         pw.fill.style.width = '100%';
         pw.status.textContent = '100 % — abgeschlossen';
-        pw.label.textContent = DL_FILE + ' — fertig heruntergeladen';
-        setDlState('downloaded');
+        pw.label.textContent = app.file + ' — fertig heruntergeladen';
+        setDlState(appId, 'downloaded');
         pw.allowClose();
         renderDownloads();
-        toast('Download abgeschlossen: ' + DL_FILE + ' liegt im Ordner Downloads.');
+        toast('Download abgeschlossen: ' + app.file + ' liegt im Ordner Downloads.');
       }
     })();
   }
 
-  function installMusikplayer(){
-    if(getDlState() !== 'downloaded') return;
-    setDlState('downloading'); // vorübergehend sperren, während installiert wird
+  function installApp(appId){
+    const app = APPS[appId];
+    if(!app || getDlState(appId) !== 'downloaded') return;
+    setDlState(appId, 'downloading'); // vorübergehend sperren, während installiert wird
     renderDownloads();
     const steps = ['Setup wird vorbereitet …','Dateien werden entpackt …','Komponenten werden installiert …','Verknüpfung wird erstellt …','Fast fertig …'];
-    const pw = progressWin('Installation', 'inst-musik');
-    pw.label.textContent = DL_FILE + ' ausführen';
-    let i = 0, pct = 0;
+    const pw = progressWin('Installation', 'inst-' + appId);
+    pw.label.textContent = app.file + ' ausführen';
+    let pct = 0;
     const totalMs = 8000 + Math.random()*7000; // 8-15s
     const t0 = Date.now();
     (function tick(){
@@ -1655,20 +1680,23 @@ Gib 'hilfe' ein für Befehle.
       } else {
         pw.fill.style.width = '100%';
         pw.status.textContent = 'Installation abgeschlossen.';
-        pw.label.textContent = 'Musikarchiv installiert';
-        setDlState('installed');
+        pw.label.textContent = app.label + ' installiert';
+        setDlState(appId, 'installed');
         pw.allowClose();
-        addMusikIcon();
+        addAppIcon(appId);
         renderDownloads();
-        toast('Musikarchiv wurde installiert — Icon liegt jetzt auf dem Desktop.');
+        toast(app.label + ' wurde installiert — Icon liegt jetzt auf dem Desktop.');
       }
     })();
   }
 
-  // Nachricht von der (in Netzscout geladenen) Download-Seite entgegennehmen
+  // Nachricht von einer (in Netzscout geladenen) Download-Seite entgegennehmen.
+  // Jede Spiel-Downloadseite schickt {type:'t7-download', app:'<appId>'}, aber NUR wenn sie selbst
+  // erkennt, dass sie eingebettet läuft — direkt im echten Browser aufgerufen bleibt es ein echter,
+  // funktionierender Download der jeweiligen Spieldatei.
   window.addEventListener('message', e=>{
     const d = e.data;
-    if(d && d.type === 't7-download' && d.app === 'musikplayer') startDownload();
+    if(d && d.type === 't7-download' && APPS[d.app]) startDownload(d.app);
   });
 
   function openDownloadsFolder(){
@@ -1693,22 +1721,32 @@ Gib 'hilfe' ein für Befehle.
     const win = document.querySelector('.win[data-key="downloads"]');
     if(!win) return;
     const list = win.querySelector('.dl-list');
-    const state = getDlState();
-    if(state === 'downloaded'){
-      list.innerHTML = `<div class="frow" data-install tabindex="0"><span class="fi">▦</span>${DL_FILE}</div>`;
-      const row = list.querySelector('[data-install]');
+    const store = loadDlStore();
+    const rows = [];
+    Object.keys(APPS).forEach(appId=>{
+      const app = APPS[appId];
+      const state = store[appId] || 'none';
+      if(state === 'downloaded'){
+        rows.push(`<div class="frow" data-install="${appId}" tabindex="0"><span class="fi">▦</span>${app.file}</div>`);
+      } else if(state === 'installed'){
+        rows.push(`<div class="frow" style="opacity:.5;"><span class="fi">▦</span>${app.file} (installiert)</div>`);
+      } else if(state === 'downloading'){
+        rows.push(`<p style="opacity:.55; font-size:12px; padding:4px 8px;">${app.file} — Download läuft …</p>`);
+      }
+    });
+    if(!rows.length){
+      list.innerHTML = `<p style="opacity:.55; font-size:12px; padding:8px;">Keine Dateien.</p>`;
+      return;
+    }
+    list.innerHTML = rows.join('');
+    list.querySelectorAll('[data-install]').forEach(row=>{
+      const appId = row.dataset.install;
       let last = 0;
-      const go = ()=> installMusikplayer();
+      const go = ()=> installApp(appId);
       row.addEventListener('dblclick', go);
       row.addEventListener('click', ()=>{ const n = Date.now(); if(n-last<450) go(); last = n; });
       row.addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
-    } else if(state === 'installed'){
-      list.innerHTML = `<div class="frow" style="opacity:.5;"><span class="fi">▦</span>${DL_FILE} (installiert)</div>`;
-    } else if(state === 'downloading'){
-      list.innerHTML = `<p style="opacity:.55; font-size:12px; padding:8px;">Download läuft …</p>`;
-    } else {
-      list.innerHTML = `<p style="opacity:.55; font-size:12px; padding:8px;">Keine Dateien.</p>`;
-    }
+    });
   }
 
   // ---------- Vollbild (Alt+Enter, weil F11 dem Browser gehört) ----------
