@@ -108,7 +108,68 @@ Domus Prime und Nexus: Breach haben keine eigene Musik. Die Pfade sind spielordn
 die OST-Dateien liegen nur auf dem Live-Server; fehlt eine, meldet der Player es und springt zum nächsten Titel.
 Neue Tracks: Eintrag in `MUSIC_LIB` ergänzen.
 
-## 3. Offene Fäden (Ideen – noch nicht entschieden)
+## 3. Datei-Explorer & Archiv (`index.html`)
+
+**Struktur (Windows-artig).** `Dieser PC` → `Festplatte (C:)` → `Desktop` / `Dokumente` / `Bilder` / `Musik` /
+`Archiv`. „Desktop" ist ein echter Unterordner, synchron mit den sichtbaren Desktop-Icons (Migration läuft
+einmalig, bestehende Spielerordner bleiben erhalten). Persistenz über `localStorage` (VFS-Key), Baum links ist
+klapp-/einklappbar, Suchfeld oben rechts durchsucht Namen **und** Dateiinhalte rekursiv.
+
+**Archiv-Generator (`seedJunkTree()`, läuft einmalig beim ersten Laden).** Erzeugt unter „Archiv" 8 Kategorien
+(`Protokolle, Backups, Sensorlogs, Wartung, Vermessung, Kommunikation, Inventar, Diverses`) × 8–14 Unterordner
+(Namensschema `Sektor_1234` etc.) × 2–6 Dateien. Seit 25.09.2026 mit mehr Abwechslung:
+
+- **Textdateien** (ca. 80 % der generierten Dateien): 15 Inhaltstypen mit je mehreren Zufallsvorlagen
+  (`notiz, messwerte, protokoll, sicherung, übersicht, entwurf, bericht, auswertung, vermerk, scan, log,
+  datensatz, konfiguration, checkliste, status` — Funktionen `gens.*` in `index.html`). Nicht mehr überall
+  derselbe Satz, sondern z. B. echte CSV-Zeilen, Zeitstempel-Logs, Checklisten, JSON-Datensätze. Endungen:
+  `.txt .log .dat .csv .bak .cfg .tmp .old`.
+- **Beschädigte Bilder** (ca. 12 %): Endungen `.jpg .png .bmp .gif`, Namen wie `bild_042.jpg`. Kein echtes
+  Bild — der Viewer zeigt einen „🖼✕"-Platzhalter plus eine von 5 Defekt-Beschreibungen (CRC-Fehler,
+  abgeschnittene Datei, nur Kopf lesbar …).
+- **Beschädigte Audiodateien** (ca. 8 %): Endungen `.wav .mp3 .ogg`, Namen wie `funkspruch_017.wav`. Viewer
+  zeigt „🎵✕" + eingefrorenen Fortschrittsbalken + eine von 5 Defekt-Beschreibungen.
+- Datei-Knoten haben jetzt `kind` (`text` | `image` | `audio`) und `corrupted` (bool) — Icon (`vfsNodeIcon()`)
+  und Viewer (`openVfsFileViewer()`) richten sich danach.
+
+**Specials (echte Funde, ca. 4 % Chance pro Datei, bis aufgebraucht):** aktuell 5 fest formulierte Text-Notizen
+(`hinweis.txt`, `checkliste_alt.txt`, `wartungsplan.txt`, `restdaten.log`, `notiz_privat.txt`) mit leichten
+T-7-Anspielungen, zufällig irgendwo im Archiv versteckt — Array `specials` in `seedJunkTree()`.
+
+**Für echte Funde später:** neue Einträge im `specials`-Array ergänzen (Text) oder `vfsAddFile(parentId, name,
+beschreibung, {kind:'image'|'audio', corrupted:false})` für ein *nicht* beschädigtes Bild/Audio mit echtem Inhalt
+verwenden — der Viewer zeigt aktuell für `corrupted:false` noch keinen eigenen „intakten" Anzeige-Modus, das wäre
+der nächste Ausbauschritt, falls ein echter Fund als Bild/Audio geplant ist (bisher nur Text-Specials umgesetzt).
+Die Generierung läuft nur **einmalig** pro Browser (danach in `localStorage` persistiert) — für einen Reset lokal:
+`localStorage.removeItem('t7-vfs')` (Key ggf. im Code prüfen, falls umbenannt).
+
+**Versteckte/„gelöschte" Dateien + DataRescue-Tool (seit 25.09.2026).** Zusätzlich zu den normalen Specials gibt
+es ein `hiddenFinds`-Array in `seedJunkTree()`: dieselbe Mechanik wie `specials` (zufällig verteilt, ca. 3 %
+Chance pro Datei), aber jede erzeugte Datei bekommt `hidden: true`. Versteckte Dateien tauchen **nirgends** auf —
+nicht in der Ordneransicht, nicht im Baum, nicht in der Explorer-eigenen Suche (`vfsChildren()` filtert sie
+zentral heraus) — bis im `localStorage` der Key `t7-recovery-scanned` auf `'1'` steht.
+
+Diesen Key setzt ausschließlich das neue Programm **DataRescue** (`openRecoveryTool()`, Fenstertitel
+„DataRescue — Datenwiederherstellung"): ein Download+Installations-Vorgang wie beim Musikplayer (siehe
+`APPS.recovery` in `index.html`, Downloadseite `datarescue.html`, Freeware-Fake-Seite im selben Stil wie
+`soundvault.html`), danach ein Icon auf dem Desktop, das ein Fenster mit „🔍 Scan starten" öffnet. Der Scan ist
+reine Optik (4–7 s, scrollende Fake-Pfade), setzt am Ende aber wirklich `t7-recovery-scanned`, wonach die
+versteckten Dateien beim nächsten Öffnen/Neuladen des Explorers ganz normal auftauchen — an der Stelle im Archiv,
+an der sie generiert wurden, ohne besondere Markierung.
+
+Aktuell 4 Platzhalter-Funde in `hiddenFinds` (`loeschung_protokoll.txt`, `cache_restnote.txt`,
+`unbekannt_snapshot.jpg`, `funkmitschnitt_alt.ogg`) — bewusst vage gehalten, zum Ersetzen durch echte Story-Inhalte.
+Für echte Funde: Eintrag in `hiddenFinds` ändern/ergänzen, Format identisch zu `specials` plus drittem Element
+`{kind, corrupted}`.
+
+**ORBIT-Suche findet die DataRescue-Seite über mehrere Suchbegriffe.** `search-index.js` (`window.ORBIT_INDEX`)
+hat jetzt einen Eintrag für `datarescue.html` mit bewusst vielen Synonymen im `x`-Feld (Datenrettung, Recovery,
+Wiederherstellung, Undelete, Festplatten-Scan, verlorene/gelöschte Dateien …), weil ORBIT für jede
+Mehrwort-Suche **alle** Wörter irgendwo im Eintrag finden muss (`suche.html`, Funktion `score()`/`search()`,
+UND-Verknüpfung über alle Suchbegriffe). Bei neuen Downloadseiten nach demselben Schema immer mehrere
+naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur mit dem exakten Seitentitel.
+
+## 4. Offene Fäden (Ideen – noch nicht entschieden)
 
 - [x] Brief (`brief_an_dich.txt`) lesbar seit 25.09.2026 — personalisiert per einmaliger Namensabfrage.
 - [ ] Die anderen Ordnerdateien (`nicht_öffnen.txt`, `backup_backup_final.zip`) sind weiterhin nicht lesbar.
@@ -122,13 +183,30 @@ Neue Tracks: Eintrag in `MUSIC_LIB` ergänzen.
 - [ ] Verbindung zu den sechs Spielen läuft bisher nur über `knoten`, `rift`, `kern`.
 - [ ] Wer hat das Tagebuch geschrieben, wer ist der „letzte Nutzer", was passierte um 03:14?
 
-## 4. Entscheidungen
+## 5. Entscheidungen
 
 - Audio-Signale bevorzugt als **.ogg**.
 - Entschlüsseln läuft **in Echtzeit** zum Ton (kein sofortiges Bild) und **leise (5 %)**.
 - SSTV-Dateinamen sollen mit `signal` beginnen, damit sie automatisch im Analysator auftauchen.
 
-## 5. Changelog `desktop.html`
+## 6. Changelog `desktop.html`
+
+**25.09.2026 (5)**
+- Neues Programm **DataRescue** (`APPS.recovery`, Fenster über `openRecoveryTool()`): Download+Installation wie
+  beim Musikplayer, Downloadseite `datarescue.html` (Freeware-Fake-Seite, gleicher Stil wie `soundvault.html`).
+  Nach Installation lässt sich ein Scan starten, der `localStorage`-Key `t7-recovery-scanned` setzt.
+- Explorer/Archiv: neue Kategorie versteckter Dateien (`hiddenFinds` in `seedJunkTree()`, Flag `node.hidden`).
+  Diese Dateien sind in Ordneransicht, Baum und Explorer-Suche unsichtbar (zentral gefiltert in `vfsChildren()`),
+  bis ein DataRescue-Scan gelaufen ist — danach normal sichtbar. 4 Platzhalter-Funde aktuell enthalten.
+- ORBIT-Suche (`search-index.js`): neuer Eintrag für `datarescue.html` mit vielen Suchbegriff-Synonymen
+  (Datenrettung, Recovery, Wiederherstellung, Undelete, Festplatten-Scan …), damit die Seite über verschiedene
+  Suchbegriffe gefunden wird, nicht nur über den exakten Titel. Details siehe Abschnitt 3.
+
+**25.09.2026 (4)**
+- Archiv-Generator (`index.html`): Textdateien nutzen jetzt 15 Inhaltstypen mit mehreren Zufallsvorlagen statt
+  eines einzigen Satzes. Neu: ca. 12 % beschädigte Bild- und ca. 8 % beschädigte Audiodateien im Archiv
+  (`.jpg/.png/.bmp/.gif`, `.wav/.mp3/.ogg`), je mit eigenem Viewer-Platzhalter und Zufalls-Defektbeschreibung.
+  Datei-Knoten haben neu `kind`/`corrupted`. Details siehe Abschnitt 3.
 
 **25.09.2026 (3)**
 - `brief_an_dich.txt` ist jetzt lesbar: erstes Öffnen fragt einmalig den Namen ab (`localStorage`-Key

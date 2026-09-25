@@ -749,6 +749,7 @@
     if(key.startsWith('app:')){ const appId = key.slice(4); const app = APPS[appId]; if(app) return openWindow(app.openKey); return; }
     if(key === 'medien') return openMediaArchive();
     if(key === 'musik') return openMusicArchive();
+    if(key === 'recovery') return openRecoveryTool();
     if(key === 'downloads') return openDownloadsFolder();
     if(key === 'signal') return openSignalAnalyzer();
     if(key === 'brief') return openBriefWindow();
@@ -1649,11 +1650,13 @@ Gib 'hilfe' ein für Befehle.
   function setDlState(appId, v){ const store = loadDlStore(); store[appId] = v; saveDlStore(store); }
 
   const MUSIK_ICON_SVG = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>';
+  const RECOVERY_ICON_SVG = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3 1.05 0 2.06-.09 3-.24"/><circle cx="17.5" cy="17.5" r="3"/><path d="M19.8 19.8 22 22"/></svg>';
 
   // Registry aller Apps, die per Download+Installation aufs Terminus-7-System kommen können.
   // 'openKey' ist der Key, den openWindow() öffnet, sobald die App installiert ist.
   const APPS = {
     musikplayer: { file:'MusikPlayer_Setup.t7exe', label:'Musikarchiv', icon:MUSIK_ICON_SVG, openKey:'musik' },
+    recovery: { file:'DataRescue_Setup.t7exe', label:'DataRescue', icon:RECOVERY_ICON_SVG, openKey:'recovery' },
     aetheris: { file:'Aetheris_Setup.t7exe', label:'Aetheris', icon:emblem({c:'#D4AF37', tilt:-25}), openKey:'game:aetheris' },
     astrion: { file:'Astrion_Setup.t7exe', label:'Astrion', icon:emblem({c:'#B23AFF', tilt:-25}), openKey:'game:astrion' },
     deepanchor: { file:'DeepAnchor_Setup.t7exe', label:'Deep Anchor', icon:emblem({c:'#FF6A2B', tilt:25}), openKey:'game:deepanchor' },
@@ -1849,6 +1852,99 @@ Gib 'hilfe' ein für Befehle.
       row.addEventListener('click', ()=>{ const n = Date.now(); if(n-last<450) go(); last = n; });
       row.addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
     });
+  }
+
+  // ---------- DataRescue: "Datenrettungs"-Tool — scannt und schaltet versteckte/gelöschte
+  // Dateien im Explorer frei (node.hidden = true in der VFS, siehe seedJunkTree()/vfsChildren()) ----------
+  const RECOVERY_SCAN_KEY = 't7-recovery-scanned';
+  function recoveryScanned(){ try{ return localStorage.getItem(RECOVERY_SCAN_KEY) === '1'; }catch(e){ return false; } }
+  function countHiddenFiles(){
+    let n = 0;
+    (function walk(id){
+      const node = vfsNode(id);
+      if(!node) return;
+      (node.children||[]).forEach(cid=>{
+        const c = VFS.nodes[cid];
+        if(!c) return;
+        if(c.hidden) n++;
+        if(c.type === 'folder') walk(cid);
+      });
+    })('thispc');
+    return n;
+  }
+  function openRecoveryTool(){
+    const key = 'recoverytool';
+    if(openWinIds.has(key)){ focusWin(key); return; }
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = key;
+    win.style.left = (90 + Math.random()*100) + 'px';
+    win.style.top = (60 + Math.random()*80) + 'px';
+    win.style.width = '360px';
+    win.innerHTML = `<div class="bar"><span>DataRescue — Datenwiederherstellung</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
+      <div class="body">
+        <p style="font-size:12.5px; opacity:.8; margin-top:0;">Durchsucht die Festplatte nach gelöschten oder verwaisten Dateiresten und versucht, sie wiederherzustellen.</p>
+        <p class="dr-scanline" style="font-size:11px; opacity:.5; min-height:16px; font-family:inherit; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></p>
+        <div class="ap-bar"><div class="ap-fill dr-fill" style="width:0%;"></div></div>
+        <div class="ap-row" style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+          <span class="sig-status dr-status" style="font-size:12px; opacity:.75;"></span>
+          <button class="dr-btn" style="background:var(--teal); color:#04201d; border:none; border-radius:4px; font-family:inherit; font-weight:bold; font-size:12.5px; padding:6px 14px; cursor:pointer;"></button>
+        </div>
+      </div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    win.querySelector('.x').onclick = ()=> closeWin(win, key);
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, key);
+    openWinIds.add(key);
+    addTaskItem(key, 'DataRescue', win);
+
+    const scanline = win.querySelector('.dr-scanline');
+    const fill = win.querySelector('.dr-fill');
+    const status = win.querySelector('.dr-status');
+    const btn = win.querySelector('.dr-btn');
+
+    function renderDone(){
+      const n = countHiddenFiles();
+      fill.style.width = '100%';
+      scanline.textContent = '';
+      status.textContent = n ? ('Letzter Scan: ' + n + ' Datei(en) wiederhergestellt.') : 'Letzter Scan: keine wiederherstellbaren Dateien gefunden.';
+      btn.textContent = 'Erneut scannen';
+      btn.disabled = false;
+      btn.onclick = runScan;
+    }
+    function runScan(){
+      btn.disabled = true;
+      btn.textContent = 'Scan läuft …';
+      status.textContent = 'Sektoren werden durchsucht …';
+      fill.style.width = '0%';
+      const totalMs = 4000 + Math.random()*3000;
+      const t0 = Date.now();
+      const cats = ['Protokolle','Backups','Sensorlogs','Wartung','Vermessung','Kommunikation','Inventar','Diverses'];
+      (function tick(){
+        const elapsed = Date.now() - t0;
+        const pct = Math.min(100, (elapsed/totalMs)*100);
+        fill.style.width = pct + '%';
+        scanline.textContent = 'Durchsuche: Archiv/' + cats[Math.floor(Math.random()*cats.length)] + '/Sektor_' + (1000+Math.floor(Math.random()*9000)) + ' …';
+        if(elapsed < totalMs){
+          setTimeout(tick, 140 + Math.random()*140);
+        } else {
+          try{ localStorage.setItem(RECOVERY_SCAN_KEY, '1'); }catch(e){}
+          renderDone();
+          toast('DataRescue: Scan abgeschlossen — Explorer neu öffnen, um wiederhergestellte Dateien zu sehen.');
+        }
+      })();
+    }
+    if(recoveryScanned()){
+      const n = countHiddenFiles();
+      status.textContent = n ? ('Letzter Scan: ' + n + ' Datei(en) wiederhergestellt.') : 'Letzter Scan: keine wiederherstellbaren Dateien gefunden.';
+      btn.textContent = 'Erneut scannen';
+    } else {
+      status.textContent = 'Noch kein Scan durchgeführt.';
+      btn.textContent = '🔍 Scan starten';
+    }
+    btn.onclick = runScan;
   }
 
   // ---------- Vollbild (Alt+Enter, weil F11 dem Browser gehört) ----------
@@ -2470,14 +2566,81 @@ Gib 'hilfe' ein für Befehle.
   })();
 
   // ---- Prozedural erzeugter "Datenmüll": hunderte Ordner/Dateien zum Durchsuchen ----
+  // Inhalte, Bild-/Audio-"Leichen" und Specials sind dokumentiert in STORY.md ("Archiv-Generator"),
+  // damit später gezielt echte Funde eingesetzt werden können.
   function seedJunkTree(rootId){
     const cats = ['Protokolle','Backups','Sensorlogs','Wartung','Vermessung','Kommunikation','Inventar','Diverses'];
     const subWords = ['Sektor','Modul','Charge','Woche','Test','Knoten','Relais','Zyklus','Einheit','Durchlauf','Station','Kanal','Block','Segment','Probe'];
-    const fileWords = ['notiz','messwerte','protokoll','sicherung','übersicht','entwurf','bericht','auswertung','vermerk','scan','log','datensatz','konfiguration','checkliste','status'];
-    const exts = ['.txt','.log','.dat','.csv','.bak','.cfg','.tmp','.old'];
+    const txtExts = ['.txt','.log','.dat','.csv','.bak','.cfg','.tmp','.old'];
+    const imgExts = ['.jpg','.png','.bmp','.gif'];
+    const audExts = ['.wav','.mp3','.ogg'];
     function rnd(n){ return Math.floor(Math.random()*n); }
     function pick(arr){ return arr[rnd(arr.length)]; }
     function num(){ return String(1000 + rnd(9000)); }
+    function pad(n,w){ return String(n).padStart(w||2,'0'); }
+    function fakeDate(){ return '20' + pad(31+rnd(8)) + '-' + pad(1+rnd(12)) + '-' + pad(1+rnd(28)); }
+    function fakeTime(){ return pad(rnd(24)) + ':' + pad(rnd(60)) + ':' + pad(rnd(60)); }
+    function hexByte(){ return pad(rnd(256).toString(16), 2).toUpperCase(); }
+    function hexBlob(n){ const a=[]; for(let i=0;i<n;i++) a.push(hexByte()); return a.join(' '); }
+
+    // Inhalts-Generatoren je Dateiwort — mehrere Varianten pro Wort statt eines einzigen Satzes
+    const gens = {
+      notiz: () => pick([
+        'Merken: ' + pick(['Backup war unvollständig.','Sensor 0'+(1+rnd(9))+' driftet leicht.','Passwort steht NICHT hier.','Nochmal gegenlesen, bevor es raus geht.','Zwischenstand ist okay, nicht perfekt.']),
+        'Kurze Notiz vom ' + fakeDate() + ': ' + pick(['nichts Auffälliges.','läuft, aber langsam.','bitte später nochmal prüfen.','erledigt, kann weg.']),
+        pick(['Idee:','Frage:','Erinnerung:']) + ' ' + pick(['Reicht der Speicherplatz noch?','Wer hat das zuletzt bearbeitet?','Braucht es dafür wirklich einen neuen Ordner?'])
+      ]),
+      messwerte: () => {
+        const rows = 3 + rnd(4);
+        let out = 'zeit;kanal;wert;einheit\n';
+        for(let i=0;i<rows;i++) out += fakeTime() + ';K' + (1+rnd(8)) + ';' + (rnd(1000)/10).toFixed(1) + ';' + pick(['°C','V','Hz','bar','lx']) + '\n';
+        return out.trim();
+      },
+      protokoll: () => {
+        const lines = 3 + rnd(4);
+        let out = 'Protokoll — ' + fakeDate() + '\n';
+        for(let i=0;i<lines;i++) out += '[' + fakeTime() + '] ' + pick(['Start','Ende','Prüfung','Übergabe','Meldung']) + ': ' + pick(['ohne Befund','Abweichung notiert','erledigt','wiederholt','verschoben']) + '\n';
+        return out.trim();
+      },
+      sicherung: () => 'Backup-Info\nQuelle: ' + pick(['Sektor A','Sektor B','Modul '+pad(rnd(20)),'Hauptknoten']) + '\nDatum: ' + fakeDate() + ' ' + fakeTime() + '\nGröße: ' + (rnd(900)+10) + ' MB\nStatus: ' + pick(['abgeschlossen','abgeschlossen (mit Warnungen)','abgebrochen — Wiederholung geplant']),
+      übersicht: () => {
+        const n = 3 + rnd(4);
+        let out = 'Übersicht (' + n + ' Einträge)\n';
+        for(let i=0;i<n;i++) out += '- ' + pick(subWords) + '_' + num() + ': ' + pick(['ok','offen','geprüft','fehlt noch']) + '\n';
+        return out.trim();
+      },
+      entwurf: () => 'ENTWURF — nicht final\n\n' + pick([
+        'Zuerst kommt die Übersicht, dann die Details. Reihenfolge nochmal prüfen.',
+        'Absatz zwei ist noch unklar formuliert. Bitte vor Freigabe überarbeiten.',
+        'Platzhaltertext — hier fehlt noch der eigentliche Inhalt.'
+      ]),
+      bericht: () => 'Bericht — ' + fakeDate() + '\nBetrifft: ' + pick(['Wartungsrunde','Sensorabgleich','Materialbestand','Kommunikationstest']) + '\n\n' + pick([
+        'Im Beobachtungszeitraum ergaben sich keine wesentlichen Auffälligkeiten.',
+        'Es wurden kleinere Abweichungen festgestellt, die keine Maßnahme erfordern.',
+        'Ein Punkt bleibt offen und wird im nächsten Durchlauf erneut geprüft.'
+      ]),
+      auswertung: () => 'Auswertung\nStichprobe: ' + (10+rnd(90)) + '\nMittelwert: ' + (rnd(1000)/10).toFixed(1) + '\nAusreißer: ' + rnd(5) + '\nEinschätzung: ' + pick(['unauffällig','im erwarteten Bereich','grenzwertig, weiter beobachten']),
+      vermerk: () => 'Vermerk: ' + pick(['Bitte gegenzeichnen.','Ohne weitere Maßnahme ablegen.','An nächste Schicht weitergeben.','Doppelt vorhanden, kann bereinigt werden.']),
+      scan: () => 'Scan-Metadaten\nAuflösung: ' + pick(['150dpi','300dpi','600dpi']) + '\nSeiten: ' + (1+rnd(12)) + '\nQuelle: ' + pick(['Einzug','Flachbett','unbekannt']) + '\nOCR: ' + pick(['erfolgreich','teilweise','fehlgeschlagen']),
+      log: () => {
+        const lines = 3 + rnd(5);
+        let out = '';
+        for(let i=0;i<lines;i++) out += fakeDate()+' '+fakeTime()+' ['+pick(['INFO','WARN','DEBUG','OK'])+'] '+pick(['Verbindung hergestellt','Timeout, erneuter Versuch','Vorgang abgeschlossen','Keine Änderung','Puffer geleert'])+'\n';
+        return out.trim();
+      },
+      datensatz: () => '{"id":"'+num()+'","erstellt":"'+fakeDate()+'","kategorie":"'+pick(subWords).toLowerCase()+'","gültig":'+pick(['true','false'])+'}',
+      konfiguration: () => ['modus='+pick(['auto','manuell','standby']),'intervall='+(5+rnd(55))+'s','schwelle='+(rnd(100)/10).toFixed(1),'log_level='+pick(['info','debug','warn'])].join('\n'),
+      checkliste: () => {
+        const items = ['Sichtprüfung','Verkabelung','Kalibrierung','Dichtigkeit','Software-Stand','Etikettierung'];
+        const n = 3 + rnd(3);
+        let out = '';
+        for(let i=0;i<n;i++) out += (Math.random()<0.6?'[x] ':'[ ] ') + pick(items) + '\n';
+        return out.trim();
+      },
+      status: () => 'Status-Meldung — ' + fakeDate() + '\n' + pick(['Alle Systeme innerhalb der Toleranz.','Ein Wert außerhalb der Toleranz, keine Aktion erforderlich.','Erneute Prüfung in 24h angesetzt.','Keine neuen Meldungen.'])
+    };
+    const fileWords = Object.keys(gens);
+
     // ein paar auffindbare "echte" Notizen, zufällig unter den Datenmüll gemischt
     const specials = [
       ['hinweis.txt', 'Wenn hier jemand sucht: der Code steht nicht hier. Aber die Suche funktioniert. – T-7'],
@@ -2487,6 +2650,36 @@ Gib 'hilfe' ein für Befehle.
       ['notiz_privat.txt', 'Falls du das liest: Kaffee ist im dritten Schrank von links. Immer noch.']
     ];
     let specialsLeft = specials.slice();
+
+    // "Gelöschte" Dateien: normal unsichtbar (node.hidden = true), tauchen erst nach einem
+    // abgeschlossenen Scan mit dem DataRescue-Tool (siehe openRecoveryTool()) überhaupt in
+    // Ordneransicht, Baum und Suche auf. Für echte Funde: neue Einträge hier ergänzen,
+    // siehe STORY.md, Abschnitt 3.
+    const hiddenFinds = [
+      ['loeschung_protokoll.txt', 'Log: Datei "brief_v0.txt" gelöscht — Zeitstempel liegt nahe an 03:14.', {kind:'text'}],
+      ['cache_restnote.txt', 'Fragment einer gelöschten Notiz: „…falls das Signal wiederkommt, antworte nicht sofort…"', {kind:'text'}],
+      ['unbekannt_snapshot.jpg', 'Wiederhergestellt aus dem Papierkorb-Cache. Bildinhalt größtenteils unlesbar — ein heller Fleck oben links könnte ein Fenster sein.', {kind:'image', corrupted:true}],
+      ['funkmitschnitt_alt.ogg', 'Wiederhergestellte Aufnahme, ca. 4 Sekunden — ein einzelnes Wort, zu verzerrt zum Verstehen.', {kind:'audio', corrupted:true}]
+    ];
+    let hiddenLeft = hiddenFinds.slice();
+
+    // Beschädigte Bild-/Audiodateien: keine echten Binärdaten, nur eine glaubhafte "Defekt"-Beschreibung,
+    // die der Viewer statt eines Vorschaubilds/Players anzeigt.
+    const imgDamage = () => pick([
+      'Vorschau nicht verfügbar — CRC-Prüfsumme stimmt nicht überein (0x' + hexByte() + hexByte() + ').',
+      'Nur Dateikopf lesbar, Rest der Bilddaten fehlt (' + (4+rnd(60)) + ' von ' + (64+rnd(200)) + ' KB wiederhergestellt).',
+      'Datei abgeschnitten — vermutlich bei Übertragung unterbrochen.',
+      'Unbekanntes/verändertes Format, Decoder bricht ab.',
+      'Erste Bytes: ' + hexBlob(8) + ' … dann Nullen.'
+    ]);
+    const audDamage = () => pick([
+      'Wiedergabe abgebrochen bei ' + pad(rnd(3)) + ':' + pad(rnd(60)) + ' — danach nur Rauschen.',
+      'Container beschädigt, Player erkennt kein gültiges Format.',
+      'Datei ist 0 Sekunden lang — vermutlich fehlgeschlagene Aufnahme.',
+      'Nur stark verrauschte Reste erhalten, kein verständlicher Inhalt.',
+      'Metadaten vorhanden, eigentliche Audiodaten fehlen.'
+    ]);
+
     cats.forEach(cat=>{
       const catId = vfsCreateFolderSilent(rootId, cat);
       const subCount = 8 + rnd(7); // 8-14 Unterordner
@@ -2498,15 +2691,33 @@ Gib 'hilfe' ein für Befehle.
           if(specialsLeft.length && Math.random() < 0.04){
             const [fname, content] = specialsLeft.pop();
             vfsAddFile(subId, fname, content);
+            continue;
+          }
+          if(hiddenLeft.length && Math.random() < 0.03){
+            const [fname, content, extra] = hiddenLeft.pop();
+            vfsAddFile(subId, fname, content, Object.assign({hidden:true}, extra));
+            continue;
+          }
+          const roll = Math.random();
+          if(roll < 0.12){
+            // beschädigtes Bild
+            const fname = pick(['bild','foto','scan','aufnahme','img']) + '_' + pad(rnd(999),3) + pick(imgExts);
+            vfsAddFile(subId, fname, imgDamage(), {kind:'image', corrupted:true});
+          } else if(roll < 0.20){
+            // beschädigte Audiodatei
+            const fname = pick(['aufnahme','funkspruch','mitschnitt','audio','ton']) + '_' + pad(rnd(999),3) + pick(audExts);
+            vfsAddFile(subId, fname, audDamage(), {kind:'audio', corrupted:true});
           } else {
-            const fname = pick(fileWords) + '_' + String(rnd(99)).padStart(2,'0') + pick(exts);
-            vfsAddFile(subId, fname, 'Log-Eintrag #' + num() + ' — Status: nominal.');
+            const word = pick(fileWords);
+            const fname = word + '_' + pad(rnd(99)) + pick(txtExts);
+            vfsAddFile(subId, fname, gens[word]());
           }
         }
       }
     });
-    // übrig gebliebene Specials notfalls direkt in die Wurzel legen, statt zu verlieren
+    // übrig gebliebene Specials/versteckte Funde notfalls direkt in die Wurzel legen, statt zu verlieren
     specialsLeft.forEach(([fname, content])=> vfsAddFile(rootId, fname, content));
+    hiddenLeft.forEach(([fname, content, extra])=> vfsAddFile(rootId, fname, content, Object.assign({hidden:true}, extra)));
   }
   function vfsCreateFolderSilent(parentId, name){
     const id = vfsNewId();
@@ -2515,9 +2726,13 @@ Gib 'hilfe' ein für Befehle.
     return id;
   }
   function vfsNode(id){ return VFS.nodes[id]; }
+  function recoveryUnlocked(){
+    try{ return localStorage.getItem('t7-recovery-scanned') === '1'; }catch(e){ return false; }
+  }
   function vfsChildren(id){
     const n = vfsNode(id);
-    return n ? (n.children||[]).map(cid=>VFS.nodes[cid]).filter(Boolean) : [];
+    if(!n) return [];
+    return (n.children||[]).map(cid=>VFS.nodes[cid]).filter(Boolean).filter(c => !c.hidden || recoveryUnlocked());
   }
   function vfsNewId(){ return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
   function vfsCreateFolder(parentId, name){
@@ -2534,9 +2749,9 @@ Gib 'hilfe' ein für Befehle.
     saveVFS();
     return id;
   }
-  function vfsAddFile(parentId, name, content){
+  function vfsAddFile(parentId, name, content, extra){
     const id = vfsNewId();
-    VFS.nodes[id] = {id, type:'file', name, parent: parentId, content: content || ''};
+    VFS.nodes[id] = Object.assign({id, type:'file', name, parent: parentId, content: content || '', kind:'text', corrupted:false}, extra || {});
     vfsNode(parentId).children.push(id);
     return id;
   }
@@ -2588,6 +2803,13 @@ Gib 'hilfe' ein für Befehle.
     return parts.join(' \u203a ');
   }
   // Einfacher Lese-Viewer für generierte/gefundene Dateien
+  function vfsNodeIcon(n){
+    if(n.type === 'folder') return n.id === 'diskc' ? '💽' : '📁';
+    if(n.type === 'link') return '▤';
+    if(n.kind === 'image') return '🖼';
+    if(n.kind === 'audio') return '🎵';
+    return '📄';
+  }
   function openVfsFileViewer(node){
     const key = 'vfsfile:' + node.id;
     if(openWinIds.has(key)){ focusWin(key); return; }
@@ -2597,8 +2819,25 @@ Gib 'hilfe' ein für Befehle.
     win.style.left = (80 + Math.random()*120) + 'px';
     win.style.top = (60 + Math.random()*100) + 'px';
     win.style.width = '380px';
+    let bodyHtml;
+    if(node.kind === 'image'){
+      bodyHtml = `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 10px;text-align:center;">
+        <div style="width:120px;height:90px;border:1px dashed rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;font-size:34px;opacity:.6;">🖼✕</div>
+        <div style="font-size:12px;opacity:.5;">Bild kann nicht angezeigt werden</div>
+        <div style="font-size:12px;opacity:.85;max-width:280px;">${escapeHtml(node.content || 'Datei beschädigt.')}</div>
+      </div>`;
+    } else if(node.kind === 'audio'){
+      bodyHtml = `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 10px;text-align:center;">
+        <div style="font-size:34px;opacity:.6;">🎵✕</div>
+        <div style="width:100%;max-width:280px;height:6px;border-radius:3px;background:rgba(255,255,255,.15);position:relative;overflow:hidden;"><div style="position:absolute;left:0;top:0;bottom:0;width:0%;background:rgba(255,255,255,.4);"></div></div>
+        <div style="font-size:12px;opacity:.5;">Wiedergabe fehlgeschlagen</div>
+        <div style="font-size:12px;opacity:.85;max-width:280px;">${escapeHtml(node.content || 'Datei beschädigt.')}</div>
+      </div>`;
+    } else {
+      bodyHtml = `<pre style="white-space:pre-wrap; font-size:12px; margin:0; font-family:inherit;">${escapeHtml(node.content || '(leere Datei)')}</pre>`;
+    }
     win.innerHTML = `<div class="bar"><span>${escapeHtml(node.name)}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
-      <div class="body"><pre style="white-space:pre-wrap; font-size:12px; margin:0; font-family:inherit;">${escapeHtml(node.content || '(leere Datei)')}</pre></div>`;
+      <div class="body">${bodyHtml}</div>`;
     document.getElementById('desktop').appendChild(win);
     makeDraggable(win);
     focusWinEl(win);
@@ -2904,7 +3143,7 @@ Gib 'hilfe' ein für Befehle.
         mainEl.className = 'expl-main expl-results';
         if(!searchResults.length){ mainEl.innerHTML = '<p style="opacity:.5; font-size:12px; padding:10px;">Keine Treffer.</p>'; return; }
         mainEl.innerHTML = searchResults.map(n=>{
-          const icon = n.type === 'folder' ? '📁' : (n.type === 'link' ? '▤' : '📄');
+          const icon = vfsNodeIcon(n);
           return `<div class="expl-resrow" data-id="${n.id}" tabindex="0"><span class="expl-icon" style="font-size:15px;">${icon}</span><span class="expl-resname">${escapeHtml(n.name)}</span><span class="expl-respath">${escapeHtml(vfsPathLabel(n.parent))}</span></div>`;
         }).join('');
         mainEl.querySelectorAll('.expl-resrow').forEach(row=>{
@@ -2926,7 +3165,7 @@ Gib 'hilfe' ein für Befehle.
       const kids = vfsChildren(curFolder);
       if(!kids.length){ mainEl.innerHTML = '<p style="opacity:.5; font-size:12px; padding:10px;">Dieser Ordner ist leer.</p>'; return; }
       mainEl.innerHTML = kids.map(n=>{
-        const icon = n.type === 'folder' ? (n.id === 'diskc' ? '💽' : '📁') : (n.type === 'link' ? '▤' : '📄');
+        const icon = vfsNodeIcon(n);
         return `<div class="expl-item" data-id="${n.id}" tabindex="0" draggable="true"><span class="expl-icon">${icon}</span><span class="expl-label">${escapeHtml(n.name)}</span></div>`;
       }).join('');
       let last = null, lastT = 0;
