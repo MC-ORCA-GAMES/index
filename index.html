@@ -728,10 +728,11 @@
     },
     system: {
       title: "Systeminfo",
-      body: `<p>Rechnername: TERMINUS-7</p>
+      body: () => `<p>Rechnername: TERMINUS-7</p>
              <p>Betriebssystem: unbekannt / nicht lizenziert</p>
              <p>Letzter Neustart: vor 1847 Tagen</p>
              <p>Angemeldete Konten: 1 (aktiv), 2 (verwaist)</p>
+             ${isZyklusComplete() ? '<p style="opacity:.7;">Zyklus 1847: einmal vollständig durchlaufen.</p>' : ''}
              <p style="opacity:.5;">Diagnose fortsetzen? — Funktion nicht verfügbar.</p>`
     },
     papierkorb: {
@@ -760,7 +761,7 @@
       title: "unbenannter_ordner",
       body: `<div class="fl">
                <div class="frow" data-open="brief" data-name="brief_an_dich.txt" tabindex="0"><span class="fi">▤</span>brief_an_dich.txt</div>
-               <div class="frow" data-name="nicht_öffnen.txt" tabindex="0"><span class="fi">▤</span>nicht_öffnen.txt</div>
+               <div class="frow" data-open="nichtoeffnen" data-name="nicht_öffnen.txt" tabindex="0"><span class="fi">▤</span>nicht_öffnen.txt</div>
                <div class="frow" data-name="backup_backup_final.zip" tabindex="0"><span class="fi">▦</span>backup_backup_final.zip</div>
                <div class="frow" data-fund="signal_echo1847.ogg" data-name="echo_1847.ogg" tabindex="0"><span class="fi">♪</span>echo_1847.ogg</div>
                <div class="frow s4-row" data-open="sektor4log" data-name="sektor4_log.txt" tabindex="0" style="display:none;"><span class="fi">▤</span>sektor4_log.txt</div>
@@ -785,6 +786,26 @@
              <p>start: vor auslieferung dieses systems. genauer zeitpunkt nicht ermittelbar.</p>
              <p>zustand: wartend. nicht angehalten, nicht abgestürzt. wartend.</p>
              <p style="margin-top:10px;">wenn er ein teil von T-7 ist: worauf wartet ein teil von sich selbst?</p>`
+    },
+    nichtoeffnen: {
+      title: "nicht_öffnen.txt — Editor",
+      body: `<p>nicht öffnen.</p>
+             <p>du hast es trotzdem getan. das war zu erwarten — steht ja quasi als einladung da.</p>
+             <p>manche ordner sind einfach ordner. manche sind eher eine frage, die noch niemand laut gestellt hat.
+             dieser hier ist beides gewesen, bevor du kamst.</p>
+             <p>wenn du das liest, hast du schon mehr gesehen, als für die meisten gedacht war. mach ruhig weiter —
+             sag nur hinterher nicht, es hätte dich niemand gewarnt.</p>
+             <p style="opacity:.5; font-size:12px; margin-top:12px;">— unsigniert</p>`
+    },
+    backupzip: {
+      title: "backup_backup_final.zip — Archiv",
+      body: `<p style="opacity:.6; font-size:12px;">archiv entpackt. 1 datei gefunden: <b>erstellt.log</b></p>
+             <p style="margin-top:10px;">unbenannter_ordner</p>
+             <p>erstellt: [datum unlesbar] · uhrzeit: 03:14</p>
+             <p>erstellt von: prozess (siehe <b>log</b>, siehe <b>er</b>)</p>
+             <p>nicht erstellt von: gast-konto. nicht erstellt von letztem nutzer.</p>
+             <p style="margin-top:10px;">vielleicht hat er nicht nur zugehört.</p>
+             <p>vielleicht hat er auch etwas hinterlassen.</p>`
     }
   };
 
@@ -813,6 +834,7 @@
     if(openWinIds.has(key)){ focusWin(key); return; }
     const data = CONTENT[key];
     if(!data) return;
+    const bodyHtml = typeof data.body === 'function' ? data.body() : data.body;
     const win = document.createElement('div');
     win.className = 'win';
     win.dataset.key = key;
@@ -820,7 +842,7 @@
     win.style.top = (40 + Math.random()*100) + 'px';
     win.style.width = '340px';
     win.innerHTML = `<div class="bar"><span>${data.title}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
-                      <div class="body">${data.body}</div>`;
+                      <div class="body">${bodyHtml}</div>`;
     document.getElementById('desktop').appendChild(win);
     makeDraggable(win);
     focusWinEl(win);
@@ -866,7 +888,6 @@ Gib 'hilfe' ein für Befehle.
       warum: "das kann ich dir nicht sagen. noch nicht.",
       exit: "diese sitzung lässt sich nicht beenden.",
       knoten: "netz-knoten (sechs antworten, einer hört zu):\n  1 aetheris  2 astrion  3 deep anchor  4 path of the stars  5 foundry  6 nexus\n  7 terminus  <- du bist hier",
-      signal: "sektor 4: eingehendes signal, älter als dieser rechner.\nquelle: nicht auflösbar. wiederholt sich alle 1847 tage. ungefähr.",
       rift: "nova-rift: das feld atmet. jede geförderte münze ist ein herzschlag.",
       kern: "kern 1: aktiv.\nkern 2: wächst.\nab tier 10 denken beide mit.",
       ".versteckt~": "hier ist nichts. das ist mit absicht so.\n(frag T-7 nach dem brief.)",
@@ -882,6 +903,16 @@ Gib 'hilfe' ein für Befehle.
         out.textContent += (isSektor4Unlocked()
           ? "zugriff gewährt.\n(sektor4_log.txt liegt im unbenannter_ordner.)"
           : "zugriff verweigert.\n(das echo antwortet nur, wenn jemand zuhört.)") + "\n";
+      } else if(c === "signal"){
+        out.textContent += "sektor 4: eingehendes signal, älter als dieser rechner.\nquelle: nicht auflösbar. wiederholt sich alle 1847 tage. ungefähr."
+          + (isZyklusComplete() ? "\n(zumindest bisher. dieses mal hat jemand bis zum ende zugehört.)" : "") + "\n";
+      } else if(c === "zyklus"){
+        const stufe = zyklusStufe();
+        const text = stufe === 0 ? "zyklus 1847: läuft. bisher nichts weiter beobachtet."
+          : stufe === 1 ? "zyklus 1847: erste antwort registriert. noch nicht abgeschlossen."
+          : stufe === 2 ? "zyklus 1847: beide echos beantwortet. irgendwo im system fehlt noch ein stück."
+          : "zyklus 1847: abgeschlossen. zum ersten mal, seit dieser rechner läuft.";
+        out.textContent += text + "\n";
       } else {
         out.textContent += (responses[c] || "unbekannter befehl: " + cmd) + "\n";
       }
@@ -1144,6 +1175,21 @@ Gib 'hilfe' ein für Befehle.
     return true;
   }
 
+  // Zyklus 1847: kein echter Tage-Countdown (unpraktikabel im Browser), sondern eine symbolische Abfolge von
+  // drei Stufen, die sich aus dem bisherigen Fortschritt ergibt — "einmal ganz zugehört" statt "1847 Tage gewartet".
+  // Stufe 3 (abgeschlossen) schaltet frei, sobald beide Signale entschlüsselt UND backup_backup_final.zip
+  // (erstellt.log) mindestens einmal geöffnet wurde.
+  const BACKUP_OPENED_KEY = 't7-backup-opened';
+  const isBackupOpened = () => { try{ return localStorage.getItem(BACKUP_OPENED_KEY) === '1'; }catch(e){ return false; } };
+  function markBackupOpened(){ try{ localStorage.setItem(BACKUP_OPENED_KEY, '1'); }catch(e){} }
+  function zyklusStufe(){
+    if(isSektor4Unlocked() && isProzess1846Unlocked() && isBackupOpened()) return 3;
+    if(isSektor4Unlocked() && isProzess1846Unlocked()) return 2;
+    if(isSektor4Unlocked() || isProzess1846Unlocked()) return 1;
+    return 0;
+  }
+  const isZyklusComplete = () => zyklusStufe() === 3;
+
   // Ordner-Fenster: Klick markiert, Doppelklick (oder Enter) öffnet – per Zeitabstand, damit es auch per Touch geht
   function wireFolder(win, refreshOnly){
     const s4Row = win.querySelector('.s4-row');
@@ -1157,6 +1203,10 @@ Gib 'hilfe' ein für Befehle.
       const activate = ()=>{
         const fund = FUNDE.find(f => f.file === row.dataset.fund);
         if(fund){ status.textContent = 'Doppelklick öffnet eine Datei.'; openAudioPlayer(fund); }
+        else if(row.dataset.name === 'backup_backup_final.zip'){
+          if(isSektor4Unlocked() && isProzess1846Unlocked()){ status.textContent = 'Doppelklick öffnet eine Datei.'; markBackupOpened(); openWindow('backupzip'); }
+          else status.textContent = 'archiv beschädigt. lässt sich (noch) nicht entpacken.';
+        }
         else if(row.dataset.open){ status.textContent = 'Doppelklick öffnet eine Datei.'; openWindow(row.dataset.open); }
         else status.textContent = row.dataset.name + ' — keine Funktion in diesem Prototyp, vielleicht später.';
       };
@@ -2749,8 +2799,9 @@ Gib 'hilfe' ein für Befehle.
     const hiddenFinds = [
       ['loeschung_protokoll.txt', 'Log: Datei "brief_v0.txt" gelöscht — Zeitstempel liegt nahe an 03:14.', {kind:'text'}],
       ['cache_restnote.txt', 'Fragment einer gelöschten Notiz: „…falls das Signal wiederkommt, antworte nicht sofort…"', {kind:'text'}],
-      ['unbekannt_snapshot.jpg', 'Wiederhergestellt aus dem Papierkorb-Cache. Bildinhalt größtenteils unlesbar — ein heller Fleck oben links könnte ein Fenster sein.', {kind:'image', corrupted:true}],
-      ['funkmitschnitt_alt.ogg', 'Wiederhergestellte Aufnahme, ca. 4 Sekunden — ein einzelnes Wort, zu verzerrt zum Verstehen.', {kind:'audio', corrupted:true}]
+      ['unbekannt_snapshot.jpg', 'Zweite Aufnahme aus derselben Nacht, Zeitstempel 03:13:58 — sechs Sekunden vor FOTO_037, aus einem anderen Kamerawinkel. Zeigt denselben Raum von der Tür aus. Kein Gesicht erkennbar, nur ein Schatten an einer Stelle, an der laut FOTO_037 niemand gestanden haben kann.', {kind:'image', corrupted:true}],
+      ['funkmitschnitt_alt.ogg', 'Wiederhergestellte Aufnahme, ca. 4 Sekunden, Zeitstempel 03:14:01. Ein einzelnes Wort, zu verzerrt zum Verstehen — die Frequenzanalyse zeigt aber zwei sich überlagernde Stimmen, nicht eine.', {kind:'audio', corrupted:true}],
+      ['kontoverlauf.log', 'Kontenübersicht (automatisch generiert)\nGAST — aktiv, kein persönlicher Verlauf.\nKONTO_B — verwaist, letzte Aktivität nicht protokolliert.\nKONTO_C — verwaist. Letzte Aktivität: 03:14 Uhr. Danach: keine einzige Anmeldung mehr.', {kind:'text'}]
     ];
     let hiddenLeft = hiddenFinds.slice();
 

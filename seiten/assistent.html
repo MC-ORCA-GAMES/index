@@ -147,10 +147,10 @@
   }
 
   $('#f').addEventListener('submit', e => { e.preventDefault(); if(!btn.disabled) send(q.value); });
-  const CH = ['Wer bist du?','Was ist in Sektor 4?','Was ist NEXUS?','Welches Spiel passt zu mir?','Wo finde ich Musik?','Was steht im Tagebuch?'];
+  const CH = ['Wer bist du?','Was ist in Sektor 4?','Was liegt im unbenannten Ordner?','Was ist NEXUS?','Welches Spiel passt zu mir?','Wo finde ich Musik?','Was steht im Tagebuch?'];
   $('#chips').innerHTML = CH.map(c => `<button class="chip">${esc(c)}</button>`).join('');
   $('#chips').addEventListener('click', e => { const c = e.target.closest('.chip'); if(c && !btn.disabled) send(c.textContent); });
-  add('b', '<span class="who">T-7</span>Verbindung steht. Ich bin T-7, der Bordcomputer dieses Archivs. Frag mich nach den Spielen, den Seiten oder den Medien.');
+  add('b', '<span class="who">T-7</span>Verbindung steht. Ich bin T-7, der Bordcomputer dieses Archivs. Frag mich nach den Spielen, den Seiten oder den Medien — oder danach, was seit Kurzem im unbenannten Ordner liegt.');
   const p = new URLSearchParams(location.search).get('q'); if(p) send(p.slice(0,300)); else q.focus();
 })();
 </script>

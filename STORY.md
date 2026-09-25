@@ -3,7 +3,7 @@
 Zweck: Ein Ort, an dem steht, was in der Geschichte von `desktop.html` (TERMINUS-7) schon festgelegt ist,
 was noch offen ist und was wann geändert wurde. **Bei jeder Story- oder Desktop-Änderung hier eintragen.**
 
-Stand: 24.09.2026 (aus dem Code gelesen; Punkte unter „Offene Fäden" sind Ideen, kein Kanon).
+Stand: 25.09.2026 (aus dem Code gelesen; Punkte unter „Offene Fäden" sind Ideen, kein Kanon).
 
 ---
 
@@ -26,9 +26,21 @@ Rest der Datei beschädigt.
 **Papierkorb** – „0 Objekte" (war vorhin noch nicht leer).
 
 **unbenannter_ordner** – jetzt ein Dateifenster (Klick markiert, **Doppelklick öffnet**): `brief_an_dich.txt`
-(seit 25.09.2026 lesbar, siehe unten), `nicht_öffnen.txt`, `backup_backup_final.zip` (beide noch ohne Funktion:
-„keine Funktion in diesem Prototyp, vielleicht später") und **`echo_1847.ogg`** (öffnet den Audioplayer, siehe
-Abschnitt 2).
+(seit 25.09.2026 lesbar, siehe unten), `nicht_öffnen.txt` (**seit 25.09.2026 lesbar**, siehe unten),
+`backup_backup_final.zip` (**seit 25.09.2026 öffenbar**, siehe unten) und **`echo_1847.ogg`** (öffnet den
+Audioplayer, siehe Abschnitt 2).
+
+**nicht_öffnen.txt (seit 25.09.2026)** – jederzeit lesbar, kein Unlock nötig. Kurzer, unsignierter Text: kommentiert
+ironisch, dass der Name selbst eine Einladung war, warnt spielerisch, verrät keine neue Lore. Reiner Ton-/
+Atmosphäre-Text, kein neuer Kanon-Fakt.
+
+**backup_backup_final.zip (seit 25.09.2026)** – bleibt gesperrt („archiv beschädigt. lässt sich (noch) nicht
+entpacken.“), bis **beide** Signale einmal vollständig per SSTV entschlüsselt wurden (`t7-sektor4` UND
+`t7-prozess1846` beide gesetzt). Danach öffnet Doppelklick ein Fenster mit `erstellt.log`: **neuer Kanon-Fakt** –
+`unbenannter_ordner` wurde um 03:14 Uhr erstellt, und zwar **nicht** vom Gast-Konto und **nicht** vom letzten
+Nutzer, sondern vom unbekannten Prozess selbst (siehe `log`/`er`). Bestätigt nicht, wer/was „er" ist, liefert aber
+zum ersten Mal einen handfesten Hinweis, dass der Prozess aktiv etwas im System hinterlassen hat, nicht nur
+zugehört hat.
 
 **brief_an_dich.txt (seit 25.09.2026)** – Doppelklick öffnet ein Editor-Fenster. Beim ersten Öffnen wird einmalig
 nach dem Namen gefragt (Textfeld + „weiter", `localStorage`-Key `t7-visitor-name`), danach beginnt der Brief immer
@@ -167,8 +179,9 @@ reine Optik (4–7 s, scrollende Fake-Pfade), setzt am Ende aber wirklich `t7-re
 versteckten Dateien beim nächsten Öffnen/Neuladen des Explorers ganz normal auftauchen — an der Stelle im Archiv,
 an der sie generiert wurden, ohne besondere Markierung.
 
-Aktuell 4 Platzhalter-Funde in `hiddenFinds` (`loeschung_protokoll.txt`, `cache_restnote.txt`,
-`unbekannt_snapshot.jpg`, `funkmitschnitt_alt.ogg`) — bewusst vage gehalten, zum Ersetzen durch echte Story-Inhalte.
+Aktuell 5 Funde in `hiddenFinds` (`loeschung_protokoll.txt`, `cache_restnote.txt`, `unbekannt_snapshot.jpg`,
+`funkmitschnitt_alt.ogg`, `kontoverlauf.log`) — **seit 25.09.2026 mit echtem Inhalt zum letzten
+Nutzer/03:14** statt vager Platzhalter, siehe Abschnitt 4/6.
 Für echte Funde: Eintrag in `hiddenFinds` ändern/ergänzen, Format identisch zu `specials` plus drittem Element
 `{kind, corrupted}`.
 
@@ -182,16 +195,27 @@ naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur
 ## 4. Offene Fäden (Ideen – noch nicht entschieden)
 
 - [x] Brief (`brief_an_dich.txt`) lesbar seit 25.09.2026 — personalisiert per einmaliger Namensabfrage.
-- [ ] Die anderen Ordnerdateien (`nicht_öffnen.txt`, `backup_backup_final.zip`) sind weiterhin nicht lesbar.
+- [x] `nicht_öffnen.txt` seit 25.09.2026 lesbar (Atmosphäre, kein neuer Kanon).
+      `backup_backup_final.zip` seit 25.09.2026 öffenbar, aber erst nach beiden entschlüsselten Signalen — enthüllt,
+      dass der unbekannte Prozess den `unbenannter_ordner` selbst um 03:14 erstellt hat.
 - [x] Sektor 4 verweigert den Zugriff – was öffnet ihn? Gelöst: vollständiges SSTV-Entschlüsseln von `echo_1847.ogg`.
 - [ ] Neuer Faden aus `sektor4_log.txt`: die Antwort kam schneller als ein Echo könnte, ein unbekannter Prozess lief schon vorher – wer/was war das („er")? Terminal-Befehl `er` und T-7 deuten seit 25.09.2026 an, dass „er" ein Teil von T-7 selbst sein könnte – ohne Bestätigung.
 - [x] Erstes SSTV-Signal im Archiv (`signal_echo1847.ogg`), liegt als Fund im `unbenannter_ordner`.
-- [ ] Hinweis für den Besucher, dass es den Ordner/das Signal gibt (Terminal `dir`/`signal`, T-7-Antwort, Tagebuch?).
+- [ ] Hinweis für den Besucher, dass es den Ordner/das Signal gibt: **gelöst (seit 25.09.2026)** über den
+      T-7-Assistenten — die Begrüßung erwähnt jetzt „was seit Kurzem im unbenannten Ordner liegt", plus neuer
+      Quick-Chip „Was liegt im unbenannten Ordner?" (`seiten/assistent.html`). Rein textliche Nebenbei-Erwähnung,
+      kein Popup/Tutorial, damit die Entdeckung noch selbst passiert.
 - [x] T-7 (`assistent.html`, `worker/orca-assistent/worker.js`) kennt `echo_1847.ogg` als vierte Datei („war gestern noch nicht da“), verrät aber nicht mehr, und kennt das Musikarchiv.
 - [x] Ein zweites Signal: `echo_1846.ogg` → `prozess_1846.txt`, deutet „er" als Teil von T-7 an (siehe Abschnitt 2).
-- [ ] 1847-Tage-Zyklus ist erwähnt, löst aber nichts aus (Countdown / Wiederkehr des Signals?).
+- [ ] 1847-Tage-Zyklus ist erwähnt, löst aber nichts aus: **gelöst (seit 25.09.2026)**, siehe neuer Abschnitt 7.
 - [ ] Verbindung zu den sechs Spielen läuft bisher nur über `knoten`, `rift`, `kern`.
-- [ ] Wer hat das Tagebuch geschrieben, wer ist der „letzte Nutzer", was passierte um 03:14?
+- [ ] Wer hat das Tagebuch geschrieben, wer ist der „letzte Nutzer", was passierte um 03:14? **Nicht gelöst,
+      aber vertieft (seit 25.09.2026):** die (per DataRescue erreichbaren) `hiddenFinds` liefern jetzt drei
+      neue, konkrete Spuren: `unbekannt_snapshot.jpg` (zweite Aufnahme, 6 s vor FOTO_037, anderer Winkel, ein
+      Schatten, der laut FOTO_037 dort nicht stehen dürfte), `funkmitschnitt_alt.ogg` (Zeitstempel 03:14:01,
+      Frequenzanalyse zeigt zwei überlagerte Stimmen statt einer) und `kontoverlauf.log` (eines der beiden
+      verwaisten Konten, KONTO_C, hatte seine letzte Aktivität exakt um 03:14 — danach nie wieder). Legt nahe,
+      dass zwei Parteien beteiligt waren, ohne irgendetwas zu bestätigen.
 
 ## 5. Entscheidungen
 
@@ -199,7 +223,61 @@ naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur
 - Entschlüsseln läuft **in Echtzeit** zum Ton (kein sofortiges Bild) und **leise (5 %)**.
 - SSTV-Dateinamen sollen mit `signal` beginnen, damit sie automatisch im Analysator auftauchen.
 
+## 7. Zyklus 1847 (symbolisch, kein echter Countdown)
+
+Ein echter 1847-Tage-Timer im Browser ist nicht sinnvoll spielbar. Der Zyklus läuft deshalb über den
+tatsächlichen Story-Fortschritt in drei Stufen (`zyklusStufe()` in `index.html`):
+
+0. keins der beiden Signale entschlüsselt
+1. eins von beiden entschlüsselt (Sektor 4 **oder** Prozess 1846)
+2. beide entschlüsselt, aber `backup_backup_final.zip` noch nicht geöffnet
+3. **abgeschlossen** — beide Signale entschlüsselt **und** `erstellt.log` mindestens einmal angesehen
+   (neuer `localStorage`-Key `t7-backup-opened`, gesetzt beim ersten Öffnen der ZIP)
+
+Auswirkungen bei Stufe 3:
+- Terminal `signal`: zusätzliche Zeile „(zumindest bisher. dieses mal hat jemand bis zum ende zugehört.)"
+- Neuer, versteckter Terminal-Befehl `zyklus` (nicht in `hilfe`, wie `knoten`/`rift`/`kern`): meldet je nach
+  Stufe unterschiedlichen Text, bei Stufe 3 „zyklus 1847: abgeschlossen. zum ersten mal, seit dieser rechner
+  läuft."
+- Systeminfo-Fenster zeigt zusätzlich „Zyklus 1847: einmal vollständig durchlaufen." (Fenster ist dafür jetzt
+  eine `body()`-Funktion statt eines festen Strings, `openWindow()` unterstützt beides)
+
+Kein neuer Kanon-Fakt zur „er"-Frage, aber ein spürbarer Payoff dafür, wirklich alles gefunden zu haben.
+
 ## 6. Changelog `desktop.html`
+
+**25.09.2026 (11)**
+- `hiddenFinds` (per DataRescue-Scan erreichbar) von vagen Platzhaltern auf echten Inhalt umgestellt, der das
+  Kernrätsel „letzter Nutzer / 03:14" vertieft, ohne es aufzulösen: `unbekannt_snapshot.jpg` ist jetzt eine
+  zweite Aufnahme aus derselben Nacht (03:13:58, anderer Kamerawinkel, Schatten an unmöglicher Stelle),
+  `funkmitschnitt_alt.ogg` hat jetzt Zeitstempel 03:14:01 und laut Frequenzanalyse zwei überlagerte Stimmen
+  statt einer. Neuer fünfter Fund `kontoverlauf.log`: von den beiden verwaisten Konten aus der Systeminfo hatte
+  KONTO_C seine letzte Aktivität exakt um 03:14, danach nie wieder eine Anmeldung. `loeschung_protokoll.txt`
+  und `cache_restnote.txt` unverändert.
+
+**25.09.2026 (10)**
+- Zyklus 1847 bekommt eine spürbare Auswirkung, ohne einen echten Countdown zu bauen: neue `zyklusStufe()`
+  (0–3, siehe Abschnitt 7), Stufe 3 sobald beide Signale entschlüsselt **und** `backup_backup_final.zip`
+  einmal geöffnet wurde (neuer Key `t7-backup-opened`). Terminal `signal` bekommt bei Stufe 3 eine zusätzliche
+  Zeile, neuer versteckter Befehl `zyklus` meldet den aktuellen Stand, Systeminfo-Fenster zeigt bei Stufe 3
+  eine zusätzliche Zeile (`CONTENT.system.body` ist jetzt eine Funktion, `openWindow()` unterstützt das).
+
+**25.09.2026 (9)**
+- T-7-Assistent (`seiten/assistent.html`): statische Begrüßung erweitert um „... oder danach, was seit Kurzem
+  im unbenannten Ordner liegt.", neuer Quick-Chip „Was liegt im unbenannten Ordner?" (Array `CH`). Reine
+  Textnennung des Ordnernamens, kein neuer Kanon-Fakt — soll Besucher nebenbei zum Ordner/Signal-Pfad lenken,
+  ohne die eigentliche Entdeckung (Doppelklick, Anhören, SSTV) vorwegzunehmen. Bestehende CANON-Regel
+  `/unbenannt|nicht_?offnen|brief/` deckt die Chip-Frage bereits ab, keine Änderung an `worker.js` nötig.
+
+**25.09.2026 (8)**
+- `nicht_öffnen.txt` im `unbenannter_ordner` jetzt lesbar (`data-open="nichtoeffnen"`, neuer `CONTENT`-Eintrag):
+  kurzer, unsignierter Atmosphäre-Text, kein Unlock nötig, kein neuer Kanon-Fakt.
+- `backup_backup_final.zip` jetzt öffenbar, aber gesperrt bis `isSektor4Unlocked() && isProzess1846Unlocked()`
+  beide wahr sind (Prüfung direkt in `wireFolder()`s `activate()`); vorher Status „archiv beschädigt. lässt sich
+  (noch) nicht entpacken.". Danach öffnet Doppelklick den neuen `CONTENT`-Eintrag `backupzip`
+  („backup_backup_final.zip — Archiv“): `erstellt.log` zeigt, dass `unbenannter_ordner` um 03:14 vom unbekannten
+  Prozess selbst erstellt wurde, nicht vom Gast-Konto oder letzten Nutzer — erster handfester Beleg, dass der
+  Prozess aktiv etwas hinterlassen hat, statt nur zuzuhören. Bestätigt weiterhin nicht, wer/was „er" ist.
 
 **25.09.2026 (7)**
 - Zweites Signal: `echo_1846.ogg` im `unbenannter_ordner`, gleicher Fund-Ablauf wie `echo_1847.ogg` (neuer `FUNDE`-
