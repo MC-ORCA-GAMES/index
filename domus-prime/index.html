@@ -1,0 +1,259 @@
+<!--
+  DOMUS PRIME: VERDANTIS — Landingpage
+  Datei-Version: v1.0 — folgt dem gleichen modernen Hub-Design wie
+  astrion/index.html, aetheris/index.html usw. (Inter/Space Grotesk,
+  dunkles Space-Theme, grüner Akzent für Domus Prime). Kein eigenes Logo
+  vorhanden — Text-Fallback wie im laufenden Spiel selbst.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOMUS PRIME: VERDANTIS — Gemütlicher Kolonieaufbau</title>
+<meta name="description" content="Domus Prime: Verdantis: ein entspanntes Kolonie-Aufbauspiel im Browser, ohne Download. Importiere Rohstoffe aus NEXUS, verarbeite sie zu Handelsgütern und lass deine Kolonie wachsen — ohne Kampf, ohne Zeitdruck, ohne Reset.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+    --accent:#3ECF8E; --accent-dim:rgba(62,207,142,0.14); --accent-soft:#8fcbb0;
+    --green:#7FBF7F; --warn:#e3a87b;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  h1,h2,h3, .display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--accent); color:#0a0b12; }
+  :focus-visible{ outline:2px solid var(--fg); outline-offset:3px; border-radius:2px; }
+  img{ max-width:100%; display:block; }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; } }
+
+  .wrap{ max-width:1100px; margin:0 auto; padding:0 24px; }
+
+  /* ---------- nav ---------- */
+  .nav{ position:sticky; top:0; z-index:30; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1600px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-size:14px; font-weight:600; letter-spacing:.02em; }
+  .brand .mark img{ width:22px; height:22px; display:block; border-radius:6px; }
+  .brand .divider{ width:1px; height:14px; background:var(--line); }
+  .brand .sub{ color:var(--accent-soft); }
+  .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); transition:.15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,0.03); }
+
+  /* ---------- burger menu ---------- */
+  .burger-wrap{ position:relative; flex-shrink:0; }
+  .burger-btn{ display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px; width:38px; height:38px; border-radius:10px; border:1px solid var(--line); background:transparent; cursor:pointer; transition:border-color .15s, background .15s; padding:0; }
+  .burger-btn:hover{ border-color:var(--fg-faint); background:rgba(255,255,255,0.03); }
+  .burger-btn span{ display:block; width:16px; height:2px; border-radius:2px; background:var(--fg-dim); transition:transform .2s, opacity .2s, background .2s; }
+  .burger-btn.open span{ background:var(--fg); }
+  .burger-btn.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .burger-btn.open span:nth-child(2){ opacity:0; }
+  .burger-btn.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+  .burger-panel{ position:absolute; top:calc(100% + 10px); right:0; min-width:230px; z-index:40; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:8px; box-shadow:0 20px 50px -10px rgba(0,0,0,0.5); opacity:0; transform:translateY(-6px) scale(.98); pointer-events:none; transition:.16s; }
+  .burger-panel.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .burger-group{ padding:6px 4px 10px; }
+  .burger-group + .burger-group{ border-top:1px solid var(--line); padding-top:10px; margin-top:2px; }
+  .burger-label{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-faint); padding:0 8px 6px; }
+  .burger-panel a{ display:block; font-size:13.5px; color:var(--fg-dim) !important; padding:8px 8px; border-radius:8px; transition:background .15s, color .15s; }
+  .burger-panel a:hover{ background:rgba(255,255,255,0.06); color:var(--fg) !important; }
+  @media (max-width:480px){ .burger-panel{ right:-8px; min-width:210px; } }
+
+  /* ---------- hero ---------- */
+  .hero{ max-width:1100px; margin:0 auto; padding:64px 24px 40px; }
+  .hero-logo{ height:56px; margin-bottom:18px; }
+  .hero-logo.hidden{ display:none; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--accent-soft); }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--accent-dim); }
+  .accent{ color:var(--accent); }
+  h1{ font-size:clamp(32px,5vw,48px); line-height:1.08; margin:16px 0 16px; letter-spacing:-0.01em; max-width:16ch; }
+  .pitch{ color:var(--fg-dim); font-size:16.5px; line-height:1.7; max-width:60ch; margin:0 0 30px; }
+  .hero-meta{ display:flex; flex-wrap:wrap; gap:28px; margin-bottom:32px; }
+  .hero-meta .m{ display:flex; flex-direction:column; gap:3px; }
+  .hero-meta .k{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--fg-faint); }
+  .hero-meta .v{ font-size:15px; font-weight:600; color:var(--fg); }
+  .hero-ctas{ display:flex; flex-wrap:wrap; gap:12px; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; font-size:14.5px; font-weight:600; padding:13px 22px; border-radius:12px; transition:.15s; }
+  .btn-primary{ background:var(--accent); color:#0a0b12; border:none; box-shadow:0 6px 20px -6px var(--accent-dim); }
+  .btn-primary:hover{ filter:brightness(1.08); transform:translateY(-1px); }
+  .btn-ghost{ border:1px solid var(--line); color:var(--fg-dim); }
+  .btn-ghost:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,.03); }
+
+  /* ---------- sections ---------- */
+  .sec{ max-width:1100px; margin:0 auto; padding:36px 24px; }
+  .sec-head{ margin-bottom:28px; }
+  .sec-head h2{ font-size:clamp(22px,3vw,30px); margin:0 0 10px; }
+  .sec-lead{ color:var(--fg-dim); font-size:15px; line-height:1.7; max-width:64ch; margin:0; }
+  .grid3{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:18px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:24px; }
+  .card .n{ font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--accent-soft); margin-bottom:10px; }
+  .card h3{ font-size:17px; margin:0 0 8px; }
+  .card p{ font-size:14px; line-height:1.65; color:var(--fg-dim); margin:0; }
+
+  .flow{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:8px; }
+  .flow .step{ background:var(--bg-alt); border:1px solid var(--line); border-radius:12px; padding:12px 16px; font-size:13.5px; font-weight:600; }
+  .flow .arrow{ color:var(--fg-faint); font-size:16px; }
+
+  .goods{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+  .goods span{ background:var(--accent-dim); color:var(--accent-soft); border-radius:999px; padding:7px 14px; font-size:12.5px; font-weight:600; }
+
+  .final{ text-align:center; padding:56px 24px 70px; }
+  .final h2{ font-size:clamp(24px,3.4vw,32px); margin:0 0 12px; }
+
+  footer{ border-top:1px solid var(--line); padding:26px 24px 40px; }
+  .foot-inner{ max-width:1100px; margin:0 auto; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-size:12.5px; color:var(--fg-faint); }
+  .foot-links{ display:flex; gap:16px; flex-wrap:wrap; }
+  .foot-links a{ color:var(--fg-dim); }
+  .foot-links a:hover{ color:var(--fg); }
+  .sep{ color:var(--line); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"><img src="../bilder/logo.png" alt="" onerror="this.classList.add('hidden')"></span>
+      MC ORCA GAMES <span class="divider"></span> <span class="sub">DOMUS PRIME</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="nav-cta" href="medien.html">📸 Medien</a>
+      <div class="burger-wrap">
+        <button class="burger-btn" id="burgerBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menü öffnen">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="burger-panel" id="burgerPanel">
+          <div class="burger-group">
+            <div class="burger-label">Seiten</div>
+            <a href="../portal.html">Hub</a>
+            <a href="../profil.html">Profil &amp; Skins</a>
+            <a href="../raenge.html">Ränge</a>
+            <a href="../uhr.html">Sternzeit</a>
+            <a href="../nexus/global.html">NEXUS global</a>
+          </div>
+          <div class="burger-group">
+            <div class="burger-label">Spiele</div>
+            <a href="../aetheris/game.html">Aetheris</a>
+            <a href="../astrion/game.html">Astrion</a>
+            <a href="../deepanchor/game.html">Deep Anchor</a>
+            <a href="../pathofthestars/game.html">Path of the Stars</a>
+            <a href="../nexus/game.html">NEXUS</a>
+            <a href="../nexus/nexus_singularity/game.html">Nexus Singularity</a>
+            <a href="../foundry/game.html">FOUNDRY</a>
+            <a href="game.html">Domus Prime: Verdantis</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <section class="hero">
+    <img class="hero-logo" src="art/logo.png" alt="" onerror="this.classList.add('hidden')">
+    <div class="eyebrow"><span class="dot"></span> Domus Prime · Kolonie</div>
+    <h1>Baue <span class="accent">Verdantis</span>, in aller Ruhe</h1>
+    <p class="pitch">Domus Prime: Verdantis ist der entspannte Gegenpol zu den kampf- und börsenlastigeren
+      MC-ORCA-Spielen: kein Kampf, kein Zeitdruck, kein Reset. Du importierst Rohstoffe aus NEXUS, verarbeitest
+      sie zu Handelsgütern und lässt deine Kolonie Schritt für Schritt wachsen — sie schrumpft nie wieder.</p>
+    <div class="hero-meta">
+      <div class="m"><span class="k">Rohstoffe</span><span class="v">4 (Import aus NEXUS)</span></div>
+      <div class="m"><span class="k">Handelsgüter</span><span class="v">3</span></div>
+      <div class="m"><span class="k">Prestige / Reset</span><span class="v">Keins</span></div>
+      <div class="m"><span class="k">Genre</span><span class="v">Gemütlicher Aufbau</span></div>
+    </div>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="game.html">Jetzt spielen</a>
+      <a class="btn btn-ghost" href="#ablauf">Wie es funktioniert</a>
+      <a class="btn btn-ghost" href="download.html">⬇ Offline herunterladen</a>
+    </div>
+  </section>
+
+  <section class="sec" id="ablauf">
+    <div class="sec-head">
+      <h2>Kein eigener Abbau — dafür ein eigener Kreislauf</h2>
+      <p class="sec-lead">Domus Prime holt sich seine Rohstoffe direkt aus deinem NEXUS-Lager und verwandelt sie
+        über zwei Veredelungsstufen in handelbare Güter.</p>
+    </div>
+    <div class="flow">
+      <div class="step">Rohstoff aus NEXUS<br><small style="color:var(--fg-faint)">METAL · KRISTALL · DEUT · ENERGIE</small></div>
+      <span class="arrow">→</span>
+      <div class="step">Grundgut<br><small style="color:var(--fg-faint)">Stufe 1</small></div>
+      <span class="arrow">→</span>
+      <div class="step">Manufaktur-Handelsgut<br><small style="color:var(--fg-faint)">Stufe 2 · per Forschung freigeschaltet</small></div>
+    </div>
+    <div class="goods">
+      <span>Verbundplatten</span><span>Medizin</span><span>Präzisionswerkzeug</span>
+    </div>
+    <p class="sec-lead" style="margin-top:14px">Alle drei Stufe-2-Güter sind handelbar und laufen über den
+      bestehenden NEXUS-Spieler-Markt — dein Kolonie-Fortschritt hängt also direkt mit deinem NEXUS-Account zusammen.</p>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head">
+      <h2>Eine Bevölkerung, die nie schrumpft</h2>
+      <p class="sec-lead">Deine Kolonisten brauchen echten Unterhalt — Nährpaste und Fusionszellen, pro Kopf und
+        Minute. Solange der Unterhalt gedeckt ist, wächst die Bevölkerung weiter. Sie schrumpft dabei nie —
+        im schlimmsten Fall stagniert sie, während du nachlieferst.</p>
+    </div>
+    <div class="grid3">
+      <div class="card">
+        <div class="n">Import</div>
+        <h3>Rohstoffe aus NEXUS</h3>
+        <p>Kein eigener Abbau — die vier NEXUS-Rohstoffe kommen als Import direkt aus deinem Lager.</p>
+      </div>
+      <div class="card">
+        <div class="n">Kreislauf</div>
+        <h3>Unbegrenztes Wachstum</h3>
+        <p>Kein Prestige, kein Reset. Verdantis wächst kontinuierlich weiter, in deinem eigenen Tempo.</p>
+      </div>
+      <div class="card">
+        <div class="n">Idle</div>
+        <h3>Läuft auch offline weiter</h3>
+        <p>Wie NEXUS ist Domus Prime idle/passiv angelegt — vorbeischauen, Kurs korrigieren, weiterwachsen lassen.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec final" id="start">
+    <h2>Bereit, deine Kolonie zu gründen?</h2>
+    <p class="sec-lead" style="margin:0 auto 26px">Keine Installation, kein Konto bei Dritten — öffnen und loslegen.</p>
+    <div class="hero-ctas" style="justify-content:center">
+      <a class="btn btn-primary" href="game.html">Jetzt spielen</a>
+      <a class="btn btn-ghost" href="download.html">⬇ Offline herunterladen</a>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="foot-inner">
+    <div>DOMUS PRIME: VERDANTIS — Gemütlicher Kolonieaufbau · Ein <a href="../index.html">MC ORCA Games</a> Projekt</div>
+    <div class="foot-links"><a href="medien.html">Screenshots &amp; Videos</a><span class="sep">·</span><a href="download.html">Offline-Download</a><span class="sep">·</span><a href="../impressum.html">Impressum &amp; Datenschutz</a></div>
+  </div>
+</footer>
+
+<script>
+  var btn = document.getElementById('burgerBtn'), panel = document.getElementById('burgerPanel');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = panel.classList.toggle('open');
+    btn.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if(!panel.contains(e.target) && e.target !== btn){
+      panel.classList.remove('open'); btn.classList.remove('open'); btn.setAttribute('aria-expanded','false');
+    }
+  });
+</script>
+
+</body>
+</html>

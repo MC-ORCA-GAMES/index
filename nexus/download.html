@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — Offline herunterladen (Download)</title>
+<meta name="description" content="NEXUS zum Download: Mining & Wirtschaftssimulation als einzelne Datei offline speichern und ohne Internetverbindung im Browser spielen. Kostenlos, ohne Installation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b12; --bg-alt:#12141f; --panel:#151726; --line:rgba(232,230,227,0.09);
+    --fg:#E9E7E2; --fg-dim:#8b8fa3; --fg-faint:#565a6e;
+    --accent:rgb(53,228,255); --accent-dim:rgba(53,228,255,0.14); --accent-soft:#7fd0e3;
+    --green:#7FBF7F; --warn:#e3a87b;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{ font-family:'Space Grotesk',ui-sans-serif,sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--accent); color:#0a0b12; }
+
+  .nav{ position:sticky; top:0; z-index:30; background:linear-gradient(to bottom, rgba(10,11,18,0.92), rgba(10,11,18,0.75)); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav-inner{ max-width:1600px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-size:14px; font-weight:600; letter-spacing:.02em; }
+  .brand .mark img{ width:22px; height:22px; display:block; border-radius:6px; }
+  .brand .divider{ width:1px; height:14px; background:var(--line); }
+  .brand .sub{ color:var(--accent-soft); }
+  .nav-cta{ font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--line); color:var(--fg-dim); transition:.15s; white-space:nowrap; }
+  .nav-cta:hover{ border-color:var(--fg-faint); color:var(--fg); background:rgba(255,255,255,.03); }
+
+  .wrap{ max-width:760px; margin:0 auto; padding:48px 24px 80px; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--accent-soft); }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--accent-dim); }
+  h1{ font-size:clamp(28px,4vw,40px); margin:14px 0 10px; letter-spacing:-0.01em; }
+  .pitch{ color:var(--fg-dim); font-size:15.5px; line-height:1.65; max-width:58ch; margin:0 0 32px; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px; margin-bottom:20px; }
+  .dl-row{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .dl-btn{ display:inline-flex; align-items:center; gap:10px; background:var(--accent); color:#0a0b12; font-weight:600; font-size:15px; padding:14px 24px; border-radius:12px; border:none; cursor:pointer; box-shadow:0 6px 20px -6px var(--accent-dim); transition:.15s; }
+  .dl-btn:hover{ filter:brightness(1.08); transform:translateY(-1px); }
+  .dl-meta{ font-size:12.5px; color:var(--fg-faint); }
+  .status{ margin-top:14px; font-size:13px; color:var(--green); min-height:18px; }
+
+  .facts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-top:26px; }
+  .fact{ border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .fact .k{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--fg-faint); margin-bottom:4px; }
+  .fact .v{ font-size:14px; color:var(--fg); }
+
+  h2{ font-size:19px; margin:0 0 12px; }
+  ul{ font-size:14px; line-height:1.8; color:var(--fg-dim); padding-left:20px; margin:0; }
+  li b{ color:var(--fg); }
+
+  .note{ font-size:12.5px; color:var(--fg-faint); border-top:1px solid var(--line); padding-top:14px; margin-top:18px; }
+
+  footer{ max-width:760px; margin:40px auto 0; padding:0 24px; border-top:1px solid var(--line); padding-top:20px; font-size:12.5px; color:var(--fg-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  footer a{ color:var(--fg-dim); }
+  footer a:hover{ color:var(--fg); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="mark"><img src="../bilder/logo.png" alt="" onerror="this.classList.add('hidden')"></span>
+      MC ORCA GAMES <span class="divider"></span> <span class="sub">NEXUS</span>
+    </div>
+    <a class="nav-cta" href="index.html">← Zur Spielseite</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="eyebrow"><span class="dot"></span> NEXUS · Download</div>
+  <h1>NEXUS offline spielen</h1>
+  <p class="pitch">NEXUS läuft komplett im Browser und steckt in einer einzigen Datei. Lade sie herunter, dann läuft dein Mining-Betrieb auch ganz ohne Internetverbindung weiter — praktisch für unterwegs oder wenn die Leitung mal schwach ist.</p>
+
+  <div class="card">
+    <div class="dl-row">
+      <a class="dl-btn" id="dlBtn" href="game.html" download="Nexus.html">⬇ Nexus.html herunterladen</a>
+      <span class="dl-meta">~751 KB · eine Datei · keine Installation nötig</span>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="facts">
+    <div class="fact"><span class="k">Format</span><span class="v">HTML-Datei</span></div>
+    <div class="fact"><span class="k">Version</span><span class="v">aktueller Stand</span></div>
+    <div class="fact"><span class="k">Plattform</span><span class="v">jeder moderne Browser</span></div>
+    <div class="fact"><span class="k">Kosten</span><span class="v">kostenlos</span></div>
+  </div>
+
+  <div class="card" style="margin-top:24px">
+    <h2>So funktioniert's</h2>
+    <ul>
+      <li>Auf <b>„Nexus.html herunterladen"</b> tippen — die Datei landet im Downloads-Ordner.</li>
+      <li>Datei doppelklicken (oder in einem Browser-Tab öffnen) — NEXUS startet sofort, ganz ohne Server oder Installation.</li>
+      <li>Dein Fortschritt wird lokal im Browser auf diesem Gerät gespeichert. Ohne Internet gibt es keine Cloud-Synchronisation mit dem ☁ Konto — die Offline-Version ist ein eigenständiger Spielstand.</li>
+    </ul>
+    <p class="note">Tipp: Für den Cloud-Spielstand mit Konto-Synchronisation einfach weiter die <a href="game.html" style="color:var(--accent-soft)">Online-Version</a> nutzen — die Offline-Datei ist optional für unterwegs.</p>
+  </div>
+</div>
+
+<footer>
+  <div>NEXUS — Mining & Wirtschaftssimulation · Ein <a href="../index.html">MC ORCA Games</a> Projekt</div>
+  <div><a href="index.html">Spielseite</a> · <a href="medien.html">Medien</a> · <a href="../impressum.html">Impressum</a></div>
+</footer>
+
+<script>
+  document.getElementById('dlBtn').addEventListener('click', function(){
+    document.getElementById('status').textContent = 'Download gestartet — Datei liegt gleich im Downloads-Ordner.';
+  });
+</script>
+
+</body>
+</html>
