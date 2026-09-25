@@ -207,6 +207,9 @@
   .ap-fill{height:100%; width:0; background:var(--teal);}
   .ap-vol{flex:1; min-width:0; accent-color:var(--crt);}
   .ap-found{margin-top:12px; padding-top:10px; border-top:1px dashed var(--panel-border);}
+  .brief-input{width:100%; background:#04050a; border:1px solid var(--panel-border); color:var(--crt);
+    font-family:inherit; font-size:13px; padding:7px 9px; border-radius:2px; outline:none; box-sizing:border-box;}
+  .brief-input:focus{border-color:var(--teal);}
 
   #term-out{white-space:pre-wrap; font-size:13px; min-height:120px;}
   #term-line{display:flex; gap:6px; align-items:center; margin-top:6px;}
@@ -702,7 +705,7 @@
     ordner: {
       title: "unbenannter_ordner",
       body: `<div class="fl">
-               <div class="frow" data-name="brief_an_dich.txt" tabindex="0"><span class="fi">▤</span>brief_an_dich.txt</div>
+               <div class="frow" data-open="brief" data-name="brief_an_dich.txt" tabindex="0"><span class="fi">▤</span>brief_an_dich.txt</div>
                <div class="frow" data-name="nicht_öffnen.txt" tabindex="0"><span class="fi">▤</span>nicht_öffnen.txt</div>
                <div class="frow" data-name="backup_backup_final.zip" tabindex="0"><span class="fi">▦</span>backup_backup_final.zip</div>
                <div class="frow" data-fund="signal_echo1847.ogg" data-name="echo_1847.ogg" tabindex="0"><span class="fi">♪</span>echo_1847.ogg</div>
@@ -739,6 +742,7 @@
     if(key === 'musik') return openMusicArchive();
     if(key === 'downloads') return openDownloadsFolder();
     if(key === 'signal') return openSignalAnalyzer();
+    if(key === 'brief') return openBriefWindow();
     if(key === 'explorer') return openExplorer();
     if(key.startsWith('vfsfolder:')) return openVfsFolder(key.slice('vfsfolder:'.length));
     if(openWinIds.has(key)){ focusWin(key); return; }
@@ -1168,6 +1172,59 @@ Gib 'hilfe' ein für Befehle.
       audio.pause(); playBtn.textContent = '▶ abspielen';
       openSignalAnalyzer(fund.file, fund.name);
     };
+  }
+
+  // brief_an_dich.txt: fragt beim ersten Öffnen einmal nach dem Namen (localStorage 't7-visitor-name'),
+  // der Brief beginnt danach damit ("An {name},"). Passt zu T-7s Andeutung im Assistent-Chat.
+  const NAME_KEY = 't7-visitor-name';
+  const getVisitorName = () => { try{ return localStorage.getItem(NAME_KEY) || ''; }catch(e){ return ''; } };
+  function briefBody(name){
+    return `<p style="opacity:.5; font-size:12px; margin-bottom:10px;">geöffnet als: ${name}</p>
+            <p>An ${name},</p>
+            <p>falls du das hier liest, hast du länger zugehört, als die meisten es tun. das allein sagt schon etwas über dich.</p>
+            <p>ich weiß nicht mehr genau, wann ich diesen brief angefangen habe zu schreiben — vielleicht vor dem tagebuch, vielleicht danach. ich weiß nur: er war nicht für irgendjemanden gedacht. er war für dich gedacht, auch wenn ich deinen namen damals noch nicht kannte.</p>
+            <p>frag T-7 nicht, wer ich bin. er weiß es vermutlich selbst nicht mehr. frag lieber, was um 03:14 passiert ist — oder hör noch einmal genau hin, wenn sektor 4 wieder etwas sagt.</p>
+            <p>ich bin froh, dass jemand zugehört hat.</p>
+            <p style="opacity:.5; margin-top:10px;">— (der rest der unterschrift ist unleserlich)</p>`;
+  }
+  function openBriefWindow(){
+    const key = 'brief';
+    if(openWinIds.has(key)){ focusWin(key); return; }
+    const win = document.createElement('div');
+    win.className = 'win';
+    win.dataset.key = key;
+    win.style.left = (100 + Math.random()*90) + 'px';
+    win.style.top = (50 + Math.random()*70) + 'px';
+    win.style.width = '360px';
+    const title = 'brief_an_dich.txt — Editor';
+    const existing = getVisitorName();
+    win.innerHTML = `<div class="bar"><span>${title}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
+      <div class="body">${existing ? briefBody(existing) : `
+        <p>bevor du weiterliest: wie heißt du?</p>
+        <input class="brief-input" type="text" maxlength="24" placeholder="dein name" autocomplete="off" spellcheck="false">
+        <div class="ap-row"><button class="sig-btn" data-brief-submit>weiter</button></div>
+        <p style="opacity:.5; font-size:12px; margin-top:10px;">(wird nur hier auf diesem rechner gespeichert.)</p>`}</div>`;
+    document.getElementById('desktop').appendChild(win);
+    makeDraggable(win);
+    focusWinEl(win);
+    win.querySelector('.x').onclick = ()=> closeWin(win, key);
+    win.querySelector('.max').onclick = ()=> toggleMaximize(win);
+    win.querySelector('.min').onclick = ()=> minimizeWin(win, key);
+    openWinIds.add(key);
+    addTaskItem(key, title, win);
+    if(!existing){
+      const input = win.querySelector('.brief-input');
+      const body = win.querySelector('.body');
+      const submit = ()=>{
+        const name = input.value.trim().slice(0, 24);
+        if(!name) return;
+        try{ localStorage.setItem(NAME_KEY, name); }catch(e){}
+        body.innerHTML = briefBody(name);
+      };
+      win.querySelector('[data-brief-submit]').onclick = submit;
+      input.addEventListener('keydown', e=>{ if(e.key === 'Enter') submit(); });
+      input.focus();
+    }
   }
 
   // file/label optional: ohne Argument wird das erste bekannte Signal geladen.
