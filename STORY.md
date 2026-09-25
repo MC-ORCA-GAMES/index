@@ -191,6 +191,18 @@ naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur
 
 ## 6. Changelog `desktop.html`
 
+**25.09.2026 (6)**
+- Archiv-Generator: neues `realFinds`-Array in `seedJunkTree()`, inzwischen 22 feste, echte Fotos statt
+  Zufalls-Platzhalter, gleiche Verteil-Mechanik wie `specials` (ca. 3 % Chance pro Datei, bis aufgebraucht).
+  Dateien haben `{kind:'image', corrupted:false, src:'assets/img/archiv/<name>.png'}`.
+- `openVfsFileViewer()`: neuer Zweig für `kind:'image' && !corrupted && src` — zeigt das echte Bild
+  (`<img>`) plus Bildunterschrift aus `content`, statt des "Bild kann nicht angezeigt werden"-Platzhalters.
+- Bilddateien müssen unter `assets/img/archiv/` liegen (12 Dateinamen siehe Array). Bereits im Browser
+  generierte Archive bekommen die neuen Dateien nicht automatisch — nur bei frischer Generierung
+  (`localStorage.removeItem('t7-vfs')`) oder für neue Besucher.
+- Für weitere echte Bildfunde: neuen Eintrag `[dateiname, bildunterschrift]` in `realFinds` ergänzen,
+  passende PNG nach `assets/img/archiv/` legen.
+
 **25.09.2026 (5)**
 - Neues Programm **DataRescue** (`APPS.recovery`, Fenster über `openRecoveryTool()`): Download+Installation wie
   beim Musikplayer, Downloadseite `datarescue.html` (Freeware-Fake-Seite, gleicher Stil wie `soundvault.html`).

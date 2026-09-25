@@ -2663,6 +2663,35 @@ Gib 'hilfe' ein für Befehle.
     ];
     let hiddenLeft = hiddenFinds.slice();
 
+    // "Echte" Archivfotos: feste, mitgelieferte Bilder (kein Zufalls-Platzhalter, kein Defekt),
+    // zufällig unter den Datenmüll gemischt, wie "specials", aber mit kind:'image'/corrupted:false
+    // und echtem src auf assets/img/archiv/*.png. Siehe STORY.md für Details zur Bild-Anzeige.
+    const realFinds = [
+      ['sensorlog_sektor4_spektrogramm.png', 'Sensor-Mitschnitt, Kanal 4 — eine einzelne Anomalie zieht sich quer durchs Rauschen.'],
+      ['sensorlog_sonde_kalibrierung.png', 'Kalibrierungsfoto einer Außensonde, Sektor unbekannt.'],
+      ['wartung_relaisknoten_defekt.png', 'Wartungsfoto: Relaisknoten nach Kurzschluss, noch vor dem Austausch.'],
+      ['wartung_kuehlleitung_sektor4.png', 'Kühlleitung, Sektor-Kennzeichnung größtenteils abgeblättert.'],
+      ['vermessung_sternenkarte_terminus.png', 'Alte Sternenkarte, ein System mehrfach rot eingekreist.'],
+      ['vermessung_aussenhuelle_riss.png', 'Außenaufnahme der Hülle, ein feiner Riss quer über die Platten.'],
+      ['kommunikation_antennenschuessel.png', 'Antennenschüssel, ausgerichtet auf eine Koordinate ohne Katalogeintrag.'],
+      ['kommunikation_funkraum_konsole.png', 'Funkraum, verlassen — eine Konsole läuft noch.'],
+      ['protokoll_logbuch_seite.png', 'Foto einer Logbuchseite, Handschrift, ein Kaffeering.'],
+      ['backup_bandlaufwerke_serverraum.png', 'Alte Bandlaufwerke, ein Indikator blinkt noch.'],
+      ['inventar_lagerregal_dritterschrank.png', 'Lagerregal, dritter Schrank von links leicht offen.'],
+      ['diverses_fensterreflexion.png', 'Korridor mit rundem Fenster, ein heller Fleck oben links.'],
+      ['sensorlog_dyson_fragment.png', 'Telemetriebild: Fragment einer künstlichen Struktur im Sternenglanz.'],
+      ['wartung_luftschleuse_dichtung.png', 'Wartungsfoto einer Luftschleusen-Dichtung, Werkzeugspuren am Rand.'],
+      ['vermessung_kometenbahn.png', 'Ausgedruckte Kometenbahn, per Bleistift korrigiert.'],
+      ['kommunikation_morsezettel.png', 'Handschriftliches Morse-Transkript, mehrfach durchgestrichen und neu geschrieben.'],
+      ['protokoll_uebergabeprotokoll.png', 'Übergabeprotokoll am Klemmbrett, ein Punkt bleibt unausgefüllt.'],
+      ['backup_festplattenregal.png', 'Regal mit alten Wechselplatten, ein Steckplatz leer.'],
+      ['inventar_kistenstapel_frachtraum.png', 'Frachtraum, eine Kiste einen Spalt weit aufgebrochen.'],
+      ['diverses_leerer_stuhl_kontrollraum.png', 'Leerer Stuhl im Kontrollraum, ein Monitor leuchtet noch schwach.'],
+      ['sensorlog_sternkern_spektrum.png', 'Spektralanalyse eines schwächer werdenden Sterns, am Bullauge angepinnt.'],
+      ['vermessung_orbit_diagramm.png', 'Handgezeichnetes Orbit-Diagramm, ein Pfad rot mit Fragezeichen markiert.']
+    ];
+    let realFindsLeft = realFinds.slice();
+
     // Beschädigte Bild-/Audiodateien: keine echten Binärdaten, nur eine glaubhafte "Defekt"-Beschreibung,
     // die der Viewer statt eines Vorschaubilds/Players anzeigt.
     const imgDamage = () => pick([
@@ -2698,6 +2727,11 @@ Gib 'hilfe' ein für Befehle.
             vfsAddFile(subId, fname, content, Object.assign({hidden:true}, extra));
             continue;
           }
+          if(realFindsLeft.length && Math.random() < 0.03){
+            const [fname, caption] = realFindsLeft.pop();
+            vfsAddFile(subId, fname, caption, {kind:'image', corrupted:false, src:'assets/img/archiv/' + fname});
+            continue;
+          }
           const roll = Math.random();
           if(roll < 0.12){
             // beschädigtes Bild
@@ -2718,6 +2752,7 @@ Gib 'hilfe' ein für Befehle.
     // übrig gebliebene Specials/versteckte Funde notfalls direkt in die Wurzel legen, statt zu verlieren
     specialsLeft.forEach(([fname, content])=> vfsAddFile(rootId, fname, content));
     hiddenLeft.forEach(([fname, content, extra])=> vfsAddFile(rootId, fname, content, Object.assign({hidden:true}, extra)));
+    realFindsLeft.forEach(([fname, caption])=> vfsAddFile(rootId, fname, caption, {kind:'image', corrupted:false, src:'assets/img/archiv/' + fname}));
   }
   function vfsCreateFolderSilent(parentId, name){
     const id = vfsNewId();
@@ -2820,7 +2855,12 @@ Gib 'hilfe' ein für Befehle.
     win.style.top = (60 + Math.random()*100) + 'px';
     win.style.width = '380px';
     let bodyHtml;
-    if(node.kind === 'image'){
+    if(node.kind === 'image' && !node.corrupted && node.src){
+      bodyHtml = `<div style="display:flex;flex-direction:column;gap:8px;padding:10px;">
+        <img src="${escapeHtml(node.src)}" alt="${escapeHtml(node.name)}" style="width:100%; display:block; border:1px solid rgba(232,230,227,.15); border-radius:4px; filter:contrast(1.05) saturate(.9);">
+        ${node.content ? `<div style="font-size:12px; opacity:.75; padding:0 4px;">${escapeHtml(node.content)}</div>` : ''}
+      </div>`;
+    } else if(node.kind === 'image'){
       bodyHtml = `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 10px;text-align:center;">
         <div style="width:120px;height:90px;border:1px dashed rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;font-size:34px;opacity:.6;">🖼✕</div>
         <div style="font-size:12px;opacity:.5;">Bild kann nicht angezeigt werden</div>
