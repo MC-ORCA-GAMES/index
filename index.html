@@ -2,6 +2,15 @@
   MC ORCA GAMES — TERMINUS-7 Desktop
   Story-Stand, offene Fäden und ausführlicher Changelog: siehe STORY.md im Repo-Root.
   Kurz-Changelog:
+    25.09.2026 – Bugfix: verwaiste Spiele-Icons nach Ordner-Löschung. healOrphanedInstalledIcons()
+                 (Selbstheilung bei jedem Boot) + vfsDeleteFolder() holt verschobene Icons vor dem
+                 Löschen zurück auf den Desktop, statt sie zu verlieren.
+                 Neu: fester, unlöschbarer "Spiele"-Ordner auf dem Desktop (node.locked=true; siehe
+                 vfsDeleteFolder/vfsRenameNode/vfsMoveNode). Jedes installierte Spiel bekommt dort
+                 automatisch eine dauerhafte Katalog-Verknüpfung (ensureGameInCatalog, läuft bei
+                 Installation UND rückwirkend beim Boot für Bestandsspeicherstände). Herausziehen auf
+                 den Desktop kopiert nur (copyLinkToDesktop) — der Ordner-Eintrag bleibt immer erhalten,
+                 ein Spiel kann dadurch nie wieder komplett "verloren" gehen.
     24.09.2026 – Frequenzanalysator: "SSTV entschlüsseln" (Robot 36/72), Bildaufbau live zum Ton
                  (nur 5 % Lautstärke), .ogg-Kanäle über signals.json, Decoder-Fix erste Zeile,
                  erstes SSTV-Signal signal_echo1847.ogg im Archiv;
@@ -1789,6 +1798,7 @@ Gib 'hilfe' ein für Befehle.
         setDlState(appId, 'installed');
         pw.allowClose();
         addAppIcon(appId);
+        ensureGameInCatalog(appId);
         renderDownloads();
         toast(app.label + ' wurde installiert — Icon liegt jetzt auf dem Desktop.');
       }
@@ -2565,6 +2575,23 @@ Gib 'hilfe' ein für Befehle.
     saveVFS();
   })();
 
+  // ---- Fester "Spiele"-Ordner auf dem Desktop: nicht löschbar, nicht umbenennbar, nicht verschiebbar
+  // (node.locked = true, siehe vfsDeleteFolder/vfsRenameNode/vfsMoveNode). Jedes installierte Spiel
+  // bekommt hier automatisch eine dauerhafte Katalog-Verknüpfung (ensureGameInCatalog), die beim
+  // Herausziehen KOPIERT statt verschoben wird (copyLinkToDesktop) — damit geht ein Spiel-Icon nie
+  // mehr endgültig verloren, egal was auf dem Desktop mit den Kopien passiert. Läuft auch für
+  // Bestandsspeicherstände nach, deshalb eigenständig statt Teil der einmaligen migrateVFS(). ----
+  (function ensureSpieleOrdner(){
+    if(VFS.nodes.sys_spiele) return; // schon angelegt
+    VFS.nodes.sys_spiele = {id:'sys_spiele', type:'folder', name:'Spiele', parent:'desktop', children:[], locked:true};
+    vfsNode('desktop').children.push('sys_spiele');
+    saveVFS();
+  })();
+  // Für alle schon (vor diesem Update) installierten Spiele die Katalog-Verknüpfung nachtragen.
+  // ensureGameInCatalog() ist als function-Deklaration weiter unten im selben Scope gehoisted,
+  // deshalb hier schon aufrufbar.
+  Object.keys(APPS).forEach(appId=>{ if(getDlState(appId) === 'installed') ensureGameInCatalog(appId); });
+
   // ---- Prozedural erzeugter "Datenmüll": hunderte Ordner/Dateien zum Durchsuchen ----
   // Inhalte, Bild-/Audio-"Leichen" und Specials sind dokumentiert in STORY.md ("Archiv-Generator"),
   // damit später gezielt echte Funde eingesetzt werden können.
@@ -2793,6 +2820,7 @@ Gib 'hilfe' ein für Befehle.
   function vfsRenameNode(id, name){
     const node = vfsNode(id);
     if(!node || !name) return;
+    if(node.locked){ toast('"' + node.name + '" ist ein fester Ordner und kann nicht umbenannt werden.'); return; }
     node.name = name;
     saveVFS();
   }
@@ -2809,6 +2837,7 @@ Gib 'hilfe' ein für Befehle.
   function vfsMoveNode(id, newParentId){
     const node = vfsNode(id);
     if(!node || !vfsNode(newParentId) || node.id === newParentId) return;
+    if(node.locked) return; // feste Ordner (z.B. "Spiele") bleiben an ihrem Platz
     let p = vfsNode(newParentId);
     while(p){ if(p.id === id) return; p = p.parent ? vfsNode(p.parent) : null; } // keine Zyklen
     const old = node.parent ? vfsNode(node.parent) : null;
@@ -2923,11 +2952,50 @@ Gib 'hilfe' ein für Befehle.
     toast('"' + name + '" auf den Desktop zurückgelegt.');
   }
 
+  // Legt für ein installiertes Spiel eine dauerhafte Verknüpfung im festen Spiele-Ordner an
+  // (idempotent — läuft bei jedem Boot für alle installierten Spiele UND direkt nach der Installation).
+  function ensureGameInCatalog(appId){
+    const app = APPS[appId];
+    if(!app || !app.openKey || !app.openKey.startsWith('game:')) return; // nur Spiele, kein Musikarchiv/DataRescue
+    const key = 'app:' + appId;
+    const already = (vfsNode('sys_spiele').children || []).some(cid=>{
+      const n = vfsNode(cid);
+      return n && n.type === 'link' && n.sysKey === key;
+    });
+    if(already) return;
+    const html = `<div class="icon" data-open="${key}" tabindex="0"><div class="glyph">${app.icon}</div><div class="label">${app.label}</div></div>`;
+    vfsAddLink('sys_spiele', key, app.label, html);
+  }
+
+  // Legt eine Kopie eines Icons aus dem festen Spiele-Ordner auf den Desktop — im Unterschied zu
+  // restoreLinkToDesktop() bleibt die Verknüpfung im Ordner dabei erhalten (der Ordner ist der
+  // dauerhafte Katalog, der Desktop bekommt nur eine austauschbare Kopie).
+  function copyLinkToDesktop(id){
+    const node = vfsNode(id);
+    if(!node || node.type !== 'link') return;
+    const box = document.getElementById('icons');
+    if(box.querySelector(`.icon[data-open="${node.sysKey}"]`)){
+      toast('"' + node.name + '" liegt schon auf dem Desktop.');
+      return;
+    }
+    if(node.html){
+      const tmp = document.createElement('div');
+      tmp.innerHTML = node.html;
+      const iconEl = tmp.firstElementChild;
+      if(iconEl){
+        box.appendChild(iconEl);
+        if(iconsBooted) wireIcon(iconEl);
+      }
+    }
+    toast('"' + node.name + '" als Kopie auf den Desktop gelegt.');
+  }
+
   // Löscht einen selbst erstellten Ordner (rekursiv): Unterordner werden mitgelöscht,
   // hineinverschobene Spiele-/App-Icons kommen dabei zurück auf den Desktop (gehen nicht verloren).
   function vfsDeleteFolder(id){
     const node = vfsNode(id);
     if(!node || node.type !== 'folder' || id === 'desktop') return;
+    if(node.locked){ toast('"' + node.name + '" ist ein fester Ordner und kann nicht gelöscht werden.'); return; }
     if(!confirm('Ordner "' + node.name + '" wirklich löschen?\n\nEnthaltene Unterordner werden mitgelöscht. Verschobene Spiele-/App-Icons landen wieder auf dem Desktop.')) return;
     (function removeRec(nid){
       const n = vfsNode(nid);
@@ -2936,7 +3004,12 @@ Gib 'hilfe' ein für Befehle.
         const c = vfsNode(cid);
         if(!c) return;
         if(c.type === 'folder') removeRec(cid);
-        else if(c.type === 'link') restoreLinkToDesktopSilent(cid);
+        else if(c.type === 'link'){
+          // Falls das Wiederherstellen aus irgendeinem Grund scheitert: Icon-Key auf jeden Fall
+          // entsperren statt es für immer versteckt zu lassen (siehe healOrphanedInstalledIcons()).
+          try{ restoreLinkToDesktopSilent(cid); }
+          catch(e){ unhideSystemIcon(c.sysKey); vfsRemoveNode(cid); }
+        }
       });
       const key = 'vfsfolder:' + nid;
       if(openWinIds.has(key)){
@@ -2984,6 +3057,12 @@ Gib 'hilfe' ein für Befehle.
     const id = icon.dataset.vfs;
     const node = vfsNode(id);
     if(!node) return;
+    if(node.locked){
+      showCtxMenu(e.clientX, e.clientY, [
+        {label:'Öffnen', action: ()=> openWindow('vfsfolder:' + id)}
+      ]);
+      return;
+    }
     showCtxMenu(e.clientX, e.clientY, [
       {label:'Umbenennen', action: ()=>{
         const name = prompt('Neuer Name:', node.name);
@@ -3077,10 +3156,15 @@ Gib 'hilfe' ein für Befehle.
           }});
           items.push({label:'Löschen', action: ()=>{ vfsDeleteFolder(node.id); render(); }});
         } else if(node && node.type === 'link'){
-          items.push({label:'Auf den Desktop verschieben', action: ()=>{
-            restoreLinkToDesktop(node.id);
-            render();
-          }});
+          const parentLocked = node.parent && vfsNode(node.parent) && vfsNode(node.parent).locked;
+          if(parentLocked){
+            items.push({label:'Auf den Desktop kopieren', action: ()=> copyLinkToDesktop(node.id)});
+          } else {
+            items.push({label:'Auf den Desktop verschieben', action: ()=>{
+              restoreLinkToDesktop(node.id);
+              render();
+            }});
+          }
         }
       }
       items.push({label:'Neuer Ordner', action: ()=>{ vfsCreateFolder(id, 'Neuer Ordner'); render(); refreshDesktopVfsIcons(); status.textContent = 'Ordner erstellt.'; }});
@@ -3404,7 +3488,25 @@ Gib 'hilfe' ein für Befehle.
     }, true);
   }
 
+  // Reparatur für verwaiste Icons: Eine "installierte" App/ein Spiel gilt als versteckt (hiddenIcons),
+  // weil sie mal in einen Ordner gezogen wurde. Normalerweise liegt dafür ein VFS-Link-Knoten in genau
+  // diesem Ordner. Wurde der Ordner (oder der Link darin) je durch einen Fehler verloren, ohne dass das
+  // Verstecken rückgängig gemacht wurde, bleibt die App für immer unsichtbar UND lässt sich nicht neu
+  // installieren (Downloads-Ordner zeigt "installiert" an). Diese Prüfung läuft bei jedem Start und holt
+  // genau solche verwaisten Icons automatisch zurück auf den Desktop.
+  function healOrphanedInstalledIcons(){
+    Object.keys(APPS).forEach(appId=>{
+      if(getDlState(appId) !== 'installed') return;
+      const key = 'app:' + appId;
+      if(!hiddenIcons.has(key)) return; // ganz normal sichtbar, nichts zu tun
+      const inFolder = Object.values(VFS.nodes).some(n => n.type === 'link' && n.sysKey === key);
+      if(inFolder) return; // liegt korrekt versteckt in einem noch existierenden Ordner
+      unhideSystemIcon(key); // verwaist -> wieder sichtbar machen
+    });
+  }
+
   function initIcons(){
+    healOrphanedInstalledIcons();
     const box = document.getElementById('icons');
     [...box.querySelectorAll('.icon')].forEach(icon=>{
       if(icon.dataset.open && hiddenIcons.has(icon.dataset.open)){ icon.remove(); return; }
