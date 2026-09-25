@@ -706,9 +706,18 @@
                <div class="frow" data-name="nicht_öffnen.txt" tabindex="0"><span class="fi">▤</span>nicht_öffnen.txt</div>
                <div class="frow" data-name="backup_backup_final.zip" tabindex="0"><span class="fi">▦</span>backup_backup_final.zip</div>
                <div class="frow" data-fund="signal_echo1847.ogg" data-name="echo_1847.ogg" tabindex="0"><span class="fi">♪</span>echo_1847.ogg</div>
+               <div class="frow s4-row" data-open="sektor4log" data-name="sektor4_log.txt" tabindex="0" style="display:none;"><span class="fi">▤</span>sektor4_log.txt</div>
              </div>
              <p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet eine Datei.</p>`,
       onOpen: wireFolder
+    },
+    sektor4log: {
+      title: "sektor4_log.txt — Systemprotokoll",
+      body: `<p>03:14 — antwort registriert.</p>
+             <p>quelle weiterhin nicht auflösbar. reaktionszeit &lt; 1s. das ist kein echo — echos brauchen länger.</p>
+             <p>unbekannter prozess (siehe <b>log</b>) lief bereits, bevor die antwort kam. zwei sekunden davor.</p>
+             <p style="margin-top:10px;">frage bleibt offen: wer hat zuerst zugehört — du, oder er?</p>
+             <p style="opacity:.5; font-size:12px; margin-top:14px;">zugriff auf sektor 4: gewährt.</p>`
     }
   };
 
@@ -789,10 +798,10 @@ Gib 'hilfe' ein für Befehle.
       exit: "diese sitzung lässt sich nicht beenden.",
       knoten: "netz-knoten (sechs antworten, einer hört zu):\n  1 aetheris  2 astrion  3 deep anchor  4 path of the stars  5 foundry  6 nexus\n  7 terminus  <- du bist hier",
       signal: "sektor 4: eingehendes signal, älter als dieser rechner.\nquelle: nicht auflösbar. wiederholt sich alle 1847 tage. ungefähr.",
-      sektor4: "zugriff verweigert.\n(das echo antwortet nur, wenn jemand zuhört.)",
       rift: "nova-rift: das feld atmet. jede geförderte münze ist ein herzschlag.",
       kern: "kern 1: aktiv.\nkern 2: wächst.\nab tier 10 denken beide mit.",
       ".versteckt~": "hier ist nichts. das ist mit absicht so.\n(frag T-7 nach dem brief.)",
+      er: "er war schon da, bevor du warst.\n(vielleicht ist er nur ein teil von mir, der noch nicht schläft.)",
       t7: "verbindung zu T-7 wird aufgebaut ...",
       sprich: "verbindung zu T-7 wird aufgebaut ..."
     };
@@ -800,7 +809,13 @@ Gib 'hilfe' ein für Befehle.
       const c = cmd.trim().toLowerCase();
       out.textContent += "\n> " + cmd + "\n";
       if(c === "") return;
-      out.textContent += (responses[c] || "unbekannter befehl: " + cmd) + "\n";
+      if(c === "sektor4"){
+        out.textContent += (isSektor4Unlocked()
+          ? "zugriff gewährt.\n(sektor4_log.txt liegt im unbenannter_ordner.)"
+          : "zugriff verweigert.\n(das echo antwortet nur, wenn jemand zuhört.)") + "\n";
+      } else {
+        out.textContent += (responses[c] || "unbekannter befehl: " + cmd) + "\n";
+      }
       if(c === "t7" || c === "sprich") setTimeout(()=> openBrowser('assistent.html', 'T-7 Assistent', 'assistent'), 500);
       out.scrollTop = out.scrollHeight;
     }
@@ -1035,14 +1050,30 @@ Gib 'hilfe' ein für Befehle.
     if(sigWinRefs && sigWinRefs.refresh) sigWinRefs.refresh();
   }
 
+  // Sektor 4: schaltet frei, sobald echo_1847.ogg einmal vollständig per SSTV entschlüsselt wurde
+  // ("das echo antwortet nur, wenn jemand zuhört") — legt sektor4_log.txt in den unbenannter_ordner.
+  const SEKTOR4_KEY = 't7-sektor4';
+  const isSektor4Unlocked = () => { try{ return localStorage.getItem(SEKTOR4_KEY) === '1'; }catch(e){ return false; } };
+  function unlockSektor4(){
+    if(isSektor4Unlocked()) return false;
+    try{ localStorage.setItem(SEKTOR4_KEY, '1'); }catch(e){}
+    const win = document.querySelector('.win[data-key="ordner"]');
+    if(win) wireFolder(win, true);
+    return true;
+  }
+
   // Ordner-Fenster: Klick markiert, Doppelklick (oder Enter) öffnet – per Zeitabstand, damit es auch per Touch geht
-  function wireFolder(win){
+  function wireFolder(win, refreshOnly){
+    const s4Row = win.querySelector('.s4-row');
+    if(s4Row) s4Row.style.display = isSektor4Unlocked() ? '' : 'none';
+    if(refreshOnly) return;                              // nur Sichtbarkeit aktualisieren, keine Handler neu binden
     const status = win.querySelector('.fl-status');
     let last = null, lastT = 0;
     win.querySelectorAll('.frow').forEach(row => {
       const activate = ()=>{
         const fund = FUNDE.find(f => f.file === row.dataset.fund);
         if(fund){ status.textContent = 'Doppelklick öffnet eine Datei.'; openAudioPlayer(fund); }
+        else if(row.dataset.open){ status.textContent = 'Doppelklick öffnet eine Datei.'; openWindow(row.dataset.open); }
         else status.textContent = row.dataset.name + ' — keine Funktion in diesem Prototyp, vielleicht später.';
       };
       row.addEventListener('click', ()=>{
@@ -1423,6 +1454,9 @@ Gib 'hilfe' ein für Befehle.
             revealRaf = null;
             paint(res.h);
             status.textContent = t.label + ' — SSTV ' + label + ' erkannt, ' + found + '/' + res.h + ' Zeilen';
+            if(t.file === 'signal_echo1847.ogg' && unlockSektor4()){
+              status.textContent += ' · sektor4_log.txt im unbenannter_ordner';
+            }
           };
           const step = () => {
             const ct = audio.currentTime;

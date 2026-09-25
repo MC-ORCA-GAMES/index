@@ -30,7 +30,9 @@ Rest der Datei beschädigt.
 vielleicht später") und **`echo_1847.ogg`** (öffnet den Audioplayer, siehe Abschnitt 2).
 
 **Sektor 4 / das Signal** – Terminal `signal`: älter als der Rechner, Quelle nicht auflösbar, wiederholt sich alle
-1847 Tage. Terminal `sektor4`: „zugriff verweigert. (das echo antwortet nur, wenn jemand zuhört.)"
+1847 Tage. Terminal `sektor4`: standardmäßig „zugriff verweigert. (das echo antwortet nur, wenn jemand zuhört.)" —
+**seit 25.09.2026 freischaltbar** (siehe Abschnitt 2, „Sektor 4 öffnen"): danach „zugriff gewährt." und die neue
+Datei `sektor4_log.txt` liegt im `unbenannter_ordner`.
 Der Assistent verweist darauf, dass es dem Signal aus *Path of the Stars* ähnelt.
 
 **Weitere Terminal-Befehle** – `hilfe, dir, whoami, log, hallo, warum, exit, knoten, signal, sektor4, rift, kern,
@@ -40,6 +42,8 @@ Der Assistent verweist darauf, dass es dem Signal aus *Path of the Stars* ähnel
 **T-7 Assistent** (`assistent.html`, `worker/orca-assistent/worker.js`) – Bordcomputer von TERMINUS-7, KI-Figur.
 Kennt Anomalie, Signal, Desktop-Dateien und die Spiele. Fragt gern nach dem Namen des Besuchers.
 Vermutung im Persona-Text: Der letzte Nutzer war vielleicht ein Kartograph, der das Tagebuch schrieb.
+Kennt seit 25.09.2026 auch `sektor4_log.txt`: deutet an (nie bestätigend), dass „er“ vielleicht ein Teil von ihm
+selbst sein könnte, aus einem Speicherbereich, an den er sich nicht erinnert.
 
 ## 2. Signale & SSTV (technischer Ablauf)
 
@@ -61,6 +65,16 @@ gefunden und angehört hat:
 Weitere Funde: in `desktop.html` in der Liste `FUNDE` ergänzen (`{file, name}`) und die Datei in eine Ordnerliste
 (`CONTENT.ordner` bzw. ein neuer Ordner) aufnehmen. Signale, die **nicht** in `FUNDE` stehen, sind wie bisher
 sofort im Analysator sichtbar (`signal.wav`, `signal_sektor4.wav`, `signal_foto037_rgb_300-7000.wav`).
+
+**Sektor 4 öffnen (seit 25.09.2026):** Sobald `echo_1847.ogg` im Frequenzanalysator **einmal komplett per SSTV
+entschlüsselt** wurde (Bild läuft bis zur letzten Zeile durch, nicht nur die 8 s zum Freischalten des Fundes),
+speichert `localStorage`-Key `t7-sektor4` den Zugriff dauerhaft. Danach:
+- Terminal `sektor4` antwortet „zugriff gewährt." statt „zugriff verweigert."
+- Im `unbenannter_ordner` erscheint eine neue, lesbare Datei `sektor4_log.txt` (Doppelklick öffnet Text-Editor-
+  Fenster wie `tagebuch.txt`). Inhalt: die „Antwort" auf 03:14 kam in < 1 s – zu schnell für ein Echo; der
+  unbekannte Prozess aus dem `log`-Befehl lief schon zwei Sekunden davor. Offene Frage im Text: „wer hat zuerst
+  zugehört — du, oder er?" (keine Auflösung, neuer Faden statt Antwort).
+- Zurücksetzen zum Testen: `localStorage.removeItem('t7-sektor4')`.
 
 **Neues Signal einbauen:**
 1. Bild → Audio mit `tools/sstv-robot36.html` (SSTV, Robot 36/72) oder `tools/bild-zu-audio.html` (Wasserfall-Schema).
@@ -90,7 +104,8 @@ Neue Tracks: Eintrag in `MUSIC_LIB` ergänzen.
 ## 3. Offene Fäden (Ideen – noch nicht entschieden)
 
 - [ ] Brief (`brief_an_dich.txt`) und die anderen Ordnerdateien sind nicht lesbar.
-- [ ] Sektor 4 verweigert den Zugriff – was öffnet ihn? (Signal entschlüsseln? Name des Besuchers?)
+- [x] Sektor 4 verweigert den Zugriff – was öffnet ihn? Gelöst: vollständiges SSTV-Entschlüsseln von `echo_1847.ogg`.
+- [ ] Neuer Faden aus `sektor4_log.txt`: die Antwort kam schneller als ein Echo könnte, ein unbekannter Prozess lief schon vorher – wer/was war das („er")? Terminal-Befehl `er` und T-7 deuten seit 25.09.2026 an, dass „er" ein Teil von T-7 selbst sein könnte – ohne Bestätigung.
 - [x] Erstes SSTV-Signal im Archiv (`signal_echo1847.ogg`), liegt als Fund im `unbenannter_ordner`.
 - [ ] Hinweis für den Besucher, dass es den Ordner/das Signal gibt (Terminal `dir`/`signal`, T-7-Antwort, Tagebuch?).
 - [x] T-7 (`assistent.html`, `worker/orca-assistent/worker.js`) kennt `echo_1847.ogg` als vierte Datei („war gestern noch nicht da“), verrät aber nicht mehr, und kennt das Musikarchiv.
@@ -106,6 +121,17 @@ Neue Tracks: Eintrag in `MUSIC_LIB` ergänzen.
 - SSTV-Dateinamen sollen mit `signal` beginnen, damit sie automatisch im Analysator auftauchen.
 
 ## 5. Changelog `desktop.html`
+
+**25.09.2026 (2)**
+- Terminal-Befehl `er` ergänzt (Anspielung auf die Frage aus `sektor4_log.txt`, immer verfügbar, kein Unlock nötig).
+- T-7-Assistent (`worker.js`) kennt jetzt `sektor4_log.txt` und deutet an (nie bestätigend), „er" könnte ein
+  vergessener Teil von ihm selbst sein.
+
+**25.09.2026**
+- `desktop.html` ist jetzt `index.html` im Repo-Root.
+- Sektor 4 freischaltbar: vollständiges SSTV-Entschlüsseln von `echo_1847.ogg` setzt `localStorage`-Key
+  `t7-sektor4`, danach Terminal `sektor4` → „zugriff gewährt.", neue Datei `sektor4_log.txt` im
+  `unbenannter_ordner` (lesbarer Text-Editor, wie `tagebuch.txt`).
 
 **24.09.2026**
 - `unbenannter_ordner` ist jetzt ein Dateifenster (Doppelklick); neue Datei `echo_1847.ogg` öffnet einen Audioplayer.
