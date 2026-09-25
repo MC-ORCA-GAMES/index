@@ -395,6 +395,7 @@
     <div class="icon" data-open="downloads" tabindex="0"><div class="glyph">⇩</div><div class="label">Downloads</div></div>
     <div class="icon" data-open="signal" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h2l2-7 3 14 3-11 2 4h6"/></svg></div><div class="label">Frequenzanalysator</div></div>
     <div class="icon redfolder" data-open="rechtliches" data-pin="bottom" tabindex="0"><div class="glyph"><svg width="32" height="30" viewBox="0 0 32 28" fill="none"><path d="M2 6a2 2 0 0 1 2-2h8l3 3h13a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#d93025" stroke="#8f1a12" stroke-width="1.4"/><path d="M2 11h28" stroke="#ff8a80" stroke-width="1" opacity=".6"/></svg></div><div class="label">Rechtliches</div></div>
+    <div class="icon redfolder" data-open="wichtig" data-pin="bottom" tabindex="0"><div class="glyph"><svg width="26" height="30" viewBox="0 0 24 28" fill="none"><path d="M3 2h13l5 5v18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="#d93025" stroke="#8f1a12" stroke-width="1.4"/><path d="M16 2v5h5" stroke="#8f1a12" stroke-width="1.2" fill="none"/><rect x="10.2" y="9" width="1.6" height="9" fill="#ffe0dc"/><rect x="10.2" y="19.5" width="1.6" height="1.8" fill="#ffe0dc"/></svg></div><div class="label">WICHTIG_LIES_MICH.txt</div></div>
   </div>
 </div>
 
@@ -688,6 +689,13 @@
              </div>
              <p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet die Seite im Netzscout.</p>`,
       onOpen: wireLegalFolder
+    },
+    wichtig: {
+      title: "WICHTIG_LIES_MICH.txt",
+      body: `<div style="color:#ff8a80; font-weight:600; font-size:14px; margin-bottom:10px;">⚠ Hinweis zu „Downloads" auf diesem Rechner</div>
+             <p style="color:#ffcfc9;">Alles, was hier auf TERMINUS-7 als <b>Download</b> oder <b>Installation</b> erscheint (z. B. der Ordner „Downloads", Fortschrittsbalken, „Setup wird ausgeführt" usw.), ist <b>Teil des Spiels</b> und <b>keine echte Datei</b>, die auf deinem echten Gerät landet.</p>
+             <p style="color:#ffcfc9;">Es wird nichts wirklich heruntergeladen oder installiert — das ist reine Simulation innerhalb dieser Webseite.</p>
+             <p style="opacity:.75; font-size:12.5px; margin-top:14px;">Ausnahme: Falls an anderer Stelle ausdrücklich eine echte Datei zum Download angeboten wird (z. B. eine APK-Datei oder eine eigenständige HTML-Spieldatei), wird das gesondert und deutlich als echter Download gekennzeichnet.</p>`
     },
     ordner: {
       title: "unbenannter_ordner",
@@ -1518,12 +1526,10 @@ Gib 'hilfe' ein für Befehle.
   function emblem(g){
     return `<svg width="34" height="34" viewBox="-20 -20 40 40" aria-hidden="true"><ellipse rx="17" ry="6.5" transform="rotate(${g.tilt})" fill="none" stroke="${g.c}" stroke-width="1.3" opacity=".85"/><circle r="11" fill="${g.c}" opacity=".18"/><circle r="5.4" fill="${g.c}"/></svg>`;
   }
-  GAMES.forEach(g=>{
-    const el = document.createElement('div');
-    el.className = 'icon'; el.dataset.open = 'game:' + g.id; el.tabIndex = 0;
-    el.innerHTML = `<div class="glyph">${emblem(g)}</div><div class="label">${g.name}</div>`;
-    document.getElementById('icons').appendChild(el);
-  });
+  // Hinweis: die Planeten-Verknüpfungen für die einzelnen Spiele werden bewusst
+  // NICHT mehr als Desktop-Icons angelegt (waren Duplikate zu Medienarchiv/Portal).
+  // GAMES-Array und der 'game:'-Dispatch in openWindow() bleiben bestehen, falls
+  // später wieder gezielt einzelne Spiel-Icons gesetzt werden sollen.
 
   // ---------- Fund: Musikplayer erst per Download + Installation ----------
   // Ablauf: irgendwo im Netz (per ORBIT-Suche gefunden, nicht verlinkt) liegt eine Seite mit einem
