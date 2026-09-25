@@ -321,7 +321,10 @@
     font-family:"Space Grotesk",sans-serif; font-weight:700; letter-spacing:.04em; font-size:13px;
   }
   .login-btn:hover{background:var(--crt);}
+  .login-btn-ghost{background:transparent; border:1px solid var(--crt-dim); color:var(--text); font-weight:400;}
+  .login-btn-ghost:hover{background:rgba(212,175,55,0.10);}
   .login-hint{font-size:11px; opacity:.45; margin-top:4px;}
+  .login-hint:hover{opacity:.75;}
   .login-clock{position:absolute; top:24px; right:32px; font-size:13px; opacity:.6; font-family:"Consolas",monospace;}
 
   /* ---- Startmenü als Kachel-Raster (Windows-artig) ---- */
@@ -350,13 +353,16 @@
 <div id="loginscreen">
   <div class="login-clock" id="loginClock">--:--</div>
   <div class="login-box">
-    <div class="login-avatar" id="loginAvatar">◈</div>
-    <div class="login-sub">TERMINUS-7 · Zugang</div>
+    <div class="login-avatar" id="loginAvatar"><img src="art/logo.png" alt="" style="width:100%; height:100%; object-fit:contain; border-radius:50%;" onerror="this.remove()"></div>
+    <div class="login-user" style="font-size:22px; letter-spacing:.04em;">MC ORCA GAMES</div>
+    <div class="login-sub">Zugang</div>
 
     <div id="loginStepEmail" style="display:flex; flex-direction:column; align-items:center; gap:4px; max-width:280px;">
       <div class="login-user" style="font-size:14px; font-weight:400; opacity:.85; text-align:center;">Login per Code — keine Passwörter. Gilt für den gesamten MC ORCA-Account.</div>
       <input type="email" class="login-pass" id="loginEmailInput" placeholder="deine@email.de" autocomplete="email" style="margin-top:12px;">
       <button class="login-btn" id="loginSendBtn" type="button" style="margin-top:12px;">Code senden</button>
+      <button class="login-btn login-btn-ghost" id="loginGuestBtn" type="button" style="margin-top:8px;">Als Gast reinschauen</button>
+      <div class="login-hint" style="cursor:pointer; text-decoration:underline; margin-top:12px; font-size:12px;" id="loginSkipBtn">ohne Login fortfahren →</div>
     </div>
 
     <div id="loginStepCode" style="display:none; flex-direction:column; align-items:center; gap:14px;">
@@ -375,8 +381,6 @@
     <div class="login-hint" id="loginStatus" style="min-height:14px;"></div>
   </div>
 </div>
-
-<div id="boot" style="display:none;"></div>
 
 <div id="desktop" style="display:none;">
   <div id="wallpaper"></div>
@@ -431,48 +435,19 @@
   // liegt separat unter portal.html, damit hier keine Endlosschleife entsteht.
   const SITE_URL = "portal.html";
 
-  // ---------- Boot sequence ----------
-  const bootLines = [
-    "TERMINUS-BIOS v0.7 ... OK",
-    "PRÜFE SPEICHER: 640K ... 640K ... [Anomalie in Sektor 4]",
-    "LAUFWERK C: einhängen ... OK",
-    "LETZTER NUTZER: unbekannt",
-    "LETZTE ANMELDUNG: —",
-    "SITZUNG WIRD WIEDERHERGESTELLT ...",
-    "",
-    "willkommen zurück."
-  ];
-  const bootEl = document.getElementById('boot');
-  let i = 0;
-  function typeLine(){
-    if(i >= bootLines.length){
-      setTimeout(()=>{
-        bootEl.style.transition="opacity .6s";
-        bootEl.style.opacity="0";
-        setTimeout(()=>{
-          bootEl.style.display="none";
-          document.getElementById('desktop').style.display="block";
-          initStars();
-          initIcons();
-          document.getElementById('taskbar').style.display="flex";
-        },600);
-      }, 500);
-      return;
-    }
-    bootEl.textContent += bootLines[i] + "\n";
-    i++;
-    setTimeout(typeLine, bootLines[i-1] === "" ? 250 : 260 + Math.random()*220);
-  }
-  function startBoot(){
-    document.getElementById('boot').style.display = 'block';
-    bootEl.innerHTML = "";
-    typeLine();
+  // ---------- Desktop direkt anzeigen (kein Boot-Schriftzug mehr) ----------
+  function showDesktop(){
+    document.getElementById('desktop').style.display = 'block';
+    initStars();
+    initIcons();
+    document.getElementById('taskbar').style.display = 'flex';
   }
 
   // ---------- Login screen: echter Account-Login (E-Mail + Code), wie im Portal ----------
   (function(){
     const loginScreen = document.getElementById('loginscreen');
     const clockEl = document.getElementById('loginClock');
+    const SKIP_KEY = 'mcorca_skip_login';
     function tickClock(){
       const d = new Date();
       clockEl.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
@@ -480,12 +455,19 @@
     tickClock();
     setInterval(tickClock, 1000);
 
+    // Login-Screen wurde schon einmal übersprungen -> diesmal gar nicht erst anzeigen.
+    if(localStorage.getItem(SKIP_KEY) === '1'){
+      loginScreen.style.display = 'none';
+      showDesktop();
+      return;
+    }
+
     function dismissLogin(){
       loginScreen.style.transition = 'opacity .4s';
       loginScreen.style.opacity = '0';
       setTimeout(()=>{
         loginScreen.style.display = 'none';
-        startBoot();
+        showDesktop();
       }, 400);
     }
 
@@ -532,8 +514,14 @@
       window.__cloudUser = user;
     }
 
+    // Überspringen: merkt sich die Wahl, ab jetzt kommt man beim nächsten Besuch direkt auf die Seite.
+    document.getElementById('loginSkipBtn').addEventListener('click', ()=>{
+      localStorage.setItem(SKIP_KEY, '1');
+      dismissLogin();
+    });
+
     if(!supabaseClient){
-      // Kein Netz / Skript blockiert: nicht aussperren, einfach normal weiter booten.
+      // Kein Netz / Skript blockiert: nicht aussperren, einfach normal weiter machen.
       setStatus('Cloud-Login gerade nicht erreichbar — weiter im Gastmodus.', true);
       setTimeout(dismissLogin, 900);
       return;
@@ -560,6 +548,20 @@
       setStatus('Code an ' + email + ' geschickt (auch im Spam-Ordner nachsehen).', false);
     });
     emailInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') document.getElementById('loginSendBtn').click(); });
+
+    // Gast-Login: 1 geteilter Account fuer alle, die nur reinschauen wollen --
+    // gleicher Account wie in nexus/index.html (siehe Migration create_nexus_shared_guest_account).
+    document.getElementById('loginGuestBtn').addEventListener('click', async ()=>{
+      setStatus('Melde als Gast an …', false);
+      const res = await supabaseClient.auth.signInWithPassword({
+        email: 'gast@mc-orca-games.local',
+        password: 'nexus-gast-2026'
+      });
+      if(res.error){ setStatus('Fehler: ' + res.error.message, true); return; }
+      setStatus('Als Gast eingeloggt!', false);
+      await loadProfileAndShow(res.data.user);
+      setTimeout(dismissLogin, 400);
+    });
 
     document.getElementById('loginVerifyBtn').addEventListener('click', async ()=>{
       const code = codeInput.value.trim();
