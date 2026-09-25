@@ -318,19 +318,30 @@
   /* ---- Login-Bildschirm (vor dem Boot) ---- */
   #loginscreen{
     position:fixed; inset:0; z-index:10001; display:flex; align-items:center; justify-content:center;
-    background:radial-gradient(ellipse at 50% 30%, #1c2440 0%, #05060d 75%);
-    font-family:"Space Grotesk",sans-serif; color:var(--text);
+    background:
+      radial-gradient(ellipse 60% 45% at 18% 15%, rgba(212,175,55,0.16) 0%, transparent 60%),
+      radial-gradient(ellipse 55% 45% at 85% 80%, rgba(33,199,184,0.14) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 30%, #1c2440 0%, #05060d 75%);
+    font-family:"Space Grotesk",sans-serif; color:var(--text); overflow:hidden;
   }
+  #loginStars{ position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.75; }
   #loginscreen::before{
-    content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.5; z-index:1;
     background:repeating-linear-gradient(rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.12) 3px 4px);
     mix-blend-mode:multiply;
   }
-  .login-box{position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:18px; padding:20px;}
+  #loginscreen::after{
+    content:""; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:min(90vmin,900px); height:min(90vmin,900px); pointer-events:none; z-index:0;
+    background:radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 68%);
+  }
+  .login-box{position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:18px; padding:20px;}
   .login-avatar{
     width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center;
     font-size:44px; background:var(--panel); border:2px solid var(--crt-dim); box-shadow:0 0 24px rgba(212,175,55,.25);
+    overflow:hidden;
   }
+  .login-avatar img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
   .login-user{font-size:20px; font-weight:600; letter-spacing:.03em;}
   .login-sub{font-size:12px; opacity:.6; letter-spacing:.08em; text-transform:uppercase;}
   .login-pass{
@@ -372,9 +383,10 @@
 <body>
 
 <div id="loginscreen">
+  <canvas id="loginStars"></canvas>
   <div class="login-clock" id="loginClock">--:--</div>
   <div class="login-box">
-    <div class="login-avatar" id="loginAvatar"><img src="art/logo.png" alt="" style="width:100%; height:100%; object-fit:contain; border-radius:50%;" onerror="this.remove()"></div>
+    <div class="login-avatar" id="loginAvatar"><img id="loginAvatarImg" src="bilder/logo.png" alt="" style="width:100%; height:100%; object-fit:contain; border-radius:50%;" onerror="this.remove()"></div>
     <div class="login-user" style="font-size:22px; letter-spacing:.04em;">MC ORCA GAMES</div>
     <div class="login-sub">Zugang</div>
 
@@ -482,6 +494,7 @@
       showDesktop();
       return;
     }
+    initStars('loginStars');
 
     function dismissLogin(){
       loginScreen.style.transition = 'opacity .4s';
@@ -508,6 +521,8 @@
     const codeInput = document.getElementById('loginCodeInput');
     const inNameEl = document.getElementById('loginInName');
     const smNameEl = document.getElementById('smAccountName');
+    const avatarImgEl = document.getElementById('loginAvatarImg');
+    const DEFAULT_LOGIN_AVATAR = 'bilder/logo.png';
     let pendingEmail = '';
     let uiState = 'email';
 
@@ -524,14 +539,17 @@
 
     async function loadProfileAndShow(user){
       let displayName = user.email;
+      let avatarPath = '';
       if(supabaseClient){
         try{
           const res = await supabaseClient.from('profiles').select('username,avatar').eq('user_id', user.id).maybeSingle();
           if(!res.error && res.data && res.data.username) displayName = res.data.username;
+          if(!res.error && res.data && res.data.avatar) avatarPath = res.data.avatar;
         }catch(e){ /* Profiltabelle evtl. noch nicht vorhanden - egal */ }
       }
       inNameEl.textContent = 'Angemeldet als ' + displayName;
       if(smNameEl) smNameEl.textContent = displayName;
+      if(avatarImgEl) avatarImgEl.src = avatarPath || DEFAULT_LOGIN_AVATAR;
       window.__cloudUser = user;
     }
 
@@ -618,8 +636,9 @@
   })();
 
   // ---------- Starfield (wie auf mc-orca-games.de) ----------
-  function initStars(){
-    const canvas = document.getElementById('stars');
+  function initStars(canvasId){
+    const canvas = document.getElementById(canvasId || 'stars');
+    if(!canvas) return;
     const ctx = canvas.getContext('2d');
     let stars = [];
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
