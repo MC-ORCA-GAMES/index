@@ -25,9 +25,16 @@ Rest der Datei beschädigt.
 
 **Papierkorb** – „0 Objekte" (war vorhin noch nicht leer).
 
-**unbenannter_ordner** – jetzt ein Dateifenster (Klick markiert, **Doppelklick öffnet**): `brief_an_dich.txt`,
-`nicht_öffnen.txt`, `backup_backup_final.zip` (alle drei noch ohne Funktion: „keine Funktion in diesem Prototyp,
-vielleicht später") und **`echo_1847.ogg`** (öffnet den Audioplayer, siehe Abschnitt 2).
+**unbenannter_ordner** – jetzt ein Dateifenster (Klick markiert, **Doppelklick öffnet**): `brief_an_dich.txt`
+(seit 25.09.2026 lesbar, siehe unten), `nicht_öffnen.txt`, `backup_backup_final.zip` (beide noch ohne Funktion:
+„keine Funktion in diesem Prototyp, vielleicht später") und **`echo_1847.ogg`** (öffnet den Audioplayer, siehe
+Abschnitt 2).
+
+**brief_an_dich.txt (seit 25.09.2026)** – Doppelklick öffnet ein Editor-Fenster. Beim ersten Öffnen wird einmalig
+nach dem Namen gefragt (Textfeld + „weiter", `localStorage`-Key `t7-visitor-name`), danach beginnt der Brief immer
+mit „An {Name}," — passend zu T-7s Andeutung im Chat, der Brief „beginnt mit deinem Namen". Inhalt: kurz, warm,
+mehrdeutig — verweist auf 03:14 und Sektor 4, verrät nicht, wer geschrieben hat. Zum Zurücksetzen:
+`localStorage.removeItem('t7-visitor-name')`.
 
 **Sektor 4 / das Signal** – Terminal `signal`: älter als der Rechner, Quelle nicht auflösbar, wiederholt sich alle
 1847 Tage. Terminal `sektor4`: standardmäßig „zugriff verweigert. (das echo antwortet nur, wenn jemand zuhört.)" —
@@ -103,7 +110,8 @@ Neue Tracks: Eintrag in `MUSIC_LIB` ergänzen.
 
 ## 3. Offene Fäden (Ideen – noch nicht entschieden)
 
-- [ ] Brief (`brief_an_dich.txt`) und die anderen Ordnerdateien sind nicht lesbar.
+- [x] Brief (`brief_an_dich.txt`) lesbar seit 25.09.2026 — personalisiert per einmaliger Namensabfrage.
+- [ ] Die anderen Ordnerdateien (`nicht_öffnen.txt`, `backup_backup_final.zip`) sind weiterhin nicht lesbar.
 - [x] Sektor 4 verweigert den Zugriff – was öffnet ihn? Gelöst: vollständiges SSTV-Entschlüsseln von `echo_1847.ogg`.
 - [ ] Neuer Faden aus `sektor4_log.txt`: die Antwort kam schneller als ein Echo könnte, ein unbekannter Prozess lief schon vorher – wer/was war das („er")? Terminal-Befehl `er` und T-7 deuten seit 25.09.2026 an, dass „er" ein Teil von T-7 selbst sein könnte – ohne Bestätigung.
 - [x] Erstes SSTV-Signal im Archiv (`signal_echo1847.ogg`), liegt als Fund im `unbenannter_ordner`.
@@ -121,6 +129,10 @@ Neue Tracks: Eintrag in `MUSIC_LIB` ergänzen.
 - SSTV-Dateinamen sollen mit `signal` beginnen, damit sie automatisch im Analysator auftauchen.
 
 ## 5. Changelog `desktop.html`
+
+**25.09.2026 (3)**
+- `brief_an_dich.txt` ist jetzt lesbar: erstes Öffnen fragt einmalig den Namen ab (`localStorage`-Key
+  `t7-visitor-name`), der Brief beginnt danach immer mit „An {Name},". Neue Funktion `openBriefWindow()`.
 
 **25.09.2026 (2)**
 - Terminal-Befehl `er` ergänzt (Anspielung auf die Frage aus `sektor4_log.txt`, immer verfügbar, kein Unlock nötig).

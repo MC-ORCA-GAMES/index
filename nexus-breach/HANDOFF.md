@@ -3,6 +3,136 @@
 Stand: 24.09.2026 (Fortsetzung). Teil des MC ORCA Games Portfolios, bewusst NICHT
 mit Supabase/Konto/MOGC verbunden.
 
+## Freie Kopfbewegung (Pitch-Begrenzung stark erweitert)
+
+Rückmeldung: nach oben/unten kucken (Maus-Pitch) war kaum spürbar möglich,
+dadurch wurden kleine/niedrige oder tiefsitzende Gegner kaum getroffen.
+Ursache: `P.pitch` war auf ±32 begrenzt (bei HALF=300 nur ~10% der
+Bildschirmhöhe). Der Raycaster faked Pitch rein über eine Verschiebung der
+Horizont-Linie (`horizon=HALF+P.pitch+...`), Boden/Decke/Wände/Sprites sind
+alle sauber auf die Canvas-Höhe geclampt (`Math.max(0,...)`/`Math.min(H-1,...)`)
+— eine größere Pitch-Spanne bricht das Rendering also nicht. Grenze auf ±220
+angehoben, Maus-Sensitivität unverändert gelassen. Nur Desktop/Maus (Pointer-
+Lock) betroffen — es gibt aktuell keine Touch-/Mobile-Steuerung im Spiel.
+
+## Sync der beiden Arbeitsstände
+
+Es gab zwei parallele Stände: einen bereits veröffentlichten (Login-Gate
+entfernt, PWA-Dateien index.html/manifest.json/sw.js/Icons/download.html,
+game.html aber noch mit dem alten, biom-unabhängigen Gegner-Roster) und einen
+mit dem neuen, biom-spezifischen Gegner-Roster (5-6 Typen je Biom, siehe
+unten), der aber noch das interne Test-Login-Gate und den "Testspiel"-Titel
+hatte. Zusammengeführt: game.html hat jetzt den neuen Gegner-Content, aber
+ohne Login-Gate, mit öffentlichem Titel und den PWA-Head-/Body-Tags. Die
+PWA-Wrapper-Dateien (index.html, manifest.json, sw.js, Icons, download.html)
+kommen unverändert vom veröffentlichten Stand.
+
+## Großer Nachschlag: 5-6 Gegnertypen pro Biom, Außenbiome jetzt kreaturen-lastig
+
+Wunsch: mehr Gegner, 5-6 je Biom, aber in den Außenbiomen überwiegend
+Lebewesen statt Robotern (nur noch vereinzelt eine Drohne draußen), Anlage
+bleibt mechanisch. Vorher-Zustand war noch robot-lastig (jedes Außenbiom
+hatte 2-3 Roboter + nur 1 eigene Kreatur). 11 neue Typen dazu, Roster komplett
+neu zugeschnitten:
+
+**Anlage (6, mechanisch):** d,p,r,t (bestehend) + neu **`e` Sprenger-Einheit**
+(hp16, spd2.5, rennt bis auf Kontakt ran und detoniert einmalig — 22 Schaden,
+tötet sich selbst über den normalen `damageEnemy`-Pfad für korrekte Kill-
+Zählung/Boom-Effekt, kein Cooldown-Zyklus wie sonst) und **`k` Schild-Läufer**
+(hp160, spd0.85, langsamer Juggernaut mit 20-Schaden-Nahkampf — Wieder-
+verwendung von `sprRig` mit neuem `bulwarkExtra`-Schulterpanzer statt eigener
+Zeichenfunktion).
+
+**Schlucht (5):** d (jetzt nur noch 0.3 Gewicht, "vereinzelt"), g (bestehend)
++ neu **`f` Fels-Brecher** (hp90, träger Nahkampf-Brecher, übernimmt Rigs
+alte Tank-Rolle organisch), **`q` Kristall-Spucker** (hp50, stationär,
+Fernkampf — übernimmt Turms alte Rolle organisch), **`v` Geier-Schwarm**
+(hp16, spd2.3, schneller fliegender Sturzangriff). r und t komplett aus der
+Schlucht entfernt.
+
+**Wüste (5):** d (0.3), b (bestehend) + neu **`x` Skorpion-Läufer** (hp26,
+schneller Nahkampf), **`y` Sandschleier-Geist** (hp38, stationär, Fernkampf
+— übernimmt Turms Rolle organisch), **`z` Dünen-Rochen** (hp30, schneller
+Nahkampf, zweite Geschwindigkeit/Statistik-Variante zu x). t entfernt.
+
+**Dschungel (5):** d (0.2), n (bestehend) + neu **`i` Ranken-Schlinger**
+(hp36, mittelschneller Ambush), **`u` Leucht-Schwarm** (hp10, spd2.8,
+schnellster/schwächster Schwarm-Typ überhaupt), **`o` Moos-Koloss** (hp100,
+träger Nahkampf-Brecher — Jungle-Pendant zu Fels-Brecher). p und r entfernt.
+
+**Sprite-Wiederverwendung** (4 neue Grundformen statt 11 komplett eigener,
+hält die Codemenge im Rahmen — Chassis-/Hautfarbe je Biom sorgt trotzdem für
+Unterscheidung): `sprBomber`→e, `sprBrute`→f+o (Fels-Brecher/Moos-Koloss,
+gleiche "breitschultriger Brecher"-Silhouette), `sprCaster`→q+y (Kristall-
+Spucker/Sandschleier-Geist, wurzelnde Fernkampf-Form mit Spitzen- vs.
+Ranken-Krone als Unterscheidungs-Flag), `sprSwarmling`→v+u (Geier-/Leucht-
+Schwarm, geflügelte Kleinform), `sprRidge` (bereits für g) wiederverwendet für
+x+z, `sprWorm` (bereits für b) wiederverwendet für i (aufrichtende Tendril-
+Form passt auch für "aus dem Unterholz schießende Ranke").
+
+**KI datengetrieben statt 20+ einzelner if/else-Zweige:** `STATIONARY_TYPES`
+(bewegt sich nie: t,n,q,y), `APPROACH_STOP` (rennt ungebremst bis X Distanz:
+p,r,g,b,k,f,o,v,x,z,u,i,e — nur der Zahlenwert unterscheidet sich),
+`MELEE_STATS`/`RANGED_STATS` (Reichweite/Cooldown/Schaden pro Typ als Array).
+Nur d (Kite-Verhalten) und K (Burst-Fire/Rage) bleiben eigene Zweige, weil ihr
+Verhalten strukturell anders ist. Deutlich kürzer und wartbarer als 22 einzelne
+Typ-Vergleiche, bei identischer Formel pro Fall.
+
+**Gefundener Bug beim ersten Simulationslauf:** `o` (Moos-Koloss) fehlte
+komplett in `BIOME_ROSTER` (in keinem der vier Biome gelistet) — `roster.o`
+wäre `undefined` gewesen, `place('o', NaN, ...)` hätte still gar nichts
+platziert. Gefixt, mit `o:0`/`o:1` explizit in allen vier Biom-Objekten.
+
+Per Node-Simulation (Depths 1–30, alle 4 Biome durchgezählt welche Typen mit
+Anzahl>0 je vorkommen) verifiziert: **Anlage 6, Schlucht 5, Wüste 5, Dschungel
+5 Typen** — trifft die gewünschten 5-6 exakt. Kein Browsertest — nur Syntax-
+und Zahlenprüfung, keine visuelle Kontrolle der 4 neuen Sprite-Grundformen.
+
+## Drei organische "korrumpierte" Kreaturen (je eine pro Außenbiom)
+
+Rückmeldung: die Biom-Unterscheidung von eben (andere Chassis-Farbe, anderes
+Roboter-Roster je Biom) hat noch nichts an der Grundform geändert — überall
+nur Roboter/Drohnen mit anderer Lackierung. Jetzt kommt in jedem Außenbiom
+zusätzlich EIN organischer, klar nicht-mechanischer Gegnertyp dazu, der
+zugleich eine taktische Lücke der jeweiligen Roboter-Mischung füllt statt nur
+zu duplizieren:
+
+- **`g` Grat-Läufer (Schlucht)** — niedriger, vierbeiniger Kletterer mit
+  Rückenstacheln, rissiger Panzerhaut. Aggressiver Ambush-Rush (hp 34, spd
+  2.1, Nahkampf 11 Schaden alle 0.85–1.15s). Ergänzt die zähen, aber
+  langsameren Roboter der Schlucht (Rig/Turm) um eine schnelle Bedrohung.
+- **`b` Sandwurm-Wirt (Wüste)** — segmentierter, sich aufrichtender Wurm
+  ("taucht aus dem Sand auf"). Schwerer Überraschungs-Biss (hp 40, spd 1.7,
+  15 Schaden alle 1.3–1.7s). Die Wüste war bisher rein Fernkampf
+  (Drohne+Turm) — der Wurm bringt die einzige Nahkampf-Bedrohung dort rein.
+  Kein echtes Burrow-Verstecken implementiert (bräuchte eigene
+  Sichtbarkeits-/Awake-Logik) — bewegt sich wie ein normaler Nahkämpfer,
+  reine Optik+Statistik-Differenzierung.
+- **`n` Sporen-Wächter (Dschungel)** — verwurzelte, bulböse Pflanzenkreatur
+  mit sichtbaren Sporenkapseln, bewegt sich nie (teilt sich die
+  Stationär-Logik jetzt mit dem Turm-Sentinel, `e.type==='t'||e.type==='n'`).
+  Fernkampf-Sporenwurf (hp 45, 10 Schaden alle 1.8–2.4s, Reichweite 9 statt
+  der 14 des Turms — dichteres Blattwerk, kürzere Sichtlinien). Der Dschungel
+  war bisher rein Nahkampf (Spinne+Rig) — der Sporen-Wächter ist dort die
+  einzige Fernkampf-Bedrohung.
+
+Eigene Akzentfarbe für alle drei: Violett (`#C13DFF`) statt dem mechanischen
+Amber/Cyan der Roboter (`TYPE_ACCENT`) — Korruptions-Glühfarbe, die "organisch,
+aber vom selben Rogue-Prozess infiziert" signalisiert, nicht einfach eine
+vierte zufällige Farbe. Chassis-/Hauttöne kommen weiter aus `BIOME_GRIME`
+(dasselbe Rost/Sand/Moos-System wie bei den Robotern), damit sie trotzdem
+farblich in ihr Biom passen.
+
+Rein additiv in bestehende Systeme eingehängt: `ETYPES`, `SPR_BUILDERS`,
+`TYPE_ACCENT`, `BIOME_ROSTER` (Gewicht 1 nur im eigenen Biom, sonst 0),
+`place()`-Aufrufe in beiden Generatoren — keine Sonderfälle nötig außer der
+Stationär-Logik-Erweiterung für `n`. Per Node-Simulation (Depths 1–14)
+gegengeprüft: jede Kreatur bleibt strikt auf ihr Biom beschränkt, keine
+Streuung in andere Biome.
+
+Kein Browsertest — nur Syntaxprüfung und Zahlen-Simulation, keine visuelle
+Kontrolle der drei neuen Sprites.
+
 ## Jedes Biom hat jetzt sein eigenes Gegner-Roster + eigene Chassis-Farben
 
 Vorher spawnten `d`/`p`/`r`/`t` überall gleich, unabhängig vom Biom. Jetzt zwei

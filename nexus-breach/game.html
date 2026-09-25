@@ -15,8 +15,15 @@
   Levels stehen als ASCII-Karten in LEVELS weiter unten und sind leicht editierbar:
     #  Wand (Panel)     R  Wand (Server-Rack)     H  Wand (Tresor)     X  Ausgang
     .  Boden            P  Spielerstart
-    d  Glitch-Drohne    r  Rogue-Rig              K  Kern-Wächter (Boss)
-    p  Spinnen-Sonde    t  Turm-Sentinel
+    -- Anlage (mechanisch) --
+    d  Glitch-Drohne    r  Rogue-Rig         t  Turm-Sentinel      K  Kern-Wächter (Boss)
+    p  Spinnen-Sonde    e  Sprenger-Einheit  k  Schild-Läufer
+    -- Schlucht (Kreaturen, + vereinzelt d) --
+    g  Grat-Läufer      f  Fels-Brecher      q  Kristall-Spucker   v  Geier-Schwarm
+    -- Wüste (Kreaturen, + vereinzelt d) --
+    b  Sandwurm-Wirt    x  Skorpion-Läufer   y  Sandschleier-Geist z  Dünen-Rochen
+    -- Dschungel (Kreaturen, + vereinzelt d) --
+    n  Sporen-Wächter   i  Ranken-Schlinger  u  Leucht-Schwarm
     h  AXIOM-Zelle (Leben)   a  Ladung (Munition)   m  MOGC-Splitter (Punkte)   s  Streu-Kanone
 -->
 <style>
@@ -533,10 +540,10 @@ function biomeForDepth(depth){ return BIOME_ORDER[Math.floor((depth-1)/3)%BIOME_
 // Optik. Gewicht skaliert die sonst übliche Anzahl (1 = normal, 0 = kommt in
 // diesem Biom gar nicht vor). Facility bleibt die volle "Heimat"-Mischung.
 const BIOME_ROSTER={
-  facility:{d:1,  p:1, r:1, t:1},   // Anlage: komplette Mischung, alles kommt vor
-  canyon:  {d:.5, p:0, r:1, t:1},   // Schlucht: eingegrabene Verteidigung, kaum Spinnen
-  desert:  {d:1,  p:0, r:0, t:1},   // Wüste: offene Sichtlinien → Fernkampf, kein Nahkampf-Rush
-  jungle:  {d:0,  p:1, r:1, t:0}    // Dschungel: dichtes Unterholz → Nahkampf/Schwarm, keine Türme/Drohnen
+  facility:{d:1,  p:1, r:1, t:1, e:1, k:1, g:0,  b:0,  n:0,  f:0, q:0, v:0, x:0, y:0, z:0, i:0, u:0, o:0},
+  canyon:  {d:.3, p:0, r:0, t:0, e:0, k:0, g:1,  b:0,  n:0,  f:1, q:1, v:1, x:0, y:0, z:0, i:0, u:0, o:0},
+  desert:  {d:.3, p:0, r:0, t:0, e:0, k:0, g:0,  b:1,  n:0,  f:0, q:0, v:0, x:1, y:1, z:1, i:0, u:0, o:0},
+  jungle:  {d:.2, p:0, r:0, t:0, e:0, k:0, g:0,  b:0,  n:1,  f:0, q:0, v:0, x:0, y:0, z:0, i:1, u:1, o:1}
 };
 
 /* ---- Sprites ---- */
@@ -551,7 +558,10 @@ const BIOME_GRIME={
   desert:  {body:'#6a5230',dark:'#3a2d1a'},
   jungle:  {body:'#2c4428',dark:'#182818'}
 };
-const TYPE_ACCENT={ d:'#FFAE3D', p:'#35E4FF', r:'#FFAE3D', t:'#FFAE3D' };
+const TYPE_ACCENT={
+  d:'#FFAE3D', p:'#35E4FF', r:'#FFAE3D', t:'#FFAE3D', e:'#FFAE3D', k:'#FFAE3D', // Anlage: mechanisches Amber/Cyan
+  g:'#C13DFF', b:'#C13DFF', n:'#C13DFF', f:'#C13DFF', q:'#C13DFF', v:'#C13DFF', x:'#C13DFF', y:'#C13DFF', z:'#C13DFF', i:'#C13DFF', u:'#C13DFF' // Kreaturen: Korruptions-Violett
+};
 function palFor(type,biomeId){ return {...BIOME_GRIME[biomeId], acc:TYPE_ACCENT[type], vis:'#FF3D6E'}; }
 function sprDrone(fire,dead,pal){ return makeTex(g=>{
   if(dead){ disc(g,pal.dark,32,56,21,6); px(g,pal.body,18,50,28,6); px(g,pal.acc,22,48,3,3); px(g,pal.acc,40,46,3,3); px(g,'#35E4FF',31,44,2,4); return; }
@@ -609,7 +619,89 @@ function sprTurret(fire,dead,pal){ return makeTex(g=>{
 // Pro Biom ein eigener Satz Sprites für d/p/r/t (gleiche Form, andere
 // Chassis-Verwitterung), plus der unveränderte Boss. curSPR wird beim
 // Levelstart passend zum aktuellen Biom umgeschaltet (siehe parseLevel).
-const SPR_BUILDERS={d:sprDrone,p:sprSpider,r:sprRig,t:sprTurret};
+// Organische, "korrumpierte" Kreaturen für je ein Außenbiom — bewusst NICHT
+// mechanisch (kein Chassis/Panel-Look), aber mit derselben Glitch-Korruption
+// wie der Rest der Rogue-Prozesse verseucht: eigene Akzentfarbe (Violett statt
+// Amber/Cyan der Roboter), damit man "organisch vs. mechanisch" auch auf den
+// ersten Blick unterscheidet, nicht nur an der Kontur.
+function sprRidge(fire,dead,pal){ return makeTex(g=>{
+  if(dead){ disc(g,pal.dark,32,54,22,6); px(g,pal.body,14,46,36,8); px(g,pal.acc,20,44,3,3); px(g,pal.acc,42,42,3,3); return; }
+  for(const [lx,ly] of [[16,44],[48,44],[20,54],[44,54]]){ px(g,pal.dark,lx-3,ly,6,10); px(g,pal.dark,lx-4,ly+8,8,3); }
+  poly(g,pal.body,[10,38, 54,38, 50,26, 14,26]);
+  poly(g,pal.dark,[14,26,50,26,44,16,20,16]);
+  for(let i=0;i<4;i++) poly(g,pal.dark,[18+i*9,26, 22+i*9,26, 20+i*9,14]);
+  px(g,pal.acc,22,30,3,2); px(g,pal.acc,34,32,3,2); px(g,pal.acc,42,28,3,2);
+  poly(g,pal.body,[6,32,18,30,18,40,6,38]);
+  disc(g,fire?'#FFFFFF':pal.vis,10,34,4,3);
+},true); }
+function sprWorm(fire,dead,pal){ return makeTex(g=>{
+  if(dead){ disc(g,pal.dark,32,54,22,7); for(let i=0;i<3;i++) disc(g,pal.body,20+i*10,50,6,4); return; }
+  disc(g,pal.dark,32,58,22,6);
+  for(let i=0;i<5;i++){ const y=54-i*9, w=20-i*2.4; disc(g,i%2?pal.body:pal.dark,32,y,w,7); }
+  disc(g,pal.body,32,10,13,12);
+  poly(g,pal.dark,[20,6,14,-2,26,4]); poly(g,pal.dark,[44,6,50,-2,38,4]);
+  px(g,pal.acc,26,8,4,3); px(g,pal.acc,34,8,4,3);
+  disc(g,fire?'#FFFFFF':pal.vis,32,14,5,4);
+},true); }
+function sprSpore(fire,dead,pal){ return makeTex(g=>{
+  if(dead){ disc(g,pal.dark,32,54,20,7); disc(g,pal.body,32,44,16,10); px(g,pal.acc,26,40,4,3); px(g,pal.acc,38,42,4,3); return; }
+  poly(g,pal.dark,[24,58,40,58,36,36,28,36]);
+  for(const [lx,ly,a] of [[18,56,-1],[46,56,1]]) poly(g,pal.dark,[32,50,lx,ly,lx+a*6,ly-6]);
+  disc(g,pal.body,32,26,20,18); disc(g,pal.dark,32,26,14,12);
+  for(const [sx,sy] of [[20,20],[44,20],[32,10],[24,34],[40,34]]) disc(g,pal.acc,sx,sy,4,4);
+  disc(g,fire?'#FFFFFF':pal.vis,32,26,5,4);
+},true); }
+// Vier weitere, jeweils über mehrere Typen wiederverwendete Sprite-Grundformen
+// (genau wie sprRig schon r/K/k bedient) — reduziert die Codemenge deutlich
+// gegenüber 11 komplett eigenständigen Zeichenfunktionen, ohne die visuelle
+// Vielfalt zu verlieren: die Chassis-/Hautfarbe je Biom (BIOME_GRIME) sorgt
+// trotzdem für Unterscheidung zwischen den Wiederverwendungen.
+function sprBomber(fire,dead,pal){ return makeTex(g=>{
+  if(dead){ disc(g,pal.dark,32,50,18,8); for(let i=0;i<5;i++){ const a=i/5*Math.PI*2; px(g,pal.body,32+(Math.cos(a)*14|0),44+(Math.sin(a)*6|0),6,3); } return; }
+  disc(g,pal.dark,32,36,18,16); disc(g,pal.body,32,34,14,12);
+  for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; poly(g,pal.dark,[32+Math.cos(a)*14,34+Math.sin(a)*12, 32+Math.cos(a)*20,34+Math.sin(a)*17, 32+Math.cos(a-.2)*14,34+Math.sin(a-.2)*12]); }
+  disc(g,fire?'#FFFFFF':pal.acc,32,32,7,6);
+  disc(g,fire?'#FFFFFF':pal.vis,32,32,3,3);
+},true); }
+function sprBrute(fire,dead,pal){ return makeTex(g=>{
+  if(dead){ px(g,pal.dark,6,50,52,8); poly(g,pal.body,[10,50,54,50,44,32,20,32]); px(g,pal.vis,28,44,8,4); return; }
+  px(g,pal.dark,12,44,14,20); px(g,pal.dark,38,44,14,20);
+  poly(g,pal.body,[6,44,58,44,50,14,14,14]);
+  poly(g,pal.dark,[6,44,58,44,54,34,10,34]);
+  disc(g,pal.dark,20,10,11,11); disc(g,pal.dark,44,10,11,11);
+  px(g,pal.acc,16,26,10,4); px(g,pal.acc,38,26,10,4);
+  disc(g,fire?'#FFFFFF':pal.vis,32,20,6,5);
+},true); }
+function sprCaster(fire,dead,pal,spiky){ return makeTex(g=>{
+  if(dead){ disc(g,pal.dark,32,52,20,7); disc(g,pal.body,32,42,14,9); px(g,pal.acc,26,38,4,3); px(g,pal.acc,36,40,4,3); return; }
+  poly(g,pal.dark,[22,58,42,58,38,40,26,40]);
+  disc(g,pal.body,32,28,18,16); disc(g,pal.dark,32,28,12,11);
+  if(spiky){ for(let i=0;i<5;i++){ const a=i/5*Math.PI-Math.PI/2-.3; poly(g,pal.body,[32+Math.cos(a)*11,28+Math.sin(a)*10, 32+Math.cos(a)*22,28+Math.sin(a)*20, 32+Math.cos(a+.15)*11,28+Math.sin(a+.15)*10]); } }
+  else { for(let i=0;i<4;i++){ const a=i/4*Math.PI*2; px(g,pal.dark,32+(Math.cos(a)*16|0),28+(Math.sin(a)*14|0),4,8); } }
+  disc(g,fire?'#FFFFFF':pal.acc,32,28,6,5);
+},true); }
+function sprSwarmling(fire,dead,pal){ return makeTex(g=>{
+  if(dead){ disc(g,pal.dark,32,50,14,5); px(g,pal.body,26,46,12,4); return; }
+  poly(g,pal.dark,[10,26,28,18,28,30]); poly(g,pal.dark,[54,26,36,18,36,30]);
+  disc(g,pal.body,32,30,14,11); disc(g,pal.dark,32,30,9,7);
+  disc(g,fire?'#FFFFFF':pal.vis,32,30,4,3);
+  px(g,pal.acc,26,36,3,2); px(g,pal.acc,36,36,3,2);
+},true); }
+function bulwarkExtra(g,fire){
+  px(g,'#0d141c',2,20,10,26); px(g,'#0d141c',52,20,10,26);
+  poly(g,'#3a4d63',[2,20,12,20,10,46,2,44]); poly(g,'#3a4d63',[62,20,52,20,54,46,62,44]);
+}
+const SPR_BUILDERS={
+  d:sprDrone, p:sprSpider, r:sprRig, t:sprTurret, g:sprRidge, b:sprWorm, n:sprSpore,
+  e:sprBomber,
+  k:(fire,dead,pal)=>sprRig(fire,dead,pal,bulwarkExtra),
+  f:sprBrute, o:sprBrute,
+  q:(fire,dead,pal)=>sprCaster(fire,dead,pal,true),
+  y:(fire,dead,pal)=>sprCaster(fire,dead,pal,false),
+  v:sprSwarmling, u:sprSwarmling,
+  x:sprRidge, z:sprRidge,
+  i:sprWorm
+};
 const SPR_BOSS={idle:sprRig(false,false,PAL_BOSS,bossExtra),atk:sprRig(true,false,PAL_BOSS,bossExtra),dead:sprRig(false,true,PAL_BOSS)};
 const SPR_BIOME={};
 for(const biomeId of BIOME_ORDER){
@@ -813,7 +905,38 @@ const ETYPES={
   r:{name:'Rogue-Rig',    hp:70,rad:.36,sc:.90,vo:0,  spd:1.55},
   p:{name:'Spinnen-Sonde',hp:12,rad:.20,sc:.46,vo:0,  spd:2.6},
   t:{name:'Turm-Sentinel',hp:110,rad:.42,sc:.85,vo:0, spd:0},
+  e:{name:'Sprenger-Einheit',hp:16,rad:.24,sc:.55,vo:0,spd:2.5},
+  k:{name:'Schild-Läufer',hp:160,rad:.46,sc:1.05,vo:0, spd:.85},
+  g:{name:'Grat-Läufer',   hp:34,rad:.32,sc:.78,vo:0, spd:2.1},
+  b:{name:'Sandwurm-Wirt', hp:40,rad:.34,sc:.85,vo:0, spd:1.7},
+  n:{name:'Sporen-Wächter',hp:45,rad:.38,sc:.9, vo:0, spd:0},
+  f:{name:'Fels-Brecher',  hp:90,rad:.44,sc:1.0, vo:0, spd:1.15},
+  q:{name:'Kristall-Spucker',hp:50,rad:.36,sc:.8,vo:0, spd:0},
+  v:{name:'Geier-Schwarm', hp:16,rad:.24,sc:.5, vo:.15,spd:2.3},
+  x:{name:'Skorpion-Läufer',hp:26,rad:.28,sc:.65,vo:0, spd:2.3},
+  y:{name:'Sandschleier-Geist',hp:38,rad:.3,sc:.8,vo:0, spd:0},
+  z:{name:'Dünen-Rochen',  hp:30,rad:.3, sc:.7, vo:0, spd:2.0},
+  i:{name:'Ranken-Schlinger',hp:36,rad:.32,sc:.82,vo:0, spd:1.9},
+  u:{name:'Leucht-Schwarm',hp:10,rad:.18,sc:.42,vo:.15,spd:2.8},
+  o:{name:'Moos-Koloss',   hp:100,rad:.46,sc:1.05,vo:0, spd:1.0},
   K:{name:'Kern-Wächter', hp:320,rad:.62,sc:1.3,vo:0, spd:1.0}
+};
+// KI-Verhalten datengetrieben statt 20+ einzelner if/else-Zweige: die meisten
+// Typen sind entweder "rennt ungebremst bis auf X Distanz ran" (nur der
+// Stop-Abstand unterscheidet sich), "steht fest und schießt" oder "rennt ran
+// und schlägt zu" — nur d (Kite-Distanz-Verhalten) und K (Burst-Fire/Rage)
+// bleiben eigene Zweige, weil ihr Verhalten wirklich anders ist.
+const STATIONARY_TYPES={t:1,n:1,q:1,y:1};                 // bewegen sich nie
+const APPROACH_STOP={ p:.8,r:.95,g:1.0,b:1.05,k:1.1,f:1.1,o:1.1,v:.85,x:.85,z:.9,u:.7,i:.95,e:.02 };
+// [Reichweite, Cooldown-Min, Cooldown-Spanne, Schaden]
+const MELEE_STATS={
+  p:[.95,.55,.3,6], r:[1.1,1,0,12], g:[1.05,.85,.3,11], b:[1.15,1.3,.4,15],
+  v:[.9,.6,.3,8], x:[.9,.6,.3,9], z:[.95,.7,.3,10], i:[1.0,.9,.3,12], u:[.75,.45,.2,5],
+  k:[1.15,1.5,.3,20], f:[1.15,1.3,.3,16], o:[1.15,1.3,.3,17]
+};
+// [Reichweite, Cooldown-Min, Cooldown-Spanne, Schaden, Streuwinkel]
+const RANGED_STATS={
+  d:[11,1.3,.9,7,.12], t:[14,2.4,.6,16,.05], n:[9,1.8,.6,10,.15], q:[10,2.0,.6,12,.1], y:[10,1.9,.5,11,.12]
 };
 const WEAPONS=[
   {name:'Puls-Pistole', cost:1, rate:.30},
@@ -1188,6 +1311,20 @@ function generateProceduralLevel(depth){
   place('p',(depth>=2?Math.min(5,1+Math.floor(depth*0.5)):0)*roster.p|0,2);
   place('r',Math.round(Math.min(4,Math.floor(depth/3))*roster.r),4);
   place('t',Math.round(Math.max(0,Math.min(3,Math.floor((depth-2)/3)))*roster.t),5);
+  place('g',Math.round(Math.min(4,Math.floor(depth/3))*roster.g),4);
+  place('b',Math.round(Math.min(3,Math.floor(depth/4))*roster.b),5);
+  place('n',Math.round(Math.max(0,Math.min(3,Math.floor((depth-2)/3)))*roster.n),5);
+  place('e',(depth>=2?Math.min(5,1+Math.floor(depth*0.5)):0)*roster.e|0,3);
+  place('k',Math.round(Math.max(0,Math.min(3,Math.floor((depth-2)/3)))*roster.k),5);
+  place('f',Math.round(Math.max(0,Math.min(3,Math.floor((depth-2)/3)))*roster.f),5);
+  place('q',Math.round(Math.max(0,Math.min(3,Math.floor((depth-2)/3)))*roster.q),5);
+  place('v',(depth>=2?Math.min(5,1+Math.floor(depth*0.5)):0)*roster.v|0,2);
+  place('x',Math.round(Math.min(5,2+Math.floor(depth*0.5))*roster.x),3);
+  place('y',Math.round(Math.max(0,Math.min(3,Math.floor((depth-2)/3)))*roster.y),5);
+  place('z',Math.round(Math.min(4,Math.floor(depth*0.6))*roster.z),3);
+  place('i',Math.round(Math.min(4,Math.floor(depth/3))*roster.i),4);
+  place('u',Math.round(Math.min(5,2+Math.floor(depth*0.5))*roster.u),2);
+  place('o',Math.round(Math.max(0,Math.min(3,Math.floor((depth-2)/3)))*roster.o),5);
   place('h',2+Math.floor(depth/3));
   place('a',3+Math.floor(depth/3));
   place('m',4+Math.floor(depth/2));
@@ -1262,6 +1399,20 @@ function generateStairFloor(depth,floorIdx,totalFloors){
   place('p',(depth>=2?Math.min(3,Math.floor(depth*0.3)):0)*roster.p|0,2);
   place('r',Math.round(Math.min(3,Math.floor(depth/4))*roster.r),4);
   place('t',Math.round(Math.max(0,Math.min(2,Math.floor((depth-3)/4)))*roster.t),5);
+  place('g',Math.round(Math.min(3,Math.floor(depth/4))*roster.g),4);
+  place('b',Math.round(Math.min(2,Math.floor(depth/5))*roster.b),5);
+  place('n',Math.round(Math.max(0,Math.min(2,Math.floor((depth-3)/4)))*roster.n),5);
+  place('e',(depth>=2?Math.min(3,1+Math.floor(depth*0.3)):0)*roster.e|0,3);
+  place('k',Math.round(Math.max(0,Math.min(2,Math.floor((depth-3)/4)))*roster.k),5);
+  place('f',Math.round(Math.max(0,Math.min(2,Math.floor((depth-3)/4)))*roster.f),5);
+  place('q',Math.round(Math.max(0,Math.min(2,Math.floor((depth-3)/4)))*roster.q),5);
+  place('v',(depth>=2?Math.min(3,1+Math.floor(depth*0.3)):0)*roster.v|0,2);
+  place('x',Math.round(Math.min(3,1+Math.floor(depth*0.3))*roster.x),3);
+  place('y',Math.round(Math.max(0,Math.min(2,Math.floor((depth-3)/4)))*roster.y),5);
+  place('z',Math.round(Math.min(3,Math.floor(depth*0.4))*roster.z),3);
+  place('i',Math.round(Math.min(3,Math.floor(depth/4))*roster.i),4);
+  place('u',Math.round(Math.min(3,1+Math.floor(depth*0.3))*roster.u),2);
+  place('o',Math.round(Math.max(0,Math.min(2,Math.floor((depth-3)/4)))*roster.o),5);
   place('h',1+Math.floor(depth/4));
   place('a',2+Math.floor(depth/4));
   place('m',3+Math.floor(depth/3));
@@ -1615,7 +1766,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden && state==
 document.addEventListener('mousemove',e=>{
   if(state!=='play'||!locked) return;
   P.a+=e.movementX*.0022;
-  P.pitch=clamp(P.pitch-e.movementY*.35,-32,32);
+  P.pitch=clamp(P.pitch-e.movementY*.35,-220,220);
 });
 cv.addEventListener('mousedown',e=>{
   if(e.button!==0) return;
@@ -1746,18 +1897,17 @@ function updateEnemy(e,dt){
   if(e.strT<=0){ e.strafe=Math.random()<.5?-1:1; e.strT=1+Math.random()*1.5; }
 
   let mx=0,my=0;
-  if(e.type==='t'){
-    // Turm-Sentinel bewegt sich grundsätzlich nicht — weder Pathing bei
-    // fehlender Sicht noch Nahannäherung, bleibt als Hindernis stehen.
+  if(STATIONARY_TYPES[e.type]){
+    // Turm-Sentinel, Sporen-Wächter, Kristall-Spucker & Sandschleier-Geist
+    // bewegen sich grundsätzlich nicht — weder Pathing bei fehlender Sicht
+    // noch Nahannäherung, bleiben als Hindernis stehen.
   } else if(!los||dist>13){
     const tg=flowTarget(e);
     if(tg){ const tx=tg.x-e.x, ty=tg.y-e.y, tl=Math.hypot(tx,ty)||1; mx=tx/tl; my=ty/tl; }
   } else if(e.type==='d'){
     if(dist>5.5){ mx=ux; my=uy; } else if(dist<3){ mx=-ux; my=-uy; } else { mx=-uy*e.strafe; my=ux*e.strafe; }
-  } else if(e.type==='p'){
-    if(dist>.8){ mx=ux; my=uy; } // Spinnen-Sonde rennt ungebremst rein, kein Rückzug/Strafing
-  } else if(e.type==='r'){
-    if(dist>.95){ mx=ux; my=uy; }
+  } else if(APPROACH_STOP[e.type]!==undefined){
+    if(dist>APPROACH_STOP[e.type]){ mx=ux; my=uy; } // ungebremst ran, kein Rückzug/Strafing
   } else {
     if(dist>5){ mx=ux; my=uy; } else if(dist<3){ mx=-ux; my=-uy; } else { mx=-uy*e.strafe; my=ux*e.strafe; }
   }
@@ -1769,16 +1919,17 @@ function updateEnemy(e,dt){
     if(od>0&&od<min) tryMove(e,ox/od*(min-od)*.5,oy/od*(min-od)*.5,t.rad*.8);
   }
 
-  if(e.type==='d' && los && dist<11 && e.cd<=0){
-    e.cd=1.3+Math.random()*.9; e.atk=.25; sfx.eshoot(dist);
-    spawnShot(e.x,e.y,Math.atan2(dy,dx)+(Math.random()-.5)*.12,7);
-  } else if(e.type==='p' && dist<.95 && e.cd<=0){
-    e.cd=.55+Math.random()*.3; e.atk=.18; sfx.melee(); hurtPlayer(6);
-  } else if(e.type==='r' && dist<1.1 && e.cd<=0){
-    e.cd=1; e.atk=.3; sfx.melee(); hurtPlayer(12);
-  } else if(e.type==='t' && los && dist<14 && e.cd<=0){
-    e.cd=2.4+Math.random()*.6; e.atk=.3; sfx.eshoot(dist);
-    spawnShot(e.x,e.y,Math.atan2(dy,dx)+(Math.random()-.5)*.05,16);
+  const mSt=MELEE_STATS[e.type], rSt=RANGED_STATS[e.type];
+  if(mSt && dist<mSt[0] && e.cd<=0){
+    e.cd=mSt[1]+Math.random()*mSt[2]; e.atk=.2; sfx.melee(); hurtPlayer(mSt[3]);
+  } else if(e.type==='e' && dist<.85){
+    // Sprenger-Einheit: einmalige Detonation statt Cooldown-Angriff, tötet
+    // sich beim Kontakt selbst (über den normalen Tod-Pfad, für korrekte
+    // Kill-Zählung/Boom-Effekt).
+    hurtPlayer(22); kick(.4); damageEnemy(e,e.hp,null);
+  } else if(rSt && los && dist<rSt[0] && e.cd<=0){
+    e.cd=rSt[1]+Math.random()*rSt[2]; e.atk=.25; sfx.eshoot(dist);
+    spawnShot(e.x,e.y,Math.atan2(dy,dx)+(Math.random()-.5)*rSt[4],rSt[3]);
   } else if(e.type==='K' && los && e.cd<=0){
     const rage=e.hp<t.hp*.5, n=rage?5:3;
     e.cd=rage?1.15:1.7; e.atk=.35; sfx.eshoot(dist);
