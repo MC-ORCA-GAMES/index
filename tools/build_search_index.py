@@ -11,10 +11,11 @@ from html.parser import HTMLParser
 ROOT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), '..'))
 GAMES = {'aetheris': 'Aetheris', 'astrion': 'Astrion', 'deepanchor': 'Deep Anchor',
          'pathofthestars': 'Path of the Stars', 'nexus': 'NEXUS', 'foundry': 'FOUNDRY',
-         'domus-prime': 'Domus Prime', 'nexus-breach': 'NEXUS: BREACH', 'assets': 'Assets', 'bilder': 'Hub'}
+         'domus-prime': 'Domus Prime', 'nexus-breach': 'NEXUS: BREACH', 'assets': 'Assets', 'bilder': 'Hub',
+         'tools': 'Tools'}
 KIND = {'index.html': 'Infoseite', 'game.html': 'Spiel', 'medien.html': 'Medien', 'impressum.html': 'Rechtliches', 'portal.html': 'Hub', 'nutzungsbedingungen.html': 'Rechtliches'}
 IMG, AUD, VID = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'}, {'.ogg', '.mp3', '.wav'}, {'.mp4', '.webm'}
-SKIP_DIRS = {'.git', 'node_modules', 'tools'}
+SKIP_DIRS = {'.git', 'node_modules'}
 HIDE = set()   # unveröffentlichte Test-Spiele: hier Ordner eintragen, die NICHT auffindbar sein sollen
 SKIP_PAGES = {'suche.html'}
 
