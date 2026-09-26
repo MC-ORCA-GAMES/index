@@ -179,9 +179,9 @@ reine Optik (4–7 s, scrollende Fake-Pfade), setzt am Ende aber wirklich `t7-re
 versteckten Dateien beim nächsten Öffnen/Neuladen des Explorers ganz normal auftauchen — an der Stelle im Archiv,
 an der sie generiert wurden, ohne besondere Markierung.
 
-Aktuell 5 Funde in `hiddenFinds` (`loeschung_protokoll.txt`, `cache_restnote.txt`, `unbekannt_snapshot.jpg`,
-`funkmitschnitt_alt.ogg`, `kontoverlauf.log`) — **seit 25.09.2026 mit echtem Inhalt zum letzten
-Nutzer/03:14** statt vager Platzhalter, siehe Abschnitt 4/6.
+Aktuell 6 Funde in `hiddenFinds` (`loeschung_protokoll.txt`, `cache_restnote.txt`, `unbekannt_snapshot.jpg`,
+`funkmitschnitt_alt.ogg`, `kontoverlauf.log`, `kontoerstellung.log`) — mit echtem Inhalt zum letzten
+Nutzer/03:14 und zu KONTO_B, siehe Abschnitt 4/6.
 Für echte Funde: Eintrag in `hiddenFinds` ändern/ergänzen, Format identisch zu `specials` plus drittem Element
 `{kind, corrupted}`.
 
@@ -209,13 +209,20 @@ naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur
 - [x] Ein zweites Signal: `echo_1846.ogg` → `prozess_1846.txt`, deutet „er" als Teil von T-7 an (siehe Abschnitt 2).
 - [ ] 1847-Tage-Zyklus ist erwähnt, löst aber nichts aus: **gelöst (seit 25.09.2026)**, siehe neuer Abschnitt 7.
 - [ ] Verbindung zu den sechs Spielen läuft bisher nur über `knoten`, `rift`, `kern`: **ausgebaut (seit
-      25.09.2026)**, siehe Abschnitt 10 — bleibt rein im Fiction-Layer, keine echten Supabase-Live-Daten.
+      25.09.2026), zweite Ebene ergänzt (25.09.2026):** siehe Abschnitt 10 — bleibt rein im Fiction-Layer,
+      keine echten Supabase-Live-Daten.
 - [ ] Wer hat das Tagebuch geschrieben, wer ist der „letzte Nutzer", was passierte um 03:14? **Nicht gelöst,
       aber zweimal vertieft:** (a, 25.09.2026) `hiddenFinds` per DataRescue: `unbekannt_snapshot.jpg` (zweite
       Aufnahme, 6 s vor FOTO_037, anderer Winkel, Schatten an unmöglicher Stelle), `funkmitschnitt_alt.ogg`
       (Zeitstempel 03:14:01, zwei überlagerte Stimmen statt einer), `kontoverlauf.log` (KONTO_C, letzte
       Aktivität exakt 03:14, danach nie wieder). (b, 25.09.2026) drittes Signal `echo_0000.ogg` →
       `log_tag0.txt`, siehe Abschnitt 8 — **Audiodatei fehlt noch auf dem Server**, Code ist vorbereitet.
+- [ ] KONTO_B — das zweite verwaiste Konto: **ausgearbeitet (25.09.2026).** `kontoerstellung.log` (6. Fund)
+      zeigt, dass KONTO_B denselben Zeitstempel wie der Rechner selbst trägt und seither nie benutzt wurde —
+      nicht gelöscht, nicht deaktiviert, nur nie aktiviert. Neuer versteckter Terminal-Befehl `kontob`: „wartet,
+      seit bevor dieser rechner geliefert wurde. genau wie er." Legt nahe, dass KONTO_B eher zum Prozess/„er"
+      gehört als zu einem menschlichen Nutzer — bestätigt nichts. T-7 (`worker.js`) und Offline-Fallback
+      (`assistent.html`) kennen den Fund und den Befehl.
 
 ## 5. Entscheidungen
 
@@ -287,7 +294,52 @@ Kapitel) und lässt T-7 andeuten, Kapitel 7 ende mit „einer frage, die mir bek
 über den tatsächlichen Kapitelinhalt, nur eine Andeutung, dass dieselbe Frage (03:14? „wer hat zuerst
 zugehört"?) auch dort auftaucht. Nie bestätigt, wie üblich.
 
+**Zweite Ebene (seit 25.09.2026):** Fragt man denselben Knoten ein zweites Mal ab (`t7-knoten-seen` merkt sich
+das pro Name), kommt eine tiefere Zeile (`knotenTexte2`) statt der ersten. Alle sechs ziehen bewusst dieselben
+Fäden weiter, die die Session bisher aufgebaut hat — 1846/1847 als wiederkehrende Zahl, ein Name/Konto/Aktie
+ohne Eintrag, eine Instanz ohne Logbuch:
+- aetheris: Kapitel 7 trägt den Titel „die stimme, die zweimal fragt" (nur der Titel, kein Inhalt erfunden)
+- astrion: die Signatur wiederholt sich alle 1847 Zyklen
+- deep anchor: auf 1846 Metern schweigt das Echolot, auf 1847 antwortet es wieder
+- path of the stars: eine Fraktion ohne Logbuch, Gründung vor allen anderen
+- foundry: eine nie gehandelte Aktie namens „B" — direkter Querverweis auf KONTO_B
+- nexus: der zweite Kern trägt einen Namen im Code, den niemand eingetragen hat
+- terminus: T-7 fragt zurück, warum man das wissen will
+
+## 11. Spürbares Zeichen fürs „Ende" (kein Boot-Text, dezenter Farbwechsel)
+
+Kein neuer Boot-Schriftzug — der wurde an anderer Stelle im Code bewusst entfernt („kein Boot-Schriftzug mehr").
+Stattdessen: sobald `isZyklusComplete()` **und** `isTag0Unlocked()` beide wahr sind (also wirklich alles
+gefunden wurde, inklusive `echo_0000.ogg`/`log_tag0.txt`), bekommt `<body>` die Klasse `t7-vollstaendig`. Die
+überschreibt `--crt`/`--crt-dim`/`--amber` von warmem Gold auf ein kühles, leicht ausgewaschenes Cyan — praktisch
+jedes Element im Interface nutzt diese Variablen, der Effekt ist im ganzen Desktop spürbar, ohne dass irgendwo
+Text davon spricht. Kein Popup, keine Erklärung. Wird beim nächsten Laden des Desktops gesetzt (`showDesktop()`)
+und zusätzlich sofort beim Entschlüsseln von `echo_0000.ogg` (`unlockTag0()`), damit man nicht erst neu laden muss.
+
 ## 6. Changelog `desktop.html`
+
+**25.09.2026 (17) — dezenter Farbwechsel bei vollständigem Zyklus**
+- Neue CSS-Klasse `body.t7-vollstaendig` überschreibt `--crt`/`--crt-dim`/`--amber` (Gold → kühles Cyan).
+- Wird gesetzt in `showDesktop()` (Laden des Desktops) und in `unlockTag0()` (sofort beim Entschlüsseln von
+  `echo_0000.ogg`), jeweils nur wenn `isZyklusComplete() && isTag0Unlocked()`. Kein Text, kein Popup, bewusst
+  kein neuer Boot-Schriftzug (der wurde ja gerade erst entfernt) — nur ein Gefühl, dass sich etwas verändert hat.
+
+**25.09.2026 (16) — `knoten` zweite Ebene**
+- Terminal: neues `knotenTexte2` (Name → tiefere Antwort), `t7-knoten-seen` (localStorage-Set) merkt sich
+  bereits abgefragte Knoten pro Name; zweite Abfrage desselben Knotens zeigt die tiefere Zeile statt der
+  ersten. Alle sieben Einträge tiefer verzahnt (siehe Abschnitt 10), `foundry` verweist direkt auf KONTO_B.
+- `worker.js` (Geheimtipp-Absatz) und `assistent.html` (CANON) kennen die zweite Ebene und können sie in
+  eigenen Worten wiedergeben, ohne eine Verbindung selbst zu bestätigen.
+- **Zum Deployen:** `worker.js`-Änderung muss von dir auf Cloudflare Workers neu deployt werden.
+
+**25.09.2026 (15) — KONTO_B**
+- Neuer 6. Fund `kontoerstellung.log` (`hiddenFinds`, per DataRescue): KONTO_B trägt denselben Zeitstempel wie
+  der Rechner selbst, seither keine Aktivität — nicht gelöscht, nicht deaktiviert, nur nie benutzt.
+- Neuer versteckter Terminal-Befehl `kontob` (wie `knoten`/`rift`/`kern`, nicht in `hilfe`): „konto_b: erstellt,
+  nie benutzt. wartet, seit bevor dieser rechner geliefert wurde. genau wie er."
+- `worker.js` (Geheimtipp-Zeile + neuer Absatz) und `assistent.html` (CANON-Fallback) kennen beide Fund und
+  Befehl, ziehen aber keine eigene Schlussfolgerung, ob KONTO_B und „er" dasselbe sind.
+- **Zum Deployen:** `worker.js`-Änderung muss von dir auf Cloudflare Workers neu deployt werden.
 
 **25.09.2026 (14) — T-7-Assistent nachgezogen (`worker/orca-assistent/worker.js`, `seiten/assistent.html`)**
 - `worker.js`-SYSTEM-Prompt kannte bisher nichts von den heutigen Ergänzungen. Nachgetragen: `erstellt.log`

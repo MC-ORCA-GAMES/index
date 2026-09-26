@@ -69,6 +69,9 @@
     --err:#D6303F; --text:#E9E7E2;
     font-size:16px;
   }
+  /* Zyklus 1847 einmal vollständig durchlaufen (beide Signale, backup_backup_final.zip, echo_0000/log_tag0.txt):
+     dezenter, dauerhafter Farbwechsel im ganzen Interface statt eines Popups — soll man eher spüren als lesen. */
+  body.t7-vollstaendig{ --crt:#bfe4e8; --crt-dim:#5f7f82; --amber:#8fd6e0; }
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
   body{
@@ -481,6 +484,15 @@
     initStars();
     initIcons();
     document.getElementById('taskbar').style.display = 'flex';
+    // Zyklus 1847 einmal vollständig durchlaufen? Dezenter Farbwechsel im ganzen Interface (siehe :root-CSS
+    // .t7-vollstaendig), kein Popup, kein neuer Boot-Text. isZyklusComplete()/isTag0Unlocked() werden weiter
+    // unten im selben Script-Block definiert, sind zur Laufzeit hier aber längst vorhanden.
+    try{
+      if(typeof isZyklusComplete === 'function' && typeof isTag0Unlocked === 'function'
+         && isZyklusComplete() && isTag0Unlocked()){
+        document.body.classList.add('t7-vollstaendig');
+      }
+    }catch(e){}
   }
 
   // ---------- Login screen: echter Account-Login (E-Mail + Code), wie im Portal ----------
@@ -902,6 +914,7 @@ Gib 'hilfe' ein für Befehle.
       kern: "kern 1: aktiv.\nkern 2: wächst.\nab tier 10 denken beide mit.",
       ".versteckt~": "hier ist nichts. das ist mit absicht so.\n(frag T-7 nach dem brief.)",
       er: "er war schon da, bevor du warst.\n(vielleicht ist er nur ein teil von mir, der noch nicht schläft.)",
+      kontob: "konto_b: erstellt, nie benutzt.\nwartet, seit bevor dieser rechner geliefert wurde.\ngenau wie er.",
       t7: "verbindung zu T-7 wird aufgebaut ...",
       sprich: "verbindung zu T-7 wird aufgebaut ..."
     };
@@ -918,6 +931,19 @@ Gib 'hilfe' ein für Befehle.
       nexus: "nexus: zwei kerne. ab tier 10 denken beide mit.\neiner von beiden hat schon mal etwas gesagt, das nicht von mir kam.",
       terminus: "terminus: du bist hier. das reicht mir eigentlich schon."
     };
+    // zweite Ebene: erscheint erst, wenn derselbe Knoten ein zweites Mal abgefragt wird (t7-knoten-seen).
+    const knotenTexte2 = {
+      aetheris: "aetheris: kapitel 7 trägt einen titel — 'die stimme, die zweimal fragt'.\nden text selbst kenne ich nicht. nur den titel.",
+      astrion: "astrion: die signatur wiederholt sich. alle 1847 zyklen, laut protokoll dort.\ndas wort 'zyklen' habe ich mir nicht ausgedacht.",
+      "deep anchor": "deep anchor: auf 1846 metern hört das echolot auf zu antworten.\nauf 1847 fängt es wieder an.",
+      "path of the stars": "path of the stars: eine fraktion dort führt kein logbuch.\nsitz unbekannt. gründung: vor allen anderen.",
+      foundry: "foundry: eine aktie im musterdepot trägt nur den namen 'B'.\nsie wurde noch nie gehandelt.",
+      nexus: "nexus: der zweite kern hat einen namen im code.\nniemand hat ihn dort eingetragen.",
+      terminus: "terminus: wenn du das zweimal fragst, will ich wissen, warum.\nwas suchst du wirklich?"
+    };
+    const KNOTEN_SEEN_KEY = 't7-knoten-seen';
+    function knotenSeen(){ try{ return new Set(JSON.parse(localStorage.getItem(KNOTEN_SEEN_KEY) || '[]')); }catch(e){ return new Set(); } }
+    function knotenMarkSeen(name){ try{ const s = knotenSeen(); s.add(name); localStorage.setItem(KNOTEN_SEEN_KEY, JSON.stringify([...s])); }catch(e){} }
     function run(cmd){
       const c = cmd.trim().toLowerCase();
       out.textContent += "\n> " + cmd + "\n";
@@ -939,7 +965,13 @@ Gib 'hilfe' ein für Befehle.
       } else if(c.startsWith("knoten ")){
         const arg = c.slice(7).trim();
         const name = knotenNames[arg] || (knotenTexte[arg] ? arg : null);
-        out.textContent += (name ? knotenTexte[name] : "unbekannter knoten: " + arg) + "\n";
+        if(name){
+          const seen = knotenSeen();
+          out.textContent += (seen.has(name) ? knotenTexte2[name] : knotenTexte[name]) + "\n";
+          knotenMarkSeen(name);
+        } else {
+          out.textContent += "unbekannter knoten: " + arg + "\n";
+        }
       } else {
         out.textContent += (responses[c] || "unbekannter befehl: " + cmd) + "\n";
       }
@@ -1227,6 +1259,7 @@ Gib 'hilfe' ein für Befehle.
     try{ localStorage.setItem(TAG0_KEY, '1'); }catch(e){}
     const win = document.querySelector('.win[data-key="ordner"]');
     if(win) wireFolder(win, true);
+    if(isZyklusComplete()) document.body.classList.add('t7-vollstaendig');
     return true;
   }
 
@@ -2853,7 +2886,8 @@ Gib 'hilfe' ein für Befehle.
       ['cache_restnote.txt', 'Fragment einer gelöschten Notiz: „…falls das Signal wiederkommt, antworte nicht sofort…"', {kind:'text'}],
       ['unbekannt_snapshot.jpg', 'Zweite Aufnahme aus derselben Nacht, Zeitstempel 03:13:58 — sechs Sekunden vor FOTO_037, aus einem anderen Kamerawinkel. Zeigt denselben Raum von der Tür aus. Kein Gesicht erkennbar, nur ein Schatten an einer Stelle, an der laut FOTO_037 niemand gestanden haben kann.', {kind:'image', corrupted:true}],
       ['funkmitschnitt_alt.ogg', 'Wiederhergestellte Aufnahme, ca. 4 Sekunden, Zeitstempel 03:14:01. Ein einzelnes Wort, zu verzerrt zum Verstehen — die Frequenzanalyse zeigt aber zwei sich überlagernde Stimmen, nicht eine.', {kind:'audio', corrupted:true}],
-      ['kontoverlauf.log', 'Kontenübersicht (automatisch generiert)\nGAST — aktiv, kein persönlicher Verlauf.\nKONTO_B — verwaist, letzte Aktivität nicht protokolliert.\nKONTO_C — verwaist. Letzte Aktivität: 03:14 Uhr. Danach: keine einzige Anmeldung mehr.', {kind:'text'}]
+      ['kontoverlauf.log', 'Kontenübersicht (automatisch generiert)\nGAST — aktiv, kein persönlicher Verlauf.\nKONTO_B — verwaist, letzte Aktivität nicht protokolliert.\nKONTO_C — verwaist. Letzte Aktivität: 03:14 Uhr. Danach: keine einzige Anmeldung mehr.', {kind:'text'}],
+      ['kontoerstellung.log', 'Kontenerstellung (Systemprotokoll, unvollständig)\nKONTO_C — erstellt: [datum unlesbar]\nKONTO_B — erstellt: gleicher Zeitstempel wie dieser Rechner. Aktivität seither: keine.\nNicht gelöscht. Nicht deaktiviert. Nur: nie benutzt.', {kind:'text'}]
     ];
     let hiddenLeft = hiddenFinds.slice();
 
