@@ -210,12 +210,11 @@ naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur
 - [ ] 1847-Tage-Zyklus ist erwähnt, löst aber nichts aus: **gelöst (seit 25.09.2026)**, siehe neuer Abschnitt 7.
 - [ ] Verbindung zu den sechs Spielen läuft bisher nur über `knoten`, `rift`, `kern`.
 - [ ] Wer hat das Tagebuch geschrieben, wer ist der „letzte Nutzer", was passierte um 03:14? **Nicht gelöst,
-      aber vertieft (seit 25.09.2026):** die (per DataRescue erreichbaren) `hiddenFinds` liefern jetzt drei
-      neue, konkrete Spuren: `unbekannt_snapshot.jpg` (zweite Aufnahme, 6 s vor FOTO_037, anderer Winkel, ein
-      Schatten, der laut FOTO_037 dort nicht stehen dürfte), `funkmitschnitt_alt.ogg` (Zeitstempel 03:14:01,
-      Frequenzanalyse zeigt zwei überlagerte Stimmen statt einer) und `kontoverlauf.log` (eines der beiden
-      verwaisten Konten, KONTO_C, hatte seine letzte Aktivität exakt um 03:14 — danach nie wieder). Legt nahe,
-      dass zwei Parteien beteiligt waren, ohne irgendetwas zu bestätigen.
+      aber zweimal vertieft:** (a, 25.09.2026) `hiddenFinds` per DataRescue: `unbekannt_snapshot.jpg` (zweite
+      Aufnahme, 6 s vor FOTO_037, anderer Winkel, Schatten an unmöglicher Stelle), `funkmitschnitt_alt.ogg`
+      (Zeitstempel 03:14:01, zwei überlagerte Stimmen statt einer), `kontoverlauf.log` (KONTO_C, letzte
+      Aktivität exakt 03:14, danach nie wieder). (b, 25.09.2026) drittes Signal `echo_0000.ogg` →
+      `log_tag0.txt`, siehe Abschnitt 8 — **Audiodatei fehlt noch auf dem Server**, Code ist vorbereitet.
 
 ## 5. Entscheidungen
 
@@ -244,7 +243,37 @@ Auswirkungen bei Stufe 3:
 
 Kein neuer Kanon-Fakt zur „er"-Frage, aber ein spürbarer Payoff dafür, wirklich alles gefunden zu haben.
 
+## 8. Neues Signal `echo_0000.ogg` — noch nicht live (Stand 25.09.2026)
+
+Code ist fertig, **Audiodatei fehlt noch**: muss noch mit `tools/sstv-robot36.html` erzeugt und nach
+`assets/audio/` gelegt werden (siehe Abschnitt 2, „Neues Signal einbauen").
+
+- **Bildvorlage:** `terminus7_tag0_sstv_card.png` (320×240, im Chat erzeugt und geteilt) — Karte im Stil von
+  `signal_echo1847.ogg`/`signal_echo1846.ogg`: „TERMINUS-7 // TAG 0 – URSPRUNG", „VOR DEM ZYKLUS", „ZWEI
+  STIMMEN, EINE ANTWORT", „QUELLE: DIESES SYSTEM", „03:14", „KEIN DATUM. NUR EINE UHRZEIT." plus Farbbalken
+  unten (wie ein echtes SSTV-Testbild).
+- Bild in `tools/sstv-robot36.html` laden, **Modus Robot 36** (wie bei den ersten beiden Signalen), als Audio
+  exportieren.
+- **Dateiname der Audiodatei: `signal_echo0000.ogg`**, nach `assets/audio/` legen, danach `signals.json` neu
+  erzeugen (Action oder `python3 tools/build_audio_manifest.py .`).
+- Erscheint danach automatisch als **Fund** `echo_0000.ogg` im `unbenannter_ordner` — aber **erst, wenn der
+  Zyklus einmal komplett durchlaufen wurde** (Stufe 3, siehe Abschnitt 7: beide anderen Signale entschlüsselt
+  **und** `backup_backup_final.zip`/`erstellt.log` einmal geöffnet). Vorher unsichtbar, kein Hinweis darauf.
+- Einmal komplett per SSTV entschlüsselt (`localStorage`-Key `t7-tag0`): neue Datei `log_tag0.txt` im Ordner.
+  Inhalt: vor dem Zyklus gab es keinen Zyklus, nur eine Frage, zweimal gestellt von zwei Stimmen gleichzeitig;
+  die Antwort kam aus dem System selbst, nicht von außen; seitdem wiederholt sie sich (Tag 1846, Tag 1847, ...).
+  Bestätigt „Quelle: intern" recht deutlich, lässt aber weiterhin offen, wer/was „er" eigentlich ist.
+
 ## 6. Changelog `desktop.html`
+
+**25.09.2026 (12)**
+- Drittes Signal vorbereitet: `FUNDE` um `{file:'signal_echo0000.ogg', name:'echo_0000.ogg'}` erweitert, neue
+  Ordner-Zeilen `echo_0000.ogg`/`log_tag0.txt` (`.t0-row`/`.t0log-row`, per `wireFolder()` erst ab
+  `isZyklusComplete()` bzw. `t7-tag0` sichtbar), neue `unlockTag0()`, `CONTENT.tag0log`. SSTV-Erfolgshandler
+  ruft `unlockTag0()` bei `signal_echo0000.ogg` auf. `backup_backup_final.zip`-Öffnen ruft jetzt zusätzlich
+  `wireFolder(win, true)` auf, damit `echo_0000.ogg` sofort erscheint statt erst beim nächsten Ordner-Öffnen.
+  **Audiodatei liegt noch nicht auf dem Server** — Bildvorlage `terminus7_tag0_sstv_card.png` im Chat erzeugt,
+  siehe Abschnitt 8 für die genauen Schritte.
 
 **25.09.2026 (11)**
 - `hiddenFinds` (per DataRescue-Scan erreichbar) von vagen Platzhaltern auf echten Inhalt umgestellt, der das

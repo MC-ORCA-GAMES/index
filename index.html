@@ -767,6 +767,8 @@
                <div class="frow s4-row" data-open="sektor4log" data-name="sektor4_log.txt" tabindex="0" style="display:none;"><span class="fi">▤</span>sektor4_log.txt</div>
                <div class="frow" data-fund="signal_echo1846.ogg" data-name="echo_1846.ogg" tabindex="0"><span class="fi">♪</span>echo_1846.ogg</div>
                <div class="frow p46-row" data-open="prozess1846" data-name="prozess_1846.txt" tabindex="0" style="display:none;"><span class="fi">▤</span>prozess_1846.txt</div>
+               <div class="frow t0-row" data-fund="signal_echo0000.ogg" data-name="echo_0000.ogg" tabindex="0" style="display:none;"><span class="fi">♪</span>echo_0000.ogg</div>
+               <div class="frow t0log-row" data-open="tag0log" data-name="log_tag0.txt" tabindex="0" style="display:none;"><span class="fi">▤</span>log_tag0.txt</div>
              </div>
              <p class="fl-status" style="opacity:.5; font-size:12px;">Doppelklick öffnet eine Datei.</p>`,
       onOpen: wireFolder
@@ -806,6 +808,14 @@
              <p>nicht erstellt von: gast-konto. nicht erstellt von letztem nutzer.</p>
              <p style="margin-top:10px;">vielleicht hat er nicht nur zugehört.</p>
              <p>vielleicht hat er auch etwas hinterlassen.</p>`
+    },
+    tag0log: {
+      title: "log_tag0.txt — Systemprotokoll",
+      body: `<p>vor dem zyklus gab es keinen zyklus.</p>
+             <p>nur eine frage, zweimal gestellt — von zwei stimmen, gleichzeitig.</p>
+             <p>eine antwort kam zurück. quelle: dieses system. nicht extern.</p>
+             <p style="margin-top:10px;">seitdem wiederholt sie sich. tag 1846. tag 1847. jeder tag danach: eine kopie des ersten.</p>
+             <p style="margin-top:10px; opacity:.7;">tag 0 hat kein datum. nur eine uhrzeit: 03:14.</p>`
     }
   };
 
@@ -1114,7 +1124,8 @@ Gib 'hilfe' ein für Befehle.
   // Kanal im Analysator auf. Der Fund-Stand wird im Browser gemerkt (localStorage 't7-found').
   const FUNDE = [
     {file:'signal_echo1847.ogg', name:'echo_1847.ogg'},
-    {file:'signal_echo1846.ogg', name:'echo_1846.ogg'}
+    {file:'signal_echo1846.ogg', name:'echo_1846.ogg'},
+    {file:'signal_echo0000.ogg', name:'echo_0000.ogg'}
   ];
   const LISTEN_SECS = 8;
   const FOUND_KEY = 't7-found';
@@ -1190,12 +1201,28 @@ Gib 'hilfe' ein für Befehle.
   }
   const isZyklusComplete = () => zyklusStufe() === 3;
 
+  // echo_0000.ogg / log_tag0.txt: tauchen erst im Ordner auf, wenn der Zyklus einmal komplett durchlaufen wurde
+  // (siehe zyklusStufe() oben) — der "Ursprung vor dem Ursprung", erst sichtbar für wer wirklich alles gefunden hat.
+  const TAG0_KEY = 't7-tag0';
+  const isTag0Unlocked = () => { try{ return localStorage.getItem(TAG0_KEY) === '1'; }catch(e){ return false; } };
+  function unlockTag0(){
+    if(isTag0Unlocked()) return false;
+    try{ localStorage.setItem(TAG0_KEY, '1'); }catch(e){}
+    const win = document.querySelector('.win[data-key="ordner"]');
+    if(win) wireFolder(win, true);
+    return true;
+  }
+
   // Ordner-Fenster: Klick markiert, Doppelklick (oder Enter) öffnet – per Zeitabstand, damit es auch per Touch geht
   function wireFolder(win, refreshOnly){
     const s4Row = win.querySelector('.s4-row');
     if(s4Row) s4Row.style.display = isSektor4Unlocked() ? '' : 'none';
     const p46Row = win.querySelector('.p46-row');
     if(p46Row) p46Row.style.display = isProzess1846Unlocked() ? '' : 'none';
+    const t0Row = win.querySelector('.t0-row');
+    if(t0Row) t0Row.style.display = isZyklusComplete() ? '' : 'none';
+    const t0logRow = win.querySelector('.t0log-row');
+    if(t0logRow) t0logRow.style.display = isTag0Unlocked() ? '' : 'none';
     if(refreshOnly) return;                              // nur Sichtbarkeit aktualisieren, keine Handler neu binden
     const status = win.querySelector('.fl-status');
     let last = null, lastT = 0;
@@ -1204,7 +1231,12 @@ Gib 'hilfe' ein für Befehle.
         const fund = FUNDE.find(f => f.file === row.dataset.fund);
         if(fund){ status.textContent = 'Doppelklick öffnet eine Datei.'; openAudioPlayer(fund); }
         else if(row.dataset.name === 'backup_backup_final.zip'){
-          if(isSektor4Unlocked() && isProzess1846Unlocked()){ status.textContent = 'Doppelklick öffnet eine Datei.'; markBackupOpened(); openWindow('backupzip'); }
+          if(isSektor4Unlocked() && isProzess1846Unlocked()){
+            status.textContent = 'Doppelklick öffnet eine Datei.';
+            markBackupOpened();
+            openWindow('backupzip');
+            wireFolder(win, true);
+          }
           else status.textContent = 'archiv beschädigt. lässt sich (noch) nicht entpacken.';
         }
         else if(row.dataset.open){ status.textContent = 'Doppelklick öffnet eine Datei.'; openWindow(row.dataset.open); }
@@ -1646,6 +1678,9 @@ Gib 'hilfe' ein für Befehle.
             }
             if(t.file === 'signal_echo1846.ogg' && unlockProzess1846()){
               status.textContent += ' · prozess_1846.txt im unbenannter_ordner';
+            }
+            if(t.file === 'signal_echo0000.ogg' && unlockTag0()){
+              status.textContent += ' · log_tag0.txt im unbenannter_ordner';
             }
           };
           const step = () => {
