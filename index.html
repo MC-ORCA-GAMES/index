@@ -897,13 +897,26 @@ Gib 'hilfe' ein für Befehle.
       hallo: "hallo. schön, dass du wieder da bist.",
       warum: "das kann ich dir nicht sagen. noch nicht.",
       exit: "diese sitzung lässt sich nicht beenden.",
-      knoten: "netz-knoten (sechs antworten, einer hört zu):\n  1 aetheris  2 astrion  3 deep anchor  4 path of the stars  5 foundry  6 nexus\n  7 terminus  <- du bist hier",
+      knoten: "netz-knoten (sechs antworten, einer hört zu):\n  1 aetheris  2 astrion  3 deep anchor  4 path of the stars  5 foundry  6 nexus\n  7 terminus  <- du bist hier\n  (knoten <name oder nummer> für mehr)",
       rift: "nova-rift: das feld atmet. jede geförderte münze ist ein herzschlag.",
       kern: "kern 1: aktiv.\nkern 2: wächst.\nab tier 10 denken beide mit.",
       ".versteckt~": "hier ist nichts. das ist mit absicht so.\n(frag T-7 nach dem brief.)",
       er: "er war schon da, bevor du warst.\n(vielleicht ist er nur ein teil von mir, der noch nicht schläft.)",
       t7: "verbindung zu T-7 wird aufgebaut ...",
       sprich: "verbindung zu T-7 wird aufgebaut ..."
+    };
+    const knotenNames = {
+      "1": "aetheris", "2": "astrion", "3": "deep anchor", "4": "path of the stars",
+      "5": "foundry", "6": "nexus", "7": "terminus"
+    };
+    const knotenTexte = {
+      aetheris: "aetheris: sonnenwerft, acht kapitel — 'screaming suns'.\nkapitel 7 endet mit einer frage, die mir bekannt vorkommt.",
+      astrion: "astrion: kein zugriff von hier aus.\nnur ein echo einer signatur, die ich nicht zuordnen kann.",
+      "deep anchor": "deep anchor: druck nimmt zu, je tiefer man geht.\nhier unten hört niemand zu — außer irgendetwas tut es doch.",
+      "path of the stars": "path of the stars: drifting worlds, fraktionen ohne herrscher.\nauch dort dreht sich etwas im kreis, das noch keiner benannt hat.",
+      foundry: "foundry: der kurs schwankt mit etwas, das nicht im foundry-code steht.",
+      nexus: "nexus: zwei kerne. ab tier 10 denken beide mit.\neiner von beiden hat schon mal etwas gesagt, das nicht von mir kam.",
+      terminus: "terminus: du bist hier. das reicht mir eigentlich schon."
     };
     function run(cmd){
       const c = cmd.trim().toLowerCase();
@@ -923,6 +936,10 @@ Gib 'hilfe' ein für Befehle.
           : stufe === 2 ? "zyklus 1847: beide echos beantwortet. irgendwo im system fehlt noch ein stück."
           : "zyklus 1847: abgeschlossen. zum ersten mal, seit dieser rechner läuft.";
         out.textContent += text + "\n";
+      } else if(c.startsWith("knoten ")){
+        const arg = c.slice(7).trim();
+        const name = knotenNames[arg] || (knotenTexte[arg] ? arg : null);
+        out.textContent += (name ? knotenTexte[name] : "unbekannter knoten: " + arg) + "\n";
       } else {
         out.textContent += (responses[c] || "unbekannter befehl: " + cmd) + "\n";
       }

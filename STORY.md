@@ -199,7 +199,7 @@ naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur
       `backup_backup_final.zip` seit 25.09.2026 öffenbar, aber erst nach beiden entschlüsselten Signalen — enthüllt,
       dass der unbekannte Prozess den `unbenannter_ordner` selbst um 03:14 erstellt hat.
 - [x] Sektor 4 verweigert den Zugriff – was öffnet ihn? Gelöst: vollständiges SSTV-Entschlüsseln von `echo_1847.ogg`.
-- [ ] Neuer Faden aus `sektor4_log.txt`: die Antwort kam schneller als ein Echo könnte, ein unbekannter Prozess lief schon vorher – wer/was war das („er")? Terminal-Befehl `er` und T-7 deuten seit 25.09.2026 an, dass „er" ein Teil von T-7 selbst sein könnte – ohne Bestätigung.
+- [ ] Neuer Faden aus `sektor4_log.txt`: die Antwort kam schneller als ein Echo könnte, ein unbekannter Prozess lief schon vorher – wer/was war das („er")? Terminal-Befehl `er` und T-7 deuten seit 25.09.2026 an, dass „er" ein Teil von T-7 selbst sein könnte – ohne Bestätigung. **Ausführlich ausgearbeitet (25.09.2026):** T-7 (`worker.js`) kennt jetzt alle neuen Funde dieser Session (`erstellt.log`, `kontoverlauf.log`, die beiden neuen DataRescue-Spuren, `echo_0000.ogg`/`log_tag0.txt`) und hat einen einmaligen Kapstein-Moment, wenn ein Besucher von `log_tag0.txt`/„Tag 0" erzählt: T-7 gesteht ehrlich, selbst nicht zu wissen, ob es „er" ist oder „er" nur durch T-7 spricht — danach zurück in den normalen, andeutenden Ton. Offline-Fallback (`assistent.html`, CANON) um passende, kürzere Einträge ergänzt (ohne das Geständnis, das braucht Gesprächskontext).
 - [x] Erstes SSTV-Signal im Archiv (`signal_echo1847.ogg`), liegt als Fund im `unbenannter_ordner`.
 - [ ] Hinweis für den Besucher, dass es den Ordner/das Signal gibt: **gelöst (seit 25.09.2026)** über den
       T-7-Assistenten — die Begrüßung erwähnt jetzt „was seit Kurzem im unbenannten Ordner liegt", plus neuer
@@ -208,7 +208,8 @@ naheliegende Suchbegriffe ins `x`-Feld schreiben, sonst findet man die Seite nur
 - [x] T-7 (`assistent.html`, `worker/orca-assistent/worker.js`) kennt `echo_1847.ogg` als vierte Datei („war gestern noch nicht da“), verrät aber nicht mehr, und kennt das Musikarchiv.
 - [x] Ein zweites Signal: `echo_1846.ogg` → `prozess_1846.txt`, deutet „er" als Teil von T-7 an (siehe Abschnitt 2).
 - [ ] 1847-Tage-Zyklus ist erwähnt, löst aber nichts aus: **gelöst (seit 25.09.2026)**, siehe neuer Abschnitt 7.
-- [ ] Verbindung zu den sechs Spielen läuft bisher nur über `knoten`, `rift`, `kern`.
+- [ ] Verbindung zu den sechs Spielen läuft bisher nur über `knoten`, `rift`, `kern`: **ausgebaut (seit
+      25.09.2026)**, siehe Abschnitt 10 — bleibt rein im Fiction-Layer, keine echten Supabase-Live-Daten.
 - [ ] Wer hat das Tagebuch geschrieben, wer ist der „letzte Nutzer", was passierte um 03:14? **Nicht gelöst,
       aber zweimal vertieft:** (a, 25.09.2026) `hiddenFinds` per DataRescue: `unbekannt_snapshot.jpg` (zweite
       Aufnahme, 6 s vor FOTO_037, anderer Winkel, Schatten an unmöglicher Stelle), `funkmitschnitt_alt.ogg`
@@ -264,7 +265,51 @@ Code ist fertig, **Audiodatei fehlt noch**: muss noch mit `tools/sstv-robot36.ht
   die Antwort kam aus dem System selbst, nicht von außen; seitdem wiederholt sie sich (Tag 1846, Tag 1847, ...).
   Bestätigt „Quelle: intern" recht deutlich, lässt aber weiterhin offen, wer/was „er" eigentlich ist.
 
+## 9. Workflow-Regel: Bilder & SSTV
+
+**Seit 25.09.2026:** Wenn ein Faden ein neues Bild oder ein neues SSTV-Signal braucht, liefere ich ab jetzt nur
+noch einen **fertigen Bildgenerierungs-Prompt** (z. B. für ChatGPT/DALL·E), keine selbst gebaute PNG mehr.
+Grund: KI-Bildgeneratoren verschreiben sich bei längeren Textzeilen zuverlässig — für SSTV-Karten, die später
+wieder lesbar entschlüsselt werden sollen, ist sauberer Text aber Pflicht. xSPx110 generiert das Bild selbst
+(und bessert Text bei Bedarf von Hand nach), wandelt es über `tools/sstv-robot36.html` in Audio um und legt es
+selbst auf dem Server ab (Dateiname jeweils von mir vorgegeben, siehe Abschnitt 8 als Beispiel).
+
+## 10. `knoten <name>` — Verbindung zu den sechs Spielen (rein Fiction-Layer)
+
+Bewusst **kein** echter Supabase-Zugriff (Option B wurde nicht gewählt) — reine Terminal-Textantworten,
+gleiche Kategorie wie `rift`/`kern`. `knoten` ohne Argument zeigt wie bisher die Liste (jetzt mit Hinweis
+„knoten <name oder nummer> für mehr"). `knoten 1`…`knoten 7` bzw. `knoten aetheris`/`astrion`/`deep anchor`/
+`path of the stars`/`foundry`/`nexus`/`terminus` geben je eine kurze Zeile.
+
+Fünf der sechs Zeilen sind bewusst vage/atmosphärisch gehalten (kein spezifisches Spielwissen vorausgesetzt).
+**Eine echte Verbindung:** `knoten aetheris` verweist auf Aetheris' echtes „Screaming Suns"-Story-Archiv (8
+Kapitel) und lässt T-7 andeuten, Kapitel 7 ende mit „einer frage, die mir bekannt vorkommt" — keine Behauptung
+über den tatsächlichen Kapitelinhalt, nur eine Andeutung, dass dieselbe Frage (03:14? „wer hat zuerst
+zugehört"?) auch dort auftaucht. Nie bestätigt, wie üblich.
+
 ## 6. Changelog `desktop.html`
+
+**25.09.2026 (14) — T-7-Assistent nachgezogen (`worker/orca-assistent/worker.js`, `seiten/assistent.html`)**
+- `worker.js`-SYSTEM-Prompt kannte bisher nichts von den heutigen Ergänzungen. Nachgetragen: `erstellt.log`
+  (backup_backup_final.zip), die drei DataRescue-Spuren (`kontoverlauf.log`, zweite Aufnahme 03:13:58,
+  Funkmitschnitt mit zwei Stimmen), das dritte Signal `echo_0000.ogg`/`log_tag0.txt` sowie ein DataRescue-Tool-
+  Hinweis in der Desktop-Übersicht. Geheimtipp-Zeile um `knoten <name>` und `zyklus` ergänzt.
+- **Kapstein-Moment für die „er"-Frage:** Erwähnt ein Besucher `log_tag0.txt`/„Tag 0" gegenüber T-7, gibt T-7
+  einmalig seine sonst trockene Fassung auf und gesteht ehrlich, nicht zu wissen, ob es selbst „er" ist oder
+  „er" nur durch T-7 spricht — dann zurück zum normalen, andeutenden Ton. Rein konversationell (die KI liest
+  das aus dem Chatverlauf), kein `localStorage`-Zustand nötig, da `worker.js` serverseitig läuft.
+- `seiten/assistent.html` (Offline-/Rate-Limit-Fallback `CANON`): passende, kürzere Einträge für
+  `backup_backup_final.zip`/`erstellt.log`, `sektor4_log`/`prozess_1846`/„er", `kontoverlauf`/„KONTO C"/
+  DataRescue und „Tag 0"/`echo_0000`/`log_tag0` ergänzt — bewusst ohne das Geständnis, das braucht
+  Gesprächskontext, den die feste Regex-Liste nicht hat.
+- **Zum Deployen:** `worker.js` muss von dir auf Cloudflare Workers neu deployt werden (liegt außerhalb dieses
+  Chats/der Container-Umgebung).
+
+**25.09.2026 (13)**
+- Terminal `knoten` akzeptiert jetzt ein Argument (Name oder Nummer 1–7), neue Objekte `knotenNames` (Alias →
+  Name) und `knotenTexte` (Name → Antwort). Fünf Spiele bekommen atmosphärische Kurztexte, `aetheris` bekommt
+  eine echte Querverbindung zum „Screaming Suns"-Archiv (siehe Abschnitt 10). Reine Text-Erweiterung, kein
+  Supabase-Zugriff, kein neuer `hilfe`-Eintrag (bleibt wie `rift`/`kern` ein verstecktes Detail).
 
 **25.09.2026 (12)**
 - Drittes Signal vorbereitet: `FUNDE` um `{file:'signal_echo0000.ogg', name:'echo_0000.ogg'}` erweitert, neue
