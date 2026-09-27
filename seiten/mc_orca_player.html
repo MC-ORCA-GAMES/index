@@ -1,0 +1,2849 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MC ORCA // Player</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#040404;
+    --panel:#0c0c0c;
+    --panel-2:#131313;
+    --metal-hi:#242220;
+    --metal-lo:#0f0e0d;
+    --line:#2a241a;
+    --gold:#e8b93f;
+    --gold-rgb:232,185,63;
+    --gold-dim:#7a5f1f;
+    --red:#ff1414;
+    --red-rgb:255,20,20;
+    --red-dim:#7a0c0c;
+    --amber:#e8b93f;
+    --magenta:#ff1414;
+    --text:#efe3c2;
+    --text-dim:#7a6f52;
+    --shadow: 0 20px 60px rgba(0,0,0,.75);
+  }
+
+  /* ---------- Farb-Themes (per data-theme am <html>) ---------- */
+  html[data-theme="cyber"]{
+    --void:#050110; --panel:#0b0620; --panel-2:#120a2e; --metal-hi:#2a1442; --metal-lo:#100a24; --line:#3a1a56;
+    --gold:#2be9ff; --gold-rgb:43,233,255; --gold-dim:#157a86;
+    --red:#ff2bd6; --red-rgb:255,43,214; --red-dim:#7a1461;
+    --amber:#2be9ff; --magenta:#ff2bd6;
+    --text:#e8d9ff; --text-dim:#8172ad;
+  }
+  html[data-theme="matrix"]{
+    --void:#020703; --panel:#050f07; --panel-2:#08170b; --metal-hi:#1c3320; --metal-lo:#0a140c; --line:#1e3a22;
+    --gold:#39ff6a; --gold-rgb:57,255,106; --gold-dim:#1c7a37;
+    --red:#0aff9d; --red-rgb:10,255,157; --red-dim:#0a7a54;
+    --amber:#39ff6a; --magenta:#0aff9d;
+    --text:#d4ffd9; --text-dim:#5c8f66;
+  }
+  html[data-theme="ice"]{
+    --void:#03080f; --panel:#081420; --panel-2:#0c1c2c; --metal-hi:#22394c; --metal-lo:#0d1a26; --line:#274257;
+    --gold:#7fe0ff; --gold-rgb:127,224,255; --gold-dim:#3d7a91;
+    --red:#5b8cff; --red-rgb:91,140,255; --red-dim:#2c4a91;
+    --amber:#7fe0ff; --magenta:#5b8cff;
+    --text:#dff3ff; --text-dim:#6e93a8;
+  }
+  html[data-theme="synth"]{
+    --void:#0a0512; --panel:#160a26; --panel-2:#1e0f33; --metal-hi:#3a1a4f; --metal-lo:#150a24; --line:#4a2260;
+    --gold:#ff8a3d; --gold-rgb:255,138,61; --gold-dim:#8a4a1f;
+    --red:#c23dff; --red-rgb:194,61,255; --red-dim:#6a1f8a;
+    --amber:#ff8a3d; --magenta:#c23dff;
+    --text:#ffe3d9; --text-dim:#a3789e;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(var(--gold-rgb),.05), transparent 60%),
+      radial-gradient(900px 500px at 100% 110%, rgba(var(--red-rgb),.06), transparent 60%),
+      var(--void);
+    color:var(--text);
+    font-family:'Space Mono', monospace;
+    display:flex; align-items:center; justify-content:center;
+    padding:16px;
+  }
+  .noise::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:999;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/></svg>");
+    mix-blend-mode:overlay;
+  }
+  .unit{
+    width:min(1500px, 96vw);
+    max-height:96vh;
+    display:flex; flex-direction:column;
+    border-radius:10px;
+    background:linear-gradient(180deg, var(--metal-hi), var(--metal-lo));
+    border:1px solid #3a3226;
+    box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.04);
+    overflow:hidden;
+    position:relative; z-index:1;
+  }
+  /* Sternenhimmel-Hintergrund hinter dem Player-Gehäuse (Idee/Technik von AETHERIS' bgStarfield
+     übernommen): eigenes <canvas>, fixed über den ganzen Viewport, zeichnet echt zufällig verteilte,
+     leicht funkelnde Sterne statt eines sich wiederholenden CSS-Musters. z-index:0 + .unit's eigener
+     Stacking-Context (position:relative;z-index:1 oben) sorgen dafür, dass es sauber HINTER dem
+     Gehäuse bleibt, auch als position:fixed-Element. */
+  #bgStarfield{
+    position:fixed; inset:0; z-index:0; pointer-events:none; display:block;
+    width:100vw; height:100vh;
+  }
+
+  /* ---------- Titlebar ---------- */
+  .titlebar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px; flex:0 0 auto;
+    background:repeating-linear-gradient(180deg, #201c16 0px, #201c16 2px, #161310 2px, #161310 4px);
+    border-bottom:1px solid #050705;
+  }
+  .titlebar .brand{
+    font-family:'VT323', monospace;
+    font-size:22px; letter-spacing:3px; color:var(--gold);
+    text-shadow:0 0 8px rgba(var(--gold-rgb),.55);
+    display:flex; align-items:center; gap:8px;
+  }
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--magenta); box-shadow:0 0 8px var(--magenta); animation:pulse 2.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1} 50%{opacity:.35}}
+  .titlebar .nub{ width:34px; height:14px; border-radius:2px;
+    background:linear-gradient(180deg,#4a3f22,#1e1a10);
+    border:1px solid #141210;
+  }
+  .titlebar .nubs{display:flex; gap:6px;}
+
+  /* ---------- Display ---------- */
+  .display{
+    margin:12px; padding:12px 14px; flex:0 0 auto;
+    background:#050403;
+    border:1px solid #221a08;
+    border-radius:6px;
+    box-shadow: inset 0 0 24px rgba(0,0,0,.9), inset 0 0 0 1px rgba(var(--gold-rgb),.06);
+    display:grid;
+    grid-template-columns: auto 1fr auto;
+    align-items:center;
+    gap:10px;
+  }
+  .lcd-cover{
+    width:44px; height:44px; border-radius:4px; overflow:hidden; flex-shrink:0;
+    border:1px solid rgba(var(--gold-rgb),.35);
+    box-shadow:0 0 10px rgba(var(--gold-rgb),.25), inset 0 0 6px rgba(0,0,0,.6);
+    display:none;
+  }
+  .lcd-cover.show{ display:block; }
+  .lcd-cover img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .lcd-left{min-width:0;}
+  .track-title{
+    font-family:'VT323', monospace;
+    font-size:26px; letter-spacing:1px; color:var(--gold);
+    text-shadow:0 0 6px rgba(var(--gold-rgb),.5);
+    white-space:nowrap; overflow:hidden; position:relative;
+    height:28px;
+  }
+  .track-title span{
+    position:absolute; left:0; white-space:nowrap; will-change:transform;
+  }
+  .sub-line{
+    display:flex; gap:14px; margin-top:4px;
+    font-size:11px; color:var(--text-dim); letter-spacing:.5px;
+    text-transform:uppercase;
+  }
+  .sub-line b{color:var(--gold-dim);}
+  .time-block{
+    font-family:'VT323', monospace; font-size:38px; color:var(--amber);
+    text-shadow:0 0 8px rgba(var(--gold-rgb),.45);
+    text-align:right; line-height:1; align-self:center;
+  }
+  .time-block small{display:block; font-size:11px; font-family:'Space Mono',monospace; color:var(--text-dim); text-align:right; margin-top:2px; letter-spacing:1px;}
+
+  /* ---------- Visualizer ---------- */
+  .viz-wrap{ position:relative; margin:0 12px 12px; flex:0 0 auto; }
+  canvas#viz{
+    width:100%; height:min(260px, 28vh); display:block;
+    background:
+      linear-gradient(180deg, rgba(var(--red-rgb),.05), transparent 40%),
+      #050403;
+    border:1px solid #221a08; border-radius:6px;
+    box-shadow: inset 0 0 24px rgba(0,0,0,.85);
+  }
+  .viz-wrap:fullscreen{ margin:0; display:flex; align-items:center; justify-content:center; background:#000; }
+  .viz-wrap:-webkit-full-screen{ margin:0; display:flex; align-items:center; justify-content:center; background:#000; }
+  .viz-wrap:fullscreen canvas#viz{ width:100vw; height:100vh; border:none; border-radius:0; box-shadow:none; }
+  .viz-wrap:-webkit-full-screen canvas#viz{ width:100vw; height:100vh; border:none; border-radius:0; box-shadow:none; }
+  .viz-wrap:fullscreen .viz-controls{ top:20px; right:20px; }
+  .viz-controls{
+    position:absolute; top:8px; right:8px; display:flex; gap:6px;
+  }
+  .chip{
+    font-size:10px; letter-spacing:1px; text-transform:uppercase;
+    padding:4px 8px; border-radius:3px; cursor:pointer; user-select:none;
+    background:rgba(5,11,6,.7); border:1px solid #2a2214; color:var(--text-dim);
+    display:inline-flex; align-items:center; gap:4px;
+  }
+  .chip:hover{ color:var(--gold); border-color:var(--gold-dim); }
+  .chip.active{ color:var(--void); background:var(--gold); border-color:var(--gold); font-weight:700; }
+  .chip svg{ width:12px; height:12px; fill:currentColor; }
+  .chip.fs-chip{ padding:4px 7px; }
+  .chip.fs-chip.active{ background:var(--red); border-color:var(--red); color:var(--void); }
+
+  /* ---------- Transport ---------- */
+  .transport{
+    display:flex; align-items:center; gap:10px;
+    padding:0 12px 12px; flex:0 0 auto;
+  }
+  .tbtn{
+    width:38px; height:32px; border-radius:4px; cursor:pointer;
+    background:linear-gradient(180deg,#3a3226,#1a1712);
+    border:1px solid #141210; color:var(--text);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.5);
+    transition:transform .05s ease;
+  }
+  .tbtn:hover{color:var(--gold);}
+  .tbtn:active{transform:translateY(1px);}
+  .tbtn.play{ width:52px; }
+  .tbtn svg{width:14px; height:14px; fill:currentColor;}
+
+  .seek{
+    flex:1; display:flex; align-items:center; gap:8px;
+  }
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px;
+    background:#151009; border-radius:2px; outline:none; border:1px solid #2a2214;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    background:var(--gold); box-shadow:0 0 6px rgba(var(--gold-rgb),.7); cursor:pointer;
+    border:1px solid #3a2c0c;
+  }
+  .vol{ width:100px; display:flex; align-items:center; gap:6px;}
+  .vol svg{width:14px; height:14px; fill:var(--text-dim); flex-shrink:0;}
+
+  /* ---------- Playlist ---------- */
+  .playlist{
+    margin:0 12px 12px; border:1px solid #221a08; border-radius:6px; overflow:hidden;
+    background:var(--panel);
+    flex:1 1 auto; min-height:160px;
+    display:flex; flex-direction:column;
+  }
+  .pl-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 10px; background:var(--panel-2); border-bottom:1px solid #221a08;
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-dim);
+  }
+  .pl-head{ flex-wrap:wrap; row-gap:8px; }
+  .pl-head .actions{display:flex; gap:8px; flex-wrap:wrap;}
+  .pl-btn{
+    font-family:'Space Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase;
+    padding:5px 10px; border-radius:3px; cursor:pointer; color:var(--text);
+    background:linear-gradient(180deg,#2a2418,#181410); border:1px solid #141210;
+    display:inline-flex; align-items:center; gap:5px; line-height:1;
+    box-shadow: 0 1px 0 rgba(255,255,255,.04), 0 2px 4px rgba(0,0,0,.4);
+    transition:transform .05s ease;
+  }
+  .pl-btn svg{ width:12px; height:12px; fill:currentColor; flex-shrink:0; }
+  .pl-btn:active{ transform:translateY(1px); }
+  .pl-btn:hover{color:var(--gold); border-color:var(--gold-dim);}
+  .pl-btn.on{color:var(--void); background:var(--red); border-color:var(--red);}
+  .pl-btn.on svg{ fill:var(--void); }
+  input#fileInput, input#folderInput{display:none;}
+
+  .src-tabs{
+    display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto;
+    padding:8px 10px; background:#0e0b07; border-bottom:1px solid #221a08;
+    scrollbar-width:thin;
+  }
+  .src-tabs::-webkit-scrollbar{ height:5px; }
+  .src-tabs::-webkit-scrollbar-thumb{ background:#3a2c14; border-radius:4px; }
+  .src-tab{
+    flex:0 0 auto; cursor:pointer; white-space:nowrap;
+    padding:5px 10px; border-radius:5px; font-size:10.5px; letter-spacing:.04em;
+    font-family:'Space Grotesk',sans-serif; text-transform:uppercase;
+    background:linear-gradient(180deg,#221c12,#151109); border:1px solid #221a08;
+    color:var(--text-dim); transition:color .1s ease, border-color .1s ease;
+  }
+  .src-tab:hover{ color:var(--gold); border-color:var(--gold-dim); }
+  .src-tab.active{ color:var(--gold); border-color:var(--gold-dim); background:rgba(var(--gold-rgb),.12); }
+  .src-tab .src-n{ opacity:.55; margin-left:4px; }
+  .src-tab.src-empty{ opacity:.45; }
+  .src-tab.src-local{ border-left:2px solid var(--gold-dim); margin-left:2px; }
+
+  .search-row{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 10px; background:#0e0b07; border-bottom:1px solid #221a08;
+  }
+  .search-row .search-icon{ width:14px; height:14px; fill:var(--text-dim); flex-shrink:0; }
+  .search-row input{
+    flex:1; min-width:0; background:transparent; border:none; outline:none;
+    font-family:'Space Mono',monospace; font-size:12px; color:var(--text);
+    padding:4px 2px;
+  }
+  .search-row input::placeholder{ color:var(--text-dim); }
+  .search-row #searchClear{ padding:3px 8px; font-size:11px; }
+
+  .folder-hint{
+    display:none; align-items:center; gap:12px;
+    padding:10px 12px; margin:0; font-size:11px; line-height:1.5;
+    background:rgba(var(--red-rgb),.08); border-bottom:1px solid #3a1414;
+    color:var(--text-dim);
+  }
+  .folder-hint b{ color:var(--gold); }
+  .folder-hint code{ color:var(--red); background:rgba(var(--red-rgb),.1); padding:1px 4px; border-radius:2px; }
+  .folder-hint #hintDismiss{ flex-shrink:0; }
+
+  .cols{
+    display:grid;
+    grid-template-columns: 32px 1fr 90px 70px 130px 34px;
+    gap:0; padding:6px 10px; font-size:10px; letter-spacing:1px; text-transform:uppercase;
+    color:var(--text-dim); border-bottom:1px solid #221a08; background:#100d08;
+  }
+  .cols div{cursor:pointer; user-select:none; display:flex; align-items:center; gap:4px;}
+  .cols div:hover{color:var(--gold);}
+  .cols .arrow{font-size:9px; opacity:.8;}
+
+  .track-list{ flex:1 1 auto; min-height:0; overflow-y:auto; position:relative; }
+  .track-list::-webkit-scrollbar{width:8px;}
+  .track-list::-webkit-scrollbar-thumb{background:#3a2c14; border-radius:4px;}
+  .track-list::-webkit-scrollbar-track{background:#100d08;}
+
+  #vlistSizer{ position:relative; width:100%; }
+  #vlistContent{ position:absolute; top:0; left:0; right:0; will-change:transform; }
+
+  .row{
+    display:grid;
+    grid-template-columns: 32px 1fr 90px 70px 130px 34px;
+    height:44px; box-sizing:border-box;
+    padding:0 10px; font-size:12px; align-items:center;
+    border-bottom:1px solid #151009; cursor:pointer;
+    color:var(--text);
+  }
+  .row:hover{ background:rgba(var(--gold-rgb),.06); }
+  .row.playing{ background:rgba(var(--red-rgb),.12); color:var(--red); border-left:2px solid var(--red); }
+  .row .idx{ color:var(--text-dim); font-size:11px; }
+  .row.playing .idx{ color:var(--red); }
+  .row .name{ min-width:0; display:flex; flex-direction:column; justify-content:center; gap:1px; }
+  .row .name .title{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .name .sub{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:10px; color:var(--text-dim); }
+  .row.playing .name .sub{ color:var(--red); opacity:.75; }
+  .row .dur, .row .size, .row .added{ color:var(--text-dim); font-size:11px; }
+  .row .rm{ opacity:0; text-align:right; color:var(--red); font-size:14px; }
+  .row:hover .rm{ opacity:.8; }
+  .row .rm:hover{ opacity:1; }
+
+  .sort-select{
+    -webkit-appearance:none; appearance:none;
+    background:linear-gradient(180deg,#2a2418,#181410);
+  }
+  .sort-select:hover{ color:var(--gold); border-color:var(--gold-dim); }
+  .sort-select option{ background:#181410; color:var(--text); }
+
+  .empty-state{
+    padding:36px 20px; text-align:center; color:var(--text-dim); font-size:12px; letter-spacing:.5px;
+  }
+  .empty-state .big{ font-family:'VT323',monospace; font-size:22px; color:var(--gold-dim); display:block; margin-bottom:6px;}
+
+  .dropzone{
+    position:absolute; inset:0; z-index:50; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(4,4,4,.92); border:2px dashed var(--gold);
+    border-radius:10px; color:var(--gold); font-family:'VT323',monospace; font-size:26px;
+    letter-spacing:2px;
+  }
+  .unit.dragover .dropzone{ display:flex; }
+  .unit{ position:relative; }
+
+  .footer-strip{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:6px 14px 10px; font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
+    color:#3d5645; flex:0 0 auto;
+  }
+
+  /* ================== FORMEN-SKINS ================== */
+  /* "classic" = Standardformen oben, keine Overrides nötig. */
+
+  /* ---------- Skin: Pill (rund) ---------- */
+  body.skin-pill .unit{ border-radius:34px; }
+  body.skin-pill .titlebar{ padding:10px 20px; }
+  body.skin-pill .display{ border-radius:26px; margin:14px 16px; }
+  body.skin-pill canvas#viz{ border-radius:22px; }
+  body.skin-pill .chip{ border-radius:999px; padding:5px 12px; }
+  body.skin-pill .tbtn{ border-radius:999px; }
+  body.skin-pill .tbtn.play{ width:56px; }
+  body.skin-pill input[type=range]{ border-radius:999px; }
+  body.skin-pill input[type=range]::-webkit-slider-thumb{ width:16px; height:16px; }
+  body.skin-pill .pl-btn{ border-radius:999px; padding:6px 14px; }
+  body.skin-pill .playlist{ border-radius:22px; margin:0 16px 16px; }
+  body.skin-pill .pl-head{ border-radius:0; }
+  body.skin-pill .row{ border-radius:0; }
+  body.skin-pill .search-row input{ border-radius:999px; }
+  body.skin-pill .titlebar .nub{ border-radius:999px; }
+
+  /* ---------- Skin: Neon (leuchtende Kontur) ---------- */
+  body.skin-neon .unit{
+    border:1px solid rgba(var(--gold-rgb),.55);
+    box-shadow: var(--shadow), 0 0 0 1px rgba(var(--gold-rgb),.15), 0 0 32px rgba(var(--gold-rgb),.18), inset 0 0 40px rgba(var(--gold-rgb),.03);
+  }
+  body.skin-neon .display{
+    border-color: rgba(var(--gold-rgb),.4);
+    box-shadow: inset 0 0 24px rgba(0,0,0,.9), 0 0 14px rgba(var(--gold-rgb),.25), inset 0 0 0 1px rgba(var(--gold-rgb),.1);
+  }
+  body.skin-neon canvas#viz{
+    border-color: rgba(var(--red-rgb),.5);
+    box-shadow: inset 0 0 24px rgba(0,0,0,.85), 0 0 18px rgba(var(--red-rgb),.3);
+  }
+  body.skin-neon .tbtn{ border-color: rgba(var(--gold-rgb),.5); box-shadow: 0 0 8px rgba(var(--gold-rgb),.35); }
+  body.skin-neon .tbtn:hover{ box-shadow: 0 0 14px rgba(var(--gold-rgb),.7); }
+  body.skin-neon .pl-btn{ border-color: rgba(var(--gold-rgb),.4); }
+  body.skin-neon .pl-btn:hover{ box-shadow: 0 0 10px rgba(var(--gold-rgb),.5); }
+  body.skin-neon .chip{ border-color: rgba(var(--gold-rgb),.35); }
+  body.skin-neon .chip.active{ box-shadow: 0 0 14px rgba(var(--gold-rgb),.8); }
+  body.skin-neon .playlist{ border-color: rgba(var(--gold-rgb),.35); box-shadow: 0 0 16px rgba(var(--gold-rgb),.12); }
+  body.skin-neon input[type=range]{ border-color: rgba(var(--gold-rgb),.4); }
+  body.skin-neon .titlebar{ border-bottom-color: rgba(var(--gold-rgb),.3); }
+  body.skin-neon .brand .dot{ box-shadow:0 0 14px var(--magenta), 0 0 26px var(--magenta); }
+
+  /* ================== 3D-KIPPEFFEKT ================== */
+  body.tilt-on .unit{
+    transform-style: preserve-3d;
+    transition: transform .12s ease-out, box-shadow .12s ease-out;
+    transform: perspective(1000px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+    will-change: transform;
+  }
+  body.tilt-on .unit::after{
+    content:"";
+    position:absolute; inset:0; pointer-events:none; z-index:998; border-radius:inherit;
+    background: radial-gradient(320px 240px at var(--mx,50%) var(--my,50%), rgba(255,255,255,.10), transparent 55%);
+    opacity:0; transition:opacity .2s ease;
+  }
+  body.tilt-on .unit:hover::after{ opacity:1; }
+  body.tilt-off .unit{ transform:none !important; }
+
+  /* ================== SETTINGS-PANEL ================== */
+  .settings-btn{
+    width:26px; height:26px; border-radius:6px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(180deg,#3a3226,#1a1712);
+    border:1px solid #141210; color:var(--text-dim); flex-shrink:0;
+    transition:transform .05s ease;
+  }
+  body.skin-pill .settings-btn{ border-radius:999px; }
+  .settings-btn:hover{ color:var(--gold); border-color:var(--gold-dim); }
+  .settings-btn:active{ transform:translateY(1px); }
+  .settings-btn svg{ width:14px; height:14px; fill:currentColor; }
+  .titlebar-right{ display:flex; align-items:center; gap:10px; }
+
+  .settings-panel{
+    position:absolute; top:44px; right:12px; z-index:1000;
+    width:260px; padding:14px;
+    background:linear-gradient(180deg, var(--metal-hi), var(--metal-lo));
+    border:1px solid #3a3226; border-radius:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,.7);
+    display:none; flex-direction:column; gap:12px;
+  }
+  .settings-panel.open{ display:flex; }
+  .settings-panel h4{
+    margin:0; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-dim);
+  }
+  .swatch-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .swatch{
+    width:34px; height:34px; border-radius:8px; cursor:pointer;
+    border:2px solid transparent; position:relative;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.4);
+  }
+  .swatch.active{ border-color:#fff; }
+  .swatch[data-theme-opt="amber"]{ background:linear-gradient(135deg,#e8b93f,#ff1414); }
+  .swatch[data-theme-opt="cyber"]{ background:linear-gradient(135deg,#2be9ff,#ff2bd6); }
+  .swatch[data-theme-opt="matrix"]{ background:linear-gradient(135deg,#39ff6a,#0aff9d); }
+  .swatch[data-theme-opt="ice"]{ background:linear-gradient(135deg,#7fe0ff,#5b8cff); }
+  .swatch[data-theme-opt="synth"]{ background:linear-gradient(135deg,#ff8a3d,#c23dff); }
+  .skin-row{ display:flex; gap:8px; }
+  .skin-opt{
+    flex:1; padding:8px 4px; text-align:center; cursor:pointer;
+    font-size:10px; letter-spacing:.5px; text-transform:uppercase; color:var(--text-dim);
+    background:rgba(0,0,0,.25); border:1px solid #2a2214; border-radius:6px;
+  }
+  .skin-opt .shape{ width:22px; height:22px; margin:0 auto 5px; background:var(--gold); }
+  .skin-opt[data-skin-opt="classic"] .shape{ border-radius:2px; }
+  .skin-opt[data-skin-opt="pill"] .shape{ border-radius:999px; }
+  .skin-opt[data-skin-opt="neon"] .shape{ border-radius:6px; background:transparent; border:2px solid var(--gold); box-shadow:0 0 8px var(--gold); }
+  .skin-opt:hover{ color:var(--gold); border-color:var(--gold-dim); }
+  .skin-opt.active{ color:var(--gold); border-color:var(--gold); background:rgba(var(--gold-rgb),.1); }
+  .tilt-toggle-row{ display:flex; align-items:center; justify-content:space-between; }
+  .tilt-toggle-row span{ font-size:11px; color:var(--text); }
+
+  /* ---------- Equalizer-Panel ---------- */
+  .eq-panel{ width:280px; }
+  .eq-panel-head{ display:flex; align-items:center; justify-content:space-between; }
+  .eq-bands{ display:flex; justify-content:space-between; gap:6px; padding:4px 2px; }
+  .eq-band{ display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; min-width:0; }
+  .eq-band-value{
+    font-family:'VT323', monospace; font-size:13px; color:var(--gold);
+    text-shadow:0 0 4px rgba(var(--gold-rgb),.4); white-space:nowrap;
+  }
+  .eq-slider-wrap{ height:104px; width:26px; display:flex; align-items:center; justify-content:center; }
+  .eq-slider-wrap input[type=range]{
+    width:96px; height:20px; margin:0; transform:rotate(-90deg);
+    -webkit-appearance:none; appearance:none; background:transparent; cursor:pointer;
+  }
+  .eq-slider-wrap input[type=range]::-webkit-slider-runnable-track{
+    height:4px; border-radius:2px; background:#1c1610; border:1px solid #2a2214;
+  }
+  .eq-slider-wrap input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%; margin-top:-5px;
+    background:var(--gold); border:1px solid #3a3226; box-shadow:0 0 6px rgba(var(--gold-rgb),.6);
+  }
+  .eq-slider-wrap input[type=range]::-moz-range-track{
+    height:4px; border-radius:2px; background:#1c1610; border:1px solid #2a2214;
+  }
+  .eq-slider-wrap input[type=range]::-moz-range-thumb{
+    width:14px; height:14px; border-radius:50%; background:var(--gold); border:1px solid #3a3226;
+    box-shadow:0 0 6px rgba(var(--gold-rgb),.6);
+  }
+  .eq-band-label{ font-size:9px; letter-spacing:.5px; color:var(--text-dim); text-transform:uppercase; }
+  .eq-presets{ display:flex; gap:6px; flex-wrap:wrap; margin-top:2px; }
+  .eq-preset-chip{ font-size:10px; padding:5px 9px; }
+  .eq-panel.eq-disabled .eq-bands{ opacity:.4; filter:grayscale(.6); pointer-events:none; }
+  .eq-fx-row{ display:flex; flex-direction:column; gap:6px; margin-top:2px; }
+  .eq-fx-chips{ display:flex; gap:6px; }
+  .eq-fx-chip{
+    flex:1; text-align:center; font-size:10px; letter-spacing:.5px;
+  }
+  .eq-fx-chip.active{ animation:eqFxPulse 1.6s ease-in-out infinite; }
+  @keyframes eqFxPulse{ 0%,100%{ box-shadow:0 0 0 rgba(var(--gold-rgb),0);} 50%{ box-shadow:0 0 10px rgba(var(--gold-rgb),.7);} }
+  .switch{ position:relative; width:38px; height:20px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .track{
+    position:absolute; inset:0; background:#1a1712; border:1px solid #141210;
+    border-radius:999px; cursor:pointer; transition:background .15s ease;
+  }
+  .switch .track::before{
+    content:""; position:absolute; width:14px; height:14px; left:2px; top:2px;
+    background:var(--text-dim); border-radius:50%; transition:transform .15s ease, background .15s ease;
+  }
+  .switch input:checked + .track{ background:rgba(var(--gold-rgb),.25); border-color:var(--gold-dim); }
+  .switch input:checked + .track::before{ transform:translateX(18px); background:var(--gold); }
+
+
+  @media (max-width:640px){
+    .cols, .row{ grid-template-columns: 24px 1fr 60px 34px; }
+    .cols .size, .row .size, .cols .added, .row .added{ display:none; }
+    .time-block{ font-size:26px; }
+    .track-title{ font-size:20px; }
+  }
+</style>
+</head>
+<body class="noise">
+
+<canvas id="bgStarfield"></canvas>
+
+<div class="unit" id="unit">
+
+  <div class="dropzone" id="dropzone">DATEIEN HIER ABLEGEN</div>
+
+  <div class="titlebar">
+    <div class="brand"><span class="dot"></span>MC ORCA // PLAYER</div>
+    <div class="titlebar-right">
+      <div class="settings-btn" id="btnEq" title="Equalizer">
+        <svg viewBox="0 0 24 24">
+          <rect x="3" y="14" width="3" height="7" rx="1"/><rect x="3" y="4" width="3" height="7" rx="1"/>
+          <rect x="10.5" y="9" width="3" height="12" rx="1"/><rect x="10.5" y="4" width="3" height="2" rx="1"/>
+          <rect x="18" y="17" width="3" height="4" rx="1"/><rect x="18" y="4" width="3" height="10" rx="1"/>
+        </svg>
+      </div>
+      <div class="settings-btn" id="btnSettings" title="Darstellung anpassen">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.5.5 0 00.12-.61l-1.92-3.32a.5.5 0 00-.59-.22l-2.39.96a7.03 7.03 0 00-1.62-.94l-.36-2.54A.5.5 0 0014 2h-4a.5.5 0 00-.5.42l-.36 2.54c-.6.24-1.15.56-1.62.94l-2.39-.96a.5.5 0 00-.59.22L2.62 8.48a.5.5 0 00.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.5.5 0 00-.12.61l1.92 3.32c.13.22.39.31.59.22l2.39-.96c.47.38 1.02.7 1.62.94l.36 2.54c.05.24.25.42.5.42h4c.25 0 .45-.18.5-.42l.36-2.54c.6-.24 1.15-.56 1.62-.94l2.39.96c.22.09.47 0 .59-.22l1.92-3.32a.5.5 0 00-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/></svg>
+      </div>
+      <div class="nubs">
+        <div class="nub"></div><div class="nub"></div><div class="nub"></div>
+      </div>
+    </div>
+    <div class="settings-panel" id="settingsPanel">
+      <div>
+        <h4>Farb-Thema</h4>
+        <div class="swatch-row" id="swatchRow">
+          <div class="swatch" data-theme-opt="amber" title="Amber/Rot"></div>
+          <div class="swatch" data-theme-opt="cyber" title="Cyberpunk Neon"></div>
+          <div class="swatch" data-theme-opt="matrix" title="Matrix Grün"></div>
+          <div class="swatch" data-theme-opt="ice" title="Eisblau"></div>
+          <div class="swatch" data-theme-opt="synth" title="Synthwave"></div>
+        </div>
+      </div>
+      <div>
+        <h4>Formen-Skin</h4>
+        <div class="skin-row" id="skinRow">
+          <div class="skin-opt" data-skin-opt="classic"><div class="shape"></div>Eckig</div>
+          <div class="skin-opt" data-skin-opt="pill"><div class="shape"></div>Rund</div>
+          <div class="skin-opt" data-skin-opt="neon"><div class="shape"></div>Neon</div>
+        </div>
+      </div>
+      <div class="tilt-toggle-row">
+        <span>3D-Kippeffekt</span>
+        <label class="switch">
+          <input type="checkbox" id="tiltToggle">
+          <span class="track"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-panel eq-panel" id="eqPanel">
+      <div class="eq-panel-head">
+        <h4>Equalizer</h4>
+        <label class="switch">
+          <input type="checkbox" id="eqEnableToggle" checked>
+          <span class="track"></span>
+        </label>
+      </div>
+      <div class="eq-bands" id="eqBands"></div>
+      <div class="eq-presets" id="eqPresets"></div>
+      <div class="eq-fx-row">
+        <h4>FX</h4>
+        <div class="eq-fx-chips" id="eqFxChips"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="display">
+    <div class="lcd-cover" id="lcdCover"><img id="lcdCoverImg" alt="Cover"></div>
+    <div class="lcd-left">
+      <div class="track-title" id="titleWrap"><span id="titleText">Keine Datei geladen — klicke „Dateien laden“</span></div>
+      <div class="sub-line">
+        <span>TRACK <b id="trackIdx">–</b>/<b id="trackTotal">0</b></span>
+        <span id="modeLabel">MODE: <b>NORMAL</b></span>
+        <span id="statusLabel">● BEREIT</span>
+      </div>
+    </div>
+    <div class="time-block">
+      <span id="timeNow">00:00</span> / <span id="timeTotal">00:00</span>
+      <small id="bitrateLine">— kbps · — kHz</small>
+    </div>
+  </div>
+
+  <div class="viz-wrap">
+    <canvas id="viz"></canvas>
+    <div class="viz-controls">
+      <div class="chip active" data-mode="bars" id="chipBars">Bars</div>
+      <div class="chip" data-mode="scope" id="chipScope">Scope</div>
+      <div class="chip" data-mode="sonar" id="chipSonar">Sonar</div>
+      <div class="chip" data-mode="bubbles" id="chipBubbles">Bubbles</div>
+      <div class="chip" data-mode="kaleido" id="chipKaleido">Kaleidoscope</div>
+      <div class="chip" data-mode="floor" id="chipFloor">Dancefloor</div>
+      <div class="chip" data-mode="discoball" id="chipDiscoball">Discoball</div>
+      <div class="chip" data-mode="strobe" id="chipStrobe">Strobe</div>
+      <div class="chip" data-mode="warp" id="chipWarp">Warp</div>
+      <div class="chip" data-mode="coverwarp" id="chipCoverWarp">Cover Warp</div>
+      <div class="chip fs-chip" id="chipFullscreen" title="Vollbild">
+        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM5 10h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="transport">
+    <div class="tbtn" id="btnPrev" title="Vorheriger Titel">
+      <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM20 6l-9 6 9 6z"/></svg>
+    </div>
+    <div class="tbtn play" id="btnPlay" title="Play/Pause">
+      <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </div>
+    <div class="tbtn" id="btnStop" title="Stop">
+      <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+    </div>
+    <div class="tbtn" id="btnNext" title="Nächster Titel">
+      <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM4 6l9 6-9 6z"/></svg>
+    </div>
+
+    <div class="seek">
+      <input type="range" id="seekBar" min="0" max="1000" value="0">
+    </div>
+
+    <div class="vol">
+      <svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-.77-3.29-2-4.3v8.6c1.23-1.02 2-2.53 2-4.3z"/></svg>
+      <input type="range" id="volBar" min="0" max="100" value="80">
+    </div>
+  </div>
+
+  <div class="playlist">
+    <div class="pl-head">
+      <span id="plCount">PLAYLIST · 0 TITEL</span>
+      <div class="actions">
+        <label class="pl-btn" for="folderInput" title="Kompletten mp3-Ordner auswählen">
+          <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          ORDNER
+        </label>
+        <input type="file" id="folderInput" webkitdirectory directory multiple>
+        <label class="pl-btn" for="fileInput">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+          DATEIEN
+        </label>
+        <input type="file" id="fileInput" multiple accept="audio/*">
+        <div class="pl-btn" id="btnShuffle" title="Zufallswiedergabe">SHUFFLE</div>
+        <div class="pl-btn" id="btnRepeat" title="Wiederholen">REPEAT</div>
+        <select id="sortSelect" class="pl-btn sort-select" title="Sortieren nach">
+          <option value="added">HINZUGEFÜGT</option>
+          <option value="name">TITEL</option>
+          <option value="artist">KÜNSTLER</option>
+          <option value="album">ALBUM</option>
+          <option value="duration">DAUER</option>
+          <option value="size">GRÖSSE</option>
+        </select>
+        <div class="pl-btn" id="btnSortDir" title="Sortierrichtung umkehren">▲</div>
+        <div class="pl-btn" id="btnExport" title="Dauer/Künstler/Album werden automatisch im Browser gemerkt. Dieser Button exportiert sie zusätzlich als manifest.json (Backup & Auto-Load-Liste für den mp3/-Ordner).">
+          <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          MANIFEST
+        </div>
+        <div class="pl-btn" id="btnClear" title="Playlist leeren">LEEREN</div>
+      </div>
+    </div>
+    <div class="src-tabs" id="sourceTabs"></div>
+    <div class="search-row">
+      <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <input type="text" id="searchInput" placeholder="Suchen … Titel, Künstler, Album" autocomplete="off">
+      <div class="pl-btn" id="searchClear" title="Suche löschen" style="display:none;">✕</div>
+    </div>
+    <div class="folder-hint" id="folderHint">
+      <div>
+        <b>Automatisches Laden aus <code>./mp3/</code> nicht möglich</b> (Browser blockiert lokales Nachladen ohne Server).
+        Klick einmal auf <b>📁 ORDNER</b> und wähle deinen <code>mp3</code>-Ordner — danach kannst du optional
+        <b>MANIFEST ⇩</b> klicken und die Datei als <code>mp3/manifest.json</code> speichern, dann klappt's beim nächsten Mal
+        automatisch (in Firefox direkt, in Chrome mit lokalem Server).
+      </div>
+      <div class="pl-btn" id="hintDismiss">OK</div>
+    </div>
+    <div class="cols">
+      <div data-sort="idx">#</div>
+      <div data-sort="name">Titel <span class="arrow" id="arrow-name"></span></div>
+      <div data-sort="duration">Dauer <span class="arrow" id="arrow-duration"></span></div>
+      <div data-sort="size">Größe <span class="arrow" id="arrow-size"></span></div>
+      <div data-sort="added">Hinzugefügt <span class="arrow" id="arrow-added"></span></div>
+      <div></div>
+    </div>
+    <div class="track-list" id="trackList">
+      <div class="empty-state" id="emptyState">
+        <span class="big">— LEER —</span>
+        Zieh MP3-/Audio-Dateien hierher oder klicke „+ Dateien laden“.
+      </div>
+      <div id="vlistSizer" style="display:none;">
+        <div id="vlistContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-strip">
+    <span>MC-ORCA-BIBLIOTHEK + EIGENE DATEIEN · KEIN UPLOAD</span>
+    <span id="clock">00:00:00</span>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ---------- State ----------
+  let tracks = [];         // {id, file, name, url, duration, size, added, durationLabel}
+  let currentIndex = -1;
+  let sortKey = 'added';
+  let sortDir = 1;
+  let searchQuery = '';
+  let shuffle = false;
+  let repeat = false;      // repeat all
+  let vizMode = 'bars';
+  let idSeq = 1;
+
+  // Virtuelles Scrollen
+  const ROW_HEIGHT = 44;
+  const VSCROLL_BUFFER = 6;
+  let displayList = [];       // aktuell sortierte Liste (Cache für virtuelles Rendering)
+  let scrollScheduled = false;
+
+  // Entkoppeltes Re-Render (Dirty-Flag statt Render pro Metadaten-Event)
+  let renderScheduled = false;
+
+  // Gedrosselte Metadaten-Ladung
+  const PROBE_CONCURRENCY = 4;
+  let probeQueue = [];
+  let probesActive = 0;
+
+  // Gedrosselte ID3-Tag-Ladung (Künstler/Album), ebenfalls nur für sichtbare Zeilen
+  const TAG_HEAD_BYTES = 256 * 1024; // reicht i.d.R. für Textframes, bevor Cover-Art kommt
+  const TAG_CONCURRENCY = 4;
+  let tagQueue = [];
+  let tagsActive = 0;
+
+  // ---------- Persistenter Metadaten-Cache (localStorage) ----------
+  // Hält Dauer/Künstler/Album/Größe pro Dateiname automatisch im Browser fest,
+  // damit beim nächsten Öffnen nichts erneut gelesen werden muss — unabhängig
+  // vom manuellen manifest.json-Export, der weiterhin als portables Backup dient.
+  const META_CACHE_KEY = 'mcOrcaMetaCache';
+  let metaCacheAvailable = true;
+  let metaCache = loadMetaCache();
+  let metaCacheSaveScheduled = false;
+
+  function loadMetaCache(){
+    try{
+      const raw = localStorage.getItem(META_CACHE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch(e){
+      metaCacheAvailable = false; // z.B. Privatmodus oder file:// ohne persistenten Storage
+      return {};
+    }
+  }
+  function scheduleMetaCacheSave(){
+    if(!metaCacheAvailable || metaCacheSaveScheduled) return;
+    metaCacheSaveScheduled = true;
+    setTimeout(() => {
+      metaCacheSaveScheduled = false;
+      try{ localStorage.setItem(META_CACHE_KEY, JSON.stringify(metaCache)); }
+      catch(e){ /* z.B. Speicher voll -> still ignorieren, App bleibt trotzdem nutzbar */ }
+    }, 1500);
+  }
+  // Nach jedem geladenen Feld (Dauer, Tags) im Cache mitschreiben
+  function rememberMeta(track){
+    if(!metaCacheAvailable || !track.filename) return;
+    const entry = { ...(metaCache[track.filename] || {}) };
+    let changed = false;
+    if(track.duration > 0 && entry.duration !== track.duration){ entry.duration = Math.round(track.duration*100)/100; changed = true; }
+    if(track.artist && entry.artist !== track.artist){ entry.artist = track.artist; changed = true; }
+    if(track.album && entry.album !== track.album){ entry.album = track.album; changed = true; }
+    if(track.size && entry.size !== track.size){ entry.size = track.size; changed = true; }
+    if(!changed) return;
+    metaCache[track.filename] = entry;
+    scheduleMetaCacheSave();
+  }
+  // Beim Hinzufügen eines Tracks: bereits bekannte Werte aus dem Cache sofort übernehmen,
+  // statt sie erneut zu laden (setzt _probed/_tagLoaded, damit die Lazy-Queues sie überspringen)
+  function applyCachedMeta(track){
+    const cached = metaCache[track.filename];
+    if(!cached) return;
+    if(cached.duration && !track.duration){
+      track.duration = cached.duration;
+      track.durationLabel = fmtTime(cached.duration);
+      track._probed = true;
+    }
+    if(cached.artist || cached.album){
+      if(cached.artist && !track.artist) track.artist = cached.artist;
+      if(cached.album && !track.album) track.album = cached.album;
+      track._tagLoaded = true;
+    }
+    if(cached.size && !track.size) track.size = cached.size;
+  }
+
+  // ---------- DOM ----------
+  const audio = new Audio();
+  audio.crossOrigin = 'anonymous';
+  audio.volume = 0.8;
+
+  const fileInput = document.getElementById('fileInput');
+  const trackListEl = document.getElementById('trackList');
+  const emptyState = document.getElementById('emptyState');
+  const vlistSizer = document.getElementById('vlistSizer');
+  const vlistContent = document.getElementById('vlistContent');
+  const plCount = document.getElementById('plCount');
+  const titleText = document.getElementById('titleText');
+  const trackIdxEl = document.getElementById('trackIdx');
+  const trackTotalEl = document.getElementById('trackTotal');
+  const timeNow = document.getElementById('timeNow');
+  const timeTotal = document.getElementById('timeTotal');
+  const seekBar = document.getElementById('seekBar');
+  const volBar = document.getElementById('volBar');
+  const statusLabel = document.getElementById('statusLabel');
+  const modeLabel = document.getElementById('modeLabel');
+  const bitrateLine = document.getElementById('bitrateLine');
+  const btnPlay = document.getElementById('btnPlay');
+  const iconPlay = document.getElementById('iconPlay');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const btnStop = document.getElementById('btnStop');
+  const btnShuffle = document.getElementById('btnShuffle');
+  const btnRepeat = document.getElementById('btnRepeat');
+  const btnClear = document.getElementById('btnClear');
+  const btnExport = document.getElementById('btnExport');
+  const folderInput = document.getElementById('folderInput');
+  const hintDismiss = document.getElementById('hintDismiss');
+  const unit = document.getElementById('unit');
+  const dropzone = document.getElementById('dropzone');
+  const clockEl = document.getElementById('clock');
+  const canvas = document.getElementById('viz');
+  const ctx = canvas.getContext('2d');
+
+  // ---------- Theme-Farben für Canvas (folgt dem aktiven Farb-Thema) ----------
+  let themeGoldRGB = '232,185,63';
+  let themeRedRGB = '255,20,20';
+  function refreshThemeCanvasColors(){
+    const cs = getComputedStyle(document.documentElement);
+    themeGoldRGB = (cs.getPropertyValue('--gold-rgb') || themeGoldRGB).trim();
+    themeRedRGB = (cs.getPropertyValue('--red-rgb') || themeRedRGB).trim();
+  }
+  function goldRGBA(a){ return `rgba(${themeGoldRGB},${a})`; }
+  function redRGBA(a){ return `rgba(${themeRedRGB},${a})`; }
+
+  // ---------- Sternenhimmel-Hintergrund (Technik von AETHERIS' initBackgroundStarfield
+  // übernommen, hier an die Player-Theme-Farben gekoppelt statt reinweiß) ----------
+  (function initBgStarfield(){
+    const sfCanvas = document.getElementById('bgStarfield');
+    if(!sfCanvas) return;
+    const sfCtx = sfCanvas.getContext('2d');
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    let w = 0, h = 0, stars = [];
+
+    function starCount(width, height){
+      const raw = Math.round((width*height) / 2200);
+      return Math.max(160, Math.min(900, raw));
+    }
+    function generateStars(){
+      const n = starCount(w, h);
+      stars = Array.from({length:n}, () => ({
+        x: Math.random()*w, y: Math.random()*h,
+        r: 0.5 + Math.random()*1.3,
+        baseAlpha: 0.2 + Math.random()*0.65,
+        twinkle: Math.random() < 0.3,
+        phase: Math.random()*Math.PI*2,
+        speed: 0.4 + Math.random()*1.3,
+        tinted: Math.random() < 0.16
+      }));
+    }
+    function resize(){
+      w = window.innerWidth; h = window.innerHeight;
+      sfCanvas.width = Math.max(1, Math.round(w*dpr));
+      sfCanvas.height = Math.max(1, Math.round(h*dpr));
+      sfCanvas.style.width = w+'px'; sfCanvas.style.height = h+'px';
+      sfCtx.setTransform(dpr,0,0,dpr,0,0);
+      generateStars();
+    }
+    let resizeTimer = null;
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 200); });
+
+    function draw(now){
+      sfCtx.clearRect(0,0,w,h);
+      for(const s of stars){
+        const a = s.twinkle ? s.baseAlpha*(0.4+0.6*Math.sin(now*0.001*s.speed+s.phase)) : s.baseAlpha;
+        sfCtx.beginPath();
+        sfCtx.fillStyle = s.tinted ? goldRGBA(a*0.9) : `rgba(255,255,255,${a.toFixed(3)})`;
+        sfCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+        sfCtx.fill();
+      }
+    }
+    resize();
+    setInterval(() => draw(performance.now()), 150);
+  })();
+
+  // ================== DESIGN-EINSTELLUNGEN (Theme / Skin / 3D-Tilt) ==================
+  const DESIGN_KEY = 'mcOrcaDesignPrefs';
+  const btnSettings = document.getElementById('btnSettings');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const swatchRow = document.getElementById('swatchRow');
+  const skinRow = document.getElementById('skinRow');
+  const tiltToggle = document.getElementById('tiltToggle');
+
+  function loadDesignPrefs(){
+    try{
+      const raw = localStorage.getItem(DESIGN_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch(e){ return {}; }
+  }
+  function saveDesignPrefs(prefs){
+    try{ localStorage.setItem(DESIGN_KEY, JSON.stringify(prefs)); } catch(e){ /* z.B. Privatmodus */ }
+  }
+  let designPrefs = Object.assign({ theme:'amber', skin:'classic', tilt:false }, loadDesignPrefs());
+
+  function applyTheme(name){
+    designPrefs.theme = name;
+    if(name === 'amber'){ document.documentElement.removeAttribute('data-theme'); }
+    else{ document.documentElement.setAttribute('data-theme', name); }
+    swatchRow.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.themeOpt === name));
+    refreshThemeCanvasColors();
+    saveDesignPrefs(designPrefs);
+  }
+  function applySkin(name){
+    designPrefs.skin = name;
+    document.body.classList.remove('skin-classic','skin-pill','skin-neon');
+    document.body.classList.add('skin-' + name);
+    skinRow.querySelectorAll('.skin-opt').forEach(s => s.classList.toggle('active', s.dataset.skinOpt === name));
+    saveDesignPrefs(designPrefs);
+  }
+  function applyTilt(on){
+    designPrefs.tilt = on;
+    document.body.classList.toggle('tilt-on', on);
+    document.body.classList.toggle('tilt-off', !on);
+    tiltToggle.checked = on;
+    if(!on){ unit.style.removeProperty('--rx'); unit.style.removeProperty('--ry'); }
+    saveDesignPrefs(designPrefs);
+  }
+
+  swatchRow.addEventListener('click', (e) => {
+    const sw = e.target.closest('.swatch');
+    if(sw) applyTheme(sw.dataset.themeOpt);
+  });
+  skinRow.addEventListener('click', (e) => {
+    const opt = e.target.closest('.skin-opt');
+    if(opt) applySkin(opt.dataset.skinOpt);
+  });
+  tiltToggle.addEventListener('change', () => applyTilt(tiltToggle.checked));
+
+  btnSettings.addEventListener('click', (e) => {
+    e.stopPropagation();
+    eqPanel.classList.remove('open');
+    settingsPanel.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if(settingsPanel.classList.contains('open') && !settingsPanel.contains(e.target) && e.target !== btnSettings && !btnSettings.contains(e.target)){
+      settingsPanel.classList.remove('open');
+    }
+  });
+
+  const btnEq = document.getElementById('btnEq');
+  const eqPanel = document.getElementById('eqPanel');
+  btnEq.addEventListener('click', (e) => {
+    e.stopPropagation();
+    settingsPanel.classList.remove('open');
+    eqPanel.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if(eqPanel.classList.contains('open') && !eqPanel.contains(e.target) && e.target !== btnEq && !btnEq.contains(e.target)){
+      eqPanel.classList.remove('open');
+    }
+  });
+
+  // 3D-Kipp-Effekt: Maus über dem Player-Gehäuse neigt das Gehäuse leicht + Glanzlicht folgt dem Cursor
+  unit.addEventListener('mousemove', (e) => {
+    if(!designPrefs.tilt) return;
+    const r = unit.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;   // 0..1
+    const py = (e.clientY - r.top) / r.height;   // 0..1
+    const rx = (0.5 - py) * 10; // max ±5deg
+    const ry = (px - 0.5) * 10;
+    unit.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+    unit.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+    unit.style.setProperty('--mx', (px*100).toFixed(1) + '%');
+    unit.style.setProperty('--my', (py*100).toFixed(1) + '%');
+  });
+  unit.addEventListener('mouseleave', () => {
+    unit.style.setProperty('--rx', '0deg');
+    unit.style.setProperty('--ry', '0deg');
+  });
+
+  function initDesignPrefs(){
+    applyTheme(designPrefs.theme);
+    applySkin(designPrefs.skin);
+    applyTilt(designPrefs.tilt);
+  }
+
+  const ICON_PLAY = '<path d="M8 5v14l11-7z"/>';
+  const ICON_PAUSE = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+  // ---------- Helpers ----------
+  function fmtTime(sec){
+    if(!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec/60);
+    const s = Math.floor(sec%60);
+    return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+  function fmtSize(bytes){
+    if(bytes === undefined || bytes === null || !isFinite(bytes)) return '—';
+    if(bytes > 1024*1024) return (bytes/1024/1024).toFixed(1)+' MB';
+    return Math.round(bytes/1024)+' KB';
+  }
+  function fmtAdded(ts){
+    const d = new Date(ts);
+    return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+  }
+  function cleanName(filename){
+    return filename.replace(/\.[^/.]+$/, '');
+  }
+
+  // ---------- File loading ----------
+  function addFiles(fileList){
+    const files = Array.from(fileList).filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(f.name));
+    if(files.length === 0) return;
+
+    let firstNewIndex = -1;
+    files.forEach(file => {
+      const url = URL.createObjectURL(file);
+      const track = {
+        id: idSeq++,
+        file, url,
+        blob: true,
+        source: 'local',
+        filename: file.name,
+        name: cleanName(file.name),
+        size: file.size,
+        added: Date.now(),
+        duration: 0,
+        durationLabel: '--:--',
+        artist: '',
+        album: ''
+      };
+      applyCachedMeta(track);
+      rememberMeta(track); // merkt zumindest die Dateigröße schon jetzt
+      tracks.push(track);
+      if(firstNewIndex === -1) firstNewIndex = tracks.length - 1;
+    });
+
+    setActiveTab('local'); // eigene Dateien landen im Tab „Eigene Dateien“ und werden gleich sichtbar
+    if(currentIndex === -1 && firstNewIndex !== -1){
+      loadTrack(firstNewIndex);
+    }
+  }
+
+  // Lädt Metadaten (Dauer) nur für Tracks, die aktuell (oder demnächst) sichtbar sind —
+  // bei 3000 Dateien sonst würde der Browser versuchen, alle 3000 Dateien von der Platte
+  // zu lesen, was ihn je nach Codec/Dateigröße in die Knie zwingen bzw. abstürzen lassen kann.
+  // Aufgerufen aus renderVisibleRows() für die gerade gerenderten Zeilen.
+  function queueProbe(track, url, isRemote){
+    if(track._probed) return; // schon geladen oder schon in der Warteschlange
+    track._probed = true;
+    probeQueue.push({track, url, isRemote});
+    pumpProbeQueue();
+  }
+  function pumpProbeQueue(){
+    while(probesActive < PROBE_CONCURRENCY && probeQueue.length){
+      const job = probeQueue.shift();
+      probesActive++;
+      const probe = new Audio();
+      probe.preload = 'metadata';
+      probe.src = job.url;
+      const finish = () => { probesActive--; pumpProbeQueue(); };
+      probe.addEventListener('loadedmetadata', () => {
+        job.track.duration = probe.duration;
+        job.track.durationLabel = fmtTime(probe.duration);
+        rememberMeta(job.track);
+        markDirty();
+        finish();
+      });
+      probe.addEventListener('error', () => {
+        if(job.isRemote) job.track.durationLabel = '???';
+        markDirty();
+        finish();
+      });
+    }
+  }
+
+  // ---------- ID3-Tags (Künstler/Album), lazy geladen für sichtbare Zeilen ----------
+  function queueTagRead(track){
+    if(track._tagLoaded) return;
+    track._tagLoaded = true; // sofort markieren, verhindert doppeltes Einreihen
+    tagQueue.push(track);
+    pumpTagQueue();
+  }
+  function pumpTagQueue(){
+    while(tagsActive < TAG_CONCURRENCY && tagQueue.length){
+      const track = tagQueue.shift();
+      tagsActive++;
+      readID3(track).finally(() => { tagsActive--; pumpTagQueue(); });
+    }
+  }
+  async function readID3(track){
+    try{
+      let buf = null;
+      if(track.file){
+        buf = await track.file.slice(0, TAG_HEAD_BYTES).arrayBuffer();
+      } else if(track.url){
+        const res = await fetch(track.url, { headers:{ Range: `bytes=0-${TAG_HEAD_BYTES-1}` } });
+        buf = await res.arrayBuffer();
+      }
+      let tags = buf ? (parseID3v2(buf) || {}) : {};
+      if((!tags.artist || !tags.album) && track.file && track.file.size >= 128){
+        const tailBuf = await track.file.slice(track.file.size - 128, track.file.size).arrayBuffer();
+        const v1 = parseID3v1(new Uint8Array(tailBuf));
+        if(v1){
+          tags.artist = tags.artist || v1.artist;
+          tags.album = tags.album || v1.album;
+        }
+      }
+      if(tags.artist) track.artist = tags.artist;
+      if(tags.album) track.album = tags.album;
+      if(tags.artist || tags.album){ rememberMeta(track); markDirty(); }
+    } catch(e){
+      // Tag konnte nicht gelesen werden -> Track bleibt einfach ohne Künstler/Album
+    }
+  }
+
+  // Minimaler ID3v2(.2/.3/.4)-Parser: liest nur Textframes TPE1/TP1 (Künstler), TALB/TAL (Album)
+  function parseID3v2(buffer){
+    const bytes = new Uint8Array(buffer);
+    if(bytes.length < 10) return null;
+    if(!(bytes[0]===0x49 && bytes[1]===0x44 && bytes[2]===0x33)) return null; // "ID3"
+    const verMajor = bytes[3];
+    const flags = bytes[5];
+    const size = ((bytes[6]&0x7f)<<21) | ((bytes[7]&0x7f)<<14) | ((bytes[8]&0x7f)<<7) | (bytes[9]&0x7f);
+    let offset = 10;
+    if(flags & 0x40){ // Extended Header vorhanden -> überspringen
+      if(offset+4 > bytes.length) return {};
+      let extSize;
+      if(verMajor === 4){
+        extSize = ((bytes[offset]&0x7f)<<21)|((bytes[offset+1]&0x7f)<<14)|((bytes[offset+2]&0x7f)<<7)|(bytes[offset+3]&0x7f);
+      } else {
+        extSize = (bytes[offset]<<24)|(bytes[offset+1]<<16)|(bytes[offset+2]<<8)|bytes[offset+3];
+      }
+      offset += extSize;
+    }
+    const end = Math.min(10+size, bytes.length);
+    const isV2 = verMajor === 2;
+    const headerLen = isV2 ? 6 : 10;
+    const wanted = isV2
+      ? { 'TP1':'artist', 'TAL':'album' }
+      : { 'TPE1':'artist', 'TALB':'album' };
+    const result = {};
+    while(offset < end - headerLen){
+      let frameId, frameSize;
+      if(isV2){
+        frameId = String.fromCharCode(bytes[offset], bytes[offset+1], bytes[offset+2]);
+        frameSize = (bytes[offset+3]<<16)|(bytes[offset+4]<<8)|bytes[offset+5];
+        offset += headerLen;
+      } else {
+        frameId = String.fromCharCode(bytes[offset], bytes[offset+1], bytes[offset+2], bytes[offset+3]);
+        if(verMajor === 4){
+          frameSize = ((bytes[offset+4]&0x7f)<<21)|((bytes[offset+5]&0x7f)<<14)|((bytes[offset+6]&0x7f)<<7)|(bytes[offset+7]&0x7f);
+        } else {
+          frameSize = (bytes[offset+4]<<24)|(bytes[offset+5]<<16)|(bytes[offset+6]<<8)|bytes[offset+7];
+        }
+        offset += headerLen;
+      }
+      if(!frameId || frameId.charCodeAt(0) === 0 || frameSize <= 0 || offset+frameSize > bytes.length) break;
+      const key = wanted[frameId];
+      if(key && !result[key]){
+        const text = decodeID3Text(bytes.subarray(offset, offset+frameSize));
+        if(text) result[key] = text;
+      }
+      offset += frameSize;
+      if(result.artist && result.album) break; // alles gefunden, nicht weiter parsen
+    }
+    return result;
+  }
+
+  function decodeID3Text(frameBytes){
+    if(frameBytes.length < 1) return '';
+    const enc = frameBytes[0];
+    const body = frameBytes.subarray(1);
+    let text = '';
+    try{
+      if(enc === 1) text = new TextDecoder('utf-16').decode(body);
+      else if(enc === 2) text = new TextDecoder('utf-16be').decode(body);
+      else if(enc === 3) text = new TextDecoder('utf-8').decode(body);
+      else text = new TextDecoder('iso-8859-1').decode(body);
+    } catch(e){ return ''; }
+    return text.replace(/\u0000+$/,'').trim();
+  }
+
+  // ID3v1-Fallback: letzte 128 Bytes der Datei ("TAG" + feste Feldlängen)
+  function parseID3v1(bytes){
+    if(bytes.length < 128) return null;
+    const t = bytes.length - 128;
+    if(!(bytes[t]===0x54 && bytes[t+1]===0x41 && bytes[t+2]===0x47)) return null; // "TAG"
+    const dec = new TextDecoder('iso-8859-1');
+    const clean = s => s.replace(/\u0000+$/,'').trim();
+    return {
+      artist: clean(dec.decode(bytes.subarray(t+33, t+63))),
+      album:  clean(dec.decode(bytes.subarray(t+63, t+93)))
+    };
+  }
+
+  // ---------- Eingebettetes Cover-Art (APIC/PIC-Frame) für den "Cover Warp"-Visualizer ----------
+  // Eigener, größerer Lesebereich als beim normalen Tag-Scan (dort bewusst klein gehalten,
+  // siehe TAG_HEAD_BYTES-Kommentar) — hier wollen wir das Bild ja wirklich mitbekommen, aber
+  // nur für eine kleine, zufällige Auswahl an Tracks (COVER_POOL_SIZE), nicht für die ganze Liste.
+  const COVER_READ_BYTES = 3 * 1024 * 1024;
+  function parseID3Picture(buffer){
+    const bytes = new Uint8Array(buffer);
+    if(bytes.length < 10) return null;
+    if(!(bytes[0]===0x49 && bytes[1]===0x44 && bytes[2]===0x33)) return null; // "ID3"
+    const verMajor = bytes[3];
+    const flags = bytes[5];
+    const size = ((bytes[6]&0x7f)<<21) | ((bytes[7]&0x7f)<<14) | ((bytes[8]&0x7f)<<7) | (bytes[9]&0x7f);
+    let offset = 10;
+    if(flags & 0x40){
+      if(offset+4 > bytes.length) return null;
+      let extSize;
+      if(verMajor === 4) extSize = ((bytes[offset]&0x7f)<<21)|((bytes[offset+1]&0x7f)<<14)|((bytes[offset+2]&0x7f)<<7)|(bytes[offset+3]&0x7f);
+      else extSize = (bytes[offset]<<24)|(bytes[offset+1]<<16)|(bytes[offset+2]<<8)|bytes[offset+3];
+      offset += extSize;
+    }
+    const end = Math.min(10+size, bytes.length);
+    const isV2 = verMajor === 2;
+    const headerLen = isV2 ? 6 : 10;
+    while(offset < end - headerLen){
+      let frameId, frameSize;
+      if(isV2){
+        frameId = String.fromCharCode(bytes[offset], bytes[offset+1], bytes[offset+2]);
+        frameSize = (bytes[offset+3]<<16)|(bytes[offset+4]<<8)|bytes[offset+5];
+        offset += headerLen;
+      } else {
+        frameId = String.fromCharCode(bytes[offset], bytes[offset+1], bytes[offset+2], bytes[offset+3]);
+        if(verMajor === 4) frameSize = ((bytes[offset+4]&0x7f)<<21)|((bytes[offset+5]&0x7f)<<14)|((bytes[offset+6]&0x7f)<<7)|(bytes[offset+7]&0x7f);
+        else frameSize = (bytes[offset+4]<<24)|(bytes[offset+5]<<16)|(bytes[offset+6]<<8)|bytes[offset+7];
+        offset += headerLen;
+      }
+      if(!frameId || frameId.charCodeAt(0) === 0 || frameSize <= 0 || offset+frameSize > bytes.length) break;
+      const isPic = isV2 ? frameId === 'PIC' : frameId === 'APIC';
+      if(isPic){
+        const body = bytes.subarray(offset, offset+frameSize);
+        const enc = body[0];
+        let p = 1, mime;
+        if(isV2){
+          const fmt = String.fromCharCode(body[1]||0, body[2]||0, body[3]||0).toLowerCase();
+          mime = fmt === 'png' ? 'image/png' : 'image/jpeg';
+          p = 4;
+        } else {
+          let mEnd = p;
+          while(mEnd < body.length && body[mEnd] !== 0) mEnd++;
+          mime = new TextDecoder('iso-8859-1').decode(body.subarray(p, mEnd)) || 'image/jpeg';
+          p = mEnd + 1;
+        }
+        p += 1; // Picture-Type-Byte überspringen
+        if(enc === 1 || enc === 2){ // UTF-16: Beschreibung endet auf 2 Null-Bytes
+          while(p < body.length-1 && !(body[p]===0 && body[p+1]===0)) p += 2;
+          p += 2;
+        } else { // Latin-1/UTF-8: 1 Null-Byte
+          while(p < body.length && body[p] !== 0) p++;
+          p += 1;
+        }
+        const data = body.subarray(p);
+        if(data.length > 200) return { mime, data };
+      }
+      offset += frameSize;
+    }
+    return null;
+  }
+  async function loadCoverArtForTrack(track){
+    try{
+      let buf = null;
+      if(track.file) buf = await track.file.slice(0, COVER_READ_BYTES).arrayBuffer();
+      else if(track.url){
+        const res = await fetch(track.url, { headers:{ Range: `bytes=0-${COVER_READ_BYTES-1}` } });
+        buf = await res.arrayBuffer();
+      }
+      if(!buf) return null;
+      const pic = parseID3Picture(buf);
+      if(!pic) return null;
+      return URL.createObjectURL(new Blob([pic.data], { type: pic.mime }));
+    } catch(e){ return null; }
+  }
+
+  // Kleiner, zufällig gewürfelter Pool geladener Cover-Bilder für den Warp-Tunnel — Prinzip
+  // (kleiner POOL_SIZE-Vorrat statt der ganzen Bibliothek, mehrere fliegende Objekte teilen sich
+  // dasselbe geladene Bild) von Astrions initCardWarpTunnel()/buildWarpPool() übernommen.
+  const COVER_POOL_SIZE = 18;
+  let coverPool = [];
+  let coverPoolBuilt = false, coverPoolBuilding = false;
+  function buildCoverPool(){
+    if(coverPoolBuilt || coverPoolBuilding) return;
+    coverPoolBuilding = true;
+    const candidates = tracks.slice(0, 100).sort(() => Math.random()-0.5);
+    let idx = 0;
+    function tryNext(){
+      if(coverPool.length >= COVER_POOL_SIZE || idx >= candidates.length){
+        if(idx >= candidates.length || coverPool.length >= COVER_POOL_SIZE){ coverPoolBuilding = false; coverPoolBuilt = true; }
+        return;
+      }
+      const track = candidates[idx++];
+      loadCoverArtForTrack(track).then(url => {
+        if(url){
+          const img = new Image();
+          const entry = { img, ready:false, aspect:1 };
+          img.onload = () => { entry.ready = true; entry.aspect = (img.naturalWidth/img.naturalHeight) || 1; };
+          img.src = url;
+          coverPool.push(entry);
+        }
+        tryNext();
+      });
+    }
+    if(!candidates.length){ coverPoolBuilding = false; coverPoolBuilt = true; return; }
+    for(let i=0;i<4;i++) tryNext();
+  }
+
+  // Track aus dem lokalen "mp3"-Unterordner hinzufügen (per Pfad statt File-Objekt).
+  // meta (optional) kommt aus einem angereicherten manifest.json und enthält bereits
+  // bekannte Dauer/Künstler/Album/Größe -> dann muss dafür nicht erneut geladen/geprobt werden.
+  function addRemoteTrack(filename, url, meta){
+    if(tracks.some(t => t.filename === filename && !t.blob)) return; // Duplikate vermeiden
+    const hasDuration = meta && typeof meta.duration === 'number' && meta.duration > 0;
+    const track = {
+      id: idSeq++,
+      url,
+      blob: false,
+      source: 'local',
+      filename,
+      name: cleanName(filename),
+      size: (meta && meta.size) || undefined,
+      added: Date.now(),
+      duration: hasDuration ? meta.duration : 0,
+      durationLabel: hasDuration ? fmtTime(meta.duration) : '--:--',
+      artist: (meta && meta.artist) || '',
+      album: (meta && meta.album) || '',
+      _probed: !!hasDuration,
+      _tagLoaded: !!(meta && (meta.artist || meta.album))
+    };
+    applyCachedMeta(track);
+    tracks.push(track);
+  }
+
+  // ---------- MC-ORCA-Musikbibliothek (fest eingebaut, aus dem echten Code aller 7 Spiele) ----------
+  // Pfade sind relativ zum Spielordner (base). Neue Tracks/Spiele einfach hier ergänzen.
+  // Optionales Feld g = Untergruppe innerhalb eines Spiels (z. B. eigene Playlist/Erweiterung).
+  const MUSIC_LIB = [
+    {id:"aetheris", label:"Aetheris", base:"aetheris/", tracks:[
+      {file:"musik/haupttitel/AETHERIS — Echoes of an Eternal Empire.ogg", title:"AETHERIS – Echoes of an Eternal Empire (Titelmusik)"},
+      {file:"musik/hintergrundmusik_ost/OST 01 - Imperial Colony.ogg", title:"Imperial Colony"},
+      {file:"musik/hintergrundmusik_ost/OST 02 - Expansion Protocol.ogg", title:"Expansion Protocol"},
+      {file:"musik/hintergrundmusik_ost/OST 03 - Research Nexus.ogg", title:"Research Nexus"},
+      {file:"musik/hintergrundmusik_ost/OST 04 - War Council.ogg", title:"War Council"},
+      {file:"musik/hintergrundmusik_ost/OST 05 - Star Charts.ogg", title:"Star Charts"},
+      {file:"musik/hintergrundmusik_ost/OST 06 - Merchant Guild.ogg", title:"Merchant Guild"},
+      {file:"musik/hintergrundmusik_ost/OST 07 - Imperial Shipyards.ogg", title:"Imperial Shipyards"},
+      {file:"musik/hintergrundmusik_ost/OST 08 - Ancient Lifeforms.ogg", title:"Ancient Lifeforms"},
+      {file:"musik/hintergrundmusik_ost/OST 09 - Eternal Night.ogg", title:"Eternal Night"},
+    ]},
+    {id:"astrion", label:"Astrion", base:"astrion/", tracks:[
+      {file:"art/audio/title_theme_set1.ogg", title:"Titelmusik – Erwachen der Sterne"},
+      {file:"art/audio/ost/set1/01.ogg", title:"Aufbruch (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/02.ogg", title:"Erste Signale (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/03.ogg", title:"Fremde Sterne (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/04.ogg", title:"Erster Kontakt (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/05.ogg", title:"Kollision der Kulturen (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/06.ogg", title:"Bündnis (Erwachen der Sterne)"},
+      {file:"art/audio/ost/set1/07.ogg", title:"Erwachen der Sterne (Erwachen der Sterne)"},
+      {file:"art/audio/title_theme_set2.ogg", title:"Titelmusik – Galaxie außer Rand und Band"},
+      {file:"art/audio/ost/set2/01.ogg", title:"Der Unfall (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/02.ogg", title:"Kettenreaktion (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/03.ogg", title:"Chaos-Karneval (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/04.ogg", title:"Waschbär auf Abwegen (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/05.ogg", title:"Spinnenfabrik außer Kontrolle (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/06.ogg", title:"Lavaschlangen-Tango (Galaxie außer Rand und Band)"},
+      {file:"art/audio/ost/set2/07.ogg", title:"Alles auf Anfang (Galaxie außer Rand und Band)"},
+      {file:"art/audio/title_theme_set3.ogg", title:"Titelmusik – The Void – Das unbekannte Signal"},
+      {file:"art/audio/ost/set3/01.ogg", title:"Stille (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/02.ogg", title:"Das erste Rauschen (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/03.ogg", title:"Wer hört zu? (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/04.ogg", title:"Frequenz Null (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/05.ogg", title:"Echo ohne Ursprung (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/06.ogg", title:"Der Ruf (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/ost/set3/07.ogg", title:"Leere Stimme (The Void – Das unbekannte Signal)"},
+      {file:"art/audio/title_theme_set4.ogg", title:"Titelmusik – The Shard – Die Scherbenwelt"},
+      {file:"art/audio/ost/set4/01.ogg", title:"Der Riss (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/02.ogg", title:"Gespiegelt (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/03.ogg", title:"Zwei Echos (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/04.ogg", title:"Scherbentanz (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/05.ogg", title:"Rekursion (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/06.ogg", title:"Fusion (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/ost/set4/07.ogg", title:"Ganz in Scherben (The Shard – Die Scherbenwelt)"},
+      {file:"art/audio/events/cny_theme.ogg", title:"Frühlingsfest-Special (Event-Titelmusik)"},
+      {file:"art/audio/events/valentinstag_theme.ogg", title:"Valentinsspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/weihnachten_theme.ogg", title:"Weihnachtsspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/ostern_theme.ogg", title:"Osterspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/sommer_theme.ogg", title:"Sommerspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/erntedank_theme.ogg", title:"Erntedankspecial (Event-Titelmusik)"},
+      {file:"art/audio/events/halloween_theme.ogg", title:"Halloweenspecial (Event-Titelmusik)"},
+    ]},
+    {id:"deepanchor", label:"Deep Anchor", base:"deepanchor/", tracks:[
+      {file:"art/audio/ost/01_Deep_Anchor_Main_Theme.ogg", title:"Deep Anchor Main Theme"},
+      {file:"art/audio/ost/02_Fertigungshalle.ogg", title:"Fertigungshalle"},
+      {file:"art/audio/ost/03_Countdown.ogg", title:"Countdown"},
+      {file:"art/audio/ost/04_Stille_Bahnen.ogg", title:"Stille Bahnen"},
+      {file:"art/audio/ost/05_Sonde_im_Dunkeln.ogg", title:"Sonde im Dunkeln"},
+      {file:"art/audio/ost/06_Roter_Planet.ogg", title:"Roter Planet"},
+      {file:"art/audio/ost/07_Terraforming.ogg", title:"Terraforming"},
+      {file:"art/audio/ost/08_Erstkontakt.ogg", title:"Erstkontakt"},
+      {file:"art/audio/ost/09_Wartungsdrohnen.ogg", title:"Wartungsdrohnen"},
+      {file:"art/audio/ost/10_Kolonie_unter_fremden_Sternen.ogg", title:"Kolonie unter fremden Sternen"},
+    ]},
+    {id:"foundry", label:"FOUNDRY", base:"foundry/", tracks:[
+      {file:"art/music/Opening Bell.ogg", title:"Opening Bell (Titelmusik)"},
+      {file:"art/music/Ledger Lights.ogg", title:"Ledger Lights"},
+      {file:"art/music/Quiet Capital.ogg", title:"Quiet Capital"},
+      {file:"art/music/Market Momentum.ogg", title:"Market Momentum"},
+      {file:"art/music/Cold Numbers.ogg", title:"Cold Numbers"},
+    ]},
+    {id:"nexus", label:"NEXUS", base:"nexus/", tracks:[
+      {file:"art/music/NEXUS Gateway.ogg", title:"NEXUS Gateway (Titelmusik)"},
+      {file:"art/music/01 NEXUS Idle Core.ogg", title:"NEXUS Idle Core"},
+      {file:"art/music/02 NEXUS Silent Mining.ogg", title:"NEXUS Silent Mining"},
+      {file:"art/music/03 NEXUS Data Flow.ogg", title:"NEXUS Data Flow"},
+      {file:"art/music/04 NEXUS Market Drift.ogg", title:"NEXUS Market Drift"},
+      {file:"art/music/05 NEXUS Nova-Rift.ogg", title:"NEXUS Nova-Rift"},
+      {file:"art/music/06 NEXUS Deep Reserve.ogg", title:"NEXUS Deep Reserve"},
+      {file:"art/music/07 NEXUS Network Pulse.ogg", title:"NEXUS Network Pulse"},
+      {file:"art/music/08 NEXUS Eclipse Protocol.ogg", title:"NEXUS Eclipse Protocol"},
+      {file:"art/music/09 NEXUS Ascension.ogg", title:"NEXUS Ascension"},
+      {file:"art/music/10 NEXUS Rebirth.ogg", title:"NEXUS Rebirth"},
+    ]},
+    {id:"nexus_singularity", label:"NEXUS Singularity", base:"nexus/nexus_singularity/", tracks:[
+      {file:"art/music/ogg/Before_Awakening.ogg", title:"Before Awakening"},
+      {file:"art/music/ogg/Awakened_Dominance.ogg", title:"Awakened Dominance"},
+      {file:"art/music/ogg/Awakened_Threat.ogg", title:"Awakened Threat"},
+    ]},
+    {id:"pathofthestars", label:"Path of the Stars", base:"pathofthestars/", tracks:[
+      {file:"musik/sandbox/Path of the Stars.ogg", title:"Path Of The Stars", g:"Sandbox"},
+      {file:"musik/sandbox/FIRST JUMP.ogg", title:"First Jump", g:"Sandbox"},
+      {file:"musik/sandbox/DRIFTING WORLDS.ogg", title:"Drifting Worlds", g:"Sandbox"},
+      {file:"musik/sandbox/TRADE WINDS.ogg", title:"Trade Winds", g:"Sandbox"},
+      {file:"musik/sandbox/FRONTIER STATION.ogg", title:"Frontier Station", g:"Sandbox"},
+      {file:"musik/sandbox/SILENT NEBULA.ogg", title:"Silent Nebula", g:"Sandbox"},
+      {file:"musik/sandbox/GHOST SIGNALS.ogg", title:"Ghost Signals", g:"Sandbox"},
+      {file:"musik/sandbox/FORGOTTEN FLEET.ogg", title:"Forgotten Fleet", g:"Sandbox"},
+      {file:"musik/sandbox/DYSON REMNANTS.ogg", title:"Dyson Remnants", g:"Sandbox"},
+      {file:"musik/sandbox/ECHOES OF ASCENDANCY.ogg", title:"Echoes Of Ascendancy", g:"Sandbox"},
+      {file:"musik/sandbox/WARP CORRIDOR.ogg", title:"Warp Corridor", g:"Sandbox"},
+      {file:"musik/sandbox/THE LAST COORDINATES.ogg", title:"The Last Coordinates", g:"Sandbox"},
+      {file:"musik/sandbox/THE ASCENDANCY AWAKENS.ogg", title:"The Ascendancy Awakens", g:"Sandbox"},
+      {file:"musik/sandbox/NEW HORIZONS.ogg", title:"New Horizons", g:"Sandbox"},
+      {file:"musik/sandbox/ENDLESS STARS.ogg", title:"Endless Stars", g:"Sandbox"},
+      {file:"musik/drifting_worlds/Main Theme - The Last Dawn.ogg", title:"MAIN THEME - THE LAST DAWN", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 02 - The Dying Sun.ogg", title:"OST 02 — The Dying Sun", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 03 - The Journey Begins.ogg", title:"OST 03 — The Journey Begins", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 04 - The Ancient Route.ogg", title:"OST 04 — The Ancient Route", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 05 - The Wanderer.ogg", title:"OST 05 — The Wanderer", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 06 - Echoes Between Stars.ogg", title:"OST 06 — Echoes Between Stars", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 07 - The Silent Archives.ogg", title:"OST 07 — The Silent Archives", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 08 - The First Builders.ogg", title:"OST 08 — The First Builders", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 09 - Beyond Forgotten Time.ogg", title:"OST 09 — Beyond Forgotten Time", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 10 - The Construct.ogg", title:"OST 10 — The Construct", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 11 - The Living Network.ogg", title:"OST 11 — The Living Network", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 12 - The Heart of the Route.ogg", title:"OST 12 — The Heart of the Route", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 13 - Voices of Eternity.ogg", title:"OST 13 — Voices of Eternity", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 14 - Toward the Core.ogg", title:"OST 14 — Toward the Core", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 15 - The Origin Calls.ogg", title:"OST 15 — The Origin Calls", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 16 - The Final Pilgrimage.ogg", title:"OST 16 — The Final Pilgrimage", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 17 - The Last Gate.ogg", title:"OST 17 — The Last Gate", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 18 - Beyond Creation.ogg", title:"OST 18 — Beyond Creation", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 19 - The Origin.ogg", title:"OST 19 — The Origin", g:"Drifting Worlds"},
+      {file:"musik/drifting_worlds/OST 20 - Drifting Worlds (End Credits).ogg", title:"OST 20 — Drifting Worlds (End Credits)", g:"Drifting Worlds"},
+    ]},
+    {id:"domusprime", label:"Domus Prime: Verdantis", base:"domus-prime/", note:"Keine eigene Musik – nur synthetisierte Soundeffekte.", tracks:[
+    ]},
+    {id:"nexusbreach", label:"Nexus: Breach", base:"nexus-breach/", note:"Keine eigene Musik – alle Sounds sind per WebAudio synthetisiert.", tracks:[
+    ]},
+  ];
+
+  // Aktuell aktiver Bibliotheks-/Quellen-Tab: 'all' (alle Spiele), 'local' (eigene Dateien) oder eine Spiel-id
+  let activeTab = 'all';
+
+  // Diese Datei liegt unter seiten/, die Spieleordner (aetheris/, astrion/, ...) aber im Projekt-Root
+  // direkt daneben -> ein Verzeichnis nach oben, dann game.base + Dateipfad.
+  const LIB_ROOT = '../';
+
+  // Bibliothekstitel als Track hinzufügen (Audio wird erst bei Bedarf gestreamt/geprobt,
+  // genau wie bei addRemoteTrack — nichts wird beim Start heruntergeladen).
+  function addLibraryTrack(game, t){
+    const url = (LIB_ROOT + game.base + t.file).split('/').map(encodeURIComponent).join('/');
+    if(tracks.some(x => x.url === url)) return; // Duplikate vermeiden
+    const uniqueFilename = game.id + '/' + t.file; // eindeutig auch bei gleichnamigen Dateien in Unterordnern
+    const track = {
+      id: idSeq++,
+      url,
+      blob: false,
+      source: 'lib',
+      gameId: game.id,
+      gameLabel: game.label,
+      group: t.g || '',
+      filename: uniqueFilename,
+      name: t.title || cleanName(t.file.split('/').pop()),
+      size: undefined,
+      added: Date.now(),
+      duration: 0,
+      durationLabel: '--:--',
+      artist: game.label,
+      album: t.g || '',
+      _probed: false,
+      _tagLoaded: true // Künstler/Album (= Spiel/Unterordner) sind schon bekannt, kein ID3-Scan nötig
+    };
+    applyCachedMeta(track);
+    tracks.push(track);
+  }
+
+  function loadLibraryTracks(){
+    MUSIC_LIB.forEach(game => game.tracks.forEach(t => addLibraryTrack(game, t)));
+  }
+
+  const AUDIO_EXT_RE = /\.(mp3|wav|ogg|m4a|flac|aac)$/i;
+
+  // Versucht automatisch, Titel aus dem Unterordner "mp3" zu laden.
+  // Reihenfolge: 1) mp3/manifest.json  2) generierte Verzeichnisliste (z.B. lokaler Server)  3) Fallback-Hinweis
+  async function tryAutoLoadFromFolder(){
+    try {
+      const res = await fetch('mp3/manifest.json', {cache:'no-store'});
+      if(!res.ok) throw new Error('kein manifest');
+      const list = await res.json();
+      const names = Array.isArray(list) ? list : (Array.isArray(list.files) ? list.files : null);
+      if(!names || names.length === 0) throw new Error('manifest leer');
+      names.forEach(entry => {
+        // Abwärtskompatibel: altes Format = reiner Dateiname-String, neues Format = Objekt mit Metadaten
+        const isObj = entry && typeof entry === 'object';
+        const name = isObj ? entry.filename : entry;
+        if(!name) return;
+        const url = 'mp3/' + name.split('/').map(encodeURIComponent).join('/');
+        addRemoteTrack(name, url, isObj ? entry : null);
+      });
+      renderList();
+      if(currentIndex === -1 && tracks.length > 0) loadTrack(0, false);
+      hideFolderHint();
+      return;
+    } catch(e){ /* weiter zu Fallback */ }
+
+    try {
+      const res = await fetch('mp3/', {cache:'no-store'});
+      if(!res.ok) throw new Error('keine Verzeichnisliste');
+      const text = await res.text();
+      const found = [...text.matchAll(/href="([^"]+)"/gi)]
+        .map(m => decodeURIComponent(m[1]))
+        .filter(name => AUDIO_EXT_RE.test(name));
+      if(found.length === 0) throw new Error('keine Audiodateien gelistet');
+      found.forEach(name => addRemoteTrack(name, 'mp3/' + name));
+      renderList();
+      if(currentIndex === -1 && tracks.length > 0) loadTrack(0, false);
+      hideFolderHint();
+      return;
+    } catch(e){ /* weiter zu Fallback */ }
+
+    showFolderHint();
+  }
+
+  function showFolderHint(){
+    const hint = document.getElementById('folderHint');
+    if(hint) hint.style.display = 'flex';
+  }
+  function hideFolderHint(){
+    const hint = document.getElementById('folderHint');
+    if(hint) hint.style.display = 'none';
+  }
+
+  // Lädt Dauer + Künstler/Album für ALLE Tracks nach (nicht nur sichtbare), damit das
+  // exportierte Manifest vollständig ist. Nutzt dieselben gedrosselten Queues wie beim
+  // normalen Scrollen, wartet hier aber aktiv, bis wirklich alles durch ist.
+  function queueAllMetadata(){
+    tracks.forEach(t => {
+      if(t.duration === 0 && !t._probed) queueProbe(t, t.url, !t.blob);
+      if(!t._tagLoaded) queueTagRead(t);
+    });
+  }
+  function waitForQueuesIdle(onProgress){
+    const total = tracks.length;
+    return new Promise(resolve => {
+      const check = () => {
+        const remaining = probeQueue.length + probesActive + tagQueue.length + tagsActive;
+        if(onProgress) onProgress(Math.max(0, total*2 - remaining), total*2);
+        if(remaining === 0){ resolve(); return; }
+        setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  async function exportManifest(){
+    if(tracks.length === 0) return;
+    if(btnExport.dataset.busy) return; // Doppelklick während des Ladens verhindern
+    btnExport.dataset.busy = '1';
+    const original = btnExport.innerHTML;
+
+    // Bei großen Bibliotheken kann das Nachladen aller Metadaten eine Weile dauern
+    // (jede Datei muss einmal für Dauer + ID3-Tags angefasst werden) — kurz warnen.
+    if(tracks.length > 300){
+      const ok = confirm(
+        `${tracks.length} Titel: Für ein vollständiges Manifest müssen alle noch fehlenden ` +
+        `Dauer-/Künstler-/Album-Infos einmalig nachgeladen werden. Das kann bei so vielen ` +
+        `Dateien mehrere Minuten dauern und die Seite währenddessen etwas träge machen. Fortfahren?`
+      );
+      if(!ok){ btnExport.dataset.busy = ''; return; }
+    }
+
+    queueAllMetadata();
+    await waitForQueuesIdle((done, total) => {
+      btnExport.textContent = `LÄDT… ${Math.min(done,total)}/${total}`;
+    });
+
+    btnExport.innerHTML = original;
+    btnExport.dataset.busy = '';
+
+    const list = sortedTracks().map(t => {
+      const entry = { filename: t.filename };
+      if(t.duration > 0) entry.duration = Math.round(t.duration * 100) / 100;
+      if(t.artist) entry.artist = t.artist;
+      if(t.album) entry.album = t.album;
+      if(t.size) entry.size = t.size;
+      return entry;
+    });
+    const blob = new Blob([JSON.stringify(list, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'manifest.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  fileInput.addEventListener('change', e => { addFiles(e.target.files); fileInput.value=''; });
+  folderInput.addEventListener('change', e => { addFiles(e.target.files); folderInput.value=''; hideFolderHint(); });
+  btnExport.addEventListener('click', exportManifest);
+  hintDismiss.addEventListener('click', hideFolderHint);
+
+  ['dragenter','dragover'].forEach(evt => {
+    unit.addEventListener(evt, e => { e.preventDefault(); unit.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(evt => {
+    unit.addEventListener(evt, e => {
+      e.preventDefault();
+      if(evt === 'dragleave' && e.target !== unit) return;
+      unit.classList.remove('dragover');
+    });
+  });
+  unit.addEventListener('drop', e => {
+    e.preventDefault();
+    if(e.dataTransfer.files && e.dataTransfer.files.length){
+      addFiles(e.dataTransfer.files);
+    }
+  });
+
+  // ---------- Sorting ----------
+  // Tracks, die zum aktuell gewählten Quellen-Tab gehören ('all' = alle Spiele der Bibliothek,
+  // 'local' = eigene geladene Dateien, sonst eine konkrete Spiel-id aus MUSIC_LIB)
+  function tabTracks(){
+    if(activeTab === 'local') return tracks.filter(t => t.source === 'local');
+    if(activeTab === 'all') return tracks.filter(t => t.source === 'lib');
+    return tracks.filter(t => t.source === 'lib' && t.gameId === activeTab);
+  }
+
+  function sortedTracks(){
+    const arr = tabTracks();
+    arr.sort((a,b) => {
+      let av, bv;
+      if(sortKey === 'name'){ av = a.name.toLowerCase(); bv = b.name.toLowerCase(); }
+      else if(sortKey === 'artist'){ av = (a.artist||'').toLowerCase(); bv = (b.artist||'').toLowerCase(); }
+      else if(sortKey === 'album'){ av = (a.album||'').toLowerCase(); bv = (b.album||'').toLowerCase(); }
+      else if(sortKey === 'duration'){ av = a.duration; bv = b.duration; }
+      else if(sortKey === 'size'){ av = a.size; bv = b.size; }
+      else { av = a.added; bv = b.added; }
+      // Tracks ohne (noch nicht geladenen) Wert ans Ende schieben statt sie oben zu klumpen
+      const aEmpty = av === '' || av === undefined;
+      const bEmpty = bv === '' || bv === undefined;
+      if(aEmpty && !bEmpty) return 1;
+      if(bEmpty && !aEmpty) return -1;
+      if(av < bv) return -1*sortDir;
+      if(av > bv) return 1*sortDir;
+      return 0;
+    });
+    return arr;
+  }
+
+  document.querySelectorAll('.cols [data-sort]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.dataset.sort;
+      if(key === sortKey){ sortDir *= -1; } else { sortKey = key; sortDir = 1; }
+      renderList();
+    });
+  });
+
+  const sortSelect = document.getElementById('sortSelect');
+  const btnSortDir = document.getElementById('btnSortDir');
+  sortSelect.addEventListener('change', () => {
+    sortKey = sortSelect.value;
+    renderList();
+  });
+  btnSortDir.addEventListener('click', () => {
+    sortDir *= -1;
+    renderList();
+  });
+
+  // ---------- Suche ----------
+  const searchInput = document.getElementById('searchInput');
+  const searchClear = document.getElementById('searchClear');
+  let searchDebounce = null;
+  searchInput.addEventListener('input', () => {
+    searchClear.style.display = searchInput.value ? 'inline-flex' : 'none';
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      searchQuery = searchInput.value.trim().toLowerCase();
+      renderList();
+    }, 120);
+  });
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    searchClear.style.display = 'none';
+    searchQuery = '';
+    renderList();
+    searchInput.focus();
+  });
+  // Escape im Suchfeld löscht die Suche
+  searchInput.addEventListener('keydown', e => {
+    if(e.key === 'Escape'){ searchClear.click(); searchInput.blur(); }
+  });
+
+  function updateArrows(){
+    ['name','duration','size','added'].forEach(k => {
+      const a = document.getElementById('arrow-'+k);
+      if(!a) return;
+      a.textContent = (k === sortKey) ? (sortDir === 1 ? '▲' : '▼') : '';
+    });
+    sortSelect.value = sortKey;
+    btnSortDir.textContent = sortDir === 1 ? '▲' : '▼';
+  }
+
+  // ---------- Rendering ----------
+  // Nur bei strukturellen Änderungen (Dateien hinzugefügt/entfernt, sortiert, Track gewechselt)
+  // sofort aufrufen. Für Metadaten-Updates (können bei 1000 Dateien hunderte Male pro Sekunde
+  // reinkommen) stattdessen markDirty() nutzen, das gedrosselt neu rendert.
+  function renderList(){
+    renderScheduled = false;
+    trackTotalEl.textContent = tracks.length;
+    updateArrows();
+    renderTabs();
+
+    const scoped = tabTracks();
+
+    if(scoped.length === 0){
+      const gameNote = (activeTab !== 'all' && activeTab !== 'local')
+        ? (MUSIC_LIB.find(g => g.id === activeTab) || {}).note
+        : null;
+      emptyState.innerHTML = activeTab === 'local'
+        ? `<span class="big">— LEER —</span>Zieh MP3-/Audio-Dateien hierher oder klicke „+ Dateien laden“.`
+        : `<span class="big">— KEINE TITEL —</span>${escapeHtml(gameNote || 'Für diesen Bereich sind aktuell keine Titel hinterlegt.')}`;
+      emptyState.style.display = 'block';
+      vlistSizer.style.display = 'none';
+      displayList = [];
+      plCount.textContent = 'PLAYLIST · 0 TITEL';
+      return;
+    }
+
+    let base = sortedTracks();
+    if(searchQuery) base = base.filter(matchesSearch);
+    displayList = base;
+
+    plCount.textContent = searchQuery
+      ? `PLAYLIST · ${displayList.length} von ${scoped.length} TITEL`
+      : `PLAYLIST · ${scoped.length} TITEL`;
+
+    if(displayList.length === 0){
+      emptyState.innerHTML = `<span class="big">— KEINE TREFFER —</span>Kein Titel gefunden für „${escapeHtml(searchQuery)}“.`;
+      emptyState.style.display = 'block';
+      vlistSizer.style.display = 'none';
+      return;
+    }
+    emptyState.style.display = 'none';
+    vlistSizer.style.display = 'block';
+    vlistSizer.style.height = (displayList.length * ROW_HEIGHT) + 'px';
+    renderVisibleRows();
+  }
+
+  // ---------- Quellen-Tabs (Alle Spiele / einzelne Spiele / Eigene Dateien) ----------
+  const sourceTabsEl = document.getElementById('sourceTabs');
+  function renderTabs(){
+    const libCount = tracks.reduce((n,t) => n + (t.source === 'lib' ? 1 : 0), 0);
+    const localCount = tracks.reduce((n,t) => n + (t.source === 'local' ? 1 : 0), 0);
+    let html = `<div class="src-tab${activeTab==='all' ? ' active' : ''}" data-src="all">★ Alle Spiele<span class="src-n">${libCount}</span></div>`;
+    MUSIC_LIB.forEach(g => {
+      const n = tracks.reduce((acc,t) => acc + (t.source==='lib' && t.gameId===g.id ? 1 : 0), 0);
+      html += `<div class="src-tab${activeTab===g.id ? ' active' : ''}${n ? '' : ' src-empty'}" data-src="${g.id}">${escapeHtml(g.label)}<span class="src-n">${n}</span></div>`;
+    });
+    html += `<div class="src-tab src-local${activeTab==='local' ? ' active' : ''}" data-src="local">🗂 Eigene Dateien<span class="src-n">${localCount}</span></div>`;
+    sourceTabsEl.innerHTML = html;
+  }
+  sourceTabsEl.addEventListener('click', e => {
+    const el = e.target.closest('.src-tab');
+    if(!el) return;
+    setActiveTab(el.dataset.src);
+  });
+  function setActiveTab(id){
+    if(id === activeTab) return;
+    activeTab = id;
+    searchQuery = '';
+    searchInput.value = '';
+    searchClear.style.display = 'none';
+    renderList();
+  }
+
+  // Sucht in Titel, Künstler, Album und Dateiname (Groß-/Kleinschreibung egal)
+  function matchesSearch(t){
+    if(!searchQuery) return true;
+    return (t.name && t.name.toLowerCase().includes(searchQuery))
+        || (t.artist && t.artist.toLowerCase().includes(searchQuery))
+        || (t.album && t.album.toLowerCase().includes(searchQuery))
+        || (t.filename && t.filename.toLowerCase().includes(searchQuery));
+  }
+
+  // Bündelt viele schnelle Metadaten-Events (Dauer geladen) zu maximal einem
+  // Re-Render alle ~150ms, statt bei jedem einzelnen Track neu zu rendern.
+  function markDirty(){
+    if(renderScheduled) return;
+    renderScheduled = true;
+    setTimeout(renderList, 150);
+  }
+
+  // Rendert nur die aktuell sichtbaren Zeilen (+ Puffer) statt aller 1000 DOM-Knoten.
+  function renderVisibleRows(){
+    if(!displayList.length){ vlistContent.innerHTML = ''; return; }
+
+    const scrollTop = trackListEl.scrollTop;
+    const viewH = trackListEl.clientHeight || 220;
+    let start = Math.floor(scrollTop / ROW_HEIGHT) - VSCROLL_BUFFER;
+    let end = Math.ceil((scrollTop + viewH) / ROW_HEIGHT) + VSCROLL_BUFFER;
+    start = Math.max(0, start);
+    end = Math.min(displayList.length, end);
+
+    vlistContent.style.transform = `translateY(${start * ROW_HEIGHT}px)`;
+
+    let html = '';
+    for(let i = start; i < end; i++){
+      const t = displayList[i];
+      const playing = currentIndex >= 0 && tracks[currentIndex] === t;
+      if(t.duration === 0 && !t._probed){
+        queueProbe(t, t.url, !t.blob);
+      }
+      if(!t._tagLoaded){
+        queueTagRead(t);
+      }
+      const sub = (t.artist || t.album)
+        ? escapeHtml([t.artist, t.album].filter(Boolean).join(' — '))
+        : '';
+      html += `
+        <div class="row${playing ? ' playing' : ''}" data-id="${t.id}">
+          <div class="idx">${i+1}</div>
+          <div class="name">
+            <span class="title">${escapeHtml(t.name)}</span>
+            ${sub ? `<span class="sub">${sub}</span>` : ''}
+          </div>
+          <div class="dur">${t.durationLabel}</div>
+          <div class="size">${fmtSize(t.size)}</div>
+          <div class="added">${fmtAdded(t.added)}</div>
+          <div class="rm">✕</div>
+        </div>`;
+    }
+    vlistContent.innerHTML = html;
+  }
+
+  // Ein delegierter Listener statt 1000 einzelner Row-Listener
+  vlistContent.addEventListener('click', (e) => {
+    const row = e.target.closest('.row');
+    if(!row) return;
+    const id = Number(row.dataset.id);
+    if(e.target.classList.contains('rm')){
+      removeTrack(id);
+      return;
+    }
+    const realIdx = tracks.findIndex(t => t.id === id);
+    if(realIdx >= 0) loadTrack(realIdx, true);
+  });
+
+  // Scroll-Events mit requestAnimationFrame drosseln statt bei jedem Pixel neu zu rendern
+  trackListEl.addEventListener('scroll', () => {
+    if(scrollScheduled) return;
+    scrollScheduled = true;
+    requestAnimationFrame(() => { scrollScheduled = false; renderVisibleRows(); });
+  }, {passive:true});
+
+  // Playlist-Bereich ist jetzt flexibel hoch (füllt den Bildschirm) -> bei Resize neu berechnen
+  window.addEventListener('resize', () => {
+    if(displayList.length) renderVisibleRows();
+  });
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function removeTrack(id){
+    const idx = tracks.findIndex(t => t.id === id);
+    if(idx === -1) return;
+    const wasCurrent = idx === currentIndex;
+    if(tracks[idx].blob) URL.revokeObjectURL(tracks[idx].url);
+    tracks.splice(idx,1);
+    if(idx < currentIndex) currentIndex--;
+    else if(wasCurrent){
+      audio.pause(); audio.src=''; currentIndex = -1;
+      setPlayIcon(false);
+      titleText.textContent = 'Keine Datei geladen — klicke „Dateien laden“';
+      trackIdxEl.textContent = '–';
+    }
+    renderList();
+  }
+
+  btnClear.addEventListener('click', () => {
+    audio.pause(); audio.src='';
+    tracks.forEach(t => { if(t.blob) URL.revokeObjectURL(t.url); });
+    tracks = []; currentIndex = -1;
+    setPlayIcon(false);
+    titleText.textContent = 'Keine Datei geladen — klicke „Dateien laden“';
+    trackIdxEl.textContent = '–';
+    renderList();
+  });
+
+  // ---------- Playback ----------
+  const lcdCoverEl = document.getElementById('lcdCover');
+  const lcdCoverImg = document.getElementById('lcdCoverImg');
+  let lcdCoverToken = 0;
+  async function updateLcdCover(track){
+    const myToken = ++lcdCoverToken;
+    if(!track){ lcdCoverEl.classList.remove('show'); return; }
+    if(track._coverUrl === undefined){
+      track._coverUrl = null; // markiert "wird geladen", verhindert Doppel-Requests bei schnellem Skip
+      const url = await loadCoverArtForTrack(track);
+      track._coverUrl = url || false; // false = geprüft, kein eingebettetes Cover vorhanden
+    }
+    if(myToken !== lcdCoverToken) return; // inzwischen weitergeklickt -> verwerfen
+    if(track._coverUrl){
+      lcdCoverImg.src = track._coverUrl;
+      lcdCoverEl.classList.add('show');
+    } else {
+      lcdCoverEl.classList.remove('show');
+    }
+  }
+
+  function loadTrack(index, autoplay){
+    if(index < 0 || index >= tracks.length) return;
+    currentIndex = index;
+    const t = tracks[index];
+    audio.src = t.url;
+    titleText.textContent = t.name;
+    trackIdxEl.textContent = index+1;
+    bitrateLine.textContent = '— kbps · — kHz';
+    renderList();
+    ensureAudioGraph();
+    updateLcdCover(t);
+    if(autoplay !== false){
+      audio.play().then(()=> setPlayIcon(true)).catch(()=>{});
+    }
+  }
+
+  function setPlayIcon(playing){
+    iconPlay.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
+    statusLabel.textContent = playing ? '● WIEDERGABE' : '● PAUSE';
+  }
+
+  btnPlay.addEventListener('click', () => {
+    if(displayList.length === 0) return;
+    if(currentIndex === -1){
+      const n = tracks.findIndex(t => t.id === displayList[0].id);
+      if(n !== -1) loadTrack(n);
+      return;
+    }
+    if(audio.paused){ audio.play().then(()=>setPlayIcon(true)); }
+    else { audio.pause(); setPlayIcon(false); }
+  });
+
+  btnStop.addEventListener('click', () => {
+    audio.pause(); audio.currentTime = 0; setPlayIcon(false);
+  });
+
+  // Weiter/Zurück beziehen sich auf die aktuell sichtbare Liste (Quellen-Tab + Suche + Sortierung),
+  // nicht auf die komplette globale Track-Liste — so bleibt „Weiter“ z. B. innerhalb eines Spiels.
+  function currentPosInView(){
+    const cur = currentIndex >= 0 ? tracks[currentIndex] : null;
+    return cur ? displayList.findIndex(t => t.id === cur.id) : -1;
+  }
+  function nextIndex(){
+    if(displayList.length === 0) return -1;
+    const pos = currentPosInView();
+    if(shuffle){
+      if(displayList.length === 1) return tracks.findIndex(t => t.id === displayList[0].id);
+      let r;
+      do { r = Math.floor(Math.random()*displayList.length); } while(r === pos);
+      return tracks.findIndex(t => t.id === displayList[r].id);
+    }
+    let n = pos === -1 ? 0 : pos + 1;
+    if(n >= displayList.length) return repeat ? tracks.findIndex(t => t.id === displayList[0].id) : -1;
+    return tracks.findIndex(t => t.id === displayList[n].id);
+  }
+  function prevIndex(){
+    if(displayList.length === 0) return -1;
+    if(shuffle) return nextIndex();
+    const pos = currentPosInView();
+    let p = pos === -1 ? displayList.length-1 : pos - 1;
+    if(p < 0) return repeat ? tracks.findIndex(t => t.id === displayList[displayList.length-1].id) : -1;
+    return tracks.findIndex(t => t.id === displayList[p].id);
+  }
+
+  btnNext.addEventListener('click', () => { const n = nextIndex(); if(n !== -1) loadTrack(n); });
+  btnPrev.addEventListener('click', () => { const p = prevIndex(); if(p !== -1) loadTrack(p); });
+
+  audio.addEventListener('ended', () => {
+    const n = nextIndex();
+    if(n !== -1) loadTrack(n);
+    else { setPlayIcon(false); }
+  });
+
+  btnShuffle.addEventListener('click', () => {
+    shuffle = !shuffle;
+    btnShuffle.classList.toggle('on', shuffle);
+    modeLabel.innerHTML = 'MODE: <b>' + (shuffle ? 'SHUFFLE' : (repeat ? 'REPEAT' : 'NORMAL')) + '</b>';
+  });
+  btnRepeat.addEventListener('click', () => {
+    repeat = !repeat;
+    btnRepeat.classList.toggle('on', repeat);
+    modeLabel.innerHTML = 'MODE: <b>' + (shuffle ? 'SHUFFLE' : (repeat ? 'REPEAT' : 'NORMAL')) + '</b>';
+  });
+
+  // ---------- Seek / Volume ----------
+  let seeking = false;
+  seekBar.addEventListener('input', () => { seeking = true; });
+  seekBar.addEventListener('change', () => {
+    if(audio.duration){ audio.currentTime = (seekBar.value/1000) * audio.duration; }
+    seeking = false;
+  });
+  volBar.addEventListener('input', () => { audio.volume = volBar.value/100; });
+
+  audio.addEventListener('timeupdate', () => {
+    timeNow.textContent = fmtTime(audio.currentTime);
+    if(audio.duration){
+      timeTotal.textContent = fmtTime(audio.duration);
+      if(!seeking) seekBar.value = (audio.currentTime/audio.duration)*1000;
+    }
+  });
+  audio.addEventListener('loadedmetadata', () => {
+    timeTotal.textContent = fmtTime(audio.duration);
+    const approxKbps = tracks[currentIndex] ? Math.round((tracks[currentIndex].size*8)/(audio.duration*1000)) : 0;
+    bitrateLine.textContent = (approxKbps>0 ? '~'+approxKbps+' kbps' : '— kbps') + ' · 44 kHz';
+    const t = tracks[currentIndex];
+    if(t && t.duration === 0){
+      t.duration = audio.duration;
+      t.durationLabel = fmtTime(audio.duration);
+      t._probed = true;
+      rememberMeta(t);
+      markDirty();
+    }
+  });
+  audio.addEventListener('play', () => setPlayIcon(true));
+  audio.addEventListener('pause', () => setPlayIcon(false));
+
+  // marquee for long titles
+  const titleWrap = document.getElementById('titleWrap');
+  function updateMarquee(){
+    const overflow = titleText.scrollWidth - titleWrap.clientWidth;
+    if(overflow > 10){
+      titleText.style.animation = 'none';
+      void titleText.offsetWidth;
+      const dur = Math.max(6, overflow/28);
+      titleText.style.transition = 'none';
+      titleText.animate(
+        [{transform:'translateX(0)'},{transform:'translateX(-'+(overflow+20)+'px)'},{transform:'translateX(0)'}],
+        {duration: dur*1000, iterations: Infinity, easing:'linear'}
+      );
+    }
+  }
+  const titleObserver = new MutationObserver(updateMarquee);
+  titleObserver.observe(titleText, {childList:true, characterData:true, subtree:true});
+  window.addEventListener('resize', updateMarquee);
+
+  // ---------- Equalizer ----------
+  const EQ_BANDS = [
+    { freq:60,    type:'lowshelf',  label:'60' },
+    { freq:250,   type:'peaking',   label:'250' },
+    { freq:1000,  type:'peaking',   label:'1k' },
+    { freq:3500,  type:'peaking',   label:'3.5k' },
+    { freq:10000, type:'highshelf', label:'10k' }
+  ];
+  const EQ_PRESETS = {
+    'Flat':       [0,0,0,0,0],
+    'Bass Boost': [7,4,0,-1,-1],
+    'Vocal':      [-2,1,4,3,0],
+    'Treble':     [-1,-1,0,3,6],
+    'Rock':       [4,2,-2,2,4],
+    'Dance':      [6,3,0,2,3]
+  };
+  const EQ_KEY = 'mcOrcaEqSettings';
+  let eqGains = [0,0,0,0,0];
+  let eqEnabled = true;
+  let eqFilters = null; // erst befüllt, sobald der Audio-Graph (bei erster Wiedergabe) existiert
+
+  // ---------- FX-Unit (Echo/Reverb/Bitcrush) ----------
+  const FX_DEFS = [
+    { id:'echo',   label:'ECHO',   icon:'⟲' },
+    { id:'reverb', label:'REVERB', icon:'≈' },
+    { id:'crush',  label:'CRUSH',  icon:'▚' }
+  ];
+  let fxState = { echo:false, reverb:false, crush:false };
+  let fxNodes = null; // { dryGain, delayNode, feedbackGain, delayWetGain, convolver, reverbWetGain, crushShaper, crushWetGain, mixNode }
+
+  function loadEqSettings(){
+    try{
+      const raw = localStorage.getItem(EQ_KEY);
+      if(!raw) return;
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed.gains) && parsed.gains.length === EQ_BANDS.length) eqGains = parsed.gains;
+      if(typeof parsed.enabled === 'boolean') eqEnabled = parsed.enabled;
+      if(parsed.fx && typeof parsed.fx === 'object'){
+        FX_DEFS.forEach(f => { if(typeof parsed.fx[f.id] === 'boolean') fxState[f.id] = parsed.fx[f.id]; });
+      }
+    } catch(e){ /* z.B. Privatmodus */ }
+  }
+  function saveEqSettings(){
+    try{ localStorage.setItem(EQ_KEY, JSON.stringify({ gains: eqGains, enabled: eqEnabled, fx: fxState })); } catch(e){}
+  }
+  function applyEqToFilters(){
+    if(!eqFilters) return;
+    eqFilters.forEach((f,i) => { f.gain.value = eqEnabled ? eqGains[i] : 0; });
+  }
+  function applyFxState(){
+    if(!fxNodes) return;
+    const now = fxNodes.dryGain.context.currentTime;
+    fxNodes.delayWetGain.gain.setTargetAtTime(fxState.echo ? 0.35 : 0, now, 0.05);
+    fxNodes.reverbWetGain.gain.setTargetAtTime(fxState.reverb ? 0.28 : 0, now, 0.05);
+    fxNodes.crushWetGain.gain.setTargetAtTime(fxState.crush ? 0.9 : 0, now, 0.05);
+    fxNodes.dryGain.gain.setTargetAtTime(fxState.crush ? 0.15 : 1, now, 0.05);
+  }
+  // Erzeugt eine synthetische Hall-Impulsantwort (kein externes Audio-Sample nötig):
+  // exponentiell abklingendes Rauschen, klassischer Trick für ConvolverNode-Reverbs.
+  function createReverbImpulse(ctx, duration, decay){
+    const rate = ctx.sampleRate;
+    const length = Math.floor(rate * duration);
+    const impulse = ctx.createBuffer(2, length, rate);
+    for(let ch=0; ch<2; ch++){
+      const data = impulse.getChannelData(ch);
+      for(let i=0;i<length;i++){
+        data[i] = (Math.random()*2-1) * Math.pow(1 - i/length, decay);
+      }
+    }
+    return impulse;
+  }
+  // Bitcrush über WaveShaperNode: quantisiert die Amplitude auf wenige Stufen ("Lo-Fi/8-Bit"-Charakter) —
+  // ohne AudioWorklet auszukommen, dafür simpel & breit kompatibel.
+  function createBitcrushCurve(bits){
+    const levels = Math.pow(2, bits);
+    const n = 4096;
+    const curve = new Float32Array(n);
+    for(let i=0;i<n;i++){
+      const x = (i/n)*2-1;
+      curve[i] = Math.round(x*levels)/levels;
+    }
+    return curve;
+  }
+
+  const eqBandsEl = document.getElementById('eqBands');
+  const eqPresetsEl = document.getElementById('eqPresets');
+  const eqEnableToggle = document.getElementById('eqEnableToggle');
+  const eqPanelEl = document.getElementById('eqPanel');
+
+  function renderEqBands(){
+    eqBandsEl.innerHTML = EQ_BANDS.map((b,i) => `
+      <div class="eq-band">
+        <div class="eq-band-value" id="eqVal${i}">${eqGains[i]>0?'+':''}${eqGains[i]}dB</div>
+        <div class="eq-slider-wrap">
+          <input type="range" min="-12" max="12" step="1" value="${eqGains[i]}" data-band="${i}" class="eq-slider">
+        </div>
+        <div class="eq-band-label">${b.label}</div>
+      </div>`).join('');
+    eqBandsEl.querySelectorAll('.eq-slider').forEach(sl => {
+      sl.addEventListener('input', (e) => {
+        const i = +e.target.dataset.band;
+        eqGains[i] = +e.target.value;
+        document.getElementById('eqVal'+i).textContent = (eqGains[i]>0?'+':'') + eqGains[i] + 'dB';
+        applyEqToFilters();
+        saveEqSettings();
+      });
+    });
+  }
+  function renderEqPresets(){
+    eqPresetsEl.innerHTML = Object.keys(EQ_PRESETS).map(name =>
+      `<div class="chip eq-preset-chip" data-preset="${name}">${name}</div>`).join('');
+    eqPresetsEl.querySelectorAll('.eq-preset-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        eqGains = EQ_PRESETS[chip.dataset.preset].slice();
+        renderEqBands();
+        applyEqToFilters();
+        saveEqSettings();
+      });
+    });
+  }
+
+  const eqFxChipsEl = document.getElementById('eqFxChips');
+  function renderFxChips(){
+    eqFxChipsEl.innerHTML = FX_DEFS.map(f =>
+      `<div class="chip eq-fx-chip${fxState[f.id] ? ' active' : ''}" data-fx="${f.id}">${f.icon} ${f.label}</div>`).join('');
+    eqFxChipsEl.querySelectorAll('.eq-fx-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const id = chip.dataset.fx;
+        fxState[id] = !fxState[id];
+        chip.classList.toggle('active', fxState[id]);
+        applyFxState();
+        saveEqSettings();
+      });
+    });
+  }
+  eqEnableToggle.addEventListener('change', () => {
+    eqEnabled = eqEnableToggle.checked;
+    eqPanelEl.classList.toggle('eq-disabled', !eqEnabled);
+    applyEqToFilters();
+    saveEqSettings();
+  });
+
+  loadEqSettings();
+  eqEnableToggle.checked = eqEnabled;
+  eqPanelEl.classList.toggle('eq-disabled', !eqEnabled);
+  renderEqBands();
+  renderEqPresets();
+  renderFxChips();
+
+  // ---------- Visualizer ----------
+  let audioCtx, analyser, sourceNode, dataFreq, dataTime;
+  const peaks = [];
+
+  function ensureAudioGraph(){
+    if(audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.75;
+    dataFreq = new Uint8Array(analyser.frequencyBinCount);
+    dataTime = new Uint8Array(analyser.fftSize);
+    sourceNode = audioCtx.createMediaElementSource(audio);
+
+    // EQ-Filterkette zwischen Quelle und FX-Unit einhängen, damit auch der Visualizer
+    // das bereits entzerrte (und mit FX versehene) Signal "sieht".
+    eqFilters = EQ_BANDS.map(b => {
+      const f = audioCtx.createBiquadFilter();
+      f.type = b.type;
+      f.frequency.value = b.freq;
+      if(b.type === 'peaking') f.Q.value = 1;
+      return f;
+    });
+    let node = sourceNode;
+    eqFilters.forEach(f => { node.connect(f); node = f; });
+    const eqOut = node;
+
+    // ---------- FX-Unit: Echo/Reverb/Bitcrush parallel gemischt ----------
+    const dryGain = audioCtx.createGain(); dryGain.gain.value = 1;
+
+    // Echo: Delay-Node mit Feedback-Loop für Wiederholungen, eigener Wet-Anteil zum Mix
+    const delayNode = audioCtx.createDelay(1.0);
+    delayNode.delayTime.value = 0.28;
+    const feedbackGain = audioCtx.createGain(); feedbackGain.gain.value = 0.35;
+    const delayWetGain = audioCtx.createGain(); delayWetGain.gain.value = 0;
+    delayNode.connect(feedbackGain); feedbackGain.connect(delayNode);
+    delayNode.connect(delayWetGain);
+
+    // Reverb: ConvolverNode mit synthetisch erzeugter Hall-Impulsantwort (kein Sample nötig)
+    const convolver = audioCtx.createConvolver();
+    convolver.buffer = createReverbImpulse(audioCtx, 2.2, 3.2);
+    const reverbWetGain = audioCtx.createGain(); reverbWetGain.gain.value = 0;
+    convolver.connect(reverbWetGain);
+
+    // Bitcrush: WaveShaper quantisiert die Amplitude -> Lo-Fi/8-Bit-Charakter
+    const crushShaper = audioCtx.createWaveShaper();
+    crushShaper.curve = createBitcrushCurve(4);
+    crushShaper.oversample = 'none';
+    const crushWetGain = audioCtx.createGain(); crushWetGain.gain.value = 0;
+    crushShaper.connect(crushWetGain);
+
+    const mixNode = audioCtx.createGain(); mixNode.gain.value = 1;
+
+    eqOut.connect(dryGain);        dryGain.connect(mixNode);
+    eqOut.connect(delayNode);      delayWetGain.connect(mixNode);
+    eqOut.connect(convolver);      reverbWetGain.connect(mixNode);
+    eqOut.connect(crushShaper);    crushWetGain.connect(mixNode);
+
+    mixNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    fxNodes = { dryGain, delayNode, feedbackGain, delayWetGain, convolver, reverbWetGain, crushShaper, crushWetGain, mixNode };
+    applyEqToFilters();
+    applyFxState();
+  }
+  document.addEventListener('click', () => { if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }, {once:true});
+
+  function resizeCanvas(){
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  function drawIdle(){
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle = goldRGBA(.15);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, h/2);
+    ctx.lineTo(w, h/2);
+    ctx.stroke();
+  }
+
+  function drawBars(){
+    analyser.getByteFrequencyData(dataFreq);
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    const barCount = 48;
+    const step = Math.floor(dataFreq.length / barCount);
+    const barW = w / barCount;
+
+    for(let i=0;i<barCount;i++){
+      let sum=0;
+      for(let j=0;j<step;j++) sum += dataFreq[i*step+j] || 0;
+      const v = sum/step;
+      const barH = (v/255) * h * 0.92;
+
+      if(peaks[i] === undefined || barH > peaks[i]) peaks[i] = barH;
+      else peaks[i] = Math.max(barH, peaks[i] - h*0.012);
+
+      const x = i*barW;
+      const grad = ctx.createLinearGradient(0, h, 0, h-barH);
+      grad.addColorStop(0, '#3a2c0c');
+      grad.addColorStop(0.55, '#e8b93f');
+      grad.addColorStop(0.82, '#ff8c14');
+      grad.addColorStop(1, '#ff1414');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x+barW*0.15, h-barH, barW*0.7, barH);
+
+      ctx.fillStyle = peaks[i] > h*0.85 ? '#ff1414' : '#fff3d0';
+      ctx.fillRect(x+barW*0.15, h-peaks[i]-3, barW*0.7, 2);
+    }
+  }
+
+  function drawScope(){
+    analyser.getByteTimeDomainData(dataTime);
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.lineWidth = 2 * devicePixelRatio;
+    ctx.strokeStyle = '#ff1414';
+    ctx.shadowColor = redRGBA(.85);
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const sliceW = w / dataTime.length;
+    let x = 0;
+    for(let i=0;i<dataTime.length;i++){
+      const v = dataTime[i]/128.0;
+      const y = (v*h)/2;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      x += sliceW;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // Sonar: kreisförmiger Spektrum-Analyzer mit rotierendem Echolot-Sweep — Anspielung auf Orca-Echoortung
+  let sonarAngle = 0;
+  function drawSonar(){
+    analyser.getByteFrequencyData(dataFreq);
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const cx = w/2, cy = h/2;
+    const maxR = Math.min(w,h) * 0.46;
+    const minR = maxR * 0.32;
+    const barCount = 64;
+    const step = Math.floor(dataFreq.length / barCount) || 1;
+
+    sonarAngle += 0.012;
+
+    for(let i=0;i<barCount;i++){
+      let sum = 0;
+      for(let j=0;j<step;j++) sum += dataFreq[i*step+j] || 0;
+      const v = sum/step;
+      const barLen = (v/255) * (maxR-minR);
+      const angle = (i/barCount) * Math.PI*2;
+      const x1 = cx + Math.cos(angle)*minR, y1 = cy + Math.sin(angle)*minR;
+      const x2 = cx + Math.cos(angle)*(minR+barLen), y2 = cy + Math.sin(angle)*(minR+barLen);
+      const grad = ctx.createLinearGradient(x1,y1,x2,y2);
+      grad.addColorStop(0, '#3a2c0c');
+      grad.addColorStop(0.6, '#e8b93f');
+      grad.addColorStop(1, '#ff1414');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = Math.max(2, (Math.PI*2*minR/barCount)*0.55);
+      ctx.beginPath();
+      ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = goldRGBA(.3);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx,cy,minR,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,maxR,0,Math.PI*2); ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(sonarAngle);
+    const sweep = ctx.createLinearGradient(0,0,maxR,0);
+    sweep.addColorStop(0, redRGBA(0));
+    sweep.addColorStop(1, redRGBA(.6));
+    ctx.strokeStyle = sweep;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(maxR,0); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Bubbles: aufsteigende Blasen, Spawnrate von Bassenergie gesteuert
+  let bubbles = [];
+  function drawBubbles(){
+    analyser.getByteFrequencyData(dataFreq);
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    let bass = 0;
+    for(let i=0;i<8;i++) bass += dataFreq[i] || 0;
+    bass /= 8;
+    const spawnCount = Math.floor(bass/45);
+    for(let i=0;i<spawnCount;i++){
+      bubbles.push({
+        x: Math.random()*w, y: h+10,
+        r: (4+Math.random()*9)*devicePixelRatio,
+        vy: (0.5+Math.random()*1.1)*devicePixelRatio,
+        wobble: Math.random()*Math.PI*2,
+        alpha: 0.75+Math.random()*0.25
+      });
+    }
+    if(bubbles.length > 220) bubbles.splice(0, bubbles.length-220);
+
+    bubbles.forEach(b => {
+      b.y -= b.vy;
+      b.wobble += 0.05;
+      b.x += Math.sin(b.wobble) * 0.6 * devicePixelRatio;
+      b.alpha -= 0.0022;
+    });
+    bubbles = bubbles.filter(b => b.y + b.r > 0 && b.alpha > 0);
+
+    bubbles.forEach(b => {
+      const grad = ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+      grad.addColorStop(0, goldRGBA(b.alpha*0.22));
+      grad.addColorStop(1, redRGBA(0));
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle = goldRGBA(b.alpha);
+      ctx.lineWidth = 1.4*devicePixelRatio;
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.stroke();
+    });
+  }
+
+  // Kaleidoscope: gespiegelte, rotierende Frequenz-Strahlen mit Regenbogen-Hue + Trail-Effekt
+  let kaleidoRot = 0;
+  function drawKaleido(){
+    analyser.getByteFrequencyData(dataFreq);
+    const w = canvas.width, h = canvas.height;
+    ctx.fillStyle = 'rgba(4,4,4,.22)'; // statt hartem Clear -> Bewegungsspuren
+    ctx.fillRect(0,0,w,h);
+    const cx = w/2, cy = h/2;
+    const segments = 10;
+    const maxR = Math.min(w,h)*0.48;
+    const barCount = 28;
+    const step = Math.floor(dataFreq.length/barCount) || 1;
+    kaleidoRot += 0.006;
+
+    for(let s=0; s<segments; s++){
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate((s/segments)*Math.PI*2 + kaleidoRot);
+      for(let i=0;i<barCount;i++){
+        let sum=0;
+        for(let j=0;j<step;j++) sum += dataFreq[i*step+j]||0;
+        const v = sum/step;
+        const r0 = (i/barCount)*maxR;
+        const len = (v/255)*(maxR/barCount)*1.7 + 2;
+        const hue = (i/barCount*300 + kaleidoRot*500) % 360;
+        ctx.strokeStyle = `hsla(${hue},90%,62%,.9)`;
+        ctx.lineWidth = 2.4*devicePixelRatio;
+        ctx.beginPath(); ctx.moveTo(r0,0); ctx.lineTo(r0+len,0); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-r0,0); ctx.lineTo(-(r0+len),0); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  // Dancefloor: pulsierendes Bodenraster im Saturday-Night-Fever-Stil, jede Kachel folgt einem Frequenzband
+  function drawFloor(){
+    analyser.getByteFrequencyData(dataFreq);
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const cols = 10, rows = 6;
+    const cellW = w/cols, cellH = h/rows;
+    const t = performance.now()*0.02;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const idx = ((r*cols+c) * 7) % dataFreq.length;
+        const v = dataFreq[idx] || 0;
+        const hue = ((c/cols)*300 + r*22 + t) % 360;
+        const light = 14 + (v/255)*48;
+        ctx.fillStyle = `hsl(${hue}, 88%, ${light}%)`;
+        ctx.fillRect(c*cellW+1.5, r*cellH+1.5, cellW-3, cellH-3);
+      }
+    }
+  }
+
+  // Discoball: rotierende Spiegelkugel aus farbigen Facetten + strahlende Lichtstrahlen
+  let ballRot = 0;
+  function drawDiscoball(){
+    analyser.getByteFrequencyData(dataFreq);
+    const w = canvas.width, h = canvas.height;
+    ctx.fillStyle = 'rgba(4,4,4,.35)';
+    ctx.fillRect(0,0,w,h);
+    const cx = w/2, cy = h/2;
+    const R = Math.min(w,h)*0.3;
+    let bass=0; for(let i=0;i<10;i++) bass += dataFreq[i]||0; bass/=10;
+    ballRot += 0.01 + (bass/255)*0.03;
+
+    const beamCount = 8;
+    for(let i=0;i<beamCount;i++){
+      const a = ballRot*1.5 + (i/beamCount)*Math.PI*2;
+      const hue = (i/beamCount*360 + ballRot*70) % 360;
+      const grad = ctx.createLinearGradient(cx,cy,cx+Math.cos(a)*w, cy+Math.sin(a)*w);
+      grad.addColorStop(0, `hsla(${hue},90%,60%,.22)`);
+      grad.addColorStop(1, `hsla(${hue},90%,60%,0)`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 14*devicePixelRatio;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*w, cy+Math.sin(a)*w); ctx.stroke();
+    }
+
+    const latSteps = 10, lonSteps = 18;
+    for(let la=0; la<latSteps; la++){
+      const theta = (la/(latSteps-1))*Math.PI - Math.PI/2;
+      const y = Math.sin(theta)*R;
+      const ringR = Math.cos(theta)*R;
+      for(let lo=0; lo<lonSteps; lo++){
+        const phi = (lo/lonSteps)*Math.PI*2 + ballRot;
+        const x = Math.cos(phi)*ringR;
+        const z = Math.sin(phi)*ringR;
+        if(z < 0) continue; // Rückseite der Kugel ausblenden
+        const idx = (la*lonSteps+lo) % dataFreq.length;
+        const v = dataFreq[idx] || 0;
+        const bright = 40 + (v/255)*55;
+        const hue = (lo/lonSteps*360 + ballRot*90) % 360;
+        const size = (1.4 + (z/R)*2.6) * devicePixelRatio;
+        ctx.fillStyle = `hsl(${hue}, 82%, ${bright}%)`;
+        ctx.beginPath(); ctx.arc(cx+x, cy+y, size, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  // Strobe: Blitzlicht auf Bass-Treffer + rotierendes Spotlight-Rig
+  let strobeFlash = 0;
+  let strobeHue = 0;
+  function drawStrobe(){
+    analyser.getByteFrequencyData(dataFreq);
+    const w = canvas.width, h = canvas.height;
+    let bass=0; for(let i=0;i<6;i++) bass += dataFreq[i]||0; bass/=6;
+    strobeHue += 1.4;
+    if(bass > 190 && strobeFlash <= 0){ strobeFlash = 1; }
+
+    ctx.fillStyle = '#050403';
+    ctx.fillRect(0,0,w,h);
+
+    const cx = w/2, cy = h*1.1;
+    const beams = 5;
+    for(let i=0;i<beams;i++){
+      const a = -Math.PI/2 + Math.sin(performance.now()*0.0007 + i) * (Math.PI/3.4);
+      const hue = (i/beams*300 + strobeHue) % 360;
+      const grad = ctx.createLinearGradient(cx,cy, cx+Math.cos(a)*h*1.4, cy+Math.sin(a)*h*1.4);
+      grad.addColorStop(0, `hsla(${hue},90%,60%,.5)`);
+      grad.addColorStop(1, `hsla(${hue},90%,60%,0)`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 36*devicePixelRatio;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*h*1.4, cy+Math.sin(a)*h*1.4); ctx.stroke();
+    }
+
+    if(strobeFlash > 0){
+      ctx.fillStyle = `hsla(${strobeHue%360},95%,60%,${strobeFlash*0.85})`;
+      ctx.fillRect(0,0,w,h);
+      strobeFlash -= 0.08;
+    }
+  }
+
+  // Warp: Hyperraum-Sprung-Tunnel — Streifen rasen aus der Mitte nach außen,
+  // Tempo/Helligkeit folgen der Bass-Energie. Idee/Technik (Z-Tiefe-Streifen aus dem
+  // Zentrum, quadratische Beschleunigung, Trail statt Full-Clear) von Astrions
+  // Titelbildschirm-"Warp-Tunnel" (initCardWarpTunnel) übernommen, hier als reiner
+  // Vektor-Effekt in den Player-Theme-Farben statt mit Kartenbildern.
+  let warpStreaks = [];
+  function spawnWarpStreak(){
+    return {
+      angle: Math.random()*Math.PI*2,
+      z: Math.random()*0.35,
+      speed: 0.5 + Math.random()*0.9,
+      red: Math.random() < 0.18
+    };
+  }
+  function drawWarp(){
+    analyser.getByteFrequencyData(dataFreq);
+    const w = canvas.width, h = canvas.height;
+    if(!warpStreaks.length){
+      warpStreaks = Array.from({length: 180}, spawnWarpStreak);
+    }
+    let bass=0; for(let i=0;i<8;i++) bass += dataFreq[i]||0; bass/=8;
+    const bassNorm = bass/255;
+    const speedMul = 1 + bassNorm*4;
+
+    // Trail statt komplettem Löschen: sanftes Nachleuchten der Streifen
+    ctx.fillStyle = 'rgba(4,4,4,0.32)';
+    ctx.fillRect(0,0,w,h);
+
+    const cx = w/2, cy = h/2;
+    const maxR = Math.hypot(w,h)/2 * 1.05;
+
+    warpStreaks.forEach(s => {
+      const prevZ = s.z;
+      s.z += 0.0065 * s.speed * speedMul;
+      if(s.z > 1){ Object.assign(s, spawnWarpStreak()); return; }
+      const r0 = prevZ*prevZ*maxR;
+      const r1 = s.z*s.z*maxR;
+      const x0 = cx+Math.cos(s.angle)*r0, y0 = cy+Math.sin(s.angle)*r0;
+      const x1 = cx+Math.cos(s.angle)*r1, y1 = cy+Math.sin(s.angle)*r1;
+      const alpha = Math.min(1, s.z*1.4) * (0.35 + bassNorm*0.65);
+      ctx.strokeStyle = s.red ? redRGBA(alpha) : goldRGBA(alpha);
+      ctx.lineWidth = Math.max(1, s.z*3.2*devicePixelRatio);
+      ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+    });
+
+    // Zentraler Flash bei starken Bass-Treffern
+    if(bassNorm > 0.72){
+      const flash = ctx.createRadialGradient(cx,cy,0,cx,cy,maxR*0.3);
+      flash.addColorStop(0, goldRGBA((bassNorm-0.72)*2.2));
+      flash.addColorStop(1, goldRGBA(0));
+      ctx.fillStyle = flash;
+      ctx.fillRect(0,0,w,h);
+    }
+  }
+
+  // Cover Warp: wie Warp, aber statt Farbstreifen fliegen echte Album-Cover (aus eingebetteten
+  // ID3-Bildern) als Karten durchs Feld — Prinzip 1:1 von Astrions initCardWarpTunnel() über-
+  // nommen (Bild-Pool + Nah/Fern-Unterscheidung), hier in Player-Theme-Farben und ohne Karten-DB.
+  let coverStreaks = [];
+  function spawnCoverStreak(){
+    return {
+      angle: Math.random()*Math.PI*2,
+      z: Math.random()*0.35,
+      speed: 0.45 + Math.random()*0.8,
+      poolIdx: coverPool.length ? Math.floor(Math.random()*coverPool.length) : -1,
+      rot: (Math.random()-0.5)*0.3
+    };
+  }
+  const COVER_REAL_THRESHOLD = 0.34; // ab dieser Nähe wird das echte Bild statt eines Farbblocks gezeichnet
+  function drawCoverWarp(){
+    analyser.getByteFrequencyData(dataFreq);
+    const w = canvas.width, h = canvas.height;
+    buildCoverPool();
+    if(!coverStreaks.length) coverStreaks = Array.from({length: 70}, spawnCoverStreak);
+    let bass=0; for(let i=0;i<8;i++) bass += dataFreq[i]||0; bass/=8;
+    const bassNorm = bass/255;
+    const speedMul = 1 + bassNorm*3.2;
+
+    ctx.fillStyle = 'rgba(4,4,4,0.30)';
+    ctx.fillRect(0,0,w,h);
+
+    const cx = w/2, cy = h/2;
+    const maxR = Math.hypot(w,h)/2 * 1.1;
+
+    coverStreaks.sort((a,b) => a.z - b.z); // nahe (große) Cover zuletzt zeichnen, damit sie oben liegen
+    coverStreaks.forEach(s => {
+      s.z += 0.0055 * s.speed * speedMul;
+      if(s.z > 1){ Object.assign(s, spawnCoverStreak()); return; }
+      const r = s.z*s.z*maxR;
+      const x = cx + Math.cos(s.angle)*r;
+      const y = cy + Math.sin(s.angle)*r;
+      const size = (10 + s.z*s.z*130) * devicePixelRatio;
+      const alpha = Math.min(1, s.z*1.6);
+      const entry = s.poolIdx >= 0 ? coverPool[s.poolIdx] : null;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(s.rot*(1-s.z));
+      if(entry && entry.ready && s.z > COVER_REAL_THRESHOLD){
+        const wSize = size, hSize = size/entry.aspect;
+        ctx.globalAlpha = alpha;
+        ctx.shadowColor = goldRGBA(.5);
+        ctx.shadowBlur = 10*devicePixelRatio;
+        ctx.drawImage(entry.img, -wSize/2, -hSize/2, wSize, hSize);
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = goldRGBA(alpha*0.8);
+        ctx.lineWidth = 1.5*devicePixelRatio;
+        ctx.strokeRect(-wSize/2, -hSize/2, wSize, hSize);
+      } else {
+        // Fern oder noch kein Bild geladen: Farbblock statt Draw-Call auf ein Bild (spart Leistung)
+        ctx.globalAlpha = alpha*0.8;
+        ctx.fillStyle = goldRGBA(alpha*0.5);
+        ctx.fillRect(-size/2, -size/2, size, size);
+      }
+      ctx.restore();
+    });
+
+    if(bassNorm > 0.72){
+      const flash = ctx.createRadialGradient(cx,cy,0,cx,cy,maxR*0.3);
+      flash.addColorStop(0, goldRGBA((bassNorm-0.72)*2.2));
+      flash.addColorStop(1, goldRGBA(0));
+      ctx.fillStyle = flash;
+      ctx.fillRect(0,0,w,h);
+    }
+
+    if(coverPoolBuilt && coverPool.length === 0){
+      ctx.save();
+      ctx.font = (13*devicePixelRatio) + 'px "Space Mono", monospace';
+      ctx.fillStyle = goldRGBA(.7);
+      ctx.textAlign = 'center';
+      ctx.fillText('Keine eingebetteten Cover in der Playlist gefunden — Platzhalter-Blöcke.', w/2, 24*devicePixelRatio);
+      ctx.restore();
+    }
+  }
+
+  function loop(){
+    requestAnimationFrame(loop);
+    if(!analyser || audio.paused){ drawIdle(); return; }
+    if(vizMode === 'bars') drawBars();
+    else if(vizMode === 'scope') drawScope();
+    else if(vizMode === 'sonar') drawSonar();
+    else if(vizMode === 'bubbles') drawBubbles();
+    else if(vizMode === 'kaleido') drawKaleido();
+    else if(vizMode === 'floor') drawFloor();
+    else if(vizMode === 'discoball') drawDiscoball();
+    else if(vizMode === 'strobe') drawStrobe();
+    else if(vizMode === 'warp') drawWarp();
+    else if(vizMode === 'coverwarp') drawCoverWarp();
+  }
+
+  const chipEls = {
+    bars: document.getElementById('chipBars'),
+    scope: document.getElementById('chipScope'),
+    sonar: document.getElementById('chipSonar'),
+    bubbles: document.getElementById('chipBubbles'),
+    kaleido: document.getElementById('chipKaleido'),
+    floor: document.getElementById('chipFloor'),
+    discoball: document.getElementById('chipDiscoball'),
+    strobe: document.getElementById('chipStrobe'),
+    warp: document.getElementById('chipWarp'),
+    coverwarp: document.getElementById('chipCoverWarp')
+  };
+  Object.keys(chipEls).forEach(m => chipEls[m].addEventListener('click', () => setVizMode(m)));
+  function setVizMode(m){
+    vizMode = m;
+    Object.keys(chipEls).forEach(k => chipEls[k].classList.toggle('active', k===m));
+  }
+
+  // ---------- Vollbild ----------
+  const vizWrap = document.querySelector('.viz-wrap');
+  const chipFullscreen = document.getElementById('chipFullscreen');
+  chipFullscreen.addEventListener('click', () => {
+    if(!document.fullscreenElement){
+      (vizWrap.requestFullscreen || vizWrap.webkitRequestFullscreen)?.call(vizWrap);
+    } else {
+      (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+    }
+  });
+  function onFullscreenChange(){
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    chipFullscreen.classList.toggle('active', isFs);
+    resizeCanvas();
+  }
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
+  // ---------- Clock ----------
+  function tickClock(){
+    const d = new Date();
+    clockEl.textContent = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+  }
+  setInterval(tickClock, 1000); tickClock();
+
+  // ---------- Keyboard shortcuts ----------
+  document.addEventListener('keydown', (e) => {
+    if(e.target.tagName === 'INPUT') return;
+    if(e.code === 'Space'){ e.preventDefault(); btnPlay.click(); }
+    if(e.code === 'ArrowRight' && e.shiftKey){ btnNext.click(); }
+    if(e.code === 'ArrowLeft' && e.shiftKey){ btnPrev.click(); }
+  });
+
+
+  // ---------- Init ----------
+  initDesignPrefs();
+  resizeCanvas();
+  requestAnimationFrame(loop);
+  loadLibraryTracks();          // MC-Orca-Musikbibliothek (113 Titel, 7 Spiele) sofort verfügbar
+  renderList();
+  if(currentIndex === -1 && tracks.length > 0) loadTrack(0, false); // ersten Bibliothekstitel anzeigen, ohne abzuspielen
+  tryAutoLoadFromFolder();      // versucht zusätzlich, eigene Dateien aus ./mp3/ zu laden (optional)
+})();
+</script>
+</body>
+</html>
