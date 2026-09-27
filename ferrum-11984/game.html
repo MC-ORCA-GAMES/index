@@ -428,8 +428,10 @@
       <div class="mmTabPanel" data-mmpanel="controls" style="display:none;">
         <div class="mmRow"><span>MAUSEMPFINDLICHKEIT</span><input type="range" id="optMouseSens" min="0.4" max="2" step="0.05"></div>
         <div class="mmRow"><span>Y-ACHSE INVERTIEREN</span><input type="checkbox" id="optInvertY"></div>
-        <div class="mmRow"><span>LAUTSTÄRKE</span><input type="range" id="optVolume" min="0" max="1" step="0.05"></div>
-        <div class="mmRow"><span>STUMM</span><input type="checkbox" id="optMuted"></div>
+        <div class="mmRow"><span>SOUNDEFFEKTE</span><input type="range" id="optVolume" min="0" max="1" step="0.05"></div>
+        <div class="mmRow"><span>SFX STUMM</span><input type="checkbox" id="optMuted"></div>
+        <div class="mmRow"><span>MUSIK</span><input type="range" id="optMusicVolume" min="0" max="1" step="0.05"></div>
+        <div class="mmRow"><span>MUSIK STUMM</span><input type="checkbox" id="optMusicMuted"></div>
       </div>
       <div class="mmTabPanel" data-mmpanel="save" style="display:none;">
         <div class="mmSaveInfo" id="mmSaveInfo2">Kein Spielstand vorhanden</div>
@@ -1002,6 +1004,7 @@ function executeJump(targetId){
   updateSystemHud();
   flashJump();
   if(typeof SFX!=='undefined') SFX.jump();
+  if(typeof playJumpSting==='function') playJumpSting();
   showShipMsg('SPRUNG ABGESCHLOSSEN: '+sys.name);
   if(navOpen){ navOpen=false; document.getElementById('navPanel').classList.remove('open'); canvas.requestPointerLock(); }
 }
@@ -3461,7 +3464,7 @@ if(isMobile){
 // --- Einstellungen: getrennt vom Spielstand (SAVE_KEY) in einem eigenen LocalStorage-Schlüssel persistiert,
 // damit "Neues Spiel"/"Spielstand löschen" die Einstellungen nicht mit zurücksetzt.
 const SETTINGS_KEY='ss11984_settings_v1';
-const DEFAULT_SETTINGS={quality:(isMobile?'medium':'high'),scanlines:true,showFps:false,mouseSensMult:1,invertY:false,masterVolume:0.55,muted:false};
+const DEFAULT_SETTINGS={quality:(isMobile?'medium':'high'),scanlines:true,showFps:false,mouseSensMult:1,invertY:false,masterVolume:0.55,muted:false,musicVolume:0.05,musicMuted:false};
 let SETTINGS=Object.assign({},DEFAULT_SETTINGS);
 (function loadSettings(){
   try{ const raw=localStorage.getItem(SETTINGS_KEY); if(raw) Object.assign(SETTINGS,JSON.parse(raw)); }catch(err){ console.error('Einstellungen konnten nicht geladen werden',err); }
@@ -3610,11 +3613,13 @@ document.querySelectorAll('.mmTab').forEach(tab=>{
 // --- Einstellungswerte <-> UI-Elemente ---
 const optQuality=document.getElementById('optQuality'), optScanlines=document.getElementById('optScanlines'),
   optFps=document.getElementById('optFps'), optMouseSens=document.getElementById('optMouseSens'),
-  optInvertY=document.getElementById('optInvertY'), optVolume=document.getElementById('optVolume'), optMuted=document.getElementById('optMuted');
+  optInvertY=document.getElementById('optInvertY'), optVolume=document.getElementById('optVolume'), optMuted=document.getElementById('optMuted'),
+  optMusicVolume=document.getElementById('optMusicVolume'), optMusicMuted=document.getElementById('optMusicMuted');
 function refreshSettingsUI(){
   optQuality.value=SETTINGS.quality; optScanlines.checked=SETTINGS.scanlines; optFps.checked=SETTINGS.showFps;
   optMouseSens.value=SETTINGS.mouseSensMult; optInvertY.checked=SETTINGS.invertY;
   optVolume.value=SETTINGS.masterVolume; optMuted.checked=SETTINGS.muted;
+  optMusicVolume.value=SETTINGS.musicVolume; optMusicMuted.checked=SETTINGS.musicMuted;
 }
 optQuality.addEventListener('change',()=>{ SETTINGS.quality=optQuality.value; applyGraphicsSettings(); persistSettings(); });
 optScanlines.addEventListener('change',()=>{ SETTINGS.scanlines=optScanlines.checked; applyGraphicsSettings(); persistSettings(); });
@@ -3623,6 +3628,8 @@ optMouseSens.addEventListener('input',()=>{ SETTINGS.mouseSensMult=parseFloat(op
 optInvertY.addEventListener('change',()=>{ SETTINGS.invertY=optInvertY.checked; persistSettings(); });
 optVolume.addEventListener('input',()=>{ SETTINGS.masterVolume=parseFloat(optVolume.value); persistSettings(); });
 optMuted.addEventListener('change',()=>{ SETTINGS.muted=optMuted.checked; persistSettings(); });
+optMusicVolume.addEventListener('input',()=>{ SETTINGS.musicVolume=parseFloat(optMusicVolume.value); persistSettings(); if(typeof applyMusicVolume==='function') applyMusicVolume(); });
+optMusicMuted.addEventListener('change',()=>{ SETTINGS.musicMuted=optMusicMuted.checked; persistSettings(); if(typeof applyMusicVolume==='function') applyMusicVolume(); });
 
 // --- Speicherverwaltung (Einstellungen → SPEICHER) ---
 document.getElementById('optSaveNow').addEventListener('click',()=>{ saveGame(true); refreshMenuInfo(); });
@@ -3924,6 +3931,130 @@ updateSaveStatusHud();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 animate();
 </script>
+
+<!-- ---------- Musik: kontextabhängiger Score aus art/music/ ----------
+     15 Tracks (ferrum11984_01_kaltstart.ogg .. _15_feierabend.ogg), thematisch fest den
+     Spielsystemen zugeordnet (siehe MISSIONS.md/Prompt-Liste). Statt einer schlichten
+     Zufalls-Playlist (wie bei NEXUS/FOUNDRY) wird hier pro Kontext ein fester Track als
+     Loop gewählt und bei Kontextwechsel überblendet; der Sprungtor-Track läuft dagegen
+     einmalig (kein Loop) als kurzer Übergangs-Sting beim Systemwechsel. -->
+<audio id="bgMusic" preload="none"></audio>
+<script>
+(function(){
+  'use strict';
+  var BASE='art/music/';
+  var TRACKS={
+    title:'ferrum11984_01_kaltstart.ogg',
+    explore:'ferrum11984_02_treibgut.ogg',
+    mining:'ferrum11984_03_erzader.ogg',
+    refine:'ferrum11984_04_schmelzkammer.ogg',
+    build:'ferrum11984_05_fundament.ogg',
+    shipyard:'ferrum11984_06_kiellegung.ogg',
+    station:'ferrum11984_07_ringstation.ogg',
+    trade:'ferrum11984_08_frachtboerse.ogg',
+    research:'ferrum11984_09_datenkern.ogg',
+    jump:'ferrum11984_10_sprungtor.ogg',
+    combat:'ferrum11984_11_rotalarm.ogg',
+    patrol:'ferrum11984_12_patrouille.ogg',
+    outpost:'ferrum11984_13_aussenposten.ogg',
+    wreck:'ferrum11984_14_altmetall.ogg',
+    pause:'ferrum11984_15_feierabend.ogg'
+  };
+  var TITLES={title:'Kaltstart',explore:'Treibgut',mining:'Erzader',refine:'Schmelzkammer',build:'Fundament',
+    shipyard:'Kiellegung',station:'Ringstation',trade:'Frachtbörse',research:'Datenkern',jump:'Sprungtor',
+    combat:'Rotalarm',patrol:'Patrouille',outpost:'Außenposten',wreck:'Altmetall',pause:'Feierabend'};
+
+  var audio=document.getElementById('bgMusic');
+  if(!audio) return;
+
+  function musicVol(){ return (typeof SETTINGS!=='undefined'&&SETTINGS.musicMuted)?0:((typeof SETTINGS!=='undefined')?SETTINGS.musicVolume:0.05); }
+  window.applyMusicVolume=function(){ audio.volume=musicVol(); };
+  applyMusicVolume();
+
+  var current=null, jumpPlaying=false;
+  var _wp=new THREE.Vector3();
+
+  function playState(key,force){
+    if(current===key&&!force) return;
+    current=key;
+    audio.loop=(key!=='jump');
+    audio.src=BASE+TRACKS[key];
+    applyMusicVolume();
+    var p=audio.play();
+    if(p&&p.catch) p.catch(function(){});
+  }
+
+  // Von executeJump() aufgerufen: kurzer Sprungtor-Sting, danach automatische Rückkehr
+  // in den normalen Kontext (siehe 'ended'-Listener unten).
+  window.playJumpSting=function(){
+    if(typeof gameStarted!=='undefined'&&!gameStarted) return;
+    jumpPlaying=true;
+    playState('jump',true);
+  };
+  audio.addEventListener('ended',function(){
+    if(jumpPlaying){ jumpPlaying=false; current=null; evaluate(); }
+  });
+
+  // Gefahren-Einschätzung: Kampf-NPCs (Piraten/Sicherheit) in Spielernähe. 'combat' wenn ein
+  // solcher NPC den Spieler aktiv beschießt (Zustand 'combat' in Kampfreichweite), sonst
+  // 'patrol' als spürbare Anspannung, wenn einer jagt/patrouilliert, aber noch nicht schießt.
+  function combatDanger(){
+    if(typeof npcs==='undefined') return null;
+    var hasCombat=false, hasTension=false;
+    for(var i=0;i<npcs.length;i++){
+      var n=npcs[i];
+      if(n.dead||!isCombatant(n.faction)) continue;
+      _wp.copy(n.mesh.position); if(n.away) _wp.add(FRONTIER_ANCHOR);
+      var d=_wp.distanceTo(ship.position);
+      if(d>NPC_DETECT_RANGE*1.3) continue;
+      if(n.state==='combat'&&d<NPC_COMBAT_RANGE*1.6) hasCombat=true;
+      else if(n.state==='hunt'||n.state==='combat') hasTension=true;
+    }
+    return hasCombat?'combat':(hasTension?'patrol':null);
+  }
+
+  function desiredState(){
+    if(typeof gameStarted==='undefined'||!gameStarted) return 'title';
+    if(typeof menuOpen!=='undefined'&&menuOpen) return 'pause';
+    var danger=combatDanger();
+    if(danger==='combat') return 'combat';
+    if(typeof shipyardMode!=='undefined'&&shipyardMode) return 'shipyard';
+    if(typeof buildMode!=='undefined'&&buildMode) return 'build';
+    if(typeof stationMode!=='undefined'&&stationMode) return 'station';
+    if((typeof refOpen!=='undefined'&&refOpen)||(typeof stRefOpen!=='undefined'&&stRefOpen)) return 'refine';
+    if(typeof tradeOpen!=='undefined'&&tradeOpen) return 'trade';
+    if(typeof researchOpen!=='undefined'&&researchOpen) return 'research';
+    if(danger==='patrol') return 'patrol';
+    if(typeof targetAsteroid!=='undefined'&&targetAsteroid) return 'mining';
+    if(typeof nearInvestigate!=='undefined'&&nearInvestigate) return 'wreck';
+    if(typeof dockedStation!=='undefined'&&dockedStation) return 'outpost';
+    return 'explore';
+  }
+
+  function evaluate(){
+    if(jumpPlaying) return;
+    playState(desiredState(),false);
+  }
+
+  // Alle 1.2s neu bewerten statt jeden Frame — reicht für Musikwechsel völlig aus und kostet nichts.
+  setInterval(evaluate,1200);
+
+  // Autoplay-Policies: erst versuchen, sonst beim ersten Klick/Touch/Tastendruck nachholen.
+  evaluate();
+  (function tryAutoplay(){
+    var p=audio.play();
+    if(p&&typeof p.then==='function'){
+      p.catch(function(){
+        var startOnce=function(){ audio.play().catch(function(){}); };
+        document.addEventListener('click',startOnce,{once:true});
+        document.addEventListener('keydown',startOnce,{once:true});
+        document.addEventListener('touchstart',startOnce,{once:true});
+      });
+    }
+  })();
+})();
+</script>
+
 <script src="../assets/pwa-install.js" data-sw="sw.js"></script>
 </body>
 </html>
