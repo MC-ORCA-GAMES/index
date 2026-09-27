@@ -162,6 +162,8 @@
     background-size:260% 260%; animation:beamSweep 7s linear infinite; }
   @keyframes beamSweep{ 0%{ background-position:0% 0%; } 100%{ background-position:100% 100%; } }
   .title-box{ position:relative; }
+  .title-logo{ display:block; max-width:min(260px,60cqw); height:auto; margin:0 0 1.6cqw; filter:drop-shadow(0 0 14px rgba(53,228,255,.35)); }
+  .title-logo.hidden{ display:none; }
   .title-box::before{ content:''; position:absolute; left:-3cqw; top:-3cqw; right:-3cqw; bottom:-3cqw; z-index:-1;
     background:radial-gradient(closest-side,rgba(53,228,255,.14),transparent 70%); filter:blur(6px); pointer-events:none; }
   .title-box .eyebrow{ display:inline-flex; align-items:center; gap:.6cqw; font:700 clamp(10px,1.3cqw,14px)/1 ui-monospace,Consolas,Menlo,monospace;
@@ -2146,6 +2148,7 @@ function showTitle(){
   setAmbient('facility');   // Kulisse: Wächter-Programm läuft die Story-Sektoren als Demo ab (siehe updateDemo())
   const chips=LEVELS.map((l,i)=>'<button class="chip" data-lv="'+i+'">Sektor '+(i+1)+'</button>').join('');
   showOverlay({titleMode:true, html:
+    '<img class="title-logo" src="art/logo.png" alt="NEXUS: BREACH" onerror="this.classList.add(\'hidden\')">'+
     '<div class="eyebrow"><span class="dot"></span> Testspiel — Wächter-Programm aktiv</div>'+
     '<h1><span>NEXUS:</span> <em>BREACH</em></h1>'+
     '<p>Rogue-Prozesse sind ins NEXUS-Netz eingebrochen und blockieren die Farmen. Du bist das Wächter-Programm: räum die Sektoren auf, sammle MOGC-Splitter und erreiche den Kern — mit Waffen, oder notfalls mit bloßen Fäusten.</p>'+

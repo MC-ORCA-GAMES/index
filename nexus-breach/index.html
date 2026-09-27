@@ -32,12 +32,17 @@
   .nav{ position:sticky; top:0; z-index:30; background:rgba(4,6,12,.85); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
   .nav-inner{ max-width:960px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
   .brand{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; letter-spacing:.02em; }
+  .brand .mark{ width:24px; height:24px; border-radius:50%; overflow:hidden; flex-shrink:0; display:block; }
+  .brand .mark img{ width:100%; height:100%; object-fit:cover; }
+  .brand .mark.hidden{ display:none; }
   .brand b{ color:var(--cyan); }
   .back{ font-size:13px; font-weight:600; padding:8px 14px; border-radius:999px; border:1px solid var(--line); color:var(--dim); text-decoration:none; transition:.15s; }
   .back:hover{ border-color:var(--faint); color:var(--fg); }
 
   /* ---------- Content ---------- */
   .hero{ padding:56px 0 36px; text-align:center; }
+  .hero-logo{ height:60px; margin:0 auto 20px; display:block; }
+  .hero-logo.hidden{ display:none; }
   .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--amber);
     border:1px solid rgba(255,174,61,.35); background:rgba(255,174,61,.08); padding:6px 14px; border-radius:999px; margin-bottom:18px; }
   .hero h1{ font-size:clamp(32px,6vw,54px); line-height:1.05; }
@@ -96,7 +101,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <div class="brand">MC ORCA GAMES <span style="opacity:.4;">·</span> <b>NEXUS: BREACH</b></div>
+    <div class="brand"><span class="mark"><img src="../bilder/logo.png" alt="" onerror="this.parentElement.classList.add('hidden')"></span> MC ORCA GAMES <span style="opacity:.4;">·</span> <b>NEXUS: BREACH</b></div>
     <a class="back" href="../seiten/portal.html">← Zurück zum Hub</a>
   </div>
 </nav>
@@ -105,6 +110,7 @@
 
   <div class="wrap">
     <section class="hero">
+      <img class="hero-logo" src="art/logo.png" alt="" onerror="this.classList.add('hidden')">
       <div class="eyebrow">🆕 Neu im MC-ORCA-Universum</div>
       <h1>NEXUS: <em>BREACH</em></h1>
       <p>Rogue-Prozesse sind ins NEXUS-Netz eingebrochen, seit der AXIOM-Kern hochgefahren wurde.

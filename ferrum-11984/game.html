@@ -103,7 +103,10 @@
   #shipMsg{position:fixed;top:calc(170px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);color:var(--orange);font-size:12px;letter-spacing:1px;text-shadow:0 0 6px var(--orange);opacity:0;transition:opacity .3s;text-align:center;pointer-events:none;}
   #shipMsg.show{opacity:1;}
   #tag{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom,0px));left:14px;font-size:10px;color:rgba(201,162,74,.5);letter-spacing:2px;}
-  #hint{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom,0px));right:14px;font-size:11px;color:rgba(201,162,74,.7);text-align:right;line-height:1.6;}
+  #hintBtn{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom,0px));right:14px;width:26px;height:26px;border-radius:50%;border:1px solid rgba(201,162,74,.6);background:rgba(10,9,8,.55);color:var(--gold);font-size:13px;font-family:'Courier New',monospace;font-weight:bold;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;z-index:41;line-height:1;}
+  #hintBtn:hover{background:rgba(201,162,74,.2);}
+  #hint{position:absolute;bottom:calc(44px + env(safe-area-inset-bottom,0px));right:14px;font-size:11px;color:rgba(201,162,74,.85);text-align:right;line-height:1.6;max-width:min(420px,72vw);background:rgba(10,9,8,.85);border:1px solid rgba(201,162,74,.4);padding:10px 14px;display:none;pointer-events:auto;}
+  #hint.open{display:block;}
   #start{position:fixed;inset:0;background:rgba(3,2,2,.88);color:var(--gold);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Courier New',monospace;letter-spacing:2px;cursor:pointer;z-index:10;}
   #start h1{color:var(--orange);text-shadow:0 0 10px var(--orange);font-size:22px;margin-bottom:18px;}
   #start p{font-size:12px;line-height:2;text-align:center;color:rgba(201,162,74,.8);}
@@ -201,7 +204,7 @@
      ============================================================ */
   #touchUI{display:none;}
   body.touch #touchUI{display:block;}
-  body.touch #hint{display:none;} /* Tastaturlegende ersetzt Touch-Anleitung, siehe #touchHint */
+  body.touch #hint,body.touch #hintBtn{display:none;} /* Tastaturlegende ersetzt Touch-Anleitung, siehe #touchHint */
   #touchUI *{touch-action:none;-webkit-user-select:none;user-select:none;}
   #touchMove{position:fixed;left:calc(22px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:112px;height:112px;border:1px solid rgba(201,162,74,.5);border-radius:50%;background:rgba(10,9,8,.45);pointer-events:auto;z-index:40;}
   #touchMoveKnob{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px;border-radius:50%;background:rgba(201,162,74,.3);border:1px solid var(--gold);transition:transform .05s linear;}
@@ -230,6 +233,8 @@
     border:1px solid rgba(201,162,74,.4);box-shadow:0 0 40px rgba(255,106,26,.14),inset 0 0 60px rgba(0,0,0,.4);
     padding:26px 28px;letter-spacing:1px;}
   #mmBox h1{color:var(--orange);text-shadow:0 0 12px var(--orange);font-size:19px;text-align:center;margin:0 0 4px;letter-spacing:3px;}
+  #mmLogo{display:block;max-width:260px;max-height:110px;width:auto;height:auto;margin:0 auto 14px;filter:drop-shadow(0 0 14px rgba(255,106,26,.35));}
+  #mmLogo.hidden{display:none;}
   .mmSub{text-align:center;font-size:11px;color:rgba(201,162,74,.7);margin-bottom:20px;letter-spacing:2px;}
   .mmBtn{display:block;width:100%;box-sizing:border-box;background:rgba(201,162,74,.08);border:1px solid rgba(201,162,74,.4);
     color:var(--gold);font-family:inherit;font-size:12px;letter-spacing:2px;padding:11px 14px;margin-bottom:8px;
@@ -372,7 +377,23 @@
   <div id="tag">FERRUM-11984 — PHASE 1–20</div>
   <div id="hint">WASD Bewegung · Maus Blick · Q/E Rollen<br>SHIFT Boost · LEERTASTE Bremsen · Rad Zoom<br>F Mining-Laser · Maus-Links Waffe · Maus-Rechts Rakete (halten Ziel im Fadenkreuz)<br>I Inventar · R Raffinerie · B Baumodus · N Werft · V Stationsbau · Y Energiesparen<br>M Sternkarte / Galaxie · G Sprungtor nutzen · L Handelsterminal · TAB Forschung · O Fundort untersuchen<br>
 P Ziel-Übersicht / Autopilot (Stationen, Asteroiden, Wegpunkte anklicken)<br>F5 Speichern · F9 Laden · F8 Spielstand löschen (Autosave alle 45s + beim Schließen) · ESC Menü/Einstellungen<br>In Baumodi (B/N/V): Schiff steht fest, freie Kamera — WASD bewegen · Leertaste hoch · Strg runter · Shift schneller<br>NPCs: Gold Händler · Grün Miner · Blau Forscher · Marineblau Sicherheit · Rot Piraten</div>
+  <button id="hintBtn" type="button" aria-label="Steuerungsinfo anzeigen" title="Steuerungsinfo">i</button>
 </div>
+<script>
+(function(){
+  var btn=document.getElementById('hintBtn'), hint=document.getElementById('hint');
+  if(!btn||!hint)return;
+  btn.addEventListener('click',function(e){
+    e.stopPropagation();
+    hint.classList.toggle('open');
+  });
+  document.addEventListener('click',function(e){
+    if(hint.classList.contains('open') && e.target!==hint && !hint.contains(e.target) && e.target!==btn){
+      hint.classList.remove('open');
+    }
+  });
+})();
+</script>
 <div id="stRefPanel"><div id="stRefBox" style="background:rgba(18,15,13,.9);border:1px solid rgba(201,162,74,.4);padding:20px;width:min(640px,92vw);max-height:88vh;overflow:auto;">
   <div id="stRefHead" style="letter-spacing:2px;font-size:13px;margin-bottom:4px;">STATIONSRAFFINERIE — <span id="stRefStationName">—</span></div>
   <div id="stRefState" style="font-size:11px;color:var(--orange);margin-bottom:12px;">STATUS: <span id="stRefStatus">LEERLAUF</span></div>
@@ -437,6 +458,7 @@ P Ziel-Übersicht / Autopilot (Stationen, Asteroiden, Wegpunkte anklicken)<br>F5
 <div id="mainMenu">
   <div id="mmBox">
     <div id="mmScreenRoot">
+      <img id="mmLogo" src="art/logo.png" alt="FERRUM-11984" onerror="this.classList.add('hidden')">
       <h1>FERRUM-11984</h1>
       <div class="mmSub">EIN MC ORCA GAMES PROJEKT · SCOUT-01 EINSATZBEREIT</div>
       <button class="mmBtn mmPrimary" id="mmResume" style="display:none;">FORTSETZEN</button>
