@@ -152,6 +152,27 @@
   /* Phase 17 — Erkundung, Anomalien und Wracks */
   #exploreHint{top:calc(222px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);text-align:center;display:none;}
   #exploreHint.on{display:block;}
+  /* Autopilot & Ziel-Übersicht */
+  #apHint{top:calc(258px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);text-align:center;display:none;color:var(--orange);min-width:220px;}
+  #apHint.on{display:block;}
+  #apAbort{margin-top:4px;font-size:9px;color:rgba(201,162,74,.7);}
+  #targetsPanel{position:fixed;inset:0;background:rgba(4,3,3,.86);display:none;align-items:center;justify-content:center;z-index:20;color:var(--gold);font-family:'Courier New',monospace;}
+  #targetsPanel.open{display:flex;}
+  #targetsBox{background:rgba(18,15,13,.92);border:1px solid rgba(201,162,74,.4);padding:20px;width:min(600px,92vw);max-height:92vh;overflow:auto;}
+  #targetsHead{letter-spacing:2px;font-size:13px;margin-bottom:6px;}
+  #targetsSub{font-size:11px;color:var(--orange);margin-bottom:10px;letter-spacing:1px;}
+  #tgtAddBtn{width:100%;background:rgba(201,162,74,.15);border:1px solid var(--gold);color:var(--gold);font-family:inherit;padding:8px;cursor:pointer;letter-spacing:1px;font-size:11px;margin-bottom:6px;}
+  #tgtCancelBtn{width:100%;background:rgba(122,20,20,.25);border:1px solid #ff5a3a;color:#ff9a80;font-family:inherit;padding:8px;cursor:pointer;letter-spacing:1px;font-size:11px;margin-bottom:12px;display:none;}
+  #tgtCancelBtn.on{display:block;}
+  .tgtGroupHead{font-size:10px;letter-spacing:1.5px;color:rgba(201,162,74,.65);margin:10px 0 4px;border-bottom:1px solid rgba(201,162,74,.2);padding-bottom:3px;}
+  .tgtRow{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;padding:7px 8px;cursor:pointer;border-bottom:1px solid rgba(201,162,74,.12);}
+  .tgtRow:hover{background:rgba(201,162,74,.1);}
+  .tgtRow.active{color:var(--orange);}
+  .tgtRow .tgtName{flex:1;}
+  .tgtRow .tgtDist{color:rgba(201,162,74,.6);font-size:10px;white-space:nowrap;}
+  .tgtRow .tgtDel{color:#ff5a3a;font-size:13px;padding:0 4px;flex-shrink:0;}
+  .tgtEmpty{font-size:10px;color:rgba(201,162,74,.5);padding:6px 8px;}
+  #targetsHint{margin-top:10px;font-size:10px;color:rgba(201,162,74,.6);text-align:center;}
   #loreMsg{position:fixed;bottom:calc(112px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);max-width:520px;color:rgba(201,162,74,.85);font-size:11px;font-style:italic;letter-spacing:.5px;text-align:center;opacity:0;transition:opacity .6s;pointer-events:none;text-shadow:0 0 6px rgba(255,106,26,.35);}
   #loreMsg.show{opacity:1;}
   /* Phase 16 — Forschung und Technologie */
@@ -273,6 +294,7 @@
   <div class="panel" id="buildInfo">
     BAUTEIL: <span id="bName">—</span> (<span id="bCost">—</span>)<br>
     Ziel: <span id="bStatus">frei</span>
+    <div style="margin-top:6px;font-size:10px;color:rgba(201,162,74,.6);">Schiff steht fest · WASD frei fliegen · Leertaste hoch · Strg runter · Shift schneller</div>
   </div>
   <div class="panel" id="shipInfo">
     BAUTEIL: <span id="sName">—</span> (<span id="sCost">—</span>)<br>
@@ -339,11 +361,17 @@
     ⌬ <span id="exploreLabel">FUNDORT</span> ERKANNT<br>
     <span style="font-size:10px;color:rgba(201,162,74,.7);">O ZUM UNTERSUCHEN</span>
   </div>
+  <div class="panel" id="apHint">
+    ➤ AUTOPILOT AKTIV — <span id="apLabel">—</span><br>
+    ENTFERNUNG <span id="apDist">0</span>m
+    <div id="apAbort">WASD zum Abbrechen</div>
+  </div>
   <div id="shipMsg"></div>
   <div id="loreMsg"></div>
   <div id="pmode">⚡ ENERGIESPARMODUS AKTIV</div>
   <div id="tag">FERRUM-11984 — PHASE 1–20</div>
-  <div id="hint">WASD Bewegung · Maus Blick · Q/E Rollen<br>SHIFT Boost · LEERTASTE Bremsen · Rad Zoom<br>F Mining-Laser · Maus-Links Waffe · Maus-Rechts Rakete (halten Ziel im Fadenkreuz)<br>I Inventar · R Raffinerie · B Baumodus · N Werft · V Stationsbau · Y Energiesparen<br>M Sternkarte / Galaxie · G Sprungtor nutzen · L Handelsterminal · TAB Forschung · O Fundort untersuchen<br>F5 Speichern · F9 Laden · F8 Spielstand löschen (Autosave alle 45s + beim Schließen) · ESC Menü/Einstellungen<br>NPCs: Gold Händler · Grün Miner · Blau Forscher · Marineblau Sicherheit · Rot Piraten</div>
+  <div id="hint">WASD Bewegung · Maus Blick · Q/E Rollen<br>SHIFT Boost · LEERTASTE Bremsen · Rad Zoom<br>F Mining-Laser · Maus-Links Waffe · Maus-Rechts Rakete (halten Ziel im Fadenkreuz)<br>I Inventar · R Raffinerie · B Baumodus · N Werft · V Stationsbau · Y Energiesparen<br>M Sternkarte / Galaxie · G Sprungtor nutzen · L Handelsterminal · TAB Forschung · O Fundort untersuchen<br>
+P Ziel-Übersicht / Autopilot (Stationen, Asteroiden, Wegpunkte anklicken)<br>F5 Speichern · F9 Laden · F8 Spielstand löschen (Autosave alle 45s + beim Schließen) · ESC Menü/Einstellungen<br>In Baumodi (B/N/V): Schiff steht fest, freie Kamera — WASD bewegen · Leertaste hoch · Strg runter · Shift schneller<br>NPCs: Gold Händler · Grün Miner · Blau Forscher · Marineblau Sicherheit · Rot Piraten</div>
 </div>
 <div id="stRefPanel"><div id="stRefBox" style="background:rgba(18,15,13,.9);border:1px solid rgba(201,162,74,.4);padding:20px;width:min(640px,92vw);max-height:88vh;overflow:auto;">
   <div id="stRefHead" style="letter-spacing:2px;font-size:13px;margin-bottom:4px;">STATIONSRAFFINERIE — <span id="stRefStationName">—</span></div>
@@ -364,6 +392,14 @@
   </div>
   <button id="navJumpBtn" disabled>ZIEL WÄHLEN</button>
   <div id="navHint">Zeile oder Punkt anklicken = Ziel wählen · Sprung kostet Treibstoff · M schließen</div>
+</div></div>
+<div id="targetsPanel"><div id="targetsBox">
+  <div id="targetsHead">ZIEL-ÜBERSICHT — AUTOPILOT</div>
+  <div id="targetsSub">SYSTEM: <span id="tgtSystem">—</span></div>
+  <button id="tgtAddBtn">+ AKTUELLE POSITION ALS WEGPUNKT MERKEN</button>
+  <button id="tgtCancelBtn">AUTOPILOT ABBRECHEN</button>
+  <div id="targetsList"></div>
+  <div id="targetsHint">Zeile anklicken = Autopilot dorthin · 🗑 löscht einen Wegpunkt · P schließen</div>
 </div></div>
 <div id="jumpFlash"></div>
 <div id="tradePanel"><div id="tradeBox">
@@ -505,6 +541,11 @@ renderer.setSize(innerWidth,innerHeight);
 const scene=new THREE.Scene();
 scene.fog=new THREE.FogExp2(0x040404,0.00028);
 const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.5,20000);
+// Baumodus-Licht: an der Kamera befestigt, damit es immer dorthin leuchtet, wohin man gerade schaut
+// (nur während Bau/Werft/Station aktiv — siehe animate()). Kamera muss dafür im Szenegraph hängen.
+const buildCamLight=new THREE.PointLight(0xfff2d6,0,70,1.7);
+camera.add(buildCamLight);
+scene.add(camera);
 
 scene.add(new THREE.AmbientLight(0x3a2a20,0.6));
 const sun=new THREE.DirectionalLight(0xffdcae,1.1);
@@ -709,7 +750,7 @@ function updateGravityAndLanding(dt){
 }
 function updatePlanetHud(){
   const el=document.getElementById('planetInfo');
-  const show=!!nearBody&&!invOpen&&!refOpen&&!stRefOpen&&!navOpen&&!tradeOpen;
+  const show=!!nearBody&&!invOpen&&!refOpen&&!stRefOpen&&!navOpen&&!tradeOpen&&!targetsOpen;
   el.classList.toggle('on',show);
   if(!show)return;
   const center=nearBody.group.getWorldPosition(_worldPosTmp).clone();
@@ -819,6 +860,12 @@ discoverNear(galaxy.systems[0].coord,15); // Sensorreichweite ab Spielstart um d
 
 let currentSystemId='home', navOpen=false, selectedNavTarget=null;
 let currentGates=[], currentAnomalies=[], nearGate=null;
+// Autopilot & Ziel-Übersicht — einfacher "Flieg hin und halte an"-Autopilot plus anklickbare
+// Liste aller Stationen/Asteroiden/Sprungtore/Fundorte im aktuellen System und eigener Wegpunkte
+// (v.a. für selbst gebaute Stationen, damit man sie im All wiederfindet).
+let targetsOpen=false;
+let bookmarks=[];
+const autopilot={active:false,pos:new THREE.Vector3(),label:'',stopRange:20};
 // Phase 17 — Fundorte (Wrack/Ruine/Anomalie/Signal) im aktuellen Fremdsystem, die untersucht werden können.
 let investigateSites=[], nearInvestigate=null;
 const LOOT_ORE={salvage:{name:'BERGEGUT',color:0x8a9a7a},exotic:{name:'EXOTISCHE MATERIE',color:0xff2ad1}};
@@ -1007,6 +1054,8 @@ function executeJump(targetId){
   if(typeof playJumpSting==='function') playJumpSting();
   showShipMsg('SPRUNG ABGESCHLOSSEN: '+sys.name);
   if(navOpen){ navOpen=false; document.getElementById('navPanel').classList.remove('open'); canvas.requestPointerLock(); }
+  if(autopilot.active) disengageAutopilot(null);
+  if(targetsOpen){ targetsOpen=false; document.getElementById('targetsPanel').classList.remove('open'); }
 }
 function drawStarmapCanvas(items,cur){
   const canvasEl=document.getElementById('starmapCanvas');
@@ -1115,12 +1164,19 @@ addEventListener('wheel',e=>{ if(buildMode||shipyardMode||stationMode){buildDist
 const startEl=document.getElementById('start');
 startEl.addEventListener('click',()=>canvas.requestPointerLock());
 let locked=false;
-document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas; startEl.style.display=(locked||invOpen||refOpen||stRefOpen||navOpen||(typeof menuOpen!=='undefined'&&menuOpen)||(typeof gameStarted!=='undefined'&&!gameStarted))?'none':'flex';});
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas; startEl.style.display=(locked||invOpen||refOpen||stRefOpen||navOpen||targetsOpen||(typeof menuOpen!=='undefined'&&menuOpen)||(typeof gameStarted!=='undefined'&&!gameStarted))?'none':'flex';});
 addEventListener('mousemove',e=>{
   if(!locked)return;
   // Phase 20 — Einstellungen: Mausempfindlichkeit-Multiplikator und Y-Achsen-Invertierung.
   const sensMult=(typeof SETTINGS!=='undefined')?SETTINGS.mouseSensMult:1;
   const invY=(typeof SETTINGS!=='undefined'&&SETTINGS.invertY)?-1:1;
+  if(typeof buildMode!=='undefined'&&(buildMode||shipyardMode||stationMode)){
+    // Im Baumodus dreht die Maus nur die freie Kamera, nie das Schiff.
+    freeCam.yaw-=e.movementX*shipStats.mouseSens*powerFactors.turn*sensMult;
+    freeCam.pitch-=e.movementY*shipStats.mouseSens*powerFactors.turn*sensMult*invY;
+    freeCam.pitch=Math.max(-1.55,Math.min(1.55,freeCam.pitch));
+    return;
+  }
   ship.rotateY(-e.movementX*shipStats.mouseSens*powerFactors.turn*sensMult);
   ship.rotateX(-e.movementY*shipStats.mouseSens*powerFactors.turn*sensMult*invY);
 });
@@ -1129,6 +1185,33 @@ const velocity=new THREE.Vector3();
 const clock=new THREE.Clock();
 const fwd=new THREE.Vector3(), right=new THREE.Vector3(), up=new THREE.Vector3();
 const camPos=new THREE.Vector3(), camTarget=new THREE.Vector3();
+
+// Baumodus: freie, trägheitslose Kamera (Schiff bleibt dabei komplett stehen — kein "Gleiten" mehr).
+// WASD bewegt die Kamera direkt (kein velocity/Trägheit), Leertaste/Strg für hoch/runter, Maus dreht nur die Kamera.
+const freeCam={pos:new THREE.Vector3(),yaw:0,pitch:0};
+let _wasBuildMode=false;
+const _fcFwd=new THREE.Vector3(), _fcRight=new THREE.Vector3(), _fcUp=new THREE.Vector3(0,1,0), _fcEuler=new THREE.Euler();
+const BUILD_CAM_SPEED=22;
+function inAnyBuildMode(){ return buildMode||shipyardMode||stationMode; }
+function syncFreeCamToView(){
+  // Beim Öffnen eines Baumodus startet die freie Kamera exakt dort, wo man gerade hinschaut — kein Kamerasprung.
+  freeCam.pos.copy(camera.position);
+  _fcEuler.setFromQuaternion(camera.quaternion,'YXZ');
+  freeCam.yaw=_fcEuler.y; freeCam.pitch=_fcEuler.x;
+}
+function updateFreeCam(dt){
+  const fast=(keys['ShiftLeft']||keys['ShiftRight'])?2.4:1;
+  const spd=BUILD_CAM_SPEED*fast;
+  _fcEuler.set(freeCam.pitch,freeCam.yaw,0,'YXZ');
+  _fcFwd.set(0,0,-1).applyEuler(_fcEuler);
+  _fcRight.set(1,0,0).applyEuler(new THREE.Euler(0,freeCam.yaw,0,'YXZ'));
+  if(keys['KeyW']) freeCam.pos.addScaledVector(_fcFwd,spd*dt);
+  if(keys['KeyS']) freeCam.pos.addScaledVector(_fcFwd,-spd*dt);
+  if(keys['KeyD']) freeCam.pos.addScaledVector(_fcRight,spd*dt);
+  if(keys['KeyA']) freeCam.pos.addScaledVector(_fcRight,-spd*dt);
+  if(keys['Space']) freeCam.pos.addScaledVector(_fcUp,spd*dt);
+  if(keys['ControlLeft']||keys['ControlRight']) freeCam.pos.addScaledVector(_fcUp,-spd*dt);
+}
 
 // Mining-System
 const raycaster=new THREE.Raycaster();
@@ -1444,7 +1527,7 @@ addEventListener('keydown',e=>{
     if(typeof closeAllPanelsExcept==='function') closeAllPanelsExcept('build');
     buildMode=!buildMode;
     document.getElementById('buildInfo').classList.toggle('on',buildMode);
-    if(buildMode)rebuildGhost(); else if(ghostGroup) ghostGroup.visible=false;
+    if(buildMode){ if(autopilot.active) disengageAutopilot(null); velocity.set(0,0,0); syncFreeCamToView(); rebuildGhost(); } else if(ghostGroup) ghostGroup.visible=false;
   }
   if(e.code==='KeyN'){
     if(!shipyardMode&&currentSystemId!=='home'){ showShipMsg('WERFT NUR IM HEIMATSYSTEM MÖGLICH'); return; }
@@ -1455,7 +1538,7 @@ addEventListener('keydown',e=>{
     shipyardMode=!shipyardMode;
     document.getElementById('shipInfo').classList.toggle('on',shipyardMode);
     document.getElementById('shipStats').classList.toggle('on',shipyardMode);
-    if(shipyardMode){rebuildPartGhost(); renderShipyardStats();} else if(partGhost) partGhost.visible=false;
+    if(shipyardMode){ if(autopilot.active) disengageAutopilot(null); velocity.set(0,0,0); syncFreeCamToView(); rebuildPartGhost(); renderShipyardStats(); } else if(partGhost) partGhost.visible=false;
   }
   if(e.code==='KeyV'&&typeof closeAllPanelsExcept==='function'){
     if(!stationMode&&currentSystemId!=='home'){ showShipMsg('STATIONSBAU NUR IM HEIMATSYSTEM MÖGLICH'); return; }
@@ -1463,13 +1546,22 @@ addEventListener('keydown',e=>{
     stationMode=!stationMode;
     document.getElementById('stationInfo').classList.toggle('on',stationMode);
     document.getElementById('stationStats').classList.toggle('on',stationMode);
-    if(stationMode){rebuildStationGhost(); renderStationStats();} else if(stationGhost) stationGhost.visible=false;
+    if(stationMode){ if(autopilot.active) disengageAutopilot(null); velocity.set(0,0,0); syncFreeCamToView(); rebuildStationGhost(); renderStationStats(); } else if(stationGhost) stationGhost.visible=false;
   }
   if(e.code==='KeyM'){
     closeAllPanelsExcept('nav');
     navOpen=!navOpen;
     document.getElementById('navPanel').classList.toggle('open',navOpen);
     if(navOpen){document.exitPointerLock(); selectedNavTarget=null; renderNavMap();}
+    else canvas.requestPointerLock();
+  }
+  // KeyP dient in Werft/Stationsbau als Bauteil-Hotkey (Solarpaneel/Handelsposten, siehe unten) —
+  // die Ziel-Übersicht reagiert auf P deshalb nur außerhalb dieser Baumodi.
+  if(e.code==='KeyP'&&!buildMode&&!shipyardMode&&!stationMode){
+    closeAllPanelsExcept('targets');
+    targetsOpen=!targetsOpen;
+    document.getElementById('targetsPanel').classList.toggle('open',targetsOpen);
+    if(targetsOpen){document.exitPointerLock(); renderTargetsPanel();}
     else canvas.requestPointerLock();
   }
   if(e.code==='Tab'){
@@ -1480,10 +1572,10 @@ addEventListener('keydown',e=>{
     if(researchOpen){document.exitPointerLock(); renderResearchPanel();}
     else canvas.requestPointerLock();
   }
-  if(e.code==='KeyG'&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&nearGate){
+  if(e.code==='KeyG'&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&!targetsOpen&&nearGate){
     executeJump(nearGate.target);
   }
-  if(e.code==='KeyO'&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&!researchOpen&&nearInvestigate){
+  if(e.code==='KeyO'&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&!researchOpen&&!targetsOpen&&nearInvestigate){
     investigateSite(nearInvestigate);
   }
   if(e.code==='KeyZ'&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&dockedStation&&dockedStation.modules.refinery>0){
@@ -1496,7 +1588,7 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyC'&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!tradeOpen&&dockedStation){
     transferCargoToStation();
   }
-  if(e.code==='KeyL'&&!stationMode&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stRefOpen&&!navOpen){
+  if(e.code==='KeyL'&&!stationMode&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stRefOpen&&!navOpen&&!targetsOpen){
     if(tradeOpen){ tradeOpen=false; document.getElementById('tradePanel').classList.remove('open'); canvas.requestPointerLock(); }
     else {
       const host=activeTradeHost();
@@ -1625,7 +1717,16 @@ function rebuildGhost(){
   document.getElementById('bCost').textContent=costText(type);
 }
 function snappedAnchor(){
-  const a=ship.localToWorld(new THREE.Vector3(0,0,-buildDist));
+  // Im Baumodus zeigt die freie Kamera an, wo platziert wird (nicht mehr die Schiffsnase) —
+  // das macht präzises Bauen deutlich einfacher, da man frei um die Baustelle fliegen kann.
+  let a;
+  if(inAnyBuildMode()){
+    _fcEuler.set(freeCam.pitch,freeCam.yaw,0,'YXZ');
+    _fcFwd.set(0,0,-1).applyEuler(_fcEuler);
+    a=freeCam.pos.clone().addScaledVector(_fcFwd,buildDist);
+  } else {
+    a=ship.localToWorld(new THREE.Vector3(0,0,-buildDist));
+  }
   return new THREE.Vector3(Math.round(a.x/BUILD_GRID)*BUILD_GRID,Math.round(a.y/BUILD_GRID)*BUILD_GRID,Math.round(a.z/BUILD_GRID)*BUILD_GRID);
 }
 function placeBlock(){
@@ -2401,6 +2502,167 @@ function tickPirateRaids(dt){
   n.waypoints=[st.core.clone()]; n.wpIndex=0; n.state='travel';
   showShipMsg('⚠ PIRATENÜBERFALL ERKANNT — '+st.name);
 }
+// ============================================================
+// AUTOPILOT & ZIEL-ÜBERSICHT
+// ============================================================
+// Einfacher Autopilot: fliegt geradewegs zu einer Weltkoordinate und bremst kurz davor ab.
+// Wird durch manuelle WASD/Leertaste-Eingabe sofort unterbrochen (siehe animate()).
+const _apToTarget=new THREE.Vector3(), _apDesired=new THREE.Vector3(), _apDiff=new THREE.Vector3();
+const _apUpV=new THREE.Vector3(0,1,0), _apMat4=new THREE.Matrix4(), _apLookQuat=new THREE.Quaternion();
+function engageAutopilot(pos,label,stopRange){
+  autopilot.pos.copy(pos); autopilot.label=label; autopilot.stopRange=stopRange||20; autopilot.active=true;
+  document.getElementById('apLabel').textContent=label;
+  document.getElementById('tgtCancelBtn').classList.add('on');
+  showShipMsg('AUTOPILOT: KURS AUF '+label);
+  if(typeof SFX!=='undefined') SFX.click();
+}
+function disengageAutopilot(reason){
+  if(!autopilot.active)return;
+  autopilot.active=false;
+  document.getElementById('tgtCancelBtn').classList.remove('on');
+  if(reason==='arrived') showShipMsg('AUTOPILOT: ZIEL ERREICHT — '+autopilot.label);
+  else if(reason==='cancelled') showShipMsg('AUTOPILOT ABGEBROCHEN');
+}
+function updateAutopilot(dt){
+  _apToTarget.subVectors(autopilot.pos,ship.position);
+  const dist=_apToTarget.length();
+  document.getElementById('apDist').textContent=Math.round(dist);
+  if(dist<=autopilot.stopRange){
+    velocity.multiplyScalar(Math.max(0,1-dt*4.5));
+    if(velocity.lengthSq()<0.16){ velocity.set(0,0,0); disengageAutopilot('arrived'); }
+    return;
+  }
+  const dir=_apToTarget.multiplyScalar(1/dist);
+  const apMaxSpeed=Math.min(shipStats.maxSpeed*1.05,150);
+  const apAccel=shipStats.accel*1.15;
+  const slowRadius=70;
+  const desiredSpeed=dist<slowRadius?Math.max(8,apMaxSpeed*(dist/slowRadius)):apMaxSpeed;
+  _apDesired.copy(dir).multiplyScalar(desiredSpeed);
+  _apDiff.subVectors(_apDesired,velocity);
+  const diffLen=_apDiff.length(), maxDelta=apAccel*dt;
+  if(diffLen>maxDelta) _apDiff.multiplyScalar(maxDelta/diffLen);
+  velocity.add(_apDiff);
+  _apMat4.lookAt(ship.position,autopilot.pos,_apUpV);
+  _apLookQuat.setFromRotationMatrix(_apMat4);
+  ship.quaternion.slerp(_apLookQuat,Math.min(1,dt*2.6));
+}
+function addBookmarkAtCurrentPosition(){
+  const name=prompt('Name für den Wegpunkt (z.B. "Baustelle Außenposten"):');
+  if(!name)return;
+  bookmarks.push({id:'bm'+Date.now()+Math.floor(Math.random()*1000),name:name.slice(0,42),system:currentSystemId,x:ship.position.x,y:ship.position.y,z:ship.position.z});
+  showShipMsg('WEGPUNKT GESETZT: '+name);
+  renderTargetsPanel();
+}
+function removeBookmark(id){
+  const idx=bookmarks.findIndex(b=>b.id===id); if(idx<0)return;
+  bookmarks.splice(idx,1);
+  renderTargetsPanel();
+}
+function fmtDist(d){ return Math.round(d)+'m'; }
+function escHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function tgtRowHtml(name,distText,dataAttr,extraClass){
+  return '<div class="tgtRow'+(extraClass?' '+extraClass:'')+'" '+dataAttr+'><span class="tgtName">'+name+'</span><span class="tgtDist">'+distText+'</span></div>';
+}
+function renderTargetsPanel(){
+  const homeSys=currentSystemId==='home';
+  const sysObj=galaxy.systems.find(s=>s.id===currentSystemId);
+  document.getElementById('tgtSystem').textContent=sysObj?sysObj.name+(homeSys?' (HEIMAT)':''):currentSystemId;
+  let html='';
+
+  // Wegpunkte — eigene, frei benannte Marker (v.a. für selbst gebaute Stationen/Basen)
+  html+='<div class="tgtGroupHead">WEGPUNKTE</div>';
+  if(!bookmarks.length){ html+='<div class="tgtEmpty">Noch keine Wegpunkte gesetzt.</div>'; }
+  else bookmarks.forEach(b=>{
+    const here=b.system===currentSystemId;
+    const dist=here?fmtDist(ship.position.distanceTo(new THREE.Vector3(b.x,b.y,b.z))):'ANDERES SYSTEM';
+    html+='<div class="tgtRow" data-kind="bookmark" data-id="'+b.id+'"><span class="tgtName">📍 '+escHtml(b.name)+'</span><span class="tgtDist">'+dist+'</span><span class="tgtDel" data-del="'+b.id+'">🗑</span></div>';
+  });
+
+  // Stationen — nur im Heimatsystem baubar
+  if(homeSys){
+    html+='<div class="tgtGroupHead">EIGENE STATIONEN</div>';
+    if(!stations.length){ html+='<div class="tgtEmpty">Noch keine Station gebaut (V = Stationsbau).</div>'; }
+    else stations.forEach(st=>{
+      const dist=ship.position.distanceTo(st.core);
+      html+=tgtRowHtml('⬢ '+(st.name||('STATION '+st.id)),fmtDist(dist),'data-kind="station" data-id="'+st.id+'"');
+    });
+  }
+
+  // Sprungtor / Handelsposten / Fundorte — nur im aktuellen Fremdsystem vorhanden
+  if(!homeSys){
+    html+='<div class="tgtGroupHead">SPRUNGTOR</div>';
+    if(!currentGates.length){ html+='<div class="tgtEmpty">Kein Sprungtor erkannt.</div>'; }
+    else currentGates.forEach((g,i)=>{
+      const wp=g.mesh.getWorldPosition(new THREE.Vector3());
+      html+=tgtRowHtml('⌬ '+g.label,fmtDist(ship.position.distanceTo(wp)),'data-kind="gate" data-idx="'+i+'"');
+    });
+    html+='<div class="tgtGroupHead">HANDELSPOSTEN</div>';
+    if(!currentFacilityMarket){ html+='<div class="tgtEmpty">Kein Handelsposten in diesem System.</div>'; }
+    else{
+      const wp=awayToWorld(currentFacilityMarket.pos,true);
+      html+=tgtRowHtml('⚑ '+currentFacilityMarket.name,fmtDist(ship.position.distanceTo(wp)),'data-kind="facility"');
+    }
+    html+='<div class="tgtGroupHead">UNTERSUCHUNGSZIELE</div>';
+    const openSites=investigateSites.filter(s=>!sysObj.explored[s.type]);
+    if(!openSites.length){ html+='<div class="tgtEmpty">Keine unerforschten Fundorte.</div>'; }
+    else openSites.forEach((s,i)=>{
+      const wp=awayToWorld(s.pos,true);
+      html+=tgtRowHtml('✦ '+(EXPLORE_LABELS[s.type]||s.type.toUpperCase()),fmtDist(ship.position.distanceTo(wp)),'data-kind="site" data-idx="'+investigateSites.indexOf(s)+'"');
+    });
+  }
+
+  // Asteroiden — die nächstgelegenen im aktuellen System, sortiert nach Entfernung
+  html+='<div class="tgtGroupHead">ASTEROIDEN IN DER NÄHE</div>';
+  const roids=asteroidMeshes
+    .filter(m=>!!m.userData.away===!homeSys)
+    .map(m=>({m,wp:m.getWorldPosition(new THREE.Vector3())}))
+    .map(o=>({...o,dist:ship.position.distanceTo(o.wp)}))
+    .sort((a,b)=>a.dist-b.dist)
+    .slice(0,14);
+  if(!roids.length){ html+='<div class="tgtEmpty">Keine Asteroiden erfasst.</div>'; }
+  else roids.forEach(o=>{
+    const idx=asteroidMeshes.indexOf(o.m);
+    const label=(o.m.userData.surface?'◆ VORKOMMEN: ':'◇ ASTEROID: ')+o.m.userData.oreName;
+    html+=tgtRowHtml(label,fmtDist(o.dist),'data-kind="asteroid" data-idx="'+idx+'"');
+  });
+
+  document.getElementById('targetsList').innerHTML=html;
+  document.getElementById('tgtCancelBtn').classList.toggle('on',autopilot.active);
+
+  document.getElementById('targetsList').querySelectorAll('.tgtRow').forEach(row=>{
+    row.addEventListener('click',e=>{
+      if(e.target.dataset.del) return; // Löschen wird separat behandelt (siehe unten)
+      const kind=row.dataset.kind;
+      if(kind==='bookmark'){
+        const b=bookmarks.find(x=>x.id===row.dataset.id); if(!b)return;
+        if(b.system!==currentSystemId){ showShipMsg('WEGPUNKT LIEGT IN ANDEREM SYSTEM — ERST DORTHIN SPRINGEN (M)'); return; }
+        engageAutopilot(new THREE.Vector3(b.x,b.y,b.z),b.name,20);
+      } else if(kind==='station'){
+        const st=stations.find(x=>String(x.id)===row.dataset.id); if(!st)return;
+        engageAutopilot(st.core,st.name||('STATION '+st.id),32);
+      } else if(kind==='gate'){
+        const g=currentGates[+row.dataset.idx]; if(!g)return;
+        engageAutopilot(g.mesh.getWorldPosition(new THREE.Vector3()),g.label,g.range-8);
+      } else if(kind==='facility'){
+        if(!currentFacilityMarket)return;
+        engageAutopilot(awayToWorld(currentFacilityMarket.pos,true),currentFacilityMarket.name,55);
+      } else if(kind==='site'){
+        const s=investigateSites[+row.dataset.idx]; if(!s)return;
+        engageAutopilot(awayToWorld(s.pos,true),EXPLORE_LABELS[s.type]||s.type,Math.max(15,s.range-15));
+      } else if(kind==='asteroid'){
+        const m=asteroidMeshes[+row.dataset.idx]; if(!m)return;
+        engageAutopilot(m.getWorldPosition(new THREE.Vector3()),(m.userData.surface?'VORKOMMEN ':'ASTEROID ')+m.userData.oreName,45);
+      }
+      targetsOpen=false; document.getElementById('targetsPanel').classList.remove('open'); canvas.requestPointerLock();
+    });
+  });
+  document.getElementById('targetsList').querySelectorAll('.tgtDel').forEach(del=>{
+    del.addEventListener('click',e=>{ e.stopPropagation(); removeBookmark(del.dataset.del); });
+  });
+}
+document.getElementById('tgtAddBtn').addEventListener('click',addBookmarkAtCurrentPosition);
+document.getElementById('tgtCancelBtn').addEventListener('click',()=>disengageAutopilot('cancelled'));
+
 function closeAllPanelsExcept(keep){
   if(typeof SFX!=='undefined') SFX.click();
   if(keep!=='inv'&&invOpen){invOpen=false;invPanel.classList.remove('open');}
@@ -2412,6 +2674,7 @@ function closeAllPanelsExcept(keep){
   if(keep!=='nav'&&navOpen){navOpen=false; document.getElementById('navPanel').classList.remove('open');}
   if(keep!=='trade'&&tradeOpen){tradeOpen=false; document.getElementById('tradePanel').classList.remove('open');}
   if(keep!=='research'&&researchOpen){researchOpen=false; document.getElementById('researchPanel').classList.remove('open');}
+  if(keep!=='targets'&&targetsOpen){targetsOpen=false; document.getElementById('targetsPanel').classList.remove('open');}
 }
 function updateDocking(){
   const dockMeshes=[];
@@ -2426,7 +2689,7 @@ function updateDocking(){
     document.getElementById('dockTradeHint').textContent=(dockedStation&&dockedStation.modules.market>0)?' · L Handelsterminal':'';
   }
   const panel=document.getElementById('dockPanel');
-  const show=!!dockedStation&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen;
+  const show=!!dockedStation&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&!targetsOpen;
   panel.classList.toggle('on',show);
   if(show){
     document.getElementById('dockName').textContent=dockedStation.name;
@@ -3182,6 +3445,7 @@ function gatherSaveState(){
       market:st.market?{stock:{...st.market.stock},demand:st.market.demand.slice()}:null,
     })),
     galaxy:galaxy.systems.map(s=>({id:s.id,discovered:s.discovered,explored:{...s.explored}})),
+    bookmarks:bookmarks.map(b=>({id:b.id,name:b.name,system:b.system,x:b.x,y:b.y,z:b.z})),
   };
 }
 
@@ -3189,6 +3453,8 @@ function applySaveState(d){
   if(!d||d.v!==1) return false;
   // Alle Panels/Interaktionsmodi schließen, bevor die Welt ersetzt wird.
   closeAllPanelsExcept(); dockedStation=null; nearFacility=null; currentFacilityMarket=null;
+  if(autopilot.active) disengageAutopilot(null);
+  bookmarks=Array.isArray(d.bookmarks)?d.bookmarks.map(b=>({id:b.id,name:b.name,system:b.system,x:b.x,y:b.y,z:b.z})):[];
   // Ressourcen/Fortschritt zuerst (Forschung wird u.a. für die Rumpf-HP-Berechnung beim
   // Schiffs-Rebuild und für Stations-Multiplikatoren benötigt — muss also vor Schiff/Stationen restauriert werden).
   credits=typeof d.credits==='number'?d.credits:credits;
@@ -3403,7 +3669,7 @@ if(isMobile){
       const dx=t.clientX-lookLast.x, dy=t.clientY-lookLast.y;
       lookLast={x:t.clientX,y:t.clientY};
       if(Math.abs(t.clientX-lookStart.x)+Math.abs(t.clientY-lookStart.y)>10) lookMoved=true;
-      if(!invOpen&&!refOpen&&!stRefOpen&&!navOpen&&!tradeOpen&&!researchOpen&&!menuOpen){
+      if(!invOpen&&!refOpen&&!stRefOpen&&!navOpen&&!tradeOpen&&!researchOpen&&!targetsOpen&&!menuOpen){
         const sensMult=SETTINGS.mouseSensMult, invY=SETTINGS.invertY?-1:1;
         ship.rotateY(-dx*shipStats.mouseSens*2.4*powerFactors.turn*sensMult);
         ship.rotateX(-dy*shipStats.mouseSens*2.4*powerFactors.turn*sensMult*invY);
@@ -3668,7 +3934,7 @@ addEventListener('keydown',e=>{
   if(e.code!=='Escape')return;
   e.preventDefault();
   if(!gameStarted)return;
-  if(invOpen||refOpen||buildMode||shipyardMode||stationMode||stRefOpen||navOpen||tradeOpen||researchOpen){
+  if(invOpen||refOpen||buildMode||shipyardMode||stationMode||stRefOpen||navOpen||tradeOpen||researchOpen||targetsOpen){
     closeAllPanelsExcept(); if(!isMobile) canvas.requestPointerLock(); return;
   }
   if(menuOpen) closeMenu(); else openMenu();
@@ -3697,22 +3963,39 @@ function animate(){
   updateDocking();
   for(const b of CELESTIAL_BODIES){ b.group.rotation.y+=b.rotSpeed*dt; if(b.lod) b.lod.update(camera); }
   updatePlanetHud();
-  if(dockedStation&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&(keys['KeyX'])) refuelShipFromStation(dt);
-  if(!invOpen&&!refOpen&&!stRefOpen&&!navOpen&&!tradeOpen&&!shipDestroyed&&!menuOpen){
-  const boost=(!power.saving&&(keys['ShiftLeft']||keys['ShiftRight']))?2.6:1;
+  if(dockedStation&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&!targetsOpen&&(keys['KeyX'])) refuelShipFromStation(dt);
+  if(!invOpen&&!refOpen&&!stRefOpen&&!navOpen&&!tradeOpen&&!targetsOpen&&!shipDestroyed&&!menuOpen){
+  let boost=1;
+  if(inAnyBuildMode()){
+    // Baumodus: Schiff bleibt komplett fest stehen (keine Physik/Gravitation/Trägheit mehr),
+    // stattdessen fliegt nur die freie Kamera trägheitslos — deutlich einfacher zum Bauen.
+    if(velocity.lengthSq()>0.00001) velocity.set(0,0,0);
+    updateFreeCam(dt);
+    document.getElementById('apHint').classList.remove('on');
+  } else {
+  boost=(!power.saving&&(keys['ShiftLeft']||keys['ShiftRight']))?2.6:1;
   const accel=shipStats.accel*boost*powerFactors.accel*driveMult(), maxSpeed=shipStats.maxSpeed*boost*powerFactors.maxSpeed*driveMult();
 
   fwd.set(0,0,-1).applyQuaternion(ship.quaternion);
   right.set(1,0,0).applyQuaternion(ship.quaternion);
   up.set(0,1,0).applyQuaternion(ship.quaternion);
 
-  if(keys['KeyW']) velocity.addScaledVector(fwd,accel*dt);
-  if(keys['KeyS']) velocity.addScaledVector(fwd,-accel*dt);
-  if(keys['KeyD']) velocity.addScaledVector(right,accel*dt);
-  if(keys['KeyA']) velocity.addScaledVector(right,-accel*dt);
+  // Manuelle Schub-/Bremseingabe übernimmt sofort wieder die Kontrolle vom Autopiloten.
+  if(autopilot.active&&(keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']||keys['Space'])) disengageAutopilot('cancelled');
+
+  if(autopilot.active){
+    updateAutopilot(dt);
+  } else {
+    if(keys['KeyW']) velocity.addScaledVector(fwd,accel*dt);
+    if(keys['KeyS']) velocity.addScaledVector(fwd,-accel*dt);
+    if(keys['KeyD']) velocity.addScaledVector(right,accel*dt);
+    if(keys['KeyA']) velocity.addScaledVector(right,-accel*dt);
+    if(keys['Space']) velocity.multiplyScalar(Math.max(0,1-dt*3.2));
+  }
   if(keys['KeyQ']) ship.rotateZ(shipStats.turnRate*powerFactors.turn*dt);
   if(keys['KeyE']) ship.rotateZ(-shipStats.turnRate*powerFactors.turn*dt);
-  if(keys['Space']) velocity.multiplyScalar(Math.max(0,1-dt*3.2));
+
+  document.getElementById('apHint').classList.toggle('on',autopilot.active);
 
   updateGravityAndLanding(dt);
 
@@ -3724,7 +4007,7 @@ function animate(){
     if(ship.position.distanceTo(gp)<=g.range){ nearGate=g; break; }
   }
   const gateHintEl=document.getElementById('gateHint');
-  gateHintEl.classList.toggle('on',!!nearGate&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen);
+  gateHintEl.classList.toggle('on',!!nearGate&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&!targetsOpen);
   if(nearGate) document.getElementById('gateTarget').textContent='ZIEL: '+nearGate.label;
   for(const a of currentAnomalies){
     const ap=a.mesh.getWorldPosition(_worldPosTmp).clone();
@@ -3737,7 +4020,7 @@ function animate(){
     const fp=awayToWorld(currentFacilityMarket.pos,true);
     if(ship.position.distanceTo(fp)<=140) nearFacility=currentFacilityMarket;
   }
-  document.getElementById('facilityHint').classList.toggle('on',!!nearFacility&&!dockedStation&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen);
+  document.getElementById('facilityHint').classList.toggle('on',!!nearFacility&&!dockedStation&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&!targetsOpen);
 
   // Phase 17 — Erkundung: Wrack/Ruine/Anomalie/Signal in Untersuchungsreichweite? Bereits untersuchte
   // Fundorte (sys.explored) werden übersprungen, auch wenn ihr Mesh (Ambiente/Abbau) weiter existiert.
@@ -3752,13 +4035,14 @@ function animate(){
         if(ship.position.distanceTo(sp)<=site.range) nearInvestigate=site;
       }
     }
-    document.getElementById('exploreHint').classList.toggle('on',!!nearInvestigate&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&!researchOpen);
+    document.getElementById('exploreHint').classList.toggle('on',!!nearInvestigate&&!invOpen&&!refOpen&&!buildMode&&!shipyardMode&&!stationMode&&!stRefOpen&&!navOpen&&!tradeOpen&&!researchOpen&&!targetsOpen);
     if(nearInvestigate) document.getElementById('exploreLabel').textContent=EXPLORE_LABELS[nearInvestigate.type];
   }
 
   velocity.multiplyScalar(0.999);
   if(velocity.length()>maxSpeed) velocity.setLength(maxSpeed);
   ship.position.addScaledVector(velocity,dt);
+  }
 
   // Phase 19 — Performance: weit entfernte Asteroiden (außerhalb des Mining-relevanten Umkreises)
   // sparen sich die Rotationsberechnung; auf diese Distanz ist eine stehende Rotation ohnehin nicht sichtbar.
@@ -3898,7 +4182,7 @@ function animate(){
     pos.needsUpdate=true; pts.material.opacity=Math.max(0,pts.userData.life/0.6);
   }
 
-  const throttle=(keys['KeyW']?1:0)+(keys['KeyS']?.5:0)+(boost>1?.6:0);
+  const throttle=inAnyBuildMode()?0:((keys['KeyW']?1:0)+(keys['KeyS']?.5:0)+(boost>1?.6:0));
   glows.forEach(g=>{const s=1.1+throttle*1.4; g.scale.set(s,s,1); g.material.opacity=Math.min(1,.5+throttle*.5);});
   engineLights.forEach(l=>l.intensity=1+throttle*2.2);
 
@@ -3906,15 +4190,28 @@ function animate(){
   const targetFov=(boost>1&&throttle>0)?65:60;
   if(Math.abs(camera.fov-targetFov)>0.02){ camera.fov+=(targetFov-camera.fov)*Math.min(1,dt*4); camera.updateProjectionMatrix(); }
 
-  camPos.copy(ship.localToWorld(new THREE.Vector3(0,camHeight,camDist)));
-  if(shakeTime>0){
-    shakeTime=Math.max(0,shakeTime-dt);
-    const s=shakeMag*(shakeTime/shakeMax);
-    camPos.x+=(Math.random()-.5)*s; camPos.y+=(Math.random()-.5)*s;
+  // Baumodus-Licht: leuchtet nur, während man tatsächlich baut, und folgt dabei automatisch der Kamera.
+  buildCamLight.intensity=inAnyBuildMode()?2.4:0;
+
+  if(inAnyBuildMode()){
+    // Freie Kamera direkt setzen (kein Lerp) — für präzises Platzieren muss die Sicht sofort exakt stimmen.
+    camera.position.copy(freeCam.pos);
+    _fcEuler.set(freeCam.pitch,freeCam.yaw,0,'YXZ');
+    camera.quaternion.setFromEuler(_fcEuler);
+  } else {
+    camPos.copy(ship.localToWorld(new THREE.Vector3(0,camHeight,camDist)));
+    if(shakeTime>0){
+      shakeTime=Math.max(0,shakeTime-dt);
+      const s=shakeMag*(shakeTime/shakeMax);
+      camPos.x+=(Math.random()-.5)*s; camPos.y+=(Math.random()-.5)*s;
+    }
+    // Direkt zurücksetzen statt weich einzublenden, falls man gerade erst einen Baumodus verlassen hat
+    // (sonst würde die Kamera von einer weit entfernten Bauposition sichtbar zum Schiff "hinfliegen").
+    if(_wasBuildMode) camera.position.copy(camPos); else camera.position.lerp(camPos,1-Math.pow(0.0001,dt));
+    camTarget.copy(ship.localToWorld(new THREE.Vector3(0,0.5,-20)));
+    camera.lookAt(camTarget);
   }
-  camera.position.lerp(camPos,1-Math.pow(0.0001,dt));
-  camTarget.copy(ship.localToWorld(new THREE.Vector3(0,0.5,-20)));
-  camera.lookAt(camTarget);
+  _wasBuildMode=inAnyBuildMode();
 
   document.getElementById('spd').textContent=Math.round(velocity.length());
   document.getElementById('cx').textContent=Math.round(ship.position.x);
