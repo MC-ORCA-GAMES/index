@@ -951,6 +951,9 @@ const SPR_SINGP=makeTex(g=>{ disc(g,'#FF3D6E',32,32,16,16); disc(g,'#000000',32,
 const SPR_HOLE=makeTex(g=>{ disc(g,'#B45CFF',32,32,30,30); disc(g,'#5a1f9a',32,32,24,24); disc(g,'#000000',32,32,17,17); },true);
 const SPR_HOLE2=makeTex(g=>{ disc(g,'#FF3D6E',32,32,30,30); disc(g,'#000000',32,32,26,26); disc(g,'#B45CFF',32,32,16,16); disc(g,'#000000',32,32,12,12); },true);
 const SPR_RAILDOT=makeTex(g=>{ disc(g,'#35E4FF',32,32,20,20); disc(g,'#DFFCFF',32,32,11,11); },true);
+function glyph(g,rows,c,ox,oy,k){ for(let y=0;y<rows.length;y++) for(let x=0;x<rows[y].length;x++) if(rows[y][x]==='X') px(g,c,ox+x*k,oy+y*k,k,k); }
+const SPR_EXCL=makeTex(g=>{ glyph(g,['..X..','..X..','..X..','..X..','..X..','.....','..X..'],'#FF3D6E',12,4,8); },true);   // Phase 6: Gegner hat dich entdeckt
+const SPR_QUEST=makeTex(g=>{ glyph(g,['.XXX.','X...X','....X','...X.','..X..','.....','..X..'],'#FFAE3D',12,4,8); },true);   // Phase 6: Gegner misstrauisch/sucht
 const SPR_ARCDOT=makeTex(g=>{ disc(g,'#5FD8FF',32,32,16,16); disc(g,'#FFFFFF',32,32,8,8); },true);
 const BOOM_PLASMA=[boomFrame('#FFFFFF','#9FF3FF','#35E4FF',true,13,701),boomFrame('#DFFCFF','#35E4FF','#1a7a99',true,19,702),boomFrame('#35E4FF','#1a5a77','#0a2233',true,23,703),boomFrame('#1a3a4a','#0a2233','#04101a',false,18,704)];
 const BOOM_VOID=[boomFrame('#FFFFFF','#E0B8FF','#B45CFF',true,13,711),boomFrame('#E0B8FF','#B45CFF','#5a1f9a',true,20,712),boomFrame('#B45CFF','#3a1466','#1a0a30',true,25,713),boomFrame('#2a1046','#1a0a30','#0a0418',false,20,714),boomFrame('#140a24','#0a0418','#04020a',false,14,715)];
@@ -1763,6 +1766,7 @@ function parseLevel(src){
         flash:0,atk:0,strafe:Math.random()<.5?-1:1,strT:0,bodyT:0,stagT:0,stagX:0,stagY:0}); totals.foes++; }
     else if(PICKUP_SPR[c]){ pickups.push({kind:c,x:cx,y:cy,taken:false,ph:Math.random()*6}); if(c==='m') totals.shards++; }
   }
+  AI.reset(); for(const e of enemies) AI.init(e);
   P.pitch=0; P.fireCd=0; P.recoil=0; P.flash=0; P.bob=0; if(!P.owned[P.weapon]) P.weapon=0; P.reloadT=0; P.hs.fill(0); P.os.fill(0); P.heat=0; P.overheatT=0;
   pshots.length=0; holes.length=0; beams.length=0;
   stepPhase=0;
@@ -2361,7 +2365,7 @@ const Stats=(()=>{
 
 /* ---- NX: ein Namespace für alle Teilzustände (Getter, weil Level-Variablen neu zugewiesen werden) ---- */
 const NX={
-  phase:5,
+  phase:6,
   stats:Stats,                                         // Spieler-Werte + Bonusquellen (Phase 3)
   SAVE_VERSION,
   get state(){ return state; },
@@ -2376,6 +2380,7 @@ const NX={
   enemies:{                                            // Enemy State (Phase 6–8: KI, Klassen, Elites)
     types:ETYPES,
     get list(){ return enemies; },
+    get ai(){ return AI; },
     get alive(){ let n=0; for(let i=0;i<enemies.length;i++) if(enemies[i].alive) n++; return n; }
   },
   level:{                                              // Level State (Phase 10–12: Events, Biome, Hazards)
@@ -2675,9 +2680,7 @@ function openLoadout(back){
 }
 function fmt(t){ const s=t|0; return ((s/60)|0)+':'+String(s%60).padStart(2,'0'); }
 
-function alertNear(){
-  for(const e of enemies){ if(e.alive&&!e.awake){ const d=Math.hypot(e.x-P.x,e.y-P.y); if(d<9) e.hear=true; } }
-}
+function alertNear(r){ AI.noise(P.x,P.y,r||9); }   // Phase 6: Gegner untersuchen das Geräusch (Radius je Waffe, durch Wände gedämpft)
 function tryFire(){
   if(P.fireCd>0||P.reloadT>0||P.overheatT>0) return;      // Cooldown / Nachladen / gesperrt (kuehlt ab)
   const i=P.weapon, w=WEAPONS[i], V=Stats.val, M=Mods.eff(i);
@@ -2707,7 +2710,7 @@ function tryFire(){
     P.heat=Math.min(1,P.heat+w.heat*V.heatMul*M.heat);
     if(P.heat>=1){ P.overheatT=1.6; sfx.overheat(); showMsg(w.name+' überhitzt — kühlt ab…',1300); kick(.32); }
   }
-  alertNear();
+  alertNear(NOISE[w.id]||9);
   if(w.mag>0&&P.mag[i]<=0) startReload();                  // letzter Schuss: automatisch nachladen
 }
 /* ---- Feuern für die Titelbild-Demo: identisches Waffengefühl, aber ohne Munitionsverbrauch ---- */
@@ -2858,8 +2861,8 @@ function updateBeams(dt){
   for(let i=beams.length-1;i>=0;i--){ const b=beams[i]; b.t+=dt; if(b.t>=b.life) beams.splice(i,1); }
 }
 function damageEnemy(e,dmg,ang,crit,quiet){
-  e.hp-=dmg; e.flash=.1; if(!quiet){ FX.hitMark=crit?.22:.15; if(crit) FX.crit=.22; } e.awake=true;
-  if(e.hp<=0){ e.alive=false; e.bodyT=0; stats.kills++; if(state==='play'){ Save.onKill(e.type==='K'); Combat.kill(); Mods.onKill(e,modDepth()); } sfx.kill(Math.hypot(e.x-P.x,e.y-P.y));
+  e.hp-=dmg; e.flash=.1; if(!quiet){ FX.hitMark=crit?.22:.15; if(crit) FX.crit=.22; } AI.onHurt(e);
+  if(e.hp<=0){ e.alive=false; e.bodyT=0; stats.kills++; if(state==='play'){ Save.onKill(e.type==='K'); Combat.kill(); Mods.onKill(e,modDepth()); AI.onDeath(e); } sfx.kill(Math.hypot(e.x-P.x,e.y-P.y));
     spawnBoom(e.x,e.y,ETYPES[e.type].sc); kick(e.type==='K'?.9:.48);
     if(e.type==='K') showMsg('Kern-Wächter besiegt — das Portal ist offen',3000);
   } else {
@@ -2881,6 +2884,280 @@ function spawnShot(x,y,ang,dmg){
 }
 function wake(e){ e.awake=true; sfx.alert(Math.hypot(e.x-P.x,e.y-P.y)); }
 
+/* ============================================================
+   Gegner-KI (Phase 6). Zustaende je Gegner (e.ai):
+   IDLE (patrouilliert/wacht, Sicht mit Blickfeld) -> INVEST (Geraeusch/Alarm untersuchen) -> COMBAT (e.awake = true)
+   COMBAT -> SEARCH (Sichtkontakt verloren: letzte bekannte Position absuchen, dann zurueck zu IDLE) | FLEE (Rueckzug bei wenig HP/Moral)
+   `e.awake` bleibt "im Kampf" (COMBAT/SEARCH/FLEE): Bedrohungsanzeige, Boss-Leiste und Tests nutzen es weiter. Der Boss (K) behaelt sein altes Verhalten.
+   Aggressionsstufen e.aggr 0/1/2 (vorsichtig/normal/aggressiv) veraendern Sichtweite, Reaktionszeit, Fluchtschwelle, Flankieren, Tempo, Suchdauer.
+   ============================================================ */
+const AI_IDLE=0, AI_INVEST=1, AI_COMBAT=2, AI_SEARCH=3, AI_FLEE=4;
+const AGGR=[
+  {n:'vorsichtig',sight:.85,react:.65,flee:.30,flank:.75,speed:.95,search:3.5,fov:1.9,peek:1},
+  {n:'normal',    sight:1,  react:.40,flee:.14,flank:.45,speed:1,  search:5,  fov:2.2,peek:2},
+  {n:'aggressiv', sight:1.15,react:.18,flee:0,  flank:.12,speed:1.08,search:8,fov:2.6,peek:3}
+];
+const FEARLESS={p:1,v:1,u:1,e:1};    // Schwaerme und Sprenger fliehen nie
+const ALARMERS={d:1,t:1};            // Drohne und Turm schlagen grossen Alarm
+const NOISE={pistol:9,shotgun:12,fists:3.5,auto:11,plasma:10,rail:13,arc:8,void:12,singularity:7};
+const AI=(()=>{
+  const TAU=Math.PI*2;
+  const api={ deaths:[], alarmT:0, msgT:0, t:0, slotT:0, cache:new Map(), stats:{spots:0,alarms:0,flees:0,searches:0,giveups:0} };
+  const angDiff=(a,b)=>{ let d=a-b; while(d>Math.PI) d-=TAU; while(d<-Math.PI) d+=TAU; return Math.abs(d); };
+  api.angDiff=angDiff;
+  api.turn=function(e,a,k){ let d=a-e.face; while(d>Math.PI) d-=TAU; while(d<-Math.PI) d+=TAU; e.face+=d*Math.min(1,k); };
+  api.reset=function(){ api.deaths.length=0; api.alarmT=0; api.msgT=0; api.slotT=0; api.cache.clear(); };
+  api.init=function(e){
+    const dp=Math.max(1,(typeof modDepth==='function'&&lvl)?modDepth():1), r=Math.random();
+    const pc=.3-Math.min(.2,dp*.012), pa=.2+Math.min(.25,dp*.015);
+    e.aggr=e.type==='K'?2:(r<pc?0:r>1-pa?2:1);
+    e.ai=AI_IDLE; e.face=Math.random()*TAU; e.hface=e.face; e.hx=e.x; e.hy=e.y;
+    e.patrol=!STATIONARY_TYPES[e.type]&&e.type!=='K'&&Math.random()<.65;
+    e.wpx=null; e.wpy=0; e.wpT=0; e.wait=Math.random()*2; e.tx=e.ty=0; e.nx=e.ny=0; e.lkx=e.lky=0; e.lostT=0; e.invT=0; e.lookT=0; e.searchT=0;
+    e.reactT=-1; e.senseT=Math.random()*.1; e.sees=false; e.hear=false; e.rush=false;
+    e.fleeT=0; e.fled=0; e.hurtT=0; e.mark=0; e.markT=0;
+    e.flank=Math.random()<AGGR[e.aggr].flank; e.side=Math.random()<.5?-1:1; e.slotA=null; e.pa=0;
+    e.cv=0; e.cvx=e.cvy=e.cpx=e.cpy=0; e.hideT=0; e.peekN=0; e.peekT=0; e.cvSearchT=0;
+  };
+  /* Wegfindung zu einem beliebigen Zielfeld (Cache: 12 Felder, aelteste fliegt raus) */
+  api.field=function(cx,cy){
+    if(cx<0||cy<0||cx>=MW||cy>=MH) return null;
+    const key=cy*MW+cx; let h=api.cache.get(key);
+    if(!h){ h={f:computeFlowFromCell(cx,cy)}; if(api.cache.size>=12) api.cache.delete(api.cache.keys().next().value); api.cache.set(key,h); }
+    return h.f;
+  };
+  /* Richtung zu einem Punkt: geradeaus, wenn frei, sonst ueber das Zielfeld */
+  api.dirTo=function(e,tx,ty){
+    const dx=tx-e.x, dy=ty-e.y, d=Math.hypot(dx,dy); if(d<.02) return [0,0,d];
+    let mx=dx/d, my=dy/d;
+    if(rayWallDist(e.x,e.y,mx,my)<d-.1){
+      const tg=fieldTarget(e.x,e.y,api.field(tx|0,ty|0));
+      if(tg){ const ax=tg.x-e.x, ay=tg.y-e.y, al=Math.hypot(ax,ay)||1; mx=ax/al; my=ay/al; }
+    }
+    return [mx,my,d];
+  };
+  api.mark=function(e,m,t){ e.mark=m; e.markT=t; };
+  /* Geraeusch: Gegner ohne Kampf hoeren es (durch Waende gedaempft: nur innerhalb 60 % des Radius) */
+  api.noise=function(x,y,R){
+    for(const e of enemies){
+      if(!e.alive||e.awake||e.type==='K') continue;
+      const dx=e.x-x, dy=e.y-y, d=Math.hypot(dx,dy); if(d>R) continue;
+      if(d>R*.6&&d>.3&&rayWallDist(x,y,dx/d,dy/d)<d-.1) continue;
+      e.hear=true; e.nx=x+(Math.random()-.5)*d*.16; e.ny=y+(Math.random()-.5)*d*.16;
+    }
+  };
+  api.hearAt=function(e,x,y,rush){ e.hear=true; e.nx=x; e.ny=y; if(rush) e.rush=true; };
+  /* Rufen/Alarm an Verbuendete: nahe mit Sicht -> Kampf, sonst Untersuchen der Spielerposition */
+  api.shout=function(e,R,alarm){
+    for(const o of enemies){
+      if(o===e||!o.alive||o.awake||o.type==='K') continue;
+      const dx=o.x-e.x, dy=o.y-e.y, d=Math.hypot(dx,dy); if(d>R) continue;
+      const clear=d<.3||rayWallDist(e.x,e.y,dx/d,dy/d)>=d-.1;
+      if(!alarm&&!clear&&d>R*.55) continue;
+      if(clear&&d<5.5){ api.engage(o); }
+      else { o.hear=true; o.nx=P.x; o.ny=P.y; o.rush=!!alarm; }
+    }
+    if(alarm){
+      api.stats.alarms++; api.alarmT=8;
+      if(api.msgT<=0&&state==='play'){ api.msgT=10; showMsg('ALARM — '+ETYPES[e.type].name+' ruft Verstärkung',2000); }
+    }
+  };
+  api.engage=function(e){   // in den Kampf, Spielerposition als letzte bekannte Position
+    e.awake=true; e.ai=AI_COMBAT; e.lkx=P.x; e.lky=P.y; e.lostT=0; e.reactT=-1; e.fleeT=0; e.rush=false;
+    api.mark(e,2,1.1);
+  };
+  api.spot=function(e){
+    if(e.awake) return;
+    api.engage(e); api.stats.spots++;
+    sfx.alert(Math.hypot(e.x-P.x,e.y-P.y));
+    api.shout(e,ALARMERS[e.type]?18:9,!!ALARMERS[e.type]);
+  };
+  api.onHurt=function(e){
+    if(e.ai===undefined) api.init(e);
+    e.hurtT=.8;
+    if(e.type==='K'){ e.awake=true; return; }
+    if(!e.awake){ api.engage(e); api.shout(e,6,false); }
+    else if(e.ai===AI_SEARCH||e.ai===AI_INVEST||e.ai===AI_IDLE){ e.ai=AI_COMBAT; e.lkx=P.x; e.lky=P.y; e.lostT=0; }
+  };
+  api.onDeath=function(e){
+    api.deaths.push({x:e.x,y:e.y,t:api.t}); if(api.deaths.length>12) api.deaths.shift();
+    for(const o of enemies){                               // Verbuendete in der Naehe entdecken die Leiche
+      if(!o.alive||o.awake||o===e||o.type==='K') continue;
+      const dx=o.x-e.x, dy=o.y-e.y, d=Math.hypot(dx,dy); if(d>8) continue;
+      if(d>3.5&&rayWallDist(e.x,e.y,dx/d,dy/d)<d-.1) continue;
+      api.hearAt(o,e.x,e.y);
+    }
+  };
+  api.deathsNear=function(e,R,T){ let n=0; for(const d of api.deaths) if(api.t-d.t<T&&Math.hypot(d.x-e.x,d.y-e.y)<R) n++; return n; };
+  function pickWaypoint(e){
+    for(let k=0;k<6;k++){
+      const a=Math.random()*TAU, r=2+Math.random()*3.5, x=e.hx+Math.cos(a)*r, y=e.hy+Math.sin(a)*r;
+      if(solidAt(x,y)) continue;
+      const dx=x-e.x, dy=y-e.y, d=Math.hypot(dx,dy); if(d<1) continue;
+      if(rayWallDist(e.x,e.y,dx/d,dy/d)<d-.1) continue;
+      e.wpx=x; e.wpy=y; e.wpT=d/Math.max(.3,ETYPES[e.type].spd*.4)+3; return;
+    }
+    e.wait=1;
+  }
+  /* Gegner ohne Kampf: Sinne, Untersuchen, Patrouille/Wache. true = jetzt im Kampf. */
+  api.idle=function(e,dt,dist,dx,dy){
+    const A=AGGR[e.aggr], t=ETYPES[e.type], mob=!STATIONARY_TYPES[e.type];
+    e.senseT-=dt;
+    if(e.senseT<=0){
+      e.senseT=.11; let sees=false;
+      if(dist<(mob?12:14)*A.sight){
+        const ux=dx/dist, uy=dy/dist;
+        if(rayWallDist(e.x,e.y,ux,uy)>=dist-.15&&(dist<2.8||angDiff(e.face,Math.atan2(dy,dx))<A.fov/2)) sees=true;
+      }
+      e.sees=sees;
+    }
+    if(e.sees){                                              // Schrecksekunde, dann Kampf
+      if(e.reactT<0){ e.reactT=A.react; api.mark(e,1,A.react+.2); }
+      e.reactT-=dt; api.turn(e,Math.atan2(dy,dx),dt*10);
+      if(e.reactT<=0){ api.spot(e); return true; }
+      return false;
+    } else if(e.reactT>=0) e.reactT=-1;
+    if(e.hear){                                              // Geraeusch: hinschauen und untersuchen
+      e.hear=false;
+      if(e.ai!==AI_INVEST) api.mark(e,1,1.4);
+      e.ai=AI_INVEST; e.tx=e.nx; e.ty=e.ny; e.invT=9; e.lookT=0; e.wpx=null;
+      api.turn(e,Math.atan2(e.ny-e.y,e.nx-e.x),.6);
+    }
+    if(e.ai===AI_INVEST){
+      e.invT-=dt;
+      const dd=Math.hypot(e.tx-e.x,e.ty-e.y);
+      if(mob&&dd>.7&&e.invT>0){
+        const v=api.dirTo(e,e.tx,e.ty), sp=t.spd*(e.rush?1.1:.85)*A.speed*dt;
+        tryMove(e,v[0]*sp,v[1]*sp,t.rad*.8); api.turn(e,Math.atan2(v[1],v[0]),dt*8);
+      } else {
+        e.lookT+=dt; e.face+=dt*1.6*e.side;                  // umsehen
+        if(e.lookT>2.2){ e.ai=AI_IDLE; e.rush=false; e.hx=e.x; e.hy=e.y; e.hface=e.face; e.wpx=null; e.wait=1; e.lookT=0; }
+      }
+      return false;
+    }
+    if(e.patrol){
+      if(e.wpx===null){
+        e.wait-=dt; api.turn(e,e.hface+Math.sin(api.t*.9+e.hx)*.7,dt*3);
+        if(e.wait<=0) pickWaypoint(e);
+      } else {
+        const v=api.dirTo(e,e.wpx,e.wpy), sp=t.spd*.42*A.speed*dt;
+        tryMove(e,v[0]*sp,v[1]*sp,t.rad*.8); api.turn(e,Math.atan2(v[1],v[0]),dt*5);
+        e.wpT-=dt; if(v[2]<.35||e.wpT<=0){ e.wpx=null; e.wait=1+Math.random()*2.5; e.hface=e.face; }
+      }
+    } else api.turn(e,e.hface+Math.sin(api.t*.55+e.hx*1.7)*1.1,dt*3);   // Wache: langsames Absuchen
+    return false;
+  };
+  api.shouldFlee=function(e){
+    if(e.type==='K'||FEARLESS[e.type]||STATIONARY_TYPES[e.type]||e.fled>=2||e.ai===AI_FLEE) return false;
+    const f=e.hp/e.maxhp;
+    if(f<AGGR[e.aggr].flee) return true;
+    return e.aggr===0&&f<.7&&api.deathsNear(e,7,5)>=2;       // Moral: vorsichtige Gegner fliehen bei Verlusten
+  };
+  /* Kampf-Zustandslogik. false = Gegner hat aufgegeben und ist wieder IDLE. */
+  api.engaged=function(e,dt,los,dist){
+    const A=AGGR[e.aggr];
+    e.hurtT=Math.max(0,e.hurtT-dt);
+    if(los){ e.lkx=P.x; e.lky=P.y; e.lostT=0; if(e.ai===AI_SEARCH||e.ai===AI_INVEST){ e.ai=AI_COMBAT; api.mark(e,2,.8); } }
+    else e.lostT+=dt;
+    if(e.ai===AI_FLEE){
+      e.fleeT-=dt;
+      if(e.fleeT<=0||dist>13){ if(los||Math.random()<.6) e.ai=AI_COMBAT; else { e.ai=AI_SEARCH; e.searchT=A.search*.5; e.lookT=0; } }
+    } else if(api.shouldFlee(e)){ e.ai=AI_FLEE; e.fleeT=2.5+Math.random()*1.5; e.fled++; api.stats.flees++; api.mark(e,1,1); }
+    if(e.ai===AI_COMBAT&&e.lostT>1.2){ e.ai=AI_SEARCH; e.searchT=A.search; e.lookT=0; api.stats.searches++; api.mark(e,1,1.2); }
+    if(e.ai===AI_SEARCH){
+      const still=STATIONARY_TYPES[e.type]||Math.hypot(e.lkx-e.x,e.lky-e.y)<.8;
+      e.searchT-=dt*(still?1:.35); if(still) e.lookT+=dt;
+      if(e.searchT<=0){ api.giveUp(e); return false; }
+    }
+    return true;
+  };
+  api.giveUp=function(e){
+    e.awake=false; e.ai=AI_IDLE; e.hx=e.x; e.hy=e.y; e.hface=e.face; e.wpx=null; e.wait=1; e.reactT=-1; e.sees=false; e.hear=false;
+    e.slotA=null; e.cv=0; e.mark=0; e.markT=0; e.rush=false; api.stats.giveups++;
+  };
+  /* Fluchtrichtung: Nachbarzelle mit dem groessten Abstand zum Spieler (Flow-Feld). null = in die Ecke gedraengt. */
+  api.fleeDir=function(e){
+    if(!flow) return null;
+    const cx=e.x|0, cy=e.y|0; let best=flow[cy*MW+cx], bx=-1, by=-1;
+    if(best<0) return null;
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+      if(!dx&&!dy) continue;
+      const nx=cx+dx, ny=cy+dy; if(nx<0||ny<0||nx>=MW||ny>=MH) continue;
+      const v=flow[ny*MW+nx]; if(v<=best) continue;
+      if(dx&&dy&&(grid[cy*MW+nx]>0||grid[ny*MW+cx]>0)) continue;
+      best=v; bx=nx; by=ny;
+    }
+    if(bx<0) return null;
+    const ax=bx+.5-e.x, ay=by+.5-e.y, al=Math.hypot(ax,ay)||1; return [ax/al,ay/al];
+  };
+  /* Deckung fuer Fernkaempfer: Zelle ohne Sicht auf den Spieler, mit Nachbarzelle (Schiessposition) MIT Sicht */
+  api.findCover=function(e){
+    const ex=e.x|0, ey=e.y|0; let best=null, bs=1e9;
+    for(let dy=-5;dy<=5;dy++) for(let dx=-5;dx<=5;dx++){
+      const cx=ex+dx, cy=ey+dy; if(cx<1||cy<1||cx>=MW-1||cy>=MH-1||grid[cy*MW+cx]>0) continue;
+      const fx=cx+.5, fy=cy+.5, vx=P.x-fx, vy=P.y-fy, vd=Math.hypot(vx,vy);
+      if(vd<3||vd>12||rayWallDist(fx,fy,vx/vd,vy/vd)>=vd-.2) continue;
+      let pk=null;
+      for(const a of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=cx+a[0], ny=cy+a[1]; if(grid[ny*MW+nx]>0) continue;
+        const qx=nx+.5, qy=ny+.5, wx=P.x-qx, wy=P.y-qy, wd=Math.hypot(wx,wy)||1;
+        if(rayWallDist(qx,qy,wx/wd,wy/wd)>=wd-.2){ pk={x:qx,y:qy}; break; }
+      }
+      if(!pk) continue;
+      const sc=Math.hypot(dx,dy)+Math.abs(vd-7)*.3;
+      if(sc<bs){ bs=sc; best={x:fx,y:fy,px:pk.x,py:pk.y}; }
+    }
+    return best;
+  };
+  /* Drohne: nach einem Schuss/Treffer in Deckung, dort kurz warten, dann herauslugen und schiessen. null = altes Kite-Verhalten. */
+  api.cover=function(e,dt,los,dist){
+    const A=AGGR[e.aggr];
+    e.cvSearchT-=dt;
+    if(e.cv===0){
+      if((e.peekN>=1||e.hurtT>0)&&e.cvSearchT<=0){
+        e.cvSearchT=1.5; const c=api.findCover(e);
+        if(c){ e.cv=1; e.cvx=c.x; e.cvy=c.y; e.cpx=c.px; e.cpy=c.py; e.hideT=.8+Math.random()*1.2; e.peekN=0; }
+      }
+      return null;
+    }
+    if(dist>10.5&&e.cv===2) return null;
+    if(e.cv===1){
+      const v=api.dirTo(e,e.cvx,e.cvy);
+      if(v[2]>.3) return [v[0],v[1]];
+      e.hideT-=dt;
+      if(e.hideT<=0){
+        const vx=P.x-e.cvx, vy=P.y-e.cvy, vd=Math.hypot(vx,vy)||1;
+        if(rayWallDist(e.cvx,e.cvy,vx/vd,vy/vd)<vd-.2){ e.cv=2; e.peekN=0; e.peekT=0; }     // Deckung gilt noch
+        else { e.cv=0; e.cvSearchT=0; }                                                    // Spieler hat sich bewegt: neu suchen
+      }
+      return [0,0];
+    }
+    e.peekT+=dt;                                             // e.cv===2: herauslugen
+    if(e.peekN>=A.peek||e.hurtT>0||e.peekT>4.5){ e.cv=1; e.hideT=.9+Math.random()*1.2; e.peekN=0; return [0,0]; }
+    if(los) return [0,0];
+    const v=api.dirTo(e,e.cpx,e.cpy); return [v[0],v[1]];
+  };
+  /* Einkesseln: fluegel-orientierte Rusher bekommen Winkel-Slots um den Spieler */
+  api.tick=function(dt){
+    api.t+=dt; api.alarmT-=dt; api.msgT-=dt; api.slotT-=dt;
+    if(api.slotT>0) return; api.slotT=.4;
+    const L=[];
+    for(const e of enemies){
+      if(!e.alive||!e.awake||e.ai!==AI_COMBAT||!e.flank||APPROACH_STOP[e.type]===undefined) continue;
+      const d=Math.hypot(e.x-P.x,e.y-P.y); if(d>10||d<1.5){ e.slotA=null; continue; }
+      e.pa=Math.atan2(e.y-P.y,e.x-P.x); L.push(e);
+    }
+    const n=L.length; if(!n) return;
+    if(n===1){ L[0].slotA=L[0].pa+L[0].side*1.15; return; }
+    L.sort((a,b)=>a.pa-b.pa); const base=L[0].pa;
+    for(let k=0;k<n;k++){
+      let off=base+k*TAU/n-L[k].pa; while(off>Math.PI) off-=TAU; while(off<-Math.PI) off+=TAU;
+      L[k].slotA=L[k].pa+Math.max(-1.3,Math.min(1.3,off));
+    }
+  };
+  return api;
+})();
+
 function updateEnemy(e,dt){
   if(!e.alive){ e.bodyT+=dt; return; }
   const t=ETYPES[e.type];
@@ -2891,28 +3168,50 @@ function updateEnemy(e,dt){
     const decay=Math.max(0,1-dt*7); e.stagX*=decay; e.stagY*=decay;
     return;
   }
-  const dx=P.x-e.x, dy=P.y-e.y, dist=Math.hypot(dx,dy)||.001, ux=dx/dist, uy=dy/dist;
+  if(e.ai===undefined) AI.init(e);
+  const dx=P.x-e.x, dy=P.y-e.y, dist=Math.hypot(dx,dy)||.001, ux=dx/dist, uy=dy/dist, isK=e.type==='K';
+  if(e.markT>0){ e.markT-=dt; if(e.markT<=0) e.mark=0; }
+  if(!e.awake){
+    if(isK){ if((rayWallDist(e.x,e.y,ux,uy)>=dist-.15&&dist<12)||e.hear) wake(e); else return; }      // Boss: altes Verhalten
+    else if(!AI.idle(e,dt,dist,dx,dy)) return;
+  }
   const los=rayWallDist(e.x,e.y,ux,uy)>=dist-.15;
-  if(!e.awake){ if((los&&dist<12)||e.hear) wake(e); else return; }
+  if(!isK&&!AI.engaged(e,dt,los,dist)) return;
   if(e.strT<=0){ e.strafe=Math.random()<.5?-1:1; e.strT=1+Math.random()*1.5; }
+  const A=AGGR[e.aggr||0], fleeing=e.ai===AI_FLEE;
 
-  let mx=0,my=0;
+  let mx=0,my=0,cvm=null;
   if(STATIONARY_TYPES[e.type]){
     // Turm-Sentinel, Sporen-Wächter, Kristall-Spucker & Sandschleier-Geist
     // bewegen sich grundsätzlich nicht — weder Pathing bei fehlender Sicht
     // noch Nahannäherung, bleiben als Hindernis stehen.
+  } else if(fleeing){
+    const f=AI.fleeDir(e); if(f){ mx=f[0]; my=f[1]; } else { e.ai=AI_COMBAT; e.fled=9; }      // in die Ecke gedraengt: kaempfen
+  } else if(!isK&&e.ai===AI_SEARCH){
+    if(Math.hypot(e.lkx-e.x,e.lky-e.y)>.8){ const v=AI.dirTo(e,e.lkx,e.lky); mx=v[0]; my=v[1]; }
+    else AI.turn(e,e.face+e.side*1.5,dt*3);                                                     // Umsehen
+  } else if(!isK&&e.type==='d'&&(cvm=AI.cover(e,dt,los,dist))){
+    mx=cvm[0]; my=cvm[1];
   } else if(!los||dist>13){
     const tg=flowTarget(e);
     if(tg){ const tx=tg.x-e.x, ty=tg.y-e.y, tl=Math.hypot(tx,ty)||1; mx=tx/tl; my=ty/tl; }
   } else if(e.type==='d'){
     if(dist>5.5){ mx=ux; my=uy; } else if(dist<3){ mx=-ux; my=-uy; } else { mx=-uy*e.strafe; my=ux*e.strafe; }
   } else if(APPROACH_STOP[e.type]!==undefined){
-    if(dist>APPROACH_STOP[e.type]){ mx=ux; my=uy; } // ungebremst ran, kein Rückzug/Strafing
+    if(dist>APPROACH_STOP[e.type]){
+      mx=ux; my=uy;                                  // ungebremst ran, kein Rückzug/Strafing
+      if(e.flank&&e.slotA!=null&&dist<10&&dist>APPROACH_STOP[e.type]*1.6){   // Phase 6: Flanke/Einkesseln über Winkel-Slot
+        const rr=Math.max(APPROACH_STOP[e.type]+.4,dist*.75), qx=P.x+Math.cos(e.slotA)*rr, qy=P.y+Math.sin(e.slotA)*rr;
+        const vx=qx-e.x, vy=qy-e.y, vl=Math.hypot(vx,vy);
+        if(vl>.15&&rayWallDist(e.x,e.y,vx/vl,vy/vl)>=vl-.1){ mx=vx/vl; my=vy/vl; }
+      }
+    }
   } else {
     if(dist>5){ mx=ux; my=uy; } else if(dist<3){ mx=-ux; my=-uy; } else { mx=-uy*e.strafe; my=ux*e.strafe; }
   }
-  const sp=t.spd*(e.type==='K'&&e.hp<t.hp*.5?1.3:1)*dt;
+  const sp=t.spd*(isK?(e.hp<t.hp*.5?1.3:1):A.speed*(fleeing?1.2:e.ai===AI_SEARCH?.9:1))*dt;
   tryMove(e,mx*sp,my*sp,t.rad*.8);
+  if(!isK){ if(mx||my) AI.turn(e,Math.atan2(my,mx),dt*8); if(los&&e.ai!==AI_SEARCH) AI.turn(e,Math.atan2(dy,dx),dt*8); }
   for(const o of enemies){                       // Gegner nicht ineinander laufen lassen
     if(o===e||!o.alive) continue;
     const ox=e.x-o.x, oy=e.y-o.y, od=Math.hypot(ox,oy), min=(t.rad+ETYPES[o.type].rad)*.9;
@@ -2920,15 +3219,15 @@ function updateEnemy(e,dt){
   }
 
   const mSt=MELEE_STATS[e.type], rSt=RANGED_STATS[e.type];
-  if(mSt && dist<mSt[0] && e.cd<=0){
+  if(mSt && dist<mSt[0] && e.cd<=0 && !fleeing){
     e.cd=mSt[1]+Math.random()*mSt[2]; e.atk=.2; sfx.melee(); hurtPlayer(mSt[3]);
   } else if(e.type==='e' && dist<.85){
     // Sprenger-Einheit: einmalige Detonation statt Cooldown-Angriff, tötet
     // sich beim Kontakt selbst (über den normalen Tod-Pfad, für korrekte
     // Kill-Zählung/Boom-Effekt).
     hurtPlayer(22); kick(.4); damageEnemy(e,e.hp,null);
-  } else if(rSt && los && dist<rSt[0] && e.cd<=0){
-    e.cd=rSt[1]+Math.random()*rSt[2]; e.atk=.25; sfx.eshoot(dist);
+  } else if(rSt && los && dist<rSt[0] && e.cd<=0 && !fleeing){
+    e.cd=rSt[1]+Math.random()*rSt[2]; e.atk=.25; sfx.eshoot(dist); e.peekN=(e.peekN|0)+1;
     spawnShot(e.x,e.y,Math.atan2(dy,dx)+(Math.random()-.5)*rSt[4],rSt[3]);
   } else if(e.type==='K' && los && e.cd<=0){
     const rage=e.hp<t.hp*.5, n=rage?5:3;
@@ -3234,7 +3533,8 @@ function renderSprites(time){
   drawList.length=0;
   for(const e of enemies){
     const t=ETYPES[e.type], set=curSPR[e.type];
-    if(e.alive) drawList.push({x:e.x,y:e.y,tex:e.atk>0?set.atk:set.idle,sc:t.sc,vo:t.vo+(e.type==='d'?Math.sin(time*3+e.x)*.03:0),flash:e.flash});
+    if(e.alive){ drawList.push({x:e.x,y:e.y,tex:e.atk>0?set.atk:set.idle,sc:t.sc,vo:t.vo+(e.type==='d'?Math.sin(time*3+e.x)*.03:0),flash:e.flash});
+      if(e.mark>0&&state==='play') drawList.push({x:e.x,y:e.y,tex:e.mark===2?SPR_EXCL:SPR_QUEST,sc:.2,vo:t.vo+t.sc+.03,flash:0,glow:true}); }   // Phase 6: ! entdeckt / ? misstrauisch
     else drawList.push({x:e.x,y:e.y,tex:set.dead,sc:t.sc*.75,vo:0,flash:0});
   }
   for(const p of pickups){ if(p.taken) continue;
@@ -3628,6 +3928,7 @@ function nextDemoScene(){
 }
 function updateDemo(dt){
   if(fadeBusy) return;   // während des Szenenwechsels nichts bewegen
+  AI.tick(dt);
   for(const e of enemies) updateEnemy(e,dt);
   updateShots(dt); updateBooms(dt); updateSparks(dt);
   P.fireCd=Math.max(0,P.fireCd-dt); P.recoil=Math.max(0,P.recoil-dt*5); P.flash=Math.max(0,P.flash-dt);
@@ -3704,6 +4005,7 @@ function update(dt){
       P.energy=Math.max(0,P.energy-V.sprintCost*dt); P.enT=Math.max(P.enT,V.energyDelay);
       if(P.energy<=0){ P.sprintLock=true; P.sprinting=false; sfx.noEnergy(); }
     }
+    if(P.sprinting){ P.noiseT=(P.noiseT||0)-dt; if(P.noiseT<=0){ P.noiseT=.5; AI.noise(P.x,P.y,4.5); } }   // Sprinten ist hörbar
     const sp=(P.sprinting?4.8:3.2)*V.speed*dt;
     const mv=tryMove(P,mvX*sp,mvY*sp,.22);
     P.moving=Math.min(1,P.moving+dt*8); P.bob+=mv*2.6;
@@ -3726,6 +4028,7 @@ function update(dt){
   // Welt
   if(lvl.fog) updateFog();
   flowT-=dt; if(flowT<=0){ computeFlow(); flowT=.3; }
+  AI.tick(dt);
   for(const e of enemies) updateEnemy(e,dt);
   updateShots(dt); updatePshots(dt); updateHoles(dt); updateBeams(dt); updatePickups(); updateBooms(dt); updateSparks(dt); checkExit(dt); checkStairs();
   ambientTick(dt);
@@ -3761,7 +4064,7 @@ drawFace(0);
 showTitle();          // parst Sektor 1 selbst als Kulisse für den Titelbildschirm
 requestAnimationFrame(frame);
 
-window.__breach={NX,P,Stats,WEAPONS,Mods,MODS,openLoadout,pauseMenu,setWeapon,tryFire,manualReload,cycleWeapon,genLevel:generateProceduralLevel,hurtPlayer,tryDash,get state(){return state;},get enemies(){return enemies;},get pickups(){return pickups;},startLevel,newRun,stats,get lvIdx(){return lvIdx;},get biome(){return curBiome;},get depth(){return lvl&&lvl.depth;},keys};
+window.__breach={NX,P,Stats,WEAPONS,Mods,MODS,AI,AGGR,damageEnemy,openLoadout,pauseMenu,setWeapon,tryFire,manualReload,cycleWeapon,genLevel:generateProceduralLevel,hurtPlayer,tryDash,get state(){return state;},get enemies(){return enemies;},get pickups(){return pickups;},startLevel,newRun,stats,get lvIdx(){return lvIdx;},get biome(){return curBiome;},get depth(){return lvl&&lvl.depth;},keys};
 })();
 </script>
 <!-- PWA-INSTALL:BODY -->

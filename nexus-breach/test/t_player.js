@@ -11,7 +11,7 @@ const near=(a,b,e=.01)=>Math.abs(a-b)<=e;
   calm();
 
   // --- Startwerte ---
-  ok(NX.phase===5,'NX.phase = 5');
+  ok(NX.phase===6,'NX.phase = 6');
   ok(P.shieldMax===25&&near(P.shield,25,.5),'Schild voll am Sektorstart ('+P.shield+'/'+P.shieldMax+')');
   ok(P.armorMax===50&&P.armor===15,'Panzerung Grundfüllung 15/50 (Sektorstart 30 %)');
   ok(P.energyMax===100&&P.energy>=99,'Energie voll');

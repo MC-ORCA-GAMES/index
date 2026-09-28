@@ -1,6 +1,6 @@
 # NEXUS: BREACH — Handoff
 
-Stand: 28.09.2026 (Overhaul Phase 1–5 abgeschlossen). Teil des MC ORCA Games Portfolios, bewusst NICHT
+Stand: 28.09.2026 (Overhaul Phase 1–6 abgeschlossen). Teil des MC ORCA Games Portfolios, bewusst NICHT
 mit Supabase/Konto/MOGC verbunden.
 
 ## OVERHAUL — Fortschritt (20-Phasen-Plan)
@@ -12,7 +12,30 @@ mit Supabase/Konto/MOGC verbunden.
 | 3 Advanced Player System | **fertig** (siehe unten) |
 | 4 Massive Weapon System | **fertig** (siehe unten) |
 | 5 Weapon Modification System | **fertig** (siehe unten) |
-| 6–20 | offen |
+| 6 Advanced Enemy AI | **fertig** (siehe unten) |
+| 7–20 | offen |
+
+## Phase 6 — Advanced Enemy AI
+**Zustände** (`e.ai`, Modul `AI` vor `updateEnemy`): `IDLE` (patrouilliert/wacht) → `INVEST` (Geräusch/Alarm untersuchen) → `COMBAT` → `SEARCH` (Sicht verloren: letzte bekannte Position absuchen) | `FLEE`. `e.awake` bedeutet weiter „im Kampf“ (COMBAT/SEARCH/FLEE) — Bedrohungsanzeige, Boss-Leiste, Tests laufen unverändert. **Der Boss (K) behält sein altes Verhalten** (wacht bei Sicht < 12, flieht nie, gibt nie auf); Boss-KI kommt in Phase 9.
+
+| Fähigkeit | Umsetzung |
+|---|---|
+| **Sehen** | Blickfeld (`e.face`, FOV 109°/126°/149° je Stufe), Sichtweite 12 (Türme 14) × Stufe, unter 2,8 Feldern auch im Rücken; Wände blockieren. Sinne laufen gedrosselt (~9 Hz). Danach **Schrecksekunde** (0,65/0,4/0,18 s), erst dann Kampf. |
+| **Hören** | `AI.noise(x,y,R)`: Waffenradius `NOISE` (Pistole 9, Streu 12, Auto 11, Plasma 10, Rail 13, Arc 8, Void 12, Singularität 7, Fäuste 3,5), Sprinten 4,5. Durch Wände nur innerhalb 60 % des Radius. Gegner **untersuchen den Ort** (nicht mehr allwissend), sehen sie dich, folgt der Kampf. |
+| **Patrouille** | 65 % der beweglichen Gegner laufen Wegpunkte im Umkreis 2–5,5 ihrer Basis; Wachen und Türme scannen die Blickrichtung. |
+| **Verfolgen/Suchen** | Kampf mit Sicht: direkt. Ohne Sicht 1,2 s „heiße Verfolgung“ (Flow-Feld), dann Suche an der letzten bekannten Position (Feld-Cache `AI.field`, max. 12), Umsehen, danach **Aufgeben → IDLE**. |
+| **Alarm/Reaktion** | Beim Entdecken rufen Nahe (≤ 9) → nahe mit Sicht kämpfen sofort, andere untersuchen. **Drohne und Turm** lösen großen Alarm aus (18, Meldung „ALARM …“). Treffer wecken sofort (+ kurzer Ruf, Radius 6). Gegner entdecken Leichen (≤ 8). |
+| **Flanken/Einkesseln** | Rusher mit `e.flank` bekommen Winkel-Slots um den Spieler (`AI.tick`, alle 0,4 s, max. ±1,3 rad zur Frontalen, Einzelner = 1,15 rad seitlich) und laufen im Bogen an. Aggressive flanken selten (12 %), vorsichtige oft (75 %). |
+| **Flucht** | Unter HP-Schwelle (30 %/14 %/nie) oder **Moral** (vorsichtig + ≥ 2 Verluste in 7 Feldern/5 s bei < 70 % HP) → 2,5–4 s weglaufen (Tempo ×1,2, kein Angriff), max. 2×; danach kämpfen sie (in die Ecke gedrängt ebenfalls). Schwärme/Sprenger (`FEARLESS`: p v u e), Türme und Boss fliehen nie. |
+| **Deckung** | Nur Drohne: nach einem Schuss/Treffer Deckungszelle suchen (`AI.findCover`: Zelle ohne Sicht mit Nachbarzelle mit Sicht), verstecken 0,8–2 s, herauslugen, 1/2/3 Schüsse (je Stufe), zurück. Ohne Deckung altes Kite-Verhalten. |
+| **Aggression** | `e.aggr` 0/1/2 (`AGGR`): Sicht, Reaktion, Fluchtschwelle, Flankieren, Tempo (×0,95/1/1,08), Suchdauer (3,5/5/8 s). Verteilung ~30/50/20 %, mit Tiefe zunehmend aggressiver. |
+**HUD/Optik:** über dem Gegner erscheint ein **?** (misstrauisch/sucht/untersucht) bzw. **!** (entdeckt) — nur im Spiel (`SPR_QUEST/SPR_EXCL`). Debug: `__breach.AI`, `AI.stats` (spots/alarms/flees/searches/giveups), `NX.enemies.ai`.
+**Angepasst:** `alertNear(r)` (Radius je Waffe), `damageEnemy` → `AI.onHurt/onDeath`, Level-Start `AI.reset()` + `AI.init(e)` je Gegner, `updateEnemy` (Reihenfolge: Turm → Flucht → Suche → Drohnen-Deckung → Verfolgung → Kiten/Rusher). Neue Enemy-Felder siehe `AI.init`. Kein Save-Bezug (`SAVE_VERSION` bleibt 1).
+**Balance-Folge:** Gegner sind nicht mehr allwissend — wer außer Sicht/Hörweite bleibt, verliert Verfolger; Schüsse locken dagegen Gegner an. Ein einzelner Schuss lockt nicht mehr sofort alle im Kampf, sondern lässt sie zur Quelle laufen.
+
+**Getestet (Node-Harness, KEIN echter Browser):** neu `node test/t_ai.js` (78 Prüfungen: Blickfeld/Reichweite/Wand, Reaktionszeit je Stufe, Hören inkl. Wanddämpfung/Waffenradius, Untersuchen, Patrouille, Alarm, Leichen, Flanken-Slots + Bewegung, Flucht/Moral/Grenzen, Suchen/Aufgeben, Turm, Deckung, Boss unverändert, 600-Frames-Gruppe) und `node test/t_aistress.js [tiefen] [frames]` (tiefe prozedurale Ebenen, erzwungene Kämpfe: 0 Fehler, alle Zustände erreicht). Angepasst: `t_player.js` (Phase-Nr.). Alle älteren Tests + Zufallsläufe (5000 Frames Desktop, 1500 Touch): 0 Fehler, 0 Warnungen. Testreihenfolge: einzeln starten (`t_player` ~90 s, `t_mods` ~110 s).
+
+**Bitte live prüfen:** Spielgefühl/Schwierigkeit (Reaktionszeiten, Sichtweiten, Suchdauer, Geräuschradien — alles in `AGGR`/`NOISE`), ob Flanken/Einkesseln sichtbar wirkt, Lesbarkeit der ?/!-Marker, Drohnen-Deckung in echten Räumen, ob Gegner zu leicht die Verfolgung verlieren, Performance bei vielen Gegnern (Deckungssuche ~600 Strahlen alle 1,5 s je Drohne).
 
 ## Phase 5 — Weapon Modification System
 **Modell:** 5 Slots je Waffe (Fäuste keine): `barrel` LAUF, `core` KERN, `mag` MAGAZIN, `system` SYSTEM, `special` SPEZIAL. 17 Mod-Typen × 3 Stufen (I–III) = 51 Mods (`MOD_BASE` → `MODS`/`MOD_BY_ID`, IDs wie `b_dmg3`). Mods ändern `WEAPONS` nicht: `Mods.eff(waffe|index)` liefert ein abgeleitetes Werte-Paket (neutral ohne Mods; unbekannt/undefined = `Mods.NEUTRAL`), das Feuern/Nachladen/Hitze/Krit/Schaden auslesen. `WEAPONS[i].i` = Index.
