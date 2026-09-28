@@ -68,7 +68,7 @@
      Buttons (siehe button.primary weiter unten), statt eine neue Formsprache
      einzuführen. */
   #bar{ position:absolute; left:0; right:0; bottom:0; display:grid;
-    grid-template-columns:1.25fr 1fr 9.4cqw 1fr 1fr; align-items:end; gap:1.1cqw;
+    grid-template-columns:1.25fr 1fr 9.4cqw 1fr 1fr; align-items:stretch; gap:1.1cqw;
     padding:0 2.2cqw 1.6cqw; background:none; }
   .cell{ min-width:0; position:relative; padding:.85cqw 1.3cqw 1cqw;
     background:linear-gradient(165deg,rgba(13,22,36,.92),rgba(4,7,14,.97));
@@ -121,6 +121,133 @@
   .small{ font-size:clamp(10px,1.35cqw,15px); color:var(--faint); margin-top:1.2cqw; }
   @media (prefers-reduced-motion:reduce){ #msg{ transition:none; } #hpfill{ transition:none; } }
 
+  /* ---- Loadout (Phase 5) ---- */
+  .box.ld-box{ max-width:90cqw; width:100%; margin-bottom:0; max-height:94%; overflow:auto; }
+  .ld-tabs{ display:flex; gap:.6cqw; flex-wrap:wrap; margin:0 0 1.2cqw; }
+  button.chip.sel{ color:var(--amber); border-color:var(--amber); background:rgba(255,174,61,.1); }
+  button.chip{ min-height:38px; }
+  .ld-grid{ display:grid; grid-template-columns:1.15fr 1.2fr .9fr; gap:1.6cqw; align-items:start; }
+  .ld-col{ min-width:0; }
+  .ld-sub{ font:700 clamp(10px,1.3cqw,14px)/1 ui-monospace,Consolas,Menlo,monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin:0 0 .8cqw; }
+  button.ld-slot, button.ld-opt{ display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:.2cqw; width:100%; min-height:44px;
+    margin:0 0 .5cqw; padding:.6cqw 1.1cqw; border-color:#25384e; font-size:clamp(11px,1.5cqw,17px); font-weight:400; }
+  button.ld-slot b, button.ld-opt b{ font-weight:700; }
+  button.ld-slot small, button.ld-opt small{ color:var(--dim); font-size:.86em; line-height:1.3; }
+  button.ld-slot .ld-sl{ font-family:ui-monospace,Consolas,Menlo,monospace; letter-spacing:.1em; color:var(--amber); }
+  button.ld-slot.sel{ border-color:var(--amber); background:rgba(255,174,61,.08); }
+  button.ld-opt.on{ border-color:var(--cyan); background:rgba(53,228,255,.1); }
+  .ld-empty{ color:var(--faint); }
+  .ld-tab{ border-collapse:collapse; font-size:clamp(11px,1.5cqw,17px); width:100%; }
+  .ld-tab td{ padding:.25cqw .5cqw .25cqw 0; color:#B9D3E4; font-family:ui-monospace,Consolas,Menlo,monospace; }
+  .ld-tab td:first-child{ color:var(--dim); font-family:inherit; }
+  .ld-tab s{ color:var(--faint); }
+  .ld-tab td.up{ color:var(--cyan); }
+  @media (max-aspect-ratio:1/1){ .ld-grid{ grid-template-columns:1fr; } }
+
+
+  /* ============ Phase 2: Next-Gen HUD ============ */
+  :root{ --purple:#B36BFF; }
+  #hud2{ position:absolute; inset:0; pointer-events:none; display:none; }
+  .hud-on #hud2{ display:block; }
+  #top{ line-height:1.35; }
+  #top .sub{ display:block; font:600 clamp(8px,1.15cqw,13px) ui-monospace,Consolas,Menlo,monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); }
+  #top .obj{ display:block; margin-top:.5cqw; font:700 clamp(10px,1.45cqw,17px) ui-sans-serif,system-ui,sans-serif; color:var(--amber); text-shadow:0 1px 3px #000,0 0 10px rgba(255,174,61,.25); }
+  #top .obj::before{ content:"\25B8 "; }
+  .lab{ display:flex; justify-content:space-between; align-items:baseline; gap:.6cqw; }
+  .lab em{ font-style:normal; font:700 clamp(8px,1.1cqw,12px) ui-monospace,Consolas,Menlo,monospace; color:var(--amber); letter-spacing:.06em; }
+  .mods{ display:grid; gap:.3cqw; margin-top:.55cqw; }
+  .mod{ display:flex; align-items:center; gap:.5cqw; font:700 clamp(7px,.95cqw,11px)/1 ui-monospace,Consolas,Menlo,monospace; color:var(--dim); transition:opacity .2s; }
+  .mod i{ font-style:normal; width:1.1em; }
+  .mod b{ flex:1; height:.42cqw; background:#0e1826; border:1px solid #1b2a3e; position:relative; }
+  .mod u{ display:block; height:100%; width:0; text-decoration:none; }
+  .mod.off{ opacity:.3; }
+  .mod.off b::after{ content:""; position:absolute; inset:0; background:repeating-linear-gradient(135deg,transparent 0 3px,rgba(123,154,180,.25) 3px 5px); }
+  #mShield u{ background:var(--cyan); box-shadow:0 0 6px rgba(53,228,255,.6); }
+  #mArmor u{ background:var(--amber); }
+  #mEnergy u{ background:var(--purple); box-shadow:0 0 6px rgba(179,107,255,.5); }
+  /* Phase 3: Dash-Zeile (Ladungen/Cooldown), Energie-Sperre, Schild-/Dash-Randeffekte, Krit-Fadenkreuz */
+  #mDash u{ background:var(--dim); }
+  #mDash.ready u{ background:var(--cyan); box-shadow:0 0 6px rgba(53,228,255,.6); }
+  #mDash.two b{ background-image:linear-gradient(90deg,transparent calc(50% - 1px),#0b1220 calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px)); }
+  #mDash.two u{ position:relative; }
+  #mEnergy.lock u{ background:var(--down); box-shadow:0 0 6px rgba(255,61,110,.6); }
+  #mEnergy.lock b{ animation:txtBlink .35s steps(1) infinite; }
+  .rm #mEnergy.lock b{ animation:none; }
+  #shieldFx{ position:absolute; inset:0; pointer-events:none; opacity:0; box-shadow:inset 0 0 10cqw 1.5cqw rgba(53,228,255,.7); }
+  #dashFx{ position:absolute; inset:0; pointer-events:none; opacity:0; background:radial-gradient(ellipse at center,transparent 45%,rgba(180,240,255,.28) 100%); }
+  #xh.crit::before,#xh.crit::after{ background:var(--amber); box-shadow:0 0 8px var(--amber); }
+  #hpnum{ display:flex; align-items:baseline; gap:.8cqw; }
+  #crit{ font:700 clamp(8px,1.05cqw,12px) ui-monospace,Consolas,Menlo,monospace; color:var(--dim); margin-top:.5cqw; letter-spacing:.06em; }
+  #crit b{ color:var(--fg); }
+  #rld{ height:.7cqw; margin-top:.5cqw; background:#0e1826; border:1px solid #1b2a3e; opacity:0; transition:opacity .15s; }
+  #rld.show{ opacity:1; }
+  #rldfill{ height:100%; width:0; background:var(--amber); }
+  #rldtxt{ position:absolute; right:1.3cqw; top:2.3cqw; font:800 clamp(8px,1.05cqw,12px) ui-monospace,Consolas,Menlo,monospace; letter-spacing:.14em; color:var(--amber); opacity:0; }
+  #rldtxt.on{ opacity:1; }
+  #wslots{ display:flex; gap:.3cqw; margin-top:.5cqw; }
+  #wslots i{ flex:1; font:700 clamp(7px,.95cqw,11px) ui-monospace,Consolas,Menlo,monospace; font-style:normal; text-align:center; color:#2a3a52; border:1px solid #1b2a3e; line-height:1.5; }
+  #wslots i.own{ color:var(--dim); border-color:#2a3d5a; }
+  #wslots i.cur{ color:#04101a; background:var(--cyan); border-color:var(--cyan); }
+  #heattxt{ position:absolute; right:1.3cqw; top:.85cqw; font:800 clamp(8px,1.15cqw,13px) ui-monospace,Consolas,Menlo,monospace; letter-spacing:.14em; color:var(--down); opacity:0; }
+  #threat{ display:flex; align-items:center; gap:.35cqw; margin-top:.6cqw; }
+  #threat i{ flex:1; height:.7cqw; background:#0e1826; border:1px solid #1b2a3e; transition:background .2s, box-shadow .2s; }
+  #threat i.on{ background:var(--cyan); }
+  #threat.t3 i.on,#threat.t4 i.on{ background:var(--amber); }
+  #threat.t5 i.on{ background:var(--down); box-shadow:0 0 6px rgba(255,61,110,.7); }
+  #threattxt{ font:700 clamp(8px,1.05cqw,12px) ui-monospace,Consolas,Menlo,monospace; letter-spacing:.1em; color:var(--dim); margin-top:.35cqw; }
+  /* Combo / Streak */
+  #combo{ position:absolute; left:1.6cqw; top:10.5cqw; opacity:0; transform:translateX(-1cqw); transition:opacity .2s, transform .2s; }
+  #combo.on{ opacity:1; transform:none; }
+  #combo .cn{ font:800 clamp(16px,3.4cqw,40px)/1 ui-monospace,Consolas,Menlo,monospace; color:var(--amber); text-shadow:0 0 12px rgba(255,174,61,.45),0 2px 4px #000; }
+  #combo .cn small{ font-size:.42em; letter-spacing:.14em; color:var(--dim); margin-right:.5em; }
+  #combo .cn.pop{ animation:comboPop .18s ease-out; }
+  @keyframes comboPop{ 0%{ transform:scale(1.35); } 100%{ transform:scale(1); } }
+  #combo .cbar{ height:.4cqw; width:12cqw; margin-top:.5cqw; background:rgba(14,24,38,.8); }
+  #combo .cbar u{ display:block; height:100%; width:0; background:var(--amber); text-decoration:none; }
+  #combo .cs{ margin-top:.4cqw; font:700 clamp(8px,1.1cqw,13px) ui-monospace,Consolas,Menlo,monospace; letter-spacing:.12em; color:var(--dim); }
+  #combo .cs b{ color:var(--fg); }
+  /* Boss-Leiste */
+  #boss{ position:absolute; left:50%; top:1.3cqw; width:40cqw; transform:translateX(-50%) translateY(-1.5cqw); opacity:0; transition:opacity .35s, transform .35s; }
+  .boss #boss{ opacity:1; transform:translateX(-50%); }
+  #boss .bn{ display:flex; justify-content:space-between; align-items:baseline; font:800 clamp(10px,1.6cqw,19px) ui-sans-serif,system-ui,sans-serif; letter-spacing:.16em; text-transform:uppercase; color:var(--fg); text-shadow:0 2px 4px #000,0 0 12px rgba(255,61,110,.5); }
+  #boss .bn em{ font-style:normal; font:700 clamp(8px,1.2cqw,14px) ui-monospace,Consolas,Menlo,monospace; color:var(--down); letter-spacing:.1em; }
+  #boss .bb{ position:relative; height:1.1cqw; margin-top:.4cqw; background:rgba(14,24,38,.85); border:1px solid rgba(255,61,110,.55);
+    clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); box-shadow:0 0 14px rgba(255,61,110,.25); }
+  #bossGhost,#bossFill{ position:absolute; left:0; top:0; bottom:0; width:100%; }
+  #bossGhost{ background:rgba(255,255,255,.55); }
+  #bossFill{ background:linear-gradient(90deg,#c21f4d,var(--down)); }
+  #boss .bb i{ position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:rgba(4,6,12,.9); }
+  /* Vignetten fuer Warnungen */
+  #vigLow,#vigHeat{ position:absolute; inset:0; opacity:0; }
+  #vigLow{ box-shadow:inset 0 0 16cqw 4cqw rgba(255,61,110,.8); }
+  #vigHeat{ box-shadow:inset 0 0 14cqw 3cqw rgba(255,140,40,.75); }
+  .lowhp #vigLow{ animation:vigPulse 1.5s ease-in-out infinite; }
+  .lowhp2 #vigLow{ animation-duration:.8s; }
+  @keyframes vigPulse{ 0%,100%{ opacity:.12; } 50%{ opacity:.5; } }
+  .overheat #vigHeat{ animation:vigPulse .55s ease-in-out infinite; }
+  .lowhp #hpcell{ border-color:rgba(255,61,110,.7); }
+  .lowhp #hp{ color:var(--down); animation:hudGlitch 2.6s steps(1) infinite; }
+  .lowhp2 #hp{ animation-duration:1.4s; }
+  @keyframes hudGlitch{
+    0%,86%,100%{ transform:none; text-shadow:none; }
+    88%{ transform:translateX(-.25cqw); text-shadow:.3cqw 0 rgba(53,228,255,.85),-.3cqw 0 rgba(255,61,110,.85); }
+    90%{ transform:translateX(.25cqw) skewX(-8deg); text-shadow:-.3cqw 0 rgba(53,228,255,.85),.3cqw 0 rgba(255,61,110,.85); }
+    92%{ transform:none; text-shadow:none; } }
+  .lowammo #wcell{ border-color:rgba(255,174,61,.75); animation:cellBlink 1s steps(1) infinite; }
+  .lowammo #ammo{ color:var(--amber); }
+  .ammo0 #ammo{ color:var(--down); }
+  @keyframes cellBlink{ 0%,100%{ box-shadow:0 6px 18px rgba(0,0,0,.5); } 50%{ box-shadow:0 6px 18px rgba(0,0,0,.5),0 0 14px rgba(255,174,61,.6); } }
+  .hot #heatfill{ box-shadow:0 0 8px rgba(255,174,61,.8); }
+  .overheat #wcell{ border-color:rgba(255,61,110,.8); }
+  .overheat #heattxt{ opacity:1; animation:txtBlink .35s steps(1) infinite; }
+  @keyframes txtBlink{ 50%{ opacity:.25; } }
+  .rm #vigLow,.rm #vigHeat,.rm #hp,.rm #wcell,.rm #heattxt,.rm #combo .cn.pop{ animation:none !important; }
+  .rm .lowhp #vigLow{ opacity:.3; } .rm .overheat #vigHeat{ opacity:.35; }
+  @media (prefers-reduced-motion:reduce){ #vigLow,#vigHeat,#hp,#wcell,#heattxt{ animation:none !important; } }
+  /* Touch: Instrumentenleiste etwas groesser lesbar, Boss-Leiste schmaler neben Minimap */
+  .touchable #boss{ width:34cqw; }
+  .touchable .mod{ font-size:clamp(8px,1.3cqw,11px); }
+
   /* ---- Touch-Steuerung (nur Handy/Tablet, siehe isTouch im Skript) ---- */
   #touchLayer{ display:none; position:absolute; inset:0; z-index:6; touch-action:none; }
   .touchable #touchLayer{ display:block; }
@@ -133,10 +260,17 @@
     display:flex; align-items:center; justify-content:center; text-align:center;
     font:700 clamp(12px,1.7cqw,16px) system-ui,sans-serif; letter-spacing:.05em; color:#FFDDE4; text-transform:uppercase; }
   #tcFireBtn.active{ background:rgba(255,61,110,.55); }
-  #tcWeaponBtn,#tcPauseBtn{ position:absolute; right:1.6cqw; width:9.6cqw; height:9.6cqw; max-width:50px; max-height:50px;
+  #tcWeaponBtn,#tcPauseBtn,#tcReloadBtn{ position:absolute; right:1.6cqw; width:9.6cqw; height:9.6cqw; max-width:50px; max-height:50px;
     border-radius:50%; background:rgba(11,18,32,.78); border:1px solid rgba(53,228,255,.4); color:var(--fg);
     display:flex; align-items:center; justify-content:center; font:700 clamp(13px,1.9cqw,18px) ui-monospace,Consolas,Menlo,monospace; }
+  #tcDashBtn{ position:absolute; right:calc(5cqw + min(20cqw,108px) + 1.5cqw); bottom:7cqw; width:15cqw; height:15cqw; max-width:78px; max-height:78px;
+    border-radius:50%; background:rgba(53,228,255,.18); border:2px solid rgba(53,228,255,.6);
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    font:700 clamp(10px,1.5cqw,14px) system-ui,sans-serif; letter-spacing:.05em; color:#DFF8FF; text-transform:uppercase; transition:opacity .15s; }
+  #tcDashBtn.active{ background:rgba(53,228,255,.5); }
+  #tcDashBtn.cool{ opacity:.4; }
   #tcWeaponBtn{ top:20cqw; }
+  #tcReloadBtn{ top:20cqw; right:12.6cqw; }
   #tcPauseBtn{ top:31cqw; font-size:clamp(10px,1.5cqw,14px); }
   /* Overlay-Menüs (Titel/Pause/Sektor geschafft) haben eigene, große Touch-Ziele
      und liegen im DOM nach #touchLayer, also immer oben — hier nur die
@@ -202,19 +336,33 @@
   <div id="hurt"></div><div id="heal"></div>
   <div id="xh"></div>
   <div id="top"></div>
+  <div id="hud2">
+    <div id="vigLow"></div><div id="vigHeat"></div><div id="shieldFx"></div><div id="dashFx"></div>
+    <div id="combo"><div class="cn" id="comboN"><small>COMBO</small>0</div><div class="cbar"><u id="comboBar"></u></div><div class="cs">STREAK <b id="streakN">0</b></div></div>
+    <div id="boss"><div class="bn"><span id="bossName">Kern-Wächter</span><em id="bossLv">LV 1</em></div>
+      <div class="bb"><div id="bossGhost"></div><div id="bossFill"></div><i style="left:75%"></i><i style="left:50%"></i><i style="left:25%"></i></div></div>
+  </div>
   <canvas id="mini"></canvas>
   <div id="msg"></div>
   <div id="bar">
-    <div class="cell"><div class="lab">Integrität</div><div class="val" id="hp">100</div><div id="hpbar"><div id="hpfill"></div></div></div>
-    <div class="cell"><div class="lab" id="wname">Puls-Pistole</div><div class="val" id="ammo">0</div><div id="heatbar"><div id="heatfill"></div></div></div>
+    <div class="cell" id="hpcell"><div class="lab">Integrität</div><div class="val" id="hp">100</div><div id="hpbar"><div id="hpfill"></div></div>
+      <div class="mods">
+        <div class="mod off" id="mShield"><i>SH</i><b><u></u></b></div>
+        <div class="mod off" id="mArmor"><i>AR</i><b><u></u></b></div>
+        <div class="mod off" id="mEnergy"><i>EN</i><b><u></u></b></div>
+        <div class="mod" id="mDash"><i>DS</i><b><u></u></b></div>
+      </div></div>
+    <div class="cell" id="wcell"><div class="lab"><span id="wname">Puls-Pistole</span><em id="wlv">LV1</em></div><div class="val" id="ammo">0</div><div id="heatbar"><div id="heatfill"></div></div><div id="rld"><div id="rldfill"></div></div><div id="heattxt">ÜBERHITZT</div><div id="rldtxt">NACHLADEN</div><div id="crit">KRIT <b id="critv">0%</b></div><div id="wslots"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i></div></div>
     <div class="face-frame"><canvas id="face" width="40" height="40"></canvas></div>
     <div class="cell"><div class="lab">MOGC-Splitter</div><div class="val" id="shards">0<small>/0</small></div></div>
-    <div class="cell"><div class="lab">Rogue-Prozesse</div><div class="val" id="foes">0</div></div>
+    <div class="cell"><div class="lab">Rogue-Prozesse</div><div class="val" id="foes">0</div><div id="threat"><i></i><i></i><i></i><i></i><i></i></div><div id="threattxt">BEDROHUNG · RUHIG</div></div>
   </div>
   <div id="touchLayer">
     <div id="tcMove"><div id="tcMoveKnob"></div></div>
     <div id="tcFireBtn">Feuer</div>
+    <div id="tcDashBtn" aria-label="Dash">Dash</div>
     <div id="tcWeaponBtn" aria-label="Waffe wechseln">⇄</div>
+    <div id="tcReloadBtn" aria-label="Nachladen">R</div>
     <div id="tcPauseBtn" aria-label="Pause">❚❚</div>
   </div>
   <div id="overlay"><div class="box" id="obox"></div></div>
@@ -791,7 +939,23 @@ const SPR_SHOTGUN=makeTex(g=>{ px(g,'#10161f',5,24,50,10); px(g,'#2b3b4f',6,25,4
 const SPR_AUTO=makeTex(g=>{ px(g,'#10161f',5,26,54,9); px(g,'#2b3b4f',6,27,52,7); px(g,'#FF6A2E',6,30,52,2);
   px(g,'#10161f',8,35,11,15); px(g,'#2b3b4f',9,36,9,13); poly(g,'#3a2a1a',[48,29,60,29,60,42,50,42]);
   px(g,'#35E4FF',12,28,22,2); px(g,'#FFC98A',38,26,4,10); },true);
-const PICKUP_SPR={h:SPR_HEALTH,a:SPR_AMMO,m:SPR_SHARD,s:SPR_SHOTGUN,w:SPR_AUTO};
+/* ---- Phase 4: Waffen-Pickups, Projektile, Strahlen-Punkte, Singularitaets-Loch, Explosionsfarben ---- */
+const SPR_PLASMAG=makeTex(g=>{ px(g,'#10161f',8,24,44,12); px(g,'#2b3b4f',9,25,42,10); disc(g,'#35E4FF',48,30,7,7); disc(g,'#DFFCFF',48,30,3,3); px(g,'#FFAE3D',10,36,30,3); },true);
+const SPR_RAILG=makeTex(g=>{ px(g,'#10161f',3,26,58,4); px(g,'#10161f',3,32,58,4); px(g,'#DFFCFF',4,29,56,2); px(g,'#FFAE3D',18,24,3,14); px(g,'#FFAE3D',34,24,3,14); px(g,'#3a2a1a',4,36,14,9); },true);
+const SPR_ARCG=makeTex(g=>{ px(g,'#10161f',6,30,40,10); px(g,'#2b3b4f',7,31,38,8); poly(g,'#2b3b4f',[44,30,58,20,60,24,50,34]); poly(g,'#2b3b4f',[44,40,58,50,60,46,50,36]); px(g,'#9FF3FF',56,20,4,4); px(g,'#9FF3FF',56,46,4,4); px(g,'#9FF3FF',20,34,18,2); },true);
+const SPR_VOIDG=makeTex(g=>{ px(g,'#10161f',4,22,52,18); px(g,'#2b3b4f',5,23,50,16); px(g,'#3a1466',8,30,44,4); disc(g,'#B45CFF',54,31,6,8); disc(g,'#1a0a30',54,31,3,5); },true);
+const SPR_SINGG=makeTex(g=>{ px(g,'#10161f',6,26,44,14); px(g,'#2b3b4f',7,27,42,12); disc(g,'#FF3D6E',50,32,10,10); disc(g,'#000000',50,32,7,7); disc(g,'#B45CFF',50,32,3,3); },true);
+const SPR_PLASMA=makeTex(g=>{ disc(g,'#35E4FF',32,32,15,15); disc(g,'#9FF3FF',32,32,10,10); disc(g,'#FFFFFF',32,32,5,5); },true);
+const SPR_VOIDP=makeTex(g=>{ disc(g,'#B45CFF',32,32,15,15); disc(g,'#3a1466',32,32,10,10); disc(g,'#000000',32,32,5,5); },true);
+const SPR_SINGP=makeTex(g=>{ disc(g,'#FF3D6E',32,32,16,16); disc(g,'#000000',32,32,11,11); disc(g,'#B45CFF',32,32,4,4); },true);
+const SPR_HOLE=makeTex(g=>{ disc(g,'#B45CFF',32,32,30,30); disc(g,'#5a1f9a',32,32,24,24); disc(g,'#000000',32,32,17,17); },true);
+const SPR_HOLE2=makeTex(g=>{ disc(g,'#FF3D6E',32,32,30,30); disc(g,'#000000',32,32,26,26); disc(g,'#B45CFF',32,32,16,16); disc(g,'#000000',32,32,12,12); },true);
+const SPR_RAILDOT=makeTex(g=>{ disc(g,'#35E4FF',32,32,20,20); disc(g,'#DFFCFF',32,32,11,11); },true);
+const SPR_ARCDOT=makeTex(g=>{ disc(g,'#5FD8FF',32,32,16,16); disc(g,'#FFFFFF',32,32,8,8); },true);
+const BOOM_PLASMA=[boomFrame('#FFFFFF','#9FF3FF','#35E4FF',true,13,701),boomFrame('#DFFCFF','#35E4FF','#1a7a99',true,19,702),boomFrame('#35E4FF','#1a5a77','#0a2233',true,23,703),boomFrame('#1a3a4a','#0a2233','#04101a',false,18,704)];
+const BOOM_VOID=[boomFrame('#FFFFFF','#E0B8FF','#B45CFF',true,13,711),boomFrame('#E0B8FF','#B45CFF','#5a1f9a',true,20,712),boomFrame('#B45CFF','#3a1466','#1a0a30',true,25,713),boomFrame('#2a1046','#1a0a30','#0a0418',false,20,714),boomFrame('#140a24','#0a0418','#04020a',false,14,715)];
+const PICKUP_SPR={h:SPR_HEALTH,a:SPR_AMMO,m:SPR_SHARD,s:SPR_SHOTGUN,w:SPR_AUTO,c:SPR_PLASMAG,j:SPR_RAILG,l:SPR_ARCG,V:SPR_VOIDG,S:SPR_SINGG};
+const WPICK={s:1,w:3,c:4,j:5,l:6,V:7,S:8}, WAMMO={s:8,w:14,c:10,j:9,l:12,V:9,S:10};   // Pickup-Zeichen -> Waffenindex / Start-Munition
 
 /* ============================================================
    Level
@@ -972,15 +1136,25 @@ const MELEE_STATS={
 const RANGED_STATS={
   d:[11,1.3,.9,7,.12], t:[14,2.4,.6,16,.05], n:[9,1.8,.6,10,.15], q:[10,2.0,.6,12,.1], y:[10,1.9,.5,11,.12]
 };
+/* Phase 4: 9 Waffen. dmg=Schaden je Treffer/Kugel, rate=Sekunden je Schuss, mag=Schuesse je Magazin (0 = kein Magazin), reload=Sekunden,
+   heat=Hitze je Schuss (1 = Ueberhitzung), cool=Abkuehlung/s, range=Reichweite, spread=Streuwinkel (rad), crit/critMul=Waffen-Krit,
+   rc=Rueckstoss (Kamerawackeln), energy=Energiekosten je Schuss, cost=Munitionszellen je Schuss (Vorrat P.ammo; Magazin zaehlt Schuesse).
+   kind: hit=Hitscan (pel Kugeln), proj=Projektil (pkind), rail=Durchschlag, arc=Kettenblitz. col/fx/frgb = Optik. */
 const WEAPONS=[
-  {name:'Puls-Pistole', cost:1, rate:.30},
-  {name:'Streu-Kanone', cost:2, rate:.80},
-  {name:'Fäuste', cost:0, rate:.42},
-  {name:'Overclock-Gewehr', cost:1, rate:.07}
+  {id:'pistol',name:'Puls-Pistole',kind:'hit',pel:1,dmg:12,rate:.30,mag:12,reload:1.0,heat:.05,cool:.5,range:40,spread:0,crit:.05,critMul:1.5,rc:.16,energy:0,cost:1,snd:'pistol',col:'#35E4FF',fx:[134,18],frgb:'255,190,80'},
+  {id:'shotgun',name:'Streu-Kanone',kind:'hit',pel:7,dmg:9,rate:.80,mag:6,reload:1.9,heat:.12,cool:.4,range:14,spread:.2,crit:.05,critMul:1.5,rc:.38,energy:0,cost:2,snd:'shotgun',col:'#FFAE3D',fx:[120,28],frgb:'255,190,80'},
+  {id:'fists',name:'Fäuste',kind:'hit',pel:1,dmg:26,rate:.42,mag:0,reload:0,heat:0,cool:1,range:1.65,spread:.04,crit:.05,critMul:1.5,rc:.2,energy:0,cost:0,snd:'melee',col:'#35E4FF',fx:[120,28],frgb:'255,190,80'},
+  {id:'auto',name:'Overclock-Gewehr',kind:'hit',pel:1,dmg:7,rate:.07,mag:30,reload:1.5,heat:.085,cool:.32,range:32,spread:.05,crit:.05,critMul:1.5,rc:.09,energy:0,cost:1,snd:'auto',col:'#35E4FF',fx:[100,16],frgb:'255,190,80'},
+  {id:'plasma',name:'Plasma-Kanone',kind:'proj',pkind:'plasma',pspd:13,splash:13,splashR:1.5,dmg:30,rate:.55,mag:8,reload:1.6,heat:.2,cool:.28,range:30,spread:.02,crit:.10,critMul:1.75,rc:.3,energy:5,cost:2,snd:'plasma',col:'#35E4FF',fx:[110,26],frgb:'90,220,255'},
+  {id:'rail',name:'Railgun',kind:'rail',dmg:90,rate:1.3,mag:4,reload:2.0,heat:.35,cool:.25,range:40,spread:0,crit:.25,critMul:2.5,rc:.6,energy:25,cost:3,snd:'rail',col:'#DFFCFF',fx:[70,20],frgb:'200,240,255'},
+  {id:'arc',name:'Arc-Blaster',kind:'arc',dmg:8,rate:.12,mag:40,reload:1.4,heat:.02,cool:.3,range:7,spread:0,crit:.08,critMul:1.5,rc:.08,energy:1.2,cost:1,snd:'arc',col:'#9FF3FF',fx:[82,22],frgb:'160,235,255'},
+  {id:'void',name:'Void-Werfer',kind:'proj',pkind:'void',pspd:9,splash:45,splashR:2.4,dmg:55,rate:1.6,mag:4,reload:2.4,heat:.4,cool:.22,range:26,spread:.01,crit:.12,critMul:2,rc:.7,energy:15,cost:3,snd:'voidFire',col:'#B45CFF',fx:[96,30],frgb:'180,92,255'},
+  {id:'singularity',name:'Singularitäts-Kanone',kind:'proj',pkind:'sing',pspd:7,dmg:0,rate:2.6,mag:2,reload:3.2,heat:.6,cool:.18,range:24,spread:0,crit:.1,critMul:1,rc:.9,energy:40,cost:5,snd:'singFire',col:'#FF3D6E',fx:[100,34],frgb:'190,90,255'}
 ];
-
+WEAPONS.forEach((w,i)=>{ w.i=i; });   // Phase 5: Index an der Waffe (Mods werden pro Waffe verwaltet)
 let MW=0, MH=0, grid=null, flow=null, exitCell=null, stairsCell=null, siteFloors=null, lvIdx=0, lvl=null;
 let enemies=[], pickups=[], shots=[], booms=[], sparks=[], totals={foes:0,shards:0};
+const pshots=[], holes=[], beams=[];   // Phase 4: Spieler-Projektile, Singularitaets-Loecher, Strahlen (Rail/Arc)
 let miniStatic=null;
 let seen=null, visible=null;
 
@@ -1364,6 +1538,12 @@ function generateProceduralLevel(depth){
   place('m',4+Math.floor(depth/2));
   if(depth===1) place('s',1);
   if(depth===6) place('w',1);
+  // Phase 4: Waffenfunde nach Tiefe (bis zum Fund jeder Sektor, danach nicht mehr)
+  if(depth>=3&&!P.owned[4]) place('c',1);                       // Plasma-Kanone
+  if(depth>=4&&!P.owned[6]) place('l',1);                       // Arc-Blaster
+  if(depth>=8&&!P.owned[5]) place('j',1);                       // Railgun
+  if(depth>=10&&!P.owned[7]&&Math.random()<.5) place('V',1);    // Void-Werfer (~50 %)
+  if(depth>=12&&!P.owned[8]) place('S',1);                      // Singularitaets-Kanone
   let angle=Math.PI/4;
   if(g[idx(1+CORR_W,1)]===0) angle=0; else if(g[idx(1,1+CORR_W)]===0) angle=Math.PI/2;
   const biomeId=biomeForDepth(depth), biome=BIOMES[biomeId];
@@ -1517,8 +1697,9 @@ function generateProceduralSite(depth){
 function startProceduralRun(){ newRun(); siteFloors=generateProceduralSite(1); startLevel(siteFloors[0],true); }
 function restartCurrent(){ startLevel(lvIdx>=0?lvIdx:lvl,true); }
 function finishRun(){
-  state='gamewin'; releaseLock();
+  setState('gamewin'); releaseLock();
   const depth=(lvl&&lvl.procedural)?lvl.depth:0;
+  Save.onRunEnd(depth);
   let best=0;
   try{ best=+localStorage.getItem('orca_breach_bestdepth')||0; if(depth>best){ localStorage.setItem('orca_breach_bestdepth',String(depth)); best=depth; } }catch(e){}
   const st=[['Erreichte Tiefe',String(depth)],['Kills gesamt',String(run.kills)],['Splitter gesamt',String(run.shards)],['Zeit gesamt',fmt(run.time)]];
@@ -1546,10 +1727,19 @@ function updateFog(){
   const pk=(py|0)*MW+(px|0); if(pk>=0&&pk<seen.length){ seen[pk]=1; visible[pk]=1; }
 }
 
-const P={x:2,y:2,a:0,pitch:0,hp:100,ammo:36,weapon:0,hasSG:false,hasAuto:false,heat:0,overheatT:0,fireCd:0,recoil:0,flash:0,bob:0,moving:0};
+const P={x:2,y:2,a:0,pitch:0,hp:100,ammo:36,weapon:0,owned:WEAPONS.map((w,i)=>i===0||i===2),mag:WEAPONS.map(w=>w.mag),hs:WEAPONS.map(()=>0),os:WEAPONS.map(()=>0),reloadT:0,reloadDur:1,heat:0,overheatT:0,fireCd:0,recoil:0,flash:0,bob:0,moving:0,
+  // Phase 2: HUD-Anzeigewerte. Noch ohne Spielwirkung (Shield/Armor/Energy/Krit folgen in Phase 3, Waffenlevel in Phase 4/5).
+  // Max = 0 heisst: Modul nicht aktiv, HUD zeigt den Slot gedimmt.
+  shield:0,shieldMax:0,armor:0,armorMax:0,energy:0,energyMax:0,crit:0,wLv:WEAPONS.map(()=>1),
+  // Phase 3: Laufzeit-Zustand (Werte/Maximum kommen aus Stats, siehe Architektur-Block)
+  dashN:1,dashT:0,dashCd:0,dashX:1,dashY:0,sprinting:false,sprintLock:false,shieldT:0,enT:0,enFlash:0,hpT:0,hpAcc:0};
 const stats={kills:0,shards:0,time:0};
 const run={kills:0,shards:0,time:0,foes:0,shardsMax:0};
-let snap={hp:100,ammo:36,hasSG:false};
+/* hasSG/hasAuto: Alias auf owned[1]/owned[3] (Phase-1–3-Code und Level-Auswahl nutzen sie weiter) */
+function setOwned(i,v){ if(v&&!P.owned[i]){ P.owned[i]=true; P.mag[i]=Mods.magSize(i); } else if(!v) P.owned[i]=false; }
+Object.defineProperty(P,'hasSG',{get(){ return !!P.owned[1]; },set(v){ setOwned(1,!!v); }});
+Object.defineProperty(P,'hasAuto',{get(){ return !!P.owned[3]; },set(v){ setOwned(3,!!v); }});
+let snap={hp:100,ammo:36,hasSG:false,owned:P.owned.slice()};
 
 let curWall=BIOMES.facility.wall, curFloor=BIOMES.facility.floor, curCeil=BIOMES.facility.ceil, curSky=null, curOutdoor=false, curBiome='facility';
 function parseLevel(src){
@@ -1573,8 +1763,10 @@ function parseLevel(src){
         flash:0,atk:0,strafe:Math.random()<.5?-1:1,strT:0,bodyT:0,stagT:0,stagX:0,stagY:0}); totals.foes++; }
     else if(PICKUP_SPR[c]){ pickups.push({kind:c,x:cx,y:cy,taken:false,ph:Math.random()*6}); if(c==='m') totals.shards++; }
   }
-  P.pitch=0; P.fireCd=0; P.recoil=0; P.flash=0; P.bob=0; P.weapon=P.hasSG?1:0; P.heat=0; P.overheatT=0;
+  P.pitch=0; P.fireCd=0; P.recoil=0; P.flash=0; P.bob=0; if(!P.owned[P.weapon]) P.weapon=0; P.reloadT=0; P.hs.fill(0); P.os.fill(0); P.heat=0; P.overheatT=0;
+  pshots.length=0; holes.length=0; beams.length=0;
   stepPhase=0;
+  Stats.onSector();
   stats.kills=0; stats.shards=0; stats.time=0;
   flow=new Int16Array(MW*MH); flowT=0;
   buildMini();
@@ -1765,6 +1957,25 @@ const sfx={
   win(){ [520,660,780,1040].forEach((f,i)=>tone(f,f,.16,'triangle',.22,i*.12)); },
   die(){ tone(300,30,1,'sawtooth',.4); noise(.8,.4,500); },
   spark(){ noise(.05,.13,4200); tone(1900,700,.04,'square',.05); },
+  lowAmmo(){ tone(880,880,.05,'square',.11); tone(880,880,.05,'square',.11,.11); },
+  lowHp(){ tone(62,48,.14,'sine',.34); tone(58,44,.16,'sine',.3,.17); },
+  dash(){ noise(.16,.3,3800); tone(420,950,.12,'sawtooth',.12); },
+  shieldHit(){ tone(900,600,.08,'triangle',.18); noise(.05,.1,5000); },
+  shieldBreak(){ tone(700,120,.3,'sawtooth',.28); noise(.25,.3,6000); tone(300,60,.25,'square',.2,.05); },
+  shieldUp(){ tone(500,1000,.18,'triangle',.12); },
+  crit(){ tone(1400,900,.07,'square',.18); tone(1900,1200,.06,'triangle',.14,.03); },
+  noEnergy(){ tone(220,160,.09,'square',.14); },
+  // Phase 4: neue Waffen + Nachladen (Phase 18 baut den Klang weiter aus)
+  plasma(){ tone(320,90,.18,'sawtooth',.2); tone(950,420,.12,'square',.1); noise(.08,.14,2200); },
+  rail(){ noise(.35,.4,6000); tone(2400,120,.35,'sawtooth',.24); tone(180,40,.5,'square',.3); },
+  arc(){ tone(1800+Math.random()*900,600,.05,'sawtooth',.09); noise(.05,.11,7000); },
+  voidFire(){ tone(120,40,.4,'sawtooth',.3); tone(520,90,.3,'triangle',.18,.05); noise(.2,.2,900); },
+  singFire(){ tone(70,30,.7,'sawtooth',.38); tone(300,45,.6,'triangle',.22,.05); noise(.5,.3,600); },
+  reload(){ tone(260,200,.06,'square',.12); tone(180,140,.05,'square',.1,.14); },
+  reloadDone(){ tone(420,420,.04,'square',.14); tone(640,640,.06,'square',.14,.06); },
+  boomP(d){ const v=near(d||0); noise(.3,.4*v,1600); tone(200,50,.3,'sawtooth',.3*v); },
+  holeOpen(){ tone(90,320,.5,'sine',.25); tone(60,200,.6,'triangle',.15); },
+  holeCollapse(d){ const v=near(d||0); noise(.6,.5*v,700); tone(300,25,.7,'sawtooth',.4*v); },
   step(biome){
     if(biome==='desert'){ noise(.09,.1,900); }
     else if(biome==='jungle'){ noise(.08,.11,650); tone(320,180,.05,'square',.04); }
@@ -1774,22 +1985,433 @@ const sfx={
 };
 
 /* ============================================================
+   Architektur (Phase 1) — gruppierter Spielzustand unter `NX`
+   ------------------------------------------------------------
+   Bestehende Variablen bleiben (Performance, keine Regression);
+   dieser Block ergänzt nur: zentralen State-Manager, gebündelten
+   Effekt-Zustand (FX), versionierten Save (LocalStorage) und den
+   Namespace `NX`, über den alle Teilzustände erreichbar sind:
+   NX.player / weapons / enemies / level / progression / audio /
+   fx / save / settings.  Neue Phasen hängen sich hier ein.
+   ============================================================ */
+const SAVE_KEY='nexus_breach_save', SAVE_VERSION=1;
+
+/* ---- Game State Manager ---- */
+let state='title';   // title | play | pause | dead | levelwin | gamewin
+const STATE_FLOW={   // erlaubte Übergänge; unbekannte werden nur gewarnt, nie blockiert
+  title:['play'],
+  play:['pause','dead','levelwin','gamewin','title'],
+  pause:['play','title','gamewin'],
+  dead:['play','gamewin','title'],
+  levelwin:['play','gamewin','title'],
+  gamewin:['play','title']
+};
+const stateListeners=[], stateWarned={};
+function onState(fn){ stateListeners.push(fn); }
+function setState(next){
+  const prev=state;
+  if(next===prev) return;
+  if(!STATE_FLOW[next]) { console.warn('[NX] unbekannter State',next); }
+  else if(!(STATE_FLOW[prev]||[]).includes(next)){
+    const k=prev+'>'+next; if(!stateWarned[k]){ stateWarned[k]=1; console.warn('[NX] ungewöhnlicher State-Übergang',k); }
+  }
+  state=next;
+  if(next!=='play') Save.flush();          // Spielstand sichern, sobald das Spiel nicht mehr läuft
+  for(let i=0;i<stateListeners.length;i++){ try{ stateListeners[i](next,prev); }catch(e){ console.error(e); } }
+}
+
+/* ---- Effects State (vorher lose Globals: shakeAmt, hurtT, healT, hitMarkT, msgT, flashAdd, faceKind) ---- */
+const FX={shake:0, hurt:0, heal:0, hitMark:0, msg:0, flashAdd:0, faceKind:-1, shieldHit:0, dash:0, crit:0};
+
+/* ---- Save State: versioniert, offline, ohne Konto ---- */
+const Save=(()=>{
+  const isObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+  const num=(v,d,lo,hi)=>{ v=+v; return Number.isFinite(v)?Math.min(hi,Math.max(lo,v)):d; };
+  // Einstellungen: [min, max, Standard] — Anzeige-/Audio-Schalter, in späteren Phasen ans Settings-Menü gebunden
+  const SETTINGS_SPEC={
+    masterVol:[0,1,1], sfxVol:[0,1,1], musicVol:[0,1,1],
+    screenShake:[0,1,1], scanlines:[0,1,1], pixelFx:[0,1,1], particles:[0,1,1], damageFlash:[0,1,1],
+    fov:[50,100,67], mouseSens:[.25,3,1], touchSens:[.25,3,1]
+  };
+  function defaultSettings(){ const s={ reducedMotion:false }; for(const k in SETTINGS_SPEC) s[k]=SETTINGS_SPEC[k][2]; return s; }
+  function defaults(){
+    return {
+      version:SAVE_VERSION, created:Date.now(), updated:0,
+      highestDepth:0, credits:0, bestScore:0, bestTime:0,
+      unlockedWeapons:['pistol','fists'], weaponUpgrades:{}, perks:{}, artifacts:[], achievements:{},
+      stats:{kills:0, deaths:0, runs:0, bossKills:0, sectorsCleared:0, playTime:0},
+      settings:defaultSettings()
+    };
+  }
+  // Migrationen: MIGRATIONS[n] hebt einen Save von Version n auf n+1.
+  // Beispiel für später:  1: d=>{ d.newField=0; return d; }
+  const MIGRATIONS={};
+  function migrate(d){
+    let v=Math.floor(+d.version)||1;
+    while(v<SAVE_VERSION){
+      const m=MIGRATIONS[v];
+      if(m){ try{ d=m(d)||d; }catch(e){ console.warn('[save] Migration von v'+v+' fehlgeschlagen',e); } }
+      v++; d.version=v;
+    }
+    return d;
+  }
+  // Rohdaten (evtl. alt/manipuliert/unvollständig) auf gültiges Schema bringen
+  function sanitize(raw){
+    const d=defaults();
+    if(!isObj(raw)) return d;
+    d.created=num(raw.created,d.created,0,Infinity);
+    d.updated=num(raw.updated,0,0,Infinity);
+    d.highestDepth=num(raw.highestDepth,0,0,1e6)|0;
+    d.credits=num(raw.credits,0,0,1e12)|0;
+    d.bestScore=num(raw.bestScore,0,0,1e15);
+    d.bestTime=num(raw.bestTime,0,0,1e9);
+    if(Array.isArray(raw.unlockedWeapons)) d.unlockedWeapons=raw.unlockedWeapons.filter(x=>typeof x==='string').slice(0,64);
+    if(Array.isArray(raw.artifacts)) d.artifacts=raw.artifacts.filter(x=>typeof x==='string').slice(0,256);
+    for(const k of ['weaponUpgrades','perks','achievements']) if(isObj(raw[k])) d[k]=raw[k];
+    if(!Array.isArray(d.weaponUpgrades.discovered)) delete d.weaponUpgrades.discovered;
+    else d.weaponUpgrades.discovered=d.weaponUpgrades.discovered.filter(x=>typeof x==='string').slice(0,256);
+    if(isObj(raw.stats)) for(const k in d.stats) d.stats[k]=num(raw.stats[k],0,0,1e12);
+    if(isObj(raw.settings)){
+      for(const k in SETTINGS_SPEC){ const [lo,hi,def]=SETTINGS_SPEC[k]; d.settings[k]=num(raw.settings[k],def,lo,hi); }
+      d.settings.reducedMotion=!!raw.settings.reducedMotion;
+    }
+    return d;
+  }
+
+  const api={ data:null, ok:true, readOnly:false, dirty:false };
+  let timer=0;
+  function read(){ try{ return window.localStorage.getItem(SAVE_KEY); }catch(e){ api.ok=false; return null; } }
+  api.load=function(){
+    const str=read();
+    let raw=null;
+    if(str){ try{ raw=JSON.parse(str); }catch(e){ console.warn('[save] beschädigter Spielstand — starte neu'); } }
+    if(isObj(raw)){
+      if((+raw.version||1)>SAVE_VERSION) api.readOnly=true;   // Save einer neueren Version: nie überschreiben
+      else raw=migrate(raw);
+      api.data=sanitize(raw);
+    } else {
+      api.data=defaults();
+      // Übernahme der bisherigen Einzel-Bestwerte (vor Save-System)
+      try{
+        const bt=+window.localStorage.getItem('orca_breach_best')||0, bd=+window.localStorage.getItem('orca_breach_bestdepth')||0;
+        if(bt>0) api.data.bestTime=bt; if(bd>0) api.data.highestDepth=bd|0;
+      }catch(e){ api.ok=false; }
+    }
+    return api.data;
+  };
+  api.flush=function(){
+    if(timer){ clearTimeout(timer); timer=0; }
+    if(!api.dirty||api.readOnly||!api.ok) return;
+    api.data.updated=Date.now(); api.data.version=SAVE_VERSION;
+    try{ window.localStorage.setItem(SAVE_KEY,JSON.stringify(api.data)); api.dirty=false; }
+    catch(e){ api.ok=false; }
+  };
+  api.markDirty=function(){ api.dirty=true; if(!timer) timer=setTimeout(api.flush,800); };
+  api.reset=function(){ api.data=defaults(); api.dirty=true; api.flush(); };
+  api.sanitize=sanitize; api.migrate=migrate; api.defaults=defaults;
+
+  // ---- Ereignisse aus dem Spielablauf ----
+  api.onRunStart=function(){ api.data.stats.runs++; api.markDirty(); };
+  api.onLevelStart=function(depth){ if(depth>api.data.highestDepth){ api.data.highestDepth=depth|0; api.markDirty(); } };
+  api.onKill=function(boss){ const s=api.data.stats; s.kills++; if(boss) s.bossKills++; api.markDirty(); };
+  api.onDeath=function(){ api.data.stats.deaths++; api.markDirty(); };
+  api.onSectorClear=function(){ api.data.stats.sectorsCleared++; api.markDirty(); };
+  api.onRunEnd=function(depth){ if(depth>api.data.highestDepth) api.data.highestDepth=depth|0; api.markDirty(); };
+  api.onCampaignComplete=function(t){ t=t|0; if(t>0&&(!api.data.bestTime||t<api.data.bestTime)){ api.data.bestTime=t; } api.markDirty(); };
+
+  api.load();
+  window.addEventListener('pagehide',()=>api.flush());
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) api.flush(); });
+  return api;
+})();
+
+/* ---- Combat-Tracker (Phase 2): Kill-Streak + Combo-Kette fuers HUD; Phase 17 baut daraus das Score-/Style-System ---- */
+const COMBO_WINDOW=4;   // Sekunden bis die Kette abreisst
+const Combat={ streak:0, bestStreak:0, chain:0, chainBest:0, t:0, popped:false,
+  kill(){ this.streak++; if(this.streak>this.bestStreak) this.bestStreak=this.streak; this.chain++; if(this.chain>this.chainBest) this.chainBest=this.chain; this.t=COMBO_WINDOW; this.popped=true; },
+  hurt(){ this.streak=0; this.chain=0; this.t=0; },
+  tick(dt){ if(this.t>0){ this.t-=dt; if(this.t<=0){ this.t=0; this.chain=0; } } },
+  reset(){ this.streak=0; this.chain=0; this.t=0; this.popped=false; },
+  resetChain(){ this.chain=0; this.t=0; }
+};
+
+/* ---- Spieler-Werte (Phase 3): Basiswerte + Bonusquellen -> abgeleitete Werte ----
+   Alle Spielerwerte laufen ueber `Stats.val`. Perks (Phase 14), Waffen-/Ruestungsmods (Phase 5/13) und Meta-Upgrades (Phase 15)
+   tragen sich als Bonusquelle ein: `NX.stats.add('run:perk-ironcore',{armorMax:25})`. Quellen mit Praefix `run:` werden bei
+   newRun() entfernt, alles andere (z. B. `meta:`) bleibt. Additiv; Grenzen stehen in PLIM. */
+const PBASE={
+  shieldMax:25, shieldRegen:8, shieldDelay:3.5,            // Schild: Puffer, Regen/s, Sekunden ohne Treffer bis Regen
+  armorMax:50, armorAbsorb:.5, armorSector:.3,             // Panzerung: nimmt 50 % des Restschadens auf; Sektorstart: 30 % Fuellung
+  energyMax:100, energyRegen:22, energyDelay:.6, sprintCost:15, sprintResume:.2,   // Energie: Sprint kostet/s; nach Leerlauf erst ab 20 % wieder
+  hpRegen:0, hpRegenDelay:4,                               // Integritaets-Regen (HP/s) — Basis 0, kommt ueber Perks/Meta
+  fireRate:0, dmgMul:1, reloadSpeed:0, heatMul:1,           // Phase 4 (Waffen-Hooks): Feuerrate +x, Schadensfaktor, Nachladetempo +x, Hitze-Faktor
+  resist:0, speed:1, crit:.05, critDmg:1.5,                // Schadensresistenz, Tempo-Faktor, Krit-Chance, Krit-Multiplikator
+  dashCharges:1, dashCd:1.2, dashCost:20, dashDist:2.6, dashTime:.17   // Dash: Ladungen (2 = Double Dash), Cooldown je Ladung, Energie, Weite, Dauer
+};
+const PLIM={ shieldMax:[0,500], shieldRegen:[0,100], armorMax:[0,500], energyMax:[20,500], energyRegen:[0,200], sprintCost:[0,60],
+  hpRegen:[0,20], resist:[0,.75], speed:[.5,2], crit:[0,1], critDmg:[1,6], dashCharges:[1,4], dashCd:[.3,4], dashCost:[0,60], dashDist:[1,6], fireRate:[-.5,3], dmgMul:[.1,10], reloadSpeed:[-.5,4], heatMul:[0,3] };
+/* ============================================================
+   Waffen-Mods (Phase 5): 5 Slots je Waffe (Lauf, Kern, Magazin, System, Spezial), 3 Stufen (I-III).
+   Mods aendern NICHT die Tabelle WEAPONS, sondern liefern pro Waffe ein abgeleitetes Werte-Paket `Mods.eff(waffe)`,
+   das Feuern/Nachladen/Hitze/Krit/Schaden auslesen. Ohne Mods ist das Paket neutral (Verhalten wie Phase 4).
+   Mods gehoeren zum Lauf: `newRun()` leert Inventar und Einbauten (Meta-Freischaltung folgt in Phase 15).
+   ============================================================ */
+const MOD_SLOTS=[{id:'barrel',name:'LAUF'},{id:'core',name:'KERN'},{id:'mag',name:'MAGAZIN'},{id:'system',name:'SYSTEM'},{id:'special',name:'SPEZIAL'}];
+const MOD_TIERS=[{n:'I',col:'#35E4FF'},{n:'II',col:'#FFAE3D'},{n:'III',col:'#B45CFF'}];
+const pc=v=>Math.round(v*100)+'%';
+// v = Wirkung je Stufe [I,II,III]; txt = Beschreibung aus den aufgeloesten Werten x
+const MOD_BASE=[
+  {k:'b_dmg',slot:'barrel',name:'Verstärkter Lauf',v:{dmg:[.10,.17,.25]},txt:x=>'Schaden +'+pc(x.dmg)},
+  {k:'b_rng',slot:'barrel',name:'Langlauf',v:{range:[.20,.35,.50]},txt:x=>'Reichweite +'+pc(x.range)},
+  {k:'b_acc',slot:'barrel',name:'Präzisionsdrall',v:{acc:[.25,.40,.55]},txt:x=>'Streuung −'+pc(x.acc)},
+  {k:'c_en',slot:'core',name:'Energie-Kern',v:{dmg:[.08,.14,.20],energyCut:[.15,.25,.35]},txt:x=>'Schaden +'+pc(x.dmg)+', Energiekosten −'+pc(x.energyCut)},
+  {k:'c_pl',slot:'core',name:'Plasma-Kern',v:{plasma:[.20,.30,.42]},txt:x=>'Treffer: Plasma-Flächenschaden ('+pc(x.plasma)+' des Schadens, Radius 1,2)'},
+  {k:'c_cr',slot:'core',name:'Krit-Kern',v:{critAdd:[.06,.10,.15],critMulAdd:[.25,.40,.60]},txt:x=>'Krit-Chance +'+pc(x.critAdd)+', Krit-Schaden +'+pc(x.critMulAdd)},
+  {k:'m_ext',slot:'mag',name:'Erweitertes Magazin',v:{magMul:[.35,.60,.90]},txt:x=>'Magazin +'+pc(x.magMul)},
+  {k:'m_qk',slot:'mag',name:'Schnelllader',v:{reload:[.30,.50,.75]},txt:x=>'Nachladen '+pc(x.reload)+' schneller'},
+  {k:'m_sv',slot:'mag',name:'Zellen-Sparer',v:{free:[.12,.20,.30]},txt:x=>pc(x.free)+' Chance, dass ein Schuss kein Magazin kostet'},
+  {k:'s_oc',slot:'system',name:'Übertaktung',v:{fireRate:[.12,.20,.30]},txt:x=>'Feuerrate +'+pc(x.fireRate)},
+  {k:'s_hs',slot:'system',name:'Kühlkörper',v:{heatCut:[.25,.40,.55],coolAdd:[.20,.35,.50]},txt:x=>'Hitze −'+pc(x.heatCut)+', Abkühlung +'+pc(x.coolAdd)},
+  {k:'s_st',slot:'system',name:'Stabilisator',v:{rcCut:[.30,.50,.70],acc:[.10,.15,.20]},txt:x=>'Rückstoß −'+pc(x.rcCut)+', Streuung −'+pc(x.acc)},
+  {k:'x_ch',slot:'special',name:'Kettenblitz',v:{chainP:[.30,.42,.55],chainF:[.40,.50,.60],chainN:[1,2,2]},txt:x=>'Treffer: '+pc(x.chainP)+' Chance auf Blitz ('+pc(x.chainF)+' Schaden, '+x.chainN+' Ziel'+(x.chainN>1?'e':'')+')'},
+  {k:'x_ex',slot:'special',name:'Explosivgeschosse',v:{expF:[.30,.42,.55],expR:[1.2,1.4,1.7]},txt:x=>'Erster Treffer je Schuss explodiert ('+pc(x.expF)+' Schaden, Radius '+String(x.expR).replace('.',',')+'); Projektilwaffen: Splash +'+pc(x.expF)},
+  {k:'x_ap',slot:'special',name:'Panzerbrecher',v:{ap:[.30,.50,.75]},txt:x=>'+'+pc(x.ap)+' Schaden gegen gepanzerte/schwere Gegner'},
+  {k:'x_ls',slot:'special',name:'Lebensraub',v:{ls:[.03,.05,.08]},txt:x=>pc(x.ls)+' des verursachten Schadens heilen Integrität'},
+  {k:'x_sd',slot:'special',name:'Schild-Entzug',v:{sd:[.10,.18,.28]},txt:x=>pc(x.sd)+' des verursachten Schadens laden das Schild'}
+];
+const MODS=[], MOD_BY_ID=Object.create(null);
+for(const b of MOD_BASE) for(let t=0;t<3;t++){
+  const x={}; for(const key in b.v) x[key]=b.v[key][t];
+  const m={id:b.k+(t+1),base:b.k,slot:b.slot,tier:t+1,name:b.name+' '+MOD_TIERS[t].n,x,txt:b.txt(x)};
+  MODS.push(m); MOD_BY_ID[m.id]=m;
+}
+const Mods=(()=>{
+  const cache=[];
+  const api={ inv:Object.create(null), eq:WEAPONS.map(()=>({})), shotId:0, lastShot:-1, busy:false, lsAcc:0, pity:0 };
+  function slotsOf(i){ return !!WEAPONS[i]&&WEAPONS[i].id!=='fists'; }     // Faeuste haben keine Slots
+  function build(i){
+    const w=WEAPONS[i], e=api.eq[i]||{};
+    const M={dmg:1,range:1,spread:1,critAdd:0,critMulAdd:0,energy:1,magAdd:0,reload:0,free:0,fireRate:0,heat:1,cool:1,rc:1,
+             plasma:0,chainP:0,chainF:0,chainN:0,expF:0,expR:0,ap:0,ls:0,sd:0,n:0};
+    let rng=0,acc=0,eCut=0,mMul=0,hCut=0,cAdd=0,rcCut=0;
+    for(const sl in e){
+      const mod=MOD_BY_ID[e[sl]]; if(!mod) continue; M.n++; const x=mod.x;
+      if(x.dmg) M.dmg+=x.dmg; if(x.range) rng+=x.range; if(x.acc) acc+=x.acc; if(x.energyCut) eCut+=x.energyCut;
+      if(x.plasma) M.plasma+=x.plasma; if(x.critAdd) M.critAdd+=x.critAdd; if(x.critMulAdd) M.critMulAdd+=x.critMulAdd;
+      if(x.magMul) mMul+=x.magMul; if(x.reload) M.reload+=x.reload; if(x.free) M.free+=x.free;
+      if(x.fireRate) M.fireRate+=x.fireRate; if(x.heatCut) hCut+=x.heatCut; if(x.coolAdd) cAdd+=x.coolAdd; if(x.rcCut) rcCut+=x.rcCut;
+      if(x.chainP){ M.chainP=x.chainP; M.chainF=x.chainF; M.chainN=x.chainN; }
+      if(x.expF){ M.expF=x.expF; M.expR=x.expR; }
+      if(x.ap) M.ap+=x.ap; if(x.ls) M.ls+=x.ls; if(x.sd) M.sd+=x.sd;
+    }
+    M.range=1+rng; M.spread=Math.max(.1,1-acc); M.energy=Math.max(.3,1-eCut); M.heat=Math.max(.25,1-hCut); M.cool=1+cAdd; M.rc=Math.max(.2,1-rcCut);
+    M.magAdd=(w.mag>0&&mMul>0)?Math.max(1,Math.round(w.mag*mMul)):0;
+    return M;
+  }
+  const NEUTRAL=build(2);   // Faeuste ohne Mods = neutral
+  for(let i=0;i<WEAPONS.length;i++) cache[i]=build(i);
+  api.NEUTRAL=NEUTRAL;
+  api.slotsOf=slotsOf;
+  /* Werte-Paket einer Waffe (Index oder Waffen-Objekt); ohne Angabe/unbekannt: neutral */
+  api.eff=function(w){ const i=typeof w==='number'?w:(w&&typeof w.i==='number'?w.i:-1); return cache[i]||NEUTRAL; };
+  api.magSize=function(i){ const w=WEAPONS[i]; return w&&w.mag>0?w.mag+(cache[i]?cache[i].magAdd:0):0; };
+  function equippedCount(id){ let n=0; for(let i=0;i<api.eq.length;i++){ const e=api.eq[i]; for(const sl in e) if(e[sl]===id) n++; } return n; }
+  api.count=id=>api.inv[id]|0;
+  api.free=id=>(api.inv[id]|0)-equippedCount(id);
+  api.refresh=function(i){
+    cache[i]=build(i);
+    const sz=api.magSize(i);
+    if(sz>0&&P.mag[i]>sz){ const ex=P.mag[i]-sz; P.mag[i]=sz; P.ammo=Math.min(99,P.ammo+ex*WEAPONS[i].cost); }   // ueberzaehlige Schuesse als Zellen zurueck
+    P.wLv[i]=1+cache[i].n;
+    if(i===P.weapon) Stats.recalc();
+  };
+  api.add=function(id,quiet){
+    const m=MOD_BY_ID[id]; if(!m) return false;
+    api.inv[id]=(api.inv[id]|0)+1;
+    const wu=Save.data.weaponUpgrades, dl=Array.isArray(wu.discovered)?wu.discovered:(wu.discovered=[]);
+    if(dl.indexOf(id)<0&&dl.length<256){ dl.push(id); Save.markDirty(); }
+    if(!quiet){ showMsg('Waffen-Mod: '+m.name+' ('+m.slot.toUpperCase()+') — '+(isTouch?'Pause → Loadout':'L = Loadout'),2600); sfx.pickup(); }
+    return true;
+  };
+  api.equip=function(i,id){
+    const m=MOD_BY_ID[id]; if(!m||!slotsOf(i)||!P.owned[i]) return false;
+    if(api.eq[i][m.slot]===id) return true;
+    if(api.free(id)<1) return false;
+    api.eq[i][m.slot]=id; api.refresh(i); return true;
+  };
+  api.unequip=function(i,slot){
+    if(!slotsOf(i)||!api.eq[i][slot]) return false;
+    delete api.eq[i][slot]; api.refresh(i); return true;
+  };
+  api.reset=function(){
+    api.inv=Object.create(null); api.lsAcc=0; api.pity=0; api.shotId=0; api.lastShot=-1;
+    for(let i=0;i<WEAPONS.length;i++){ api.eq[i]={}; cache[i]=build(i); P.wLv[i]=1; }
+  };
+  /* Zufallsmod: Stufe waechst mit der Tiefe (Boss zaehlt +6) */
+  api.roll=function(depth,boss){
+    const d=(depth||1)+(boss?6:0);
+    let t=1;
+    if(d>=7&&Math.random()<Math.min(.35,(d-5)*.05)) t=3; else if(d>=2&&Math.random()<Math.min(.6,.3+d*.03)) t=2;
+    if(boss&&t<2) t=2;
+    return MOD_BASE[(Math.random()*MOD_BASE.length)|0].k+t;
+  };
+  api.onKill=function(e,depth){
+    if(e.type==='K'){ api.add(api.roll(depth,true),true); api.add(api.roll(depth,true)); return; }
+    api.pity++;
+    if(Math.random()<.03+api.pity*.004){ api.pity=0; api.add(api.roll(depth)); }
+  };
+  api.sectorReward=function(depth){ const id=api.roll(depth); api.add(id,true); return MOD_BY_ID[id]; };
+  const armored=e=>(e.armor>0)||ETYPES[e.type].sc>=1;   // schwer/gepanzert (Phase 8 setzt e.armor)
+  api.armored=armored;
+  /* Flaechenschaden ohne weitere Mod-Wirkung (Explosiv/Plasma): Abfall bis -50 %, nicht durch Waende */
+  function area(cx,cy,R,base,skip){
+    for(const en of enemies){
+      if(!en.alive||en===skip) continue;
+      const dx=en.x-cx, dy=en.y-cy, d=Math.hypot(dx,dy); if(d>R) continue;
+      if(d>.3&&rayWallDist(cx,cy,dx/d,dy/d)<d-.1) continue;
+      damageEnemy(en,Math.max(1,Math.round(base*(1-d/R*.5))),d>.001?Math.atan2(dy,dx):null,false,true);
+    }
+  }
+  function chain(from,base,n){
+    let cur=from; const used=[from];
+    for(let k=0;k<n;k++){
+      let nx=null, nd=3.2;
+      for(const en of enemies){
+        if(!en.alive||used.indexOf(en)>=0) continue;
+        const dx=en.x-cur.x, dy=en.y-cur.y, d=Math.hypot(dx,dy); if(d>=nd) continue;
+        if(rayWallDist(cur.x,cur.y,dx/(d||1),dy/(d||1))<d-.1) continue;
+        nx=en; nd=d;
+      }
+      if(!nx) break;
+      beams.push({kind:'arc',x0:cur.x,y0:cur.y,x1:nx.x,y1:nx.y,t:0,life:.12,jag:true,seed:Math.random()*9});
+      damageEnemy(nx,Math.max(1,Math.round(base)),Math.atan2(nx.y-cur.y,nx.x-cur.x),false,true);
+      used.push(nx); cur=nx;
+    }
+  }
+  /* Nach einem Spielertreffer (Direkttreffer einer Waffe): Plasma/Explosion/Kettenblitz — je Schuss nur einmal, ohne Rekursion */
+  api.onHit=function(e,dealt,M,w){
+    if(api.busy||M.n<1||state!=='play'||api.lastShot===api.shotId) return;
+    if(!(M.plasma||M.expF||M.chainP)) return;
+    api.lastShot=api.shotId; api.busy=true;
+    try{
+      if(M.plasma) area(e.x,e.y,1.2,dealt*M.plasma,e);
+      if(M.expF&&w&&w.kind!=='proj'){ area(e.x,e.y,M.expR,dealt*M.expF,e); spawnBoom(e.x,e.y,.8+M.expR*.3,BOOM_PLASMA); sfx.boomP(Math.hypot(e.x-P.x,e.y-P.y)); }
+      if(M.chainP&&Math.random()<M.chainP) chain(e,dealt*M.chainF,M.chainN);
+    } finally { api.busy=false; }
+  };
+  /* Lebensraub / Schild-Entzug aus tatsaechlich verursachtem Schaden */
+  api.leech=function(dealt,M){
+    if(state!=='play'||dealt<=0||P.hp<=0) return;
+    if(M.ls>0&&P.hp<100){ api.lsAcc+=dealt*M.ls; if(api.lsAcc>=1){ const n=api.lsAcc|0; api.lsAcc-=n; P.hp=Math.min(100,P.hp+n); FX.heal=Math.max(FX.heal,.12); } }
+    if(M.sd>0&&P.shieldMax>0&&P.shield<P.shieldMax) P.shield=Math.min(P.shieldMax,P.shield+dealt*M.sd);
+  };
+  return api;
+})();
+
+const Stats=(()=>{
+  const src=Object.create(null), val={};
+  /* Waffen-Krit: Waffenwert + Spielerbonus (Bonus = Abweichung vom Basiswert) */
+  function weaponCrit(w){ return Math.min(1,Math.max(0,w.crit+(val.crit-PBASE.crit)+Mods.eff(w).critAdd)); }
+  function weaponCritMul(w){ return Math.max(1,w.critMul+(val.critDmg-PBASE.critDmg)+Mods.eff(w).critMulAdd); }
+  function recalc(){
+    for(const k in PBASE){
+      let v=PBASE[k];
+      for(const id in src){ const a=src[id][k]; if(a) v+=a; }
+      const lim=PLIM[k]; if(lim) v=clamp(v,lim[0],lim[1]);
+      val[k]=v;
+    }
+    val.dashCharges=Math.round(val.dashCharges);
+    P.shieldMax=val.shieldMax; P.armorMax=val.armorMax; P.energyMax=val.energyMax; P.crit=weaponCrit(WEAPONS[P.weapon]);
+    P.shield=Math.min(P.shield,P.shieldMax); P.armor=Math.min(P.armor,P.armorMax); P.energy=Math.min(P.energy,P.energyMax);
+    P.dashN=Math.min(P.dashN,val.dashCharges);
+  }
+  const api={
+    val,
+    add(id,bonus){ src[id]=bonus; recalc(); },
+    remove(id){ delete src[id]; recalc(); },
+    removePrefix(pre){ for(const id in src) if(id.indexOf(pre)===0) delete src[id]; recalc(); },
+    sources(){ return Object.keys(src); },
+    recalc,
+    /* Neuer Lauf: Lauf-Boni weg, alles voll, Panzerung leer (kommt am Sektorstart wieder auf Grundfuellung) */
+    onRunStart(){ api.removePrefix('run:'); P.shield=P.shieldMax; P.energy=P.energyMax; P.armor=0; api.resetTimers(); },
+    /* Jeder Sektorstart (auch nach Tod/Neustart): Schild+Energie voll, Panzerung mindestens Grundfuellung, Dash bereit */
+    onSector(){ P.shield=P.shieldMax; P.energy=P.energyMax; P.armor=Math.max(P.armor,Math.round(P.armorMax*val.armorSector)); api.resetTimers(); },
+    resetTimers(){ P.dashN=val.dashCharges; P.dashT=0; P.dashCd=0; P.sprinting=false; P.sprintLock=false; P.shieldT=0; P.enT=0; P.enFlash=0; P.hpT=0; P.hpAcc=0; },
+    /* Regeneration + Dash-Aufladung, einmal pro Frame im Zustand `play` */
+    tick(dt){
+      if(P.shieldT>0) P.shieldT-=dt;
+      else if(P.shield<P.shieldMax){ const was=P.shield; P.shield=Math.min(P.shieldMax,P.shield+val.shieldRegen*dt); if(was<=0&&P.shield>0) sfx.shieldUp(); }
+      if(val.hpRegen>0&&P.hp>0&&P.hp<100){
+        if(P.hpT>0) P.hpT-=dt;
+        else { P.hpAcc+=val.hpRegen*dt; if(P.hpAcc>=1){ const n=P.hpAcc|0; P.hpAcc-=n; P.hp=Math.min(100,P.hp+n); } }
+      }
+      if(P.enT>0) P.enT-=dt;
+      else if(!P.sprinting&&P.energy<P.energyMax) P.energy=Math.min(P.energyMax,P.energy+val.energyRegen*dt);
+      if(P.enFlash>0) P.enFlash-=dt;
+      if(P.dashN<val.dashCharges){ P.dashCd-=dt; if(P.dashCd<=0){ P.dashN++; P.dashCd=P.dashN<val.dashCharges?val.dashCd:0; } }
+    },
+    /* Krit-Wurf fuer Spielertreffer: Multiplikator (1 = kein Krit). Nur im echten Spiel, nicht in der Titel-Demo. */
+    weaponCrit, weaponCritMul,
+    critMul(w){ w=w||WEAPONS[P.weapon]; return (state==='play'&&Math.random()<weaponCrit(w))?weaponCritMul(w):1; }
+  };
+  recalc();
+  P.shield=P.shieldMax; P.energy=P.energyMax; P.armor=Math.round(P.armorMax*val.armorSector);
+  return api;
+})();
+
+/* ---- NX: ein Namespace für alle Teilzustände (Getter, weil Level-Variablen neu zugewiesen werden) ---- */
+const NX={
+  phase:5,
+  stats:Stats,                                         // Spieler-Werte + Bonusquellen (Phase 3)
+  SAVE_VERSION,
+  get state(){ return state; },
+  setState, onState, STATE_FLOW,
+  player:P,                                            // Player State (Phase 3 erweitert: Shield/Armor/Energy/Dash …)
+  weapons:{                                            // Weapon State (Phase 4/5: Definitionen + Mod-Slots)
+    defs:WEAPONS,
+    get current(){ return WEAPONS[P.weapon]; },
+    isUnlocked(i){ return !!P.owned[i]; },
+    grant:grantWeapon, pshots, holes, beams, mods:Mods
+  },
+  enemies:{                                            // Enemy State (Phase 6–8: KI, Klassen, Elites)
+    types:ETYPES,
+    get list(){ return enemies; },
+    get alive(){ let n=0; for(let i=0;i<enemies.length;i++) if(enemies[i].alive) n++; return n; }
+  },
+  level:{                                              // Level State (Phase 10–12: Events, Biome, Hazards)
+    get def(){ return lvl; },
+    get grid(){ return grid; }, get width(){ return MW; }, get height(){ return MH; },
+    get biome(){ return curBiome; }, get depth(){ return lvl?lvl.depth:0; },
+    get exit(){ return exitCell; }, get stairs(){ return stairsCell; },
+    get pickups(){ return pickups; }, get shots(){ return shots; }, get totals(){ return totals; }
+  },
+  progression:{ stats, run, get save(){ return Save.data; } },   // Progression State (Phase 15–17)
+  audio:{                                              // Audio State (Phase 18)
+    get ctx(){ return ac; }, get muted(){ return muted; }, sfx
+  },
+  fx:FX,                                               // Effects State (Phase 19)
+  combat:Combat,
+  get hud(){ return HUD; },                                       // Kill-Streak / Combo-Kette (Phase 2, Ausbau Phase 17)
+  save:Save,                                           // Save State
+  get settings(){ return Save.data.settings; }
+};
+
+/* ============================================================
    Eingabe
    ============================================================ */
 const keys={};
 let locked=false, lockFailed=false, lockWanted=false, mouseDown=false;
-let state='title';   // title | play | pause | dead | levelwin | gamewin
 
 window.addEventListener('keydown',e=>{
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code)) e.preventDefault();
   if(e.repeat) return;
   keys[e.code]=true;
   if(state==='play'){
-    if(e.code==='Digit1') setWeapon(0);
-    else if(e.code==='Digit2') setWeapon(1);
-    else if(e.code==='Digit3') setWeapon(2);
-    else if(e.code==='Digit4') setWeapon(3);
+    if(/^Digit[1-9]$/.test(e.code)) setWeapon(+e.code[5]-1);
+    else if(e.code==='KeyR') manualReload();
     else if(e.code==='KeyM') { $('mini').style.display=$('mini').style.display==='none'?'block':'none'; }
+    else if(e.code==='KeyF') tryDash();
+    else if(e.code==='KeyL'){ pauseGame(); openLoadout(pauseMenu); }
     else if(e.code==='KeyP'){ pauseGame(); }
   } else if(state==='pause' && (e.code==='KeyP'||e.code==='Enter')){ resumeGame(); }
 });
@@ -1802,8 +2424,13 @@ document.addEventListener('mousemove',e=>{
   P.a+=e.movementX*.0022;
   P.pitch=clamp(P.pitch-e.movementY*.35,-220,220);
 });
+cv.addEventListener('contextmenu',e=>{ e.preventDefault(); });
+let wheelT=0;
+cv.addEventListener('wheel',e=>{ if(state!=='play'||isTouch) return; e.preventDefault(); const n=performance.now(); if(n-wheelT<120) return; wheelT=n; cycleWeapon(e.deltaY>0?1:-1); },{passive:false});
 cv.addEventListener('mousedown',e=>{
-  if(isTouch||e.button!==0) return;
+  if(isTouch) return;
+  if(e.button===2){ if(state==='play') tryDash(); return; }
+  if(e.button!==0) return;
   if(state==='play'){ mouseDown=true; if(!locked&&!lockFailed) requestLock(); }
 });
 window.addEventListener('mouseup',()=>{ mouseDown=false; });
@@ -1828,10 +2455,10 @@ function releaseLock(){ lockWanted=false; try{ if(document.pointerLockElement) d
 let touchFwd=0, touchStr=0, touchSprint=false, touchFireDown=false;
 if(isTouch){
   const tcLayer=$('touchLayer'), tcMove=$('tcMove'), tcKnob=$('tcMoveKnob'),
-        tcFire=$('tcFireBtn'), tcWeapon=$('tcWeaponBtn'), tcPause=$('tcPauseBtn');
+        tcFire=$('tcFireBtn'), tcWeapon=$('tcWeaponBtn'), tcPause=$('tcPauseBtn'), tcDash=$('tcDashBtn'), tcReload=$('tcReloadBtn');
   let moveId=null, moveCx=0, moveCy=0, moveR=1;
   let lookId=null, lookLastX=0, lookLastY=0;
-  let fireId=null;
+  let fireId=null, dashId=null;
   const TOUCH_TURN=0.0034, TOUCH_PITCH=0.55;
   function resetMovePad(){ touchFwd=0; touchStr=0; touchSprint=false; tcKnob.style.transform='translate(-50%,-50%)'; }
   function inRect(el,x,y){ const r=el.getBoundingClientRect(); return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom; }
@@ -1843,7 +2470,9 @@ if(isTouch){
       return;
     }
     if(fireId===null && inRect(tcFire,x,y)){ fireId=t.identifier; touchFireDown=true; tcFire.classList.add('active'); return; }
+    if(dashId===null && inRect(tcDash,x,y)){ dashId=t.identifier; tcDash.classList.add('active'); if(state==='play') tryDash(); return; }
     if(inRect(tcWeapon,x,y)){ cycleWeapon(); return; }
+    if(inRect(tcReload,x,y)){ if(state==='play') manualReload(); return; }
     if(inRect(tcPause,x,y)){ if(state==='play') pauseGame(); return; }
     if(lookId===null && state==='play'){ lookId=t.identifier; lookLastX=x; lookLastY=y; }
   }
@@ -1865,6 +2494,7 @@ if(isTouch){
     if(t.identifier===moveId){ moveId=null; resetMovePad(); }
     else if(t.identifier===lookId){ lookId=null; }
     else if(t.identifier===fireId){ fireId=null; touchFireDown=false; tcFire.classList.remove('active'); }
+    else if(t.identifier===dashId){ dashId=null; tcDash.classList.remove('active'); }
   }
   tcLayer.addEventListener('touchstart',e=>{ e.preventDefault(); for(const t of e.changedTouches) handleStart(t); },{passive:false});
   tcLayer.addEventListener('touchmove',e=>{ e.preventDefault(); for(const t of e.changedTouches) handleMove(t); },{passive:false});
@@ -1873,52 +2503,175 @@ if(isTouch){
   function syncTouchLayer(){
     const playing=state==='play';
     tcLayer.style.pointerEvents=playing?'auto':'none';
-    if(!playing){ moveId=null; lookId=null; fireId=null; touchFireDown=false; tcFire.classList.remove('active'); resetMovePad(); }
+    if(!playing){ moveId=null; lookId=null; fireId=null; dashId=null; touchFireDown=false; tcFire.classList.remove('active'); tcDash.classList.remove('active'); resetMovePad(); }
   }
   window.__syncTouchLayer=syncTouchLayer;
 }
-function cycleWeapon(){
-  const order=[0,2,1,3];
+function cycleWeapon(dir){
+  const order=[0,2,1,3,4,5,6,7,8], step=dir<0?-1:1, n=order.length;
   const idx=order.indexOf(P.weapon);
-  for(let i=1;i<=order.length;i++){
-    const cand=order[(idx+i)%order.length];
-    if(cand===1&&!P.hasSG) continue;
-    if(cand===3&&!P.hasAuto) continue;
-    setWeapon(cand); break;
+  for(let i=1;i<=n;i++){
+    const cand=order[((idx+step*i)%n+n)%n];
+    if(P.owned[cand]){ setWeapon(cand); break; }
   }
 }
 
 /* ============================================================
    Spiellogik
    ============================================================ */
-let msgT=0, hurtT=0, healT=0, hitMarkT=0, faceKind=-1;
-let shakeAmt=0;
-function kick(amt){ shakeAmt=Math.max(shakeAmt,amt); }
+// (Effekt-Zustand liegt seit Phase 1 gebündelt in FX — siehe Architektur-Block)
+function kick(amt){ FX.shake=Math.max(FX.shake,amt); }
 
-function showMsg(t,ms){ const m=$('msg'); m.textContent=t; m.classList.add('on'); msgT=(ms||2200)/1000; }
+function showMsg(t,ms){ const m=$('msg'); m.textContent=t; m.classList.add('on'); FX.msg=(ms||2200)/1000; }
+function refreshWeaponUI(){ $('wname').textContent=WEAPONS[P.weapon].name; Stats.recalc(); }
 function setWeapon(i){
-  if(i===1&&!P.hasSG){ showMsg('Streu-Kanone noch nicht gefunden',1400); return; }
-  if(i===3&&!P.hasAuto){ showMsg('Overclock-Gewehr noch nicht gefunden',1400); return; }
-  P.weapon=i; $('wname').textContent=WEAPONS[i].name;
+  if(!(i>=0&&i<WEAPONS.length)) return;
+  if(!P.owned[i]){ showMsg(WEAPONS[i].name+' noch nicht gefunden',1400); return; }
+  if(i!==P.weapon){
+    P.hs[P.weapon]=P.heat; P.os[P.weapon]=P.overheatT;              // Hitze je Waffe: die weggelegte kuehlt im Hintergrund
+    P.weapon=i; P.heat=P.hs[i]; P.overheatT=P.os[i];
+    P.reloadT=0; P.fireCd=Math.max(P.fireCd,.12);
+  }
+  refreshWeaponUI();
 }
+function grantWeapon(i,addAmmo){
+  const w=WEAPONS[i]; if(!w) return;
+  const fresh=!P.owned[i];
+  if(addAmmo) P.ammo=Math.min(99,P.ammo+addAmmo);
+  if(fresh){
+    P.owned[i]=true; P.mag[i]=Mods.magSize(i);
+    const u=Save.data.unlockedWeapons; if(u.indexOf(w.id)<0){ u.push(w.id); Save.markDirty(); }
+    setWeapon(i); showMsg(w.name+'! (Taste '+(i+1)+')',2600);
+  } else if(addAmmo) showMsg(w.name+': Ladung +'+addAmmo,1200);
+}
+/* Nachladen: Magazin zaehlt Schuesse, Vorrat zaehlt Zellen (cost je Schuss). Abbuchung erst beim Fertigstellen. */
+function startReload(){
+  const i=P.weapon, w=WEAPONS[i];
+  if(w.mag<=0||P.reloadT>0||P.mag[i]>=Mods.magSize(i)||P.ammo<w.cost) return false;
+  P.reloadDur=w.reload/Math.max(.3,1+Stats.val.reloadSpeed+Mods.eff(i).reload); P.reloadT=P.reloadDur; sfx.reload();
+  return true;
+}
+function manualReload(){ if(state==='play') startReload(); }
+function finishReload(){
+  const i=P.weapon, w=WEAPONS[i];
+  const n=Math.min(Mods.magSize(i)-P.mag[i],Math.floor(P.ammo/w.cost));
+  if(n>0){ P.mag[i]+=n; P.ammo-=n*w.cost; }
+  sfx.reloadDone();
+}
+/* Schadenspipeline (Phase 3): Dash-I-Frames -> Resistenz -> Schild -> Panzerung (nimmt Anteil des Rests auf) -> Integritaet.
+   Integritaet bleibt ganzzahlig (HUD/Schwellen erwarten das): durchschlagender Rest wird aufgerundet, mind. 1. */
 function hurtPlayer(n){
   if(P.hp<=0||state!=='play') return;
-  P.hp=Math.max(0,P.hp-n); hurtT=.4; sfx.hurt(); kick(Math.min(1,.32+n*.035));
+  if(P.dashT>0) return;                                    // waehrend des Dashs unverwundbar
+  const V=Stats.val;
+  Combat.hurt();
+  n*=1-V.resist;
+  P.shieldT=V.shieldDelay; P.hpT=V.hpRegenDelay; P.hpAcc=0;
+  let sAbs=0, broke=false;
+  if(P.shield>0){ sAbs=Math.min(P.shield,n); P.shield-=sAbs; n-=sAbs; if(P.shield<=.001){ P.shield=0; broke=true; } }
+  if(n>0&&P.armor>0){ const a=Math.min(P.armor,n*V.armorAbsorb); P.armor-=a; n-=a; }
+  const dmg=n>.001?Math.max(1,Math.ceil(n-1e-6)):0;
+  if(dmg>0){ P.hp=Math.max(0,P.hp-dmg); FX.hurt=.4; sfx.hurt(); kick(Math.min(1,.32+dmg*.035)); }
+  if(sAbs>0){
+    FX.shieldHit=.35;
+    if(broke){ sfx.shieldBreak(); kick(.3); showMsg('Schild zusammengebrochen',900); }
+    else if(dmg===0){ sfx.shieldHit(); kick(.14); }
+  }
   if(P.hp<=0) die();
 }
+/* Bewegungswunsch als Einheitsvektor (0,0 = keine Eingabe) — gemeinsam fuer Laufen und Dash */
+let mvX=0, mvY=0, mvLen=0;
+function readMove(){
+  const fwd=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)+touchFwd;
+  const str=(keys.KeyD?1:0)-(keys.KeyA?1:0)+touchStr;
+  const vx=Math.cos(P.a)*fwd+(-Math.sin(P.a))*str, vy=Math.sin(P.a)*fwd+Math.cos(P.a)*str;
+  mvLen=Math.hypot(vx,vy);
+  if(mvLen>0){ mvX=vx/mvLen; mvY=vy/mvLen; } else { mvX=0; mvY=0; }
+}
+function tryDash(){
+  if(state!=='play'||P.hp<=0||P.dashT>0) return false;
+  const V=Stats.val;
+  if(P.dashN<1) return false;                              // Cooldown laeuft (HUD zeigt den Balken)
+  if(P.energy<V.dashCost){ P.enFlash=.5; sfx.noEnergy(); return false; }
+  readMove();
+  if(mvLen>0){ P.dashX=mvX; P.dashY=mvY; } else { P.dashX=Math.cos(P.a); P.dashY=Math.sin(P.a); }   // ohne Eingabe: nach vorn
+  P.energy-=V.dashCost; P.enT=Math.max(P.enT,V.energyDelay);
+  if(P.dashN>=V.dashCharges) P.dashCd=V.dashCd;
+  P.dashN--; P.dashT=V.dashTime; FX.dash=.3;
+  sfx.dash(); kick(.14);
+  return true;
+}
 function die(){
-  state='dead'; releaseLock(); sfx.die(); kick(1);
+  setState('dead'); releaseLock(); sfx.die(); kick(1); Save.onDeath();
   setTimeout(()=>{
-    const buttons=[{label:'Sektor neu starten',primary:true,fn:()=>{ P.hp=100; P.ammo=Math.max(snap.ammo,30); P.hasSG=snap.hasSG; restartCurrent(); }}];
+    const buttons=[{label:'Sektor neu starten',primary:true,fn:()=>{ P.hp=100; P.ammo=Math.max(snap.ammo,30); for(let k=0;k<WEAPONS.length;k++){ if(snap.owned[k]){ setOwned(k,true); P.mag[k]=Mods.magSize(k); } else P.owned[k]=false; } restartCurrent(); }}];
     if(lvl.procedural) buttons.push({label:'Lauf beenden',fn:finishRun});
     buttons.push({label:'Zum Titel',fn:showTitle});
-    showOverlay({
+    showOverlay(addLoadoutBtn({
       title:'Prozess beendet',
       text:'Die Rogue-Prozesse waren schneller. '+lvl.name+' wird neu gestartet, sobald du bereit bist.',
       stats:[['Feinde erledigt',stats.kills+' / '+totals.foes],['Zeit',fmt(stats.time)]],
       buttons
-    });
+    }));
   },900);
+}
+
+/* ============================================================
+   Loadout-Screen (Phase 5): Waffe waehlen, Slot waehlen, Mod einbauen/ablegen. Alles Buttons (touch-tauglich).
+   `back` zeigt das vorherige Overlay wieder an (Pause, Sektor geschafft, Tod).
+   ============================================================ */
+function addLoadoutBtn(o){ o.buttons.push({label:'Loadout',fn:()=>openLoadout(()=>showOverlay(o))}); return o; }
+const escH=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function modSpan(m){ return '<b style="color:'+MOD_TIERS[m.tier-1].col+'">'+escH(m.name)+'</b>'; }
+/* Kennwerte einer Waffe: [Label, ohne Mods, mit Mods] als Text */
+function loadoutRows(i){
+  const w=WEAPONS[i], V=Stats.val, N=Mods.NEUTRAL, M=Mods.eff(i), r1=v=>(Math.round(v*10)/10).toString().replace('.',',');
+  const f=(M)=>({
+    dmg:Math.round(w.dmg*M.dmg*V.dmgMul)+(w.pel>1?' ×'+w.pel:''),
+    rate:r1((1+V.fireRate+M.fireRate)/w.rate)+'/s',
+    mag:w.mag>0?String(w.mag+M.magAdd):'∞',
+    rel:w.mag>0?r1(w.reload/Math.max(.3,1+V.reloadSpeed+M.reload))+' s':'–',
+    rng:r1(w.range*M.range),
+    spr:r1(w.spread*M.spread*57.3)+'°',
+    crit:pc(Math.min(1,Math.max(0,w.crit+(V.crit-PBASE.crit)+M.critAdd)))+' ×'+r1(Math.max(1,w.critMul+(V.critDmg-PBASE.critDmg)+M.critMulAdd)),
+    en:w.energy>0?r1(w.energy*M.energy):'–',
+    heat:w.heat>0?Math.round(w.heat*V.heatMul*M.heat*100)+'%':'–'
+  });
+  const a=f(N), b=f(M);
+  return [['Schaden',a.dmg,b.dmg],['Feuerrate',a.rate,b.rate],['Magazin',a.mag,b.mag],['Nachladen',a.rel,b.rel],['Reichweite',a.rng,b.rng],
+          ['Streuung',a.spr,b.spr],['Krit',a.crit,b.crit],['Energie/Schuss',a.en,b.en],['Hitze/Schuss',a.heat,b.heat]];
+}
+function openLoadout(back){
+  const list=[]; for(let i=0;i<WEAPONS.length;i++) if(P.owned[i]&&Mods.slotsOf(i)) list.push(i);
+  let selW=list.indexOf(P.weapon)>=0?P.weapon:list[0], selS='barrel', note='';
+  function draw(box){
+    const i=selW, w=WEAPONS[i], eq=Mods.eq[i];
+    let h='<h2>Loadout</h2><div class="ld-tabs">';
+    for(const wi of list) h+='<button type="button" class="chip'+(wi===i?' sel':'')+'" data-w="'+wi+'">'+escH(WEAPONS[wi].name)+' LV'+P.wLv[wi]+'</button>';
+    h+='</div><div class="ld-grid"><div class="ld-col">';
+    for(const sl of MOD_SLOTS){
+      const m=MOD_BY_ID[eq[sl.id]];
+      h+='<button type="button" class="ld-slot'+(sl.id===selS?' sel':'')+'" data-s="'+sl.id+'"><small class="ld-sl">'+sl.name+'</small>'+
+         (m?modSpan(m)+'<small>'+escH(m.txt)+'</small>':'<span class="ld-empty">— leer —</span>')+'</button>';
+    }
+    h+='</div><div class="ld-col"><div class="ld-sub">'+escH(MOD_SLOTS.find(s=>s.id===selS).name)+' — verfügbare Mods</div>';
+    const cur=eq[selS];
+    const opts=MODS.filter(m=>m.slot===selS&&(Mods.free(m.id)>0||cur===m.id)).sort((a,b)=>b.tier-a.tier);
+    if(cur) h+='<button type="button" class="ld-opt" data-off="'+selS+'"><span>Ablegen</span></button>';
+    for(const m of opts) h+='<button type="button" class="ld-opt'+(cur===m.id?' on':'')+'" data-m="'+m.id+'">'+modSpan(m)+(Mods.free(m.id)>1?' ×'+Mods.free(m.id):'')+'<small>'+escH(m.txt)+'</small></button>';
+    if(!opts.length&&!cur) h+='<p class="small">Keine Mods für diesen Slot. Mods findest du bei Kills (Chance), nach Sektor-Abschlüssen und bei Bossen.</p>';
+    h+='</div><div class="ld-col"><div class="ld-sub">'+escH(w.name)+'</div><table class="ld-tab">';
+    for(const r of loadoutRows(i)) h+='<tr><td>'+r[0]+'</td><td>'+(r[1]===r[2]?r[2]:'<s>'+r[1]+'</s></td><td class="up">'+r[2])+'</td></tr>';
+    h+='</table></div></div>';
+    h+='<div class="row" style="margin-top:1.2cqw"><button type="button" class="primary" id="ld-back">Zurück</button></div>';
+    box.innerHTML=h;
+    box.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{ selW=+b.dataset.w; draw(box); });
+    box.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ selS=b.dataset.s; draw(box); });
+    box.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ if(Mods.equip(selW,b.dataset.m)) sfx.reloadDone(); draw(box); });
+    box.querySelectorAll('[data-off]').forEach(b=>b.onclick=()=>{ Mods.unequip(selW,b.dataset.off); draw(box); });
+    const bk=box.querySelector('#ld-back'); if(bk) bk.onclick=back;
+  }
+  showOverlay({wide:true,html:'',onMount:box=>{ if(!list.length){ box.innerHTML='<h2>Loadout</h2><p>Keine Waffe mit Mod-Slots im Besitz.</p><div class="row"><button type="button" class="primary" id="ld-back">Zurück</button></div>'; const bk=box.querySelector('#ld-back'); if(bk) bk.onclick=back; } else draw(box); }});
 }
 function fmt(t){ const s=t|0; return ((s/60)|0)+':'+String(s%60).padStart(2,'0'); }
 
@@ -1926,20 +2679,36 @@ function alertNear(){
   for(const e of enemies){ if(e.alive&&!e.awake){ const d=Math.hypot(e.x-P.x,e.y-P.y); if(d<9) e.hear=true; } }
 }
 function tryFire(){
-  if(P.fireCd>0) return;
-  if(P.weapon===3&&P.overheatT>0) return;   // gesperrt, kühlt gerade ab
-  const w=WEAPONS[P.weapon];
-  if(P.ammo<w.cost){ sfx.empty(); P.fireCd=.35; showMsg('Keine Ladung',1200); return; }
-  P.ammo-=w.cost; P.fireCd=w.rate; P.recoil=1; P.flash=P.weapon===2?.12:.09;
-  if(P.weapon===0){ sfx.pistol(); hitscan(0,12); kick(.16); }
-  else if(P.weapon===1){ sfx.shotgun(); for(let i=0;i<7;i++) hitscan((Math.random()-.5)*.2,9); kick(.38); }
-  else if(P.weapon===3){
-    sfx.auto(); hitscan((Math.random()-.5)*.05,7); kick(.09);
-    P.heat=Math.min(1,P.heat+.085);
-    if(P.heat>=1){ P.overheatT=1.6; sfx.overheat(); showMsg('Overclock-Gewehr überhitzt — kühlt ab…',1300); kick(.32); }
+  if(P.fireCd>0||P.reloadT>0||P.overheatT>0) return;      // Cooldown / Nachladen / gesperrt (kuehlt ab)
+  const i=P.weapon, w=WEAPONS[i], V=Stats.val, M=Mods.eff(i);
+  if(w.mag>0&&P.mag[i]<=0){
+    if(!startReload()){ sfx.empty(); P.fireCd=.35; showMsg('Keine Ladung',1200); }
+    return;
   }
-  else { sfx.melee(); hitscan((Math.random()-.5)*.04,26,1.65); kick(.2); }
+  const en=w.energy*M.energy;                              // Mods (Energie-Kern) senken die Energiekosten
+  if(en>0){
+    if(P.energy<en){ P.enFlash=.5; sfx.noEnergy(); P.fireCd=.25; return; }
+    P.energy-=en; P.enT=Math.max(P.enT,V.energyDelay);
+  }
+  if(w.mag>0&&!(M.free>0&&Math.random()<M.free)) P.mag[i]--;   // Zellen-Sparer: Freischuss
+  P.fireCd=w.rate/(1+V.fireRate+M.fireRate); P.recoil=1; P.flash=i===2?.12:.09;
+  Mods.shotId++;
+  sfx[w.snd]();
+  const sp=w.spread*M.spread, rg=w.range*M.range;
+  if(w.kind==='hit'){ for(let k=0;k<w.pel;k++) hitscan((Math.random()-.5)*sp,w.dmg,rg,w); }
+  else if(w.kind==='proj'){
+    const a=P.a+(Math.random()-.5)*sp, dx=Math.cos(a), dy=Math.sin(a);
+    pshots.push({x:P.x+dx*.35,y:P.y+dy*.35,dx,dy,w,trav:0,m:M,rng:rg});
+  }
+  else if(w.kind==='rail') fireRail(w,M);
+  else if(w.kind==='arc') fireArc(w,M);
+  kick(w.rc*M.rc);
+  if(w.heat>0){
+    P.heat=Math.min(1,P.heat+w.heat*V.heatMul*M.heat);
+    if(P.heat>=1){ P.overheatT=1.6; sfx.overheat(); showMsg(w.name+' überhitzt — kühlt ab…',1300); kick(.32); }
+  }
   alertNear();
+  if(w.mag>0&&P.mag[i]<=0) startReload();                  // letzter Schuss: automatisch nachladen
 }
 /* ---- Feuern für die Titelbild-Demo: identisches Waffengefühl, aber ohne Munitionsverbrauch ---- */
 function demoFire(){
@@ -1947,7 +2716,7 @@ function demoFire(){
   P.fireCd=WEAPONS[0].rate; P.recoil=1; P.flash=.09;
   sfx.pistol(); hitscan(0,12); kick(.16); alertNear();
 }
-function hitscan(off,dmg,maxRange){
+function hitscan(off,dmg,maxRange,w){
   const a=P.a+off, dx=Math.cos(a), dy=Math.sin(a);
   const wd=rayWallDist(P.x,P.y,dx,dy);
   let best=null, bd=maxRange?Math.min(wd,maxRange):wd;
@@ -1958,20 +2727,148 @@ function hitscan(off,dmg,maxRange){
     const perp=Math.abs(ex*dy-ey*dx);
     if(perp<ETYPES[e.type].rad){ best=e; bd=along; }
   }
-  if(best) damageEnemy(best,dmg,a);
+  if(best) hitEnemy(best,dmg,a,w);
   else if(wd<1e8 && (!maxRange||wd<=maxRange)) spawnSpark(P.x+dx*wd,P.y+dy*wd);
 }
-function damageEnemy(e,dmg,ang){
-  e.hp-=dmg; e.flash=.1; hitMarkT=.15; e.awake=true;
-  if(e.hp<=0){ e.alive=false; e.bodyT=0; stats.kills++; sfx.kill(Math.hypot(e.x-P.x,e.y-P.y));
+/* Spielertreffer: Schadensfaktor + Waffen-Krit (Krit nur im echten Spiel, siehe Stats.critMul) */
+function hitEnemy(e,dmg,ang,w,quiet){
+  const m=Stats.critMul(w), M=Mods.eff(w);
+  const d=Math.max(1,Math.round(dmg*Stats.val.dmgMul*M.dmg*(M.ap>0&&Mods.armored(e)?1+M.ap:1)*m));
+  const hp0=e.hp;
+  damageEnemy(e,d,ang,m>1,quiet);
+  if(M.n>0){ Mods.leech(Math.min(d,Math.max(0,hp0)),M); Mods.onHit(e,d,M,w); }   // Phase 5: Lebensraub/Schild-Entzug, Plasma/Explosion/Kettenblitz
+}
+/* Railgun: Strahl durchschlaegt bis zu 4 Ziele (je -25 %), stoppt an der Wand */
+function fireRail(w,M){
+  M=M||Mods.NEUTRAL; const rg=w.range*M.range;
+  const dx=Math.cos(P.a), dy=Math.sin(P.a), wd=rayWallDist(P.x,P.y,dx,dy), lim=Math.min(wd,rg), hits=[];
+  for(const e of enemies){
+    if(!e.alive) continue;
+    const ex=e.x-P.x, ey=e.y-P.y, along=ex*dx+ey*dy;
+    if(along<.1||along>=lim) continue;
+    if(Math.abs(ex*dy-ey*dx)<ETYPES[e.type].rad) hits.push({e,along});
+  }
+  hits.sort((a,b)=>a.along-b.along);
+  for(let k=0;k<hits.length&&k<4;k++) hitEnemy(hits[k].e,w.dmg*Math.pow(.75,k),P.a,w,k>0);
+  beams.push({kind:'rail',x0:P.x+dx*.3,y0:P.y+dy*.3,x1:P.x+dx*lim,y1:P.y+dy*lim,t:0,life:.3,jag:false,seed:0});
+  if(wd<=rg) spawnSpark(P.x+dx*wd,P.y+dy*wd);
+}
+/* Arc-Blaster: naechstes Ziel im Kegel, dann Kettenblitz (100 % / 60 % / 40 %) auf Ziele in 3.2 Feldern */
+function fireArc(w,M){
+  M=M||Mods.NEUTRAL;
+  const dx=Math.cos(P.a), dy=Math.sin(P.a), wd=rayWallDist(P.x,P.y,dx,dy), lim=Math.min(wd,w.range*M.range);
+  const sx=P.x+dx*.3, sy=P.y+dy*.3;
+  let first=null, fd=1e9;
+  for(const e of enemies){
+    if(!e.alive) continue;
+    const ex=e.x-P.x, ey=e.y-P.y, along=ex*dx+ey*dy;
+    if(along<.1||along>lim||along>=fd) continue;
+    if(Math.abs(ex*dy-ey*dx)>=ETYPES[e.type].rad+along*.22) continue;
+    const d=Math.hypot(ex,ey); if(rayWallDist(P.x,P.y,ex/d,ey/d)<d-.15) continue;
+    first=e; fd=along;
+  }
+  if(!first){ beams.push({kind:'arc',x0:sx,y0:sy,x1:P.x+dx*Math.min(lim,3),y1:P.y+dy*Math.min(lim,3),t:0,life:.1,jag:true,seed:Math.random()*9}); return; }
+  const hit=[first], mul=[1,.6,.4]; let cur=first, px0=sx, py0=sy;
+  for(let k=0;k<3&&cur;k++){
+    beams.push({kind:'arc',x0:px0,y0:py0,x1:cur.x,y1:cur.y,t:0,life:.12,jag:true,seed:Math.random()*9});
+    hitEnemy(cur,w.dmg*mul[k],Math.atan2(cur.y-py0,cur.x-px0),w,k>0);
+    px0=cur.x; py0=cur.y;
+    let nx=null, nd=3.2;
+    for(const e of enemies){
+      if(!e.alive||hit.indexOf(e)>=0) continue;
+      const ex=e.x-cur.x, ey=e.y-cur.y, d=Math.hypot(ex,ey);
+      if(d>=nd) continue;
+      if(rayWallDist(cur.x,cur.y,ex/(d||1),ey/(d||1))<d-.1) continue;
+      nx=e; nd=d;
+    }
+    if(nx) hit.push(nx);
+    cur=nx;
+  }
+}
+/* Projektile (Plasma/Void/Singularitaet): Teilschritte gegen Durchtunneln; Einschlag an Gegner, Wand oder Reichweite */
+function updatePshots(dt){
+  for(let i=pshots.length-1;i>=0;i--){
+    const s=pshots[i], total=s.w.pspd*dt, n=Math.max(1,Math.ceil(total/.2)), st=total/n;
+    let done=false;
+    for(let k=0;k<n&&!done;k++){
+      s.x+=s.dx*st; s.y+=s.dy*st; s.trav+=st;
+      if(solidAt(s.x,s.y)){ s.x-=s.dx*st; s.y-=s.dy*st; pdetonate(s,null); done=true; break; }
+      for(const e of enemies){
+        if(e.alive&&Math.hypot(e.x-s.x,e.y-s.y)<ETYPES[e.type].rad+.14){ pdetonate(s,e); done=true; break; }
+      }
+      if(!done&&s.trav>=(s.rng||s.w.range)){ pdetonate(s,null); done=true; }
+    }
+    if(done) pshots.splice(i,1);
+  }
+}
+function pdetonate(s,e){
+  const w=s.w;
+  const M=s.m||Mods.eff(w);
+  if(w.pkind==='sing'){ holes.push({x:s.x,y:s.y,t:0,life:2.6,tk:0,dm:M.dmg}); sfx.holeOpen(); return; }
+  const cx=e?e.x:s.x, cy=e?e.y:s.y, isVoid=w.pkind==='void';
+  if(e) hitEnemy(e,w.dmg,Math.atan2(s.dy,s.dx),w);
+  splash(cx,cy,w.splashR*(1+M.expF*.5),w.splash*(1+M.expF),e,isVoid,M);   // Explosivgeschosse verstaerken Projektil-Splash
+  spawnBoom(cx,cy,isVoid?1.5:1.1,isVoid?BOOM_VOID:BOOM_PLASMA);
+  sfx.boomP(Math.hypot(cx-P.x,cy-P.y)); kick(isVoid?.35:.22);
+}
+/* Flaechenschaden mit Abfall (bis -50 % am Rand), keine Wirkung durch Waende; pull = Sog zum Zentrum (Void) statt Rueckstoss */
+function splash(cx,cy,R,base,skip,pull,M){
+  const dm=Stats.val.dmgMul*(M?M.dmg:1);
+  for(const en of enemies){
+    if(!en.alive||en===skip) continue;
+    const dx=en.x-cx, dy=en.y-cy, d=Math.hypot(dx,dy);
+    if(d>R) continue;
+    const ux=d>.001?dx/d:0, uy=d>.001?dy/d:0;
+    if(d>.3&&rayWallDist(cx,cy,ux,uy)<d-.1) continue;
+    const sd=Math.max(1,Math.round(base*(1-d/R*.5)*dm)), hp0=en.hp;
+    damageEnemy(en,sd,pull?null:Math.atan2(dy,dx),false,true);
+    if(M&&M.n>0) Mods.leech(Math.min(sd,Math.max(0,hp0)),M);
+    if(pull&&en.alive&&d>.15){ const f=4.5*(1-d/R*.5); en.stagT=Math.max(en.stagT,.3); en.stagX=-ux*f; en.stagY=-uy*f; }
+  }
+}
+/* Singularitaet: Loch zieht Gegner + verschluckt gegnerische Geschosse, tickt Schaden, kollabiert mit Explosion */
+function updateHoles(dt){
+  const R=3.4;
+  for(let i=holes.length-1;i>=0;i--){
+    const h=holes[i], dm=Stats.val.dmgMul*(h.dm||1); h.t+=dt; h.tk+=dt;
+    for(let j=shots.length-1;j>=0;j--){ if(Math.hypot(shots[j].x-h.x,shots[j].y-h.y)<1.3) shots.splice(j,1); }
+    for(const e of enemies){
+      if(!e.alive) continue;
+      const dx=h.x-e.x, dy=h.y-e.y, d=Math.hypot(dx,dy);
+      if(d>R||d<.05) continue;
+      const f=1.4+2.2*(1-d/R);
+      e.stagT=Math.max(e.stagT,.12); e.stagX=dx/d*f; e.stagY=dy/d*f;
+    }
+    if(h.tk>=.25){
+      h.tk-=.25;
+      for(const e of enemies){ if(e.alive&&Math.hypot(e.x-h.x,e.y-h.y)<2.2) damageEnemy(e,Math.max(1,Math.round(6*dm)),null,false,true); }
+    }
+    if(h.t>=h.life){
+      for(const e of enemies){
+        if(!e.alive) continue;
+        const d=Math.hypot(e.x-h.x,e.y-h.y); if(d>3.2) continue;
+        damageEnemy(e,Math.max(1,Math.round(90*(1-d/3.2*.5)*dm)),null,false,true);
+      }
+      spawnBoom(h.x,h.y,2.2,BOOM_VOID); sfx.holeCollapse(Math.hypot(h.x-P.x,h.y-P.y)); kick(.55);
+      holes.splice(i,1);
+    }
+  }
+}
+function updateBeams(dt){
+  for(let i=beams.length-1;i>=0;i--){ const b=beams[i]; b.t+=dt; if(b.t>=b.life) beams.splice(i,1); }
+}
+function damageEnemy(e,dmg,ang,crit,quiet){
+  e.hp-=dmg; e.flash=.1; if(!quiet){ FX.hitMark=crit?.22:.15; if(crit) FX.crit=.22; } e.awake=true;
+  if(e.hp<=0){ e.alive=false; e.bodyT=0; stats.kills++; if(state==='play'){ Save.onKill(e.type==='K'); Combat.kill(); Mods.onKill(e,modDepth()); } sfx.kill(Math.hypot(e.x-P.x,e.y-P.y));
     spawnBoom(e.x,e.y,ETYPES[e.type].sc); kick(e.type==='K'?.9:.48);
     if(e.type==='K') showMsg('Kern-Wächter besiegt — das Portal ist offen',3000);
   } else {
-    sfx.hit(); kick(.09);
+    if(quiet){} else if(crit){ sfx.crit(); kick(.14); } else { sfx.hit(); kick(.09); }
     if(ang!=null){ const kb=ETYPES[e.type].sc>1?.9:1.6; e.stagT=.16; e.stagX=Math.cos(ang)*kb; e.stagY=Math.sin(ang)*kb; }
   }
 }
-function spawnBoom(x,y,scale){ booms.push({x,y,t:0,life:.5,scale:scale||1}); }
+function modDepth(){ return lvl&&lvl.procedural?lvl.depth:(lvIdx>=0?lvIdx+1:1); }
+function spawnBoom(x,y,scale,set){ booms.push({x,y,t:0,life:.5,scale:scale||1,set}); }
 function updateBooms(dt){
   for(let i=booms.length-1;i>=0;i--){ const b=booms[i]; b.t+=dt; if(b.t>=b.life) booms.splice(i,1); }
 }
@@ -2053,11 +2950,10 @@ function updatePickups(){
   for(const p of pickups){
     if(p.taken) continue;
     if(Math.hypot(p.x-P.x,p.y-P.y)>.55) continue;
-    if(p.kind==='h'){ if(P.hp>=100) continue; P.hp=Math.min(100,P.hp+25); healT=.35; showMsg('AXIOM-Zelle: Integrität +25',1400); sfx.pickup(); }
+    if(p.kind==='h'){ if(P.hp>=100) continue; P.hp=Math.min(100,P.hp+25); FX.heal=.35; showMsg('AXIOM-Zelle: Integrität +25',1400); sfx.pickup(); }
     else if(p.kind==='a'){ if(P.ammo>=99) continue; P.ammo=Math.min(99,P.ammo+10); showMsg('Ladung +10',1200); sfx.pickup(); }
     else if(p.kind==='m'){ stats.shards++; showMsg('MOGC-Splitter gefunden',1200); sfx.pickup(); }
-    else if(p.kind==='s'){ P.hasSG=true; P.ammo=Math.min(99,P.ammo+8); setWeapon(1); showMsg('Streu-Kanone! (Taste 1/2 wechselt)',2600); sfx.gun(); }
-    else if(p.kind==='w'){ P.hasAuto=true; P.ammo=Math.min(99,P.ammo+14); setWeapon(3); showMsg('Overclock-Gewehr! (Taste 4 wechselt)',2600); sfx.gun(); }
+    else if(WPICK[p.kind]!==undefined){ grantWeapon(WPICK[p.kind],WAMMO[p.kind]); sfx.gun(); }
     p.taken=true;
   }
 }
@@ -2089,24 +2985,26 @@ function climbStairs(){
   startLevel(siteFloors[next],false);
 }
 function finishLevel(){
-  state='levelwin'; releaseLock(); sfx.win();
+  setState('levelwin'); releaseLock(); sfx.win(); Save.onSectorClear(lvl&&lvl.procedural?lvl.depth:0);
   run.kills+=stats.kills; run.shards+=stats.shards; run.time+=stats.time; run.foes+=totals.foes; run.shardsMax+=totals.shards;
   const last=lvIdx>=LEVELS.length-1;
   const st=[['Feinde erledigt',stats.kills+' / '+totals.foes],['MOGC-Splitter',stats.shards+' / '+totals.shards],['Zeit',fmt(stats.time)]];
+  const rw=Mods.sectorReward(modDepth()); if(rw) st.push(['Waffen-Mod',rw.name]);
   if(lvl.procedural){
     const nextDepth=lvl.depth+1;
-    showOverlay({title:'Sektor gesäubert',text:lvl.name+' ist wieder online.',stats:st,
+    showOverlay(addLoadoutBtn({title:'Sektor gesäubert',text:lvl.name+' ist wieder online.',stats:st,
       buttons:[{label:'Weiter — Tiefe '+nextDepth,primary:true,fn:()=>{ siteFloors=generateProceduralSite(nextDepth); startLevel(siteFloors[0],false); }},
-               {label:'Lauf beenden',fn:finishRun}]});
+               {label:'Lauf beenden',fn:finishRun}]}));
     return;
   }
   if(!last){
-    showOverlay({title:'Sektor gesäubert',text:lvl.name+' ist wieder online.',stats:st,
-      buttons:[{label:'Weiter zu '+LEVELS[lvIdx+1].name.split(':')[0],primary:true,fn:()=>startLevel(lvIdx+1,false)}]});
+    showOverlay(addLoadoutBtn({title:'Sektor gesäubert',text:lvl.name+' ist wieder online.',stats:st,
+      buttons:[{label:'Weiter zu '+LEVELS[lvIdx+1].name.split(':')[0],primary:true,fn:()=>startLevel(lvIdx+1,false)}]}));
   } else {
-    state='gamewin';
+    setState('gamewin');
     let best=null;
     try{ best=+localStorage.getItem('orca_breach_best')||0; if(!best||run.time<best){ localStorage.setItem('orca_breach_best',String(run.time|0)); best=run.time|0; } }catch(e){}
+    Save.onCampaignComplete(run.time);
     st.push(['Gesamtzeit',fmt(run.time)]); st.push(['Gesamt-Splitter',run.shards+' / '+run.shardsMax]);
     if(best) st.push(['Bestzeit (dieser Browser)',fmt(best)]);
     showOverlay({title:'NEXUS ist wieder online',text:'Der Kern ist gesichert. Das war die Testversion — Feedback willkommen.',stats:st,
@@ -2117,32 +3015,42 @@ function finishLevel(){
 /* ============================================================
    Ablauf: Start, Pause, Overlays
    ============================================================ */
-function newRun(){ run.kills=run.shards=run.time=run.foes=run.shardsMax=0; P.hasSG=false; P.hasAuto=false; P.heat=0; P.overheatT=0; }
+function newRun(){
+  Save.onRunStart(); Stats.onRunStart(); Mods.reset(); Combat.reset(); run.kills=run.shards=run.time=run.foes=run.shardsMax=0;
+  for(let i=0;i<WEAPONS.length;i++){ P.owned[i]=(i===0||i===2); P.mag[i]=Mods.magSize(i); P.hs[i]=0; P.os[i]=0; }   // Arsenal zurueck auf Pistole + Faeuste
+  P.weapon=0; P.heat=0; P.overheatT=0; P.reloadT=0; P.ammo=36; refreshWeaponUI();
+}
 function startLevel(i,fresh){
   fadeTransition(()=>{
     initAudio();
     if(fresh){ P.hp=100; if(i===0&&!P.hasSG) P.ammo=36; }
     parseLevel(i);
+    Combat.resetChain();
+    Save.onLevelStart(lvl.procedural?lvl.depth:0);
     setAmbient(curBiome);
-    snap={hp:P.hp,ammo:P.ammo,hasSG:P.hasSG};
-    P.weapon=P.hasSG?1:0; $('wname').textContent=WEAPONS[P.weapon].name;
-    hideOverlay(); state='play'; requestLock();
+    snap={hp:P.hp,ammo:P.ammo,hasSG:P.hasSG,owned:P.owned.slice()};
+    if(!P.owned[P.weapon]) P.weapon=0; refreshWeaponUI();
+    hideOverlay(); setState('play'); requestLock();
     showMsg(lvl.intro,4200); flowT=0; lastT=performance.now();
   });
 }
 function pauseGame(){
   if(state!=='play') return;
-  state='pause'; releaseLock();
+  setState('pause'); releaseLock();
+  pauseMenu();
+}
+function pauseMenu(){
   const buttons=[{label:'Weiterspielen',primary:true,fn:resumeGame},
+                 {label:'Loadout',fn:()=>openLoadout(pauseMenu)},
                  {label:muted?'Ton an':'Ton aus',fn:()=>{ muted=!muted; refreshAmbientVolume(); pauseRefresh(); }}];
   if(lvl.procedural) buttons.push({label:'Lauf beenden',fn:finishRun});
   buttons.push({label:'Zum Titel',fn:showTitle});
   showOverlay({title:'Pausiert',text:'Klick auf „Weiterspielen“ fängt die Maus wieder ein.',showKeys:true,buttons});
 }
-function pauseRefresh(){ state='play'; pauseGame(); }
-function resumeGame(){ hideOverlay(); state='play'; requestLock(); lastT=performance.now(); }
+function pauseRefresh(){ setState('play'); pauseGame(); }
+function resumeGame(){ hideOverlay(); setState('play'); requestLock(); lastT=performance.now(); }
 function showTitle(){
-  state='title'; releaseLock();
+  setState('title'); releaseLock();
   demoLvIdx=0; parseLevel(generateProceduralLevel(DEMO_DEPTHS[demoLvIdx])); P.a=lvl.angle; P.weapon=0;
   demoTarget=null; demoFlowMap=null; demoFlowKey=null; demoIdleT=0; demoAimT=0; demoStuckT=0;
   setAmbient('facility');   // Kulisse: Wächter-Programm läuft die Story-Sektoren als Demo ab (siehe updateDemo())
@@ -2172,10 +3080,14 @@ function showTitle(){
     }});
 }
 const KEYS_HTML='<dl class="keys">'+
-  '<dt>W A S D</dt><dd>Bewegen (Umschalt = Sprint)</dd>'+
+  '<dt>W A S D</dt><dd>Bewegen (Umschalt = Sprint, kostet Energie)</dd>'+
+  '<dt>F / Rechtsklick</dt><dd>Dash (Cooldown, kostet Energie)</dd>'+
   '<dt>Maus</dt><dd>Umsehen. Alternativ Pfeiltasten oder Q / E</dd>'+
   '<dt>Linksklick / Leertaste</dt><dd>Feuern / Schlagen</dd>'+
-  '<dt>1 / 2 / 3</dt><dd>Puls-Pistole / Streu-Kanone / Fäuste</dd>'+
+  '<dt>1 – 9</dt><dd>Waffe wählen (Pistole, Streu-Kanone, Fäuste, Overclock, Plasma, Rail, Arc, Void, Singularität)</dd>'+
+  '<dt>Mausrad</dt><dd>Waffe wechseln</dd>'+
+  '<dt>R</dt><dd>Nachladen</dd>'+
+  '<dt>L</dt><dd>Loadout: Waffen-Mods einbauen (pausiert)</dd>'+
   '<dt>M</dt><dd>Karte ein und aus</dd>'+
   '<dt>Esc</dt><dd>Pause</dd></dl>';
 
@@ -2183,6 +3095,7 @@ function showOverlay(o){
   const box=$('obox');
   $('overlay').classList.toggle('title-mode', !!o.titleMode);
   box.classList.toggle('title-box', !!o.titleMode);
+  box.classList.toggle('ld-box', !!o.wide);
   if(o.html){ box.innerHTML=o.html; }
   else{
     let h='<h2>'+o.title+'</h2><p>'+(o.text||'')+'</p>';
@@ -2222,7 +3135,7 @@ function fadeTransition(cb){
 /* ============================================================
    Rendering
    ============================================================ */
-let dirX=1,dirY=0,planeX=0,planeY=PLANE_LEN, flashAdd=0, horizon=HALF;
+let dirX=1,dirY=0,planeX=0,planeY=PLANE_LEN, horizon=HALF;
 
 const skyColBuf=new Int32Array(W);
 function computeSkyCols(){
@@ -2247,7 +3160,7 @@ function renderFloorCeil(time){
     }
     if(ap<.6){ for(let x=0;x<W;x++) buf[base+x]=FOGC; continue; }
     const rd=(.5*PROJ)/ap;
-    const f=clamp(((1-rd/MAXD)*256|0)+flashAdd,0,256);
+    const f=clamp(((1-rd/MAXD)*256|0)+FX.flashAdd,0,256);
     if(f<=2){ for(let x=0;x<W;x++) buf[base+x]=FOGC; continue; }
     const stx=rd*(rx1-rx0)/W, sty=rd*(ry1-ry0)/W;
     let fx=P.x+rd*rx0, fy=P.y+rd*ry0;
@@ -2297,7 +3210,7 @@ function renderWalls(time){
     if((side===0&&rdx>0)||(side===1&&rdy<0)) tx=63-tx;
     const lh=PROJ/perp, top=horizon-lh/2;
     let f=((1-perp/MAXD)*256)|0; if(side===1) f=(f*.74)|0;
-    f=clamp(f+flashAdd,0,256);
+    f=clamp(f+FX.flashAdd,0,256);
     let tex=curWall[hit]||curWall[1];
     if(hit===4){ tex=locked_?texExitLocked:texExit; f=clamp(170+((Math.sin(time*4)+1)*43)|0,0,256); }
     else if(hit===5){ tex=texStairs; f=clamp(170+((Math.sin(time*3)+1)*43)|0,0,256); }
@@ -2327,10 +3240,25 @@ function renderSprites(time){
   for(const p of pickups){ if(p.taken) continue;
     drawList.push({x:p.x,y:p.y,tex:PICKUP_SPR[p.kind],sc:.36,vo:.02+(Math.sin(time*3+p.ph)+1)*.03,flash:0}); }
   for(const s of shots) drawList.push({x:s.x,y:s.y,tex:SPR_BALL,sc:.24,vo:.38,flash:0,glow:true});
+  for(const s of pshots) drawList.push({x:s.x,y:s.y,tex:s.w.pkind==='plasma'?SPR_PLASMA:s.w.pkind==='void'?SPR_VOIDP:SPR_SINGP,sc:s.w.pkind==='sing'?.34:.26,vo:.37,flash:0,glow:true});
+  for(const h of holes){
+    const pl=1+Math.sin(time*9)*.06, left=h.life-h.t, k=Math.max(.05,Math.min(1,h.t/.3)*(left<.35?left/.35:1));
+    drawList.push({x:h.x,y:h.y,tex:SPR_HOLE,sc:1.0*k*pl,vo:.05,flash:0,glow:true});
+    drawList.push({x:h.x,y:h.y,tex:SPR_HOLE2,sc:.7*k*(2-pl),vo:.2,flash:0,glow:true});
+  }
+  for(const b of beams){
+    const dx=b.x1-b.x0, dy=b.y1-b.y0, len=Math.hypot(dx,dy)||.01, n=clamp(Math.ceil(len/.4),3,40), nx=-dy/len, ny=dx/len, fade=1-b.t/b.life;
+    const tex=b.kind==='rail'?SPR_RAILDOT:SPR_ARCDOT, bsc=(b.kind==='rail'?.15:.11)*(.5+.5*fade);
+    for(let k=0;k<=n;k++){
+      const f=k/n, off=(b.jag&&k>0&&k<n)?Math.sin(time*57+k*12.9+b.seed)*.13:0;
+      drawList.push({x:b.x0+dx*f+nx*off,y:b.y0+dy*f+ny*off,tex,sc:bsc,vo:.44,flash:0,glow:true});
+    }
+  }
   for(const b of booms){
-    const k=Math.min(BOOM_FRAMES.length-1,(b.t/b.life*BOOM_FRAMES.length)|0);
+    const bset=b.set||BOOM_FRAMES;
+    const k=Math.min(bset.length-1,(b.t/b.life*bset.length)|0);
     const grow=.55+(b.t/b.life)*.9;
-    drawList.push({x:b.x,y:b.y,tex:BOOM_FRAMES[k],sc:(b.scale||1)*grow,vo:.16,flash:0,glow:true});
+    drawList.push({x:b.x,y:b.y,tex:bset[k],sc:(b.scale||1)*grow,vo:.16,flash:0,glow:true});
   }
   for(const sp of sparks){
     const k=Math.min(SPARK_FRAMES.length-1,(sp.t/sp.life*SPARK_FRAMES.length)|0);
@@ -2347,7 +3275,7 @@ function renderSprites(time){
     if(tY<.12) continue;
     const size=PROJ*s.sc/tY, sxc=(W/2)*(1+tX/tY);
     const bottom=horizon+(.5-s.vo)*PROJ/tY, top=bottom-size, x0=sxc-size/2;
-    let f=s.glow?256:clamp(((1-tY/MAXD)*256|0)+flashAdd+50,40,256);
+    let f=s.glow?256:clamp(((1-tY/MAXD)*256|0)+FX.flashAdd+50,40,256);
     const xa=Math.max(0,x0|0), xb=Math.min(W-1,(x0+size)|0);
     const ya=Math.max(0,top|0), yb=Math.min(H-1,bottom|0);
     const ss=64/size, tex=s.tex, fl=s.flash>0;
@@ -2366,7 +3294,10 @@ function drawWeapon(time){
   ctx.save(); ctx.scale(W/320,H/200);   // Waffen-Sprites sind im alten 320x200-Raster gezeichnet
   const bx=Math.sin(P.bob)*4*P.moving, by=Math.abs(Math.cos(P.bob))*3*P.moving;
   const rc=P.recoil*9;
-  ctx.save(); ctx.translate(bx,by+rc-19);
+  const w=WEAPONS[P.weapon];
+  const hc=P.overheatT>0?'#FF3D6E':P.heat>.66?'#FF6A2E':P.heat>.33?'#FFC24D':w.col;      // Kern glueht mit der Hitze
+  const dip=P.reloadT>0?Math.sin((1-P.reloadT/P.reloadDur)*Math.PI)*46:0;                // Waffe taucht beim Nachladen ab
+  ctx.save(); ctx.translate(bx,by+rc-19+dip);
   if(P.weapon===0){
     poly(ctx,'#0d141c',[130,235,146,168,174,168,190,235]);
     poly(ctx,'#1f2c3f',[137,235,150,172,170,172,183,235]);
@@ -2391,6 +3322,32 @@ function drawWeapon(time){
       gr.addColorStop(0,'rgba(255,255,255,.55)'); gr.addColorStop(1,'rgba(255,255,255,0)');
       ctx.fillStyle=gr; ctx.fillRect(120,70,80,60);
     }
+  } else if(P.weapon===4){         // Plasma-Kanone: klobiger Lauf, Seitenspulen
+    poly(ctx,'#0d141c',[112,235,132,158,188,158,208,235]); poly(ctx,'#1f2c3f',[120,235,138,164,182,164,200,235]);
+    px(ctx,'#2b3b4f',136,104,48,60); px(ctx,'#0d141c',136,104,48,6);
+    px(ctx,'#0d141c',126,120,10,36); px(ctx,'#0d141c',184,120,10,36); px(ctx,hc,128,124,6,28); px(ctx,hc,186,124,6,28);
+    px(ctx,hc,150,116,20,26); px(ctx,'#DFFCFF',156,122,8,14); px(ctx,'#FFAE3D',136,158,48,3);
+  } else if(P.weapon===5){         // Railgun: zwei lange Schienen mit Spulenringen
+    poly(ctx,'#0d141c',[126,235,144,150,176,150,194,235]); poly(ctx,'#1f2c3f',[133,235,148,155,172,155,187,235]);
+    px(ctx,'#2b3b4f',146,66,10,94); px(ctx,'#2b3b4f',164,66,10,94); px(ctx,'#0d141c',146,66,10,4); px(ctx,'#0d141c',164,66,10,4);
+    px(ctx,hc,157,70,6,86); for(const y of [88,108,128]) px(ctx,'#FFAE3D',142,y,38,3);
+    px(ctx,'#10161f',148,150,24,16);
+  } else if(P.weapon===6){         // Arc-Blaster: Zinken, dazwischen springt der Blitz
+    poly(ctx,'#0d141c',[120,235,140,156,180,156,200,235]); poly(ctx,'#1f2c3f',[127,235,143,161,177,161,193,235]);
+    px(ctx,'#2b3b4f',144,112,32,48);
+    poly(ctx,'#2b3b4f',[144,114,130,84,138,82,152,110]); poly(ctx,'#2b3b4f',[176,114,190,84,182,82,168,110]);
+    px(ctx,hc,131,79,8,6); px(ctx,hc,181,79,8,6); px(ctx,hc,156,122,8,20);
+    if(P.flash>0){ ctx.strokeStyle='#DFFCFF'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(136,82); ctx.lineTo(148,70); ctx.lineTo(154,88); ctx.lineTo(166,68); ctx.lineTo(172,86); ctx.lineTo(184,82); ctx.stroke(); }
+  } else if(P.weapon===7){         // Void-Werfer: breites Rohr, violettes Maul
+    poly(ctx,'#0d141c',[104,235,128,164,192,164,216,235]); poly(ctx,'#1f2c3f',[112,235,134,169,186,169,208,235]);
+    px(ctx,'#2b3b4f',124,108,72,58); px(ctx,'#0d141c',124,108,72,6); px(ctx,'#0d141c',136,92,48,18);
+    px(ctx,hc,142,96,36,10); px(ctx,'#3a1466',128,132,64,4); px(ctx,hc,132,120,4,8); px(ctx,hc,184,120,4,8);
+  } else if(P.weapon===8){         // Singularitaets-Kanone: Ring um einen schwarzen, pulsierenden Kern
+    const pl=(Math.sin(time*6)+1)*1.6;
+    poly(ctx,'#0d141c',[98,235,124,166,196,166,222,235]); poly(ctx,'#1f2c3f',[108,235,130,171,190,171,212,235]);
+    px(ctx,'#2b3b4f',120,112,80,56);
+    px(ctx,hc,128,84,64,3); px(ctx,hc,128,116,64,3); px(ctx,hc,128,84,3,35); px(ctx,hc,189,84,3,35);
+    px(ctx,'#000000',137,90,46,24); px(ctx,'#B45CFF',156-pl/2,98-pl/2,8+pl,4+pl); px(ctx,'#FF3D6E',159,101,2,2);
   } else {
     const lunge=P.flash>0?16:0;
     poly(ctx,'#1f2c3f',[92,235,84,186,108,164,132,186,124,235]);
@@ -2403,9 +3360,9 @@ function drawWeapon(time){
     ctx.restore();
   }
   if(P.flash>0){
-    const cx=160, cy=P.weapon===0?134:(P.weapon===3?100:120), r=P.weapon===0?18:(P.weapon===3?16:28);
+    const cx=160, cy=w.fx[0], r=w.fx[1];
     const gr=ctx.createRadialGradient(cx,cy,1,cx,cy,r);
-    gr.addColorStop(0,'rgba(255,255,255,.95)'); gr.addColorStop(.4,'rgba(255,190,80,.8)'); gr.addColorStop(1,'rgba(255,120,40,0)');
+    gr.addColorStop(0,'rgba(255,255,255,.95)'); gr.addColorStop(.4,'rgba('+w.frgb+',.8)'); gr.addColorStop(1,'rgba('+w.frgb+',0)');
     ctx.fillStyle=gr; ctx.fillRect(cx-r,cy-r,r*2,r*2);
   }
   ctx.restore();
@@ -2415,7 +3372,7 @@ function render(time){
   dirX=Math.cos(P.a); dirY=Math.sin(P.a);
   planeX=-dirY*PLANE_LEN; planeY=dirX*PLANE_LEN;
   horizon=HALF+P.pitch+Math.sin(P.bob*2)*1.6*P.moving;
-  flashAdd=(P.flash>0?55:0);
+  FX.flashAdd=(P.flash>0?55:0);
   renderFloorCeil(time); renderWalls(time); renderSprites(time);
   ctx.putImageData(img,0,0);
   drawWeapon(time);
@@ -2481,26 +3438,165 @@ function drawFace(kind){
 const elHp=$('hp'), elFill=$('hpfill'), elAmmo=$('ammo'), elShards=$('shards'), elFoes=$('foes'), elTop=$('top');
 const elHeatbar=$('heatbar'), elHeatfill=$('heatfill');
 function updateHeatUI(){
-  if(P.weapon!==3&&P.heat<=0){ elHeatbar.classList.remove('show'); return; }
+  if(WEAPONS[P.weapon].heat<.08&&P.heat<.12){ elHeatbar.classList.remove('show'); return; }   // kaum heisse Waffen blenden den Balken aus
   elHeatbar.classList.add('show');
   const pct=Math.round(P.heat*100);
   elHeatfill.style.width=pct+'%';
   elHeatfill.style.background=P.overheatT>0?'var(--down)':P.heat>.66?'var(--amber)':'var(--cyan)';
 }
 let hudLast='';
-function updateHud(){
+function updateHudCore(){
   const foes=enemies.reduce((n,e)=>n+(e.alive?1:0),0);
-  const key=[P.hp,P.ammo,stats.shards,totals.shards,foes,lvIdx,P.weapon].join('|');
+  const key=[P.hp,P.ammo,P.mag[P.weapon],stats.shards,totals.shards,foes,lvIdx,P.weapon].join('|');
   if(key===hudLast) return; hudLast=key;
   elHp.textContent=P.hp;
   elFill.style.width=P.hp+'%'; elFill.style.background=P.hp>60?'var(--up)':P.hp>30?'var(--amber)':'var(--down)';
-  elAmmo.textContent=P.ammo;
+  elAmmo.innerHTML=WEAPONS[P.weapon].mag>0?P.mag[P.weapon]+'<small>/'+P.ammo+'</small>':'∞';   // Magazin / Vorrat
   elShards.innerHTML=stats.shards+'<small>/'+totals.shards+'</small>';
   elFoes.textContent=foes;
-  elTop.innerHTML='<b>'+lvl.name+'</b>';
+  if(state==='title') elTop.innerHTML='<b>'+lvl.name+'</b>';
   const fk=P.hp<=0?3:P.hp>66?0:P.hp>33?1:2;
-  if(fk!==faceKind){ faceKind=fk; drawFace(fk); }
+  if(fk!==FX.faceKind){ FX.faceKind=fk; drawFace(fk); }
 }
+
+/* ============================================================
+   Phase 2: Next-Gen HUD — Zusatzanzeigen + dynamische Warnungen
+   Liest nur Zustand (P, enemies, lvl, Combat), aendert keine Spielwerte.
+   DOM wird nur bei Aenderung beschrieben (Cache), Threat nur ~10x/s berechnet.
+   ============================================================ */
+const elStage=$('stage'), elHudTop=elTop;
+const elMods={ sh:$('mShield'), ar:$('mArmor'), en:$('mEnergy'), ds:$('mDash') };
+const elShieldFx=$('shieldFx'), elDashFx=$('dashFx'), elDashBtn=$('tcDashBtn');
+for(const k in elMods){ elMods[k]._u=elMods[k].querySelector('u'); }
+const elWlv=$('wlv'), elCritv=$('critv'), elHeattxt=$('heattxt');
+const elRld=$('rld'), elRldFill=$('rldfill'), elRldTxt=$('rldtxt'), elWslots=Array.from($('wslots').querySelectorAll('i'));
+const elThreat=$('threat'), elThreatPips=elThreat?Array.from(elThreat.querySelectorAll?elThreat.querySelectorAll('i'):[]):[], elThreatTxt=$('threattxt');
+const elCombo=$('combo'), elComboN=$('comboN'), elComboBar=$('comboBar'), elStreakN=$('streakN');
+const elBossName=$('bossName'), elBossLv=$('bossLv'), elBossFill=$('bossFill'), elBossGhost=$('bossGhost');
+const THREAT_NAMES=['RUHIG','GERING','ERHÖHT','HOCH','KRITISCH','EXTREM'];
+const HUD={ threat:0, threatF:0, tick:0, ghost:1, boss:null, last:{}, objective:'', lowHpT:0, wasLowAmmo:false };
+
+// Nur schreiben, wenn sich der Wert geaendert hat
+function hset(key,val,fn){ if(HUD.last[key]===val) return false; HUD.last[key]=val; fn(val); return true; }
+function hcls(el,cls,on){ hset('c:'+cls,!!on,v=>el.classList.toggle(cls,v)); }
+
+function hudApplySettings(){
+  let rm=false;
+  try{ rm=!!(NX.settings&&NX.settings.reducedMotion)||matchMedia('(prefers-reduced-motion:reduce)').matches; }catch(e){}
+  elStage.classList.toggle('rm',rm);
+}
+onState(next=>{ elStage.classList.toggle('hud-on',next!=='title'); if(next==='title') HUD.last.top=null; });   // Titel schreibt #top selbst -> Cache verwerfen
+
+function bossOf(){
+  for(let i=0;i<enemies.length;i++){ const e=enemies[i]; if(e.type==='K'&&e.alive) return e; }
+  return null;
+}
+// Bedrohung: gewichtete Summe wacher Gegner in Reichweite (Boss zaehlt dreifach), 0..5
+function computeThreat(){
+  let sum=0;
+  for(let i=0;i<enemies.length;i++){
+    const e=enemies[i]; if(!e.alive||!e.awake) continue;
+    const d=Math.hypot(e.x-P.x,e.y-P.y); if(d>16) continue;
+    const w=e.type==='K'?9:clamp(e.maxhp/45,.4,3);
+    sum+=w*(d<7?1:.55);
+  }
+  return sum;
+}
+function threatLevel(sum){ return sum<=0?0:sum<1.6?1:sum<4?2:sum<7.5?3:sum<12?4:5; }
+
+function objectiveText(foes){
+  if(!lvl) return '';
+  if(bossOf()) return 'Kern-Wächter besiegen';
+  if(stairsCell) return 'Treppe hinauf nehmen';
+  if(exitCell) return foes>0?'Portal erreichen · '+foes+' Feinde':'Portal erreichen';
+  return foes>0?'Rogue-Prozesse ausschalten':'Sektor erkunden';
+}
+function sectorSub(){
+  if(!lvl) return '';
+  const b=(BIOMES[lvl.biome]||BIOMES.facility).name;
+  if(lvl.procedural) return 'Tiefe '+lvl.depth+' · '+b;
+  return 'Sektor '+(lvIdx+1)+' · '+b;
+}
+function setMod(name,el,cur,max){
+  const on=max>0;
+  hset('off:'+name,!on,v=>el.classList.toggle('off',v));
+  const pct=on?Math.round(clamp(cur/max,0,1)*100):0;
+  hset('m:'+name,pct,v=>{ el._u.style.width=v+'%'; });
+}
+function hud2Update(dt){
+  if(!lvl) return;
+  const playing=state==='play'||state==='pause'||state==='dead'||state==='levelwin'||state==='gamewin';
+  if(!playing) return;
+  HUD.tick++;
+
+  // --- Sektor / Ziel (Text nur bei Aenderung) ---
+  let foes=0; for(let i=0;i<enemies.length;i++) if(enemies[i].alive) foes++;
+  const obj=objectiveText(foes);
+  hset('top',lvl.name+'|'+sectorSub()+'|'+obj,()=>{ elHudTop.innerHTML='<b>'+lvl.name+'</b><span class="sub">'+sectorSub()+'</span><span class="obj">'+obj+'</span>'; });
+
+  // --- Shield / Armor / Energy (Slots; aktiv sobald Max>0, Phase 3) ---
+  setMod('sh',elMods.sh,P.shield,P.shieldMax); setMod('ar',elMods.ar,P.armor,P.armorMax); setMod('en',elMods.en,P.energy,P.energyMax);
+  // Dash: Balken = geladene Ladungen + Fortschritt der naechsten; Energie-Sperre (Sprint leer / Dash ohne Energie) blinkt rot
+  { const dmax=Stats.val.dashCharges, part=P.dashN<dmax?clamp(1-P.dashCd/Stats.val.dashCd,0,1):0;
+    hset('m:ds',Math.round(clamp((P.dashN+part)/dmax,0,1)*100),v=>{ elMods.ds._u.style.width=v+'%'; });
+    hcls(elMods.ds,'ready',P.dashN>=1); hcls(elMods.ds,'two',dmax>=2); hcls(elDashBtn,'cool',P.dashN<1);
+    hcls(elMods.en,'lock',P.sprintLock||P.enFlash>0); }
+
+  // --- Waffe: Level + Krit ---
+  hset('wlv',P.wLv[P.weapon]|0,v=>{ elWlv.textContent='LV'+v; });
+  hset('crit',Math.round(P.crit*100),v=>{ elCritv.textContent=v+'%'; });
+  // Nachlade-Balken + Waffenleiste 1-9 (cur = aktiv, own = gefunden)
+  hset('rld',P.reloadT>0?Math.round((1-P.reloadT/P.reloadDur)*100):-1,v=>{ elRldFill.style.width=Math.max(0,v)+'%'; elRld.classList.toggle('show',v>=0); elRldTxt.classList.toggle('on',v>=0); });
+  { let mask=''; for(let i=0;i<WEAPONS.length;i++) mask+=(i===P.weapon?'c':P.owned[i]?'o':'-');
+    hset('wslots',mask,()=>{ for(let i=0;i<elWslots.length;i++) elWslots[i].className=i===P.weapon?'cur':P.owned[i]?'own':''; }); }
+
+  // --- Bedrohung (10 Hz) ---
+  if(HUD.tick%6===1){ HUD.threat=threatLevel(computeThreat()); }
+  const tl=HUD.threat;
+  hset('threat',tl,v=>{
+    for(let i=0;i<elThreatPips.length;i++) elThreatPips[i].classList.toggle('on',i<v);
+    elThreat.className=''; if(v>=3) elThreat.classList.add('t'+v);
+    elThreatTxt.textContent='BEDROHUNG · '+THREAT_NAMES[v];
+  });
+
+  // --- Combo / Streak ---
+  const showCombo=Combat.chain>=2||Combat.streak>=3;
+  hcls(elCombo,'on',showCombo);
+  if(showCombo){
+    hset('chain',Combat.chain,v=>{ elComboN.innerHTML='<small>COMBO</small>'+v; });
+    hset('streak',Combat.streak,v=>{ elStreakN.textContent=v; });
+    hset('cbar',Math.round(Combat.t/COMBO_WINDOW*100),v=>{ elComboBar.style.width=v+'%'; });
+    if(Combat.popped){ Combat.popped=false; elComboN.classList.remove('pop'); void elComboN.offsetWidth; elComboN.classList.add('pop'); }
+  } else Combat.popped=false;
+
+  // --- Boss-Leiste ---
+  const boss=bossOf();
+  const bossOn=!!(boss&&boss.awake);
+  hcls(elStage,'boss',bossOn);
+  if(boss){
+    hset('bossName',boss.type,()=>{ elBossName.textContent=ETYPES.K.name; elBossLv.textContent='LV '+(lvl.procedural?Math.max(1,(lvl.depth/3)|0):lvIdx+1); });
+    const pct=clamp(boss.hp/boss.maxhp,0,1);
+    if(HUD.boss!==boss){ HUD.boss=boss; HUD.ghost=pct; }
+    HUD.ghost=Math.max(pct,HUD.ghost-dt*.4);
+    hset('bossFill',Math.round(pct*1000),v=>{ elBossFill.style.width=(v/10)+'%'; });
+    hset('bossGhost',Math.round(HUD.ghost*1000),v=>{ elBossGhost.style.width=(v/10)+'%'; });
+  } else HUD.boss=null;
+
+  // --- Warnungen (nur im laufenden Spiel) ---
+  const live=state==='play'&&P.hp>0;
+  const lowHp=live&&P.hp<=30;
+  hcls(elStage,'lowhp',lowHp); hcls(elStage,'lowhp2',live&&P.hp<=15);
+  if(lowHp){ HUD.lowHpT-=dt; if(HUD.lowHpT<=0){ sfx.lowHp(); HUD.lowHpT=P.hp<=15?.9:1.5; } } else HUD.lowHpT=0;
+  const lw=WEAPONS[P.weapon], cells=lw.cost>0?P.ammo+P.mag[P.weapon]*lw.cost:99;   // Zellen gesamt (Magazin + Vorrat)
+  const lowAmmo=live&&lw.cost>0&&cells<=8;
+  hcls(elStage,'lowammo',lowAmmo); hcls(elStage,'ammo0',live&&lw.cost>0&&cells<lw.cost);
+  if(lowAmmo&&!HUD.wasLowAmmo) sfx.lowAmmo();
+  HUD.wasLowAmmo=lowAmmo;
+  hcls(elStage,'hot',live&&P.heat>.66&&P.overheatT<=0);
+  hcls(elStage,'overheat',live&&P.overheatT>0);
+}
+function updateHud(dt){ updateHudCore(); hud2Update(dt||0.016); }
+hudApplySettings();
 
 /* ============================================================
    Titelbild-Demo (Wächter-Programm spielt sich selbst)
@@ -2535,7 +3631,7 @@ function updateDemo(dt){
   for(const e of enemies) updateEnemy(e,dt);
   updateShots(dt); updateBooms(dt); updateSparks(dt);
   P.fireCd=Math.max(0,P.fireCd-dt); P.recoil=Math.max(0,P.recoil-dt*5); P.flash=Math.max(0,P.flash-dt);
-  hitMarkT=Math.max(0,hitMarkT-dt); shakeAmt=Math.max(0,shakeAmt-dt*3.4);
+  FX.hitMark=Math.max(0,FX.hitMark-dt); FX.shake=Math.max(0,FX.shake-dt*3.4);
   flowT-=dt; if(flowT<=0){ computeFlow(); flowT=.3; }
 
   const target=demoPickTarget();
@@ -2590,43 +3686,62 @@ function updateDemo(dt){
 let lastT=performance.now();
 let stepPhase=0;
 function update(dt){
-  stats.time+=dt;
-  // Bewegung
+  stats.time+=dt; Save.data.stats.playTime+=dt; Combat.tick(dt);
+  // Bewegung (Phase 3: Sprint kostet Energie, Dash mit i-Frames, Tempo-Faktor aus Stats)
+  const V=Stats.val;
   const turn=(keys.ArrowRight||keys.KeyE?1:0)-(keys.ArrowLeft||keys.KeyQ?1:0);
   P.a+=turn*2.4*dt;
-  const fwd=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)+touchFwd;
-  const str=(keys.KeyD?1:0)-(keys.KeyA?1:0)+touchStr;
-  let vx=Math.cos(P.a)*fwd+(-Math.sin(P.a))*str, vy=Math.sin(P.a)*fwd+Math.cos(P.a)*str;
-  const vl=Math.hypot(vx,vy);
-  if(vl>0){
-    const sp=(keys.ShiftLeft||keys.ShiftRight||touchSprint?4.8:3.2)*dt;
-    const mv=tryMove(P,vx/vl*sp,vy/vl*sp,.22);
+  readMove();
+  const wantSprint=!!(keys.ShiftLeft||keys.ShiftRight||touchSprint);
+  if(P.dashT>0){
+    const step=Math.min(dt,P.dashT); P.dashT-=step;
+    const dist=V.dashDist/V.dashTime*step, n=Math.max(1,Math.ceil(dist/.2)), d=dist/n;   // Teilschritte: kein Durchtunneln
+    for(let i=0;i<n;i++) tryMove(P,P.dashX*d,P.dashY*d,.22);
+    P.sprinting=false; P.moving=Math.min(1,P.moving+dt*8);
+  } else if(mvLen>0){
+    P.sprinting=wantSprint&&!P.sprintLock&&P.energy>0;
+    if(P.sprinting){
+      P.energy=Math.max(0,P.energy-V.sprintCost*dt); P.enT=Math.max(P.enT,V.energyDelay);
+      if(P.energy<=0){ P.sprintLock=true; P.sprinting=false; sfx.noEnergy(); }
+    }
+    const sp=(P.sprinting?4.8:3.2)*V.speed*dt;
+    const mv=tryMove(P,mvX*sp,mvY*sp,.22);
     P.moving=Math.min(1,P.moving+dt*8); P.bob+=mv*2.6;
     const stepIdx=Math.floor(P.bob/Math.PI);
     if(stepIdx>stepPhase){ stepPhase=stepIdx; sfx.step(curBiome); }
-  } else P.moving=Math.max(0,P.moving-dt*8);
+  } else { P.sprinting=false; P.moving=Math.max(0,P.moving-dt*8); }
+  if(P.sprintLock&&!wantSprint&&P.energy>=P.energyMax*V.sprintResume) P.sprintLock=false;   // erst loslassen UND 20 % Energie
+  Stats.tick(dt);
   // Feuern
   P.fireCd=Math.max(0,P.fireCd-dt); P.recoil=Math.max(0,P.recoil-dt*5); P.flash=Math.max(0,P.flash-dt);
+  if(P.reloadT>0){ P.reloadT-=dt; if(P.reloadT<=0){ P.reloadT=0; finishReload(); } }
   if(P.overheatT>0){ P.overheatT=Math.max(0,P.overheatT-dt); if(P.overheatT===0) P.heat=0; }
-  else P.heat=Math.max(0,P.heat-dt*.32);
+  else P.heat=Math.max(0,P.heat-dt*WEAPONS[P.weapon].cool*Mods.eff(P.weapon).cool);
+  for(let i=0;i<WEAPONS.length;i++){                       // weggelegte Waffen kuehlen im Hintergrund
+    if(i===P.weapon) continue;
+    if(P.os[i]>0){ P.os[i]=Math.max(0,P.os[i]-dt); if(P.os[i]===0) P.hs[i]=0; }
+    else if(P.hs[i]>0) P.hs[i]=Math.max(0,P.hs[i]-dt*WEAPONS[i].cool*Mods.eff(i).cool);
+  }
   if(keys.Space||mouseDown||touchFireDown) tryFire();
   // Welt
   if(lvl.fog) updateFog();
   flowT-=dt; if(flowT<=0){ computeFlow(); flowT=.3; }
   for(const e of enemies) updateEnemy(e,dt);
-  updateShots(dt); updatePickups(); updateBooms(dt); updateSparks(dt); checkExit(dt); checkStairs();
+  updateShots(dt); updatePshots(dt); updateHoles(dt); updateBeams(dt); updatePickups(); updateBooms(dt); updateSparks(dt); checkExit(dt); checkStairs();
   ambientTick(dt);
   // Effekte
-  hurtT=Math.max(0,hurtT-dt); healT=Math.max(0,healT-dt); hitMarkT=Math.max(0,hitMarkT-dt);
-  shakeAmt=Math.max(0,shakeAmt-dt*3.4);
-  $('hurt').style.opacity=Math.min(1,hurtT*2.4); $('heal').style.opacity=Math.min(1,healT*2.4);
-  $('xh').classList.toggle('hit',hitMarkT>0);
+  FX.hurt=Math.max(0,FX.hurt-dt); FX.heal=Math.max(0,FX.heal-dt); FX.hitMark=Math.max(0,FX.hitMark-dt);
+  FX.shake=Math.max(0,FX.shake-dt*3.4);
+  FX.shieldHit=Math.max(0,FX.shieldHit-dt); FX.dash=Math.max(0,FX.dash-dt); FX.crit=Math.max(0,FX.crit-dt);
+  $('hurt').style.opacity=Math.min(1,FX.hurt*2.4); $('heal').style.opacity=Math.min(1,FX.heal*2.4);
+  elShieldFx.style.opacity=Math.min(1,FX.shieldHit*2.4); elDashFx.style.opacity=Math.min(1,FX.dash*3);
+  $('xh').classList.toggle('hit',FX.hitMark>0); $('xh').classList.toggle('crit',FX.crit>0);
   updateHeatUI();
-  if(msgT>0){ msgT-=dt; if(msgT<=0) $('msg').classList.remove('on'); }
+  if(FX.msg>0){ FX.msg-=dt; if(FX.msg<=0) $('msg').classList.remove('on'); }
 }
 function applyShake(){
-  if(shakeAmt>.003){
-    const m=shakeAmt*shakeAmt;
+  if(FX.shake>.003){
+    const m=FX.shake*FX.shake;
     const ox=(Math.random()*2-1)*m*2.2, oy=(Math.random()*2-1)*m*2.2;
     cv.style.transform='translate('+ox.toFixed(2)+'cqw,'+oy.toFixed(2)+'cqw)';
   } else if(cv.style.transform){ cv.style.transform=''; }
@@ -2635,8 +3750,8 @@ function frame(now){
   const dt=Math.min(.05,(now-lastT)/1000); lastT=now;
   if(state==='play') update(dt);
   else if(state==='title'){ updateDemo(dt); }
-  else if(state==='dead'||state==='levelwin'||state==='gamewin'){ hurtT=Math.max(0,hurtT-dt); shakeAmt=Math.max(0,shakeAmt-dt*3.4); $('hurt').style.opacity=state==='dead'?.55:0; }
-  if(lvl){ render(now/1000); if(state==='play'||state==='pause') drawMini(); updateHud(); applyShake(); }
+  else if(state==='dead'||state==='levelwin'||state==='gamewin'){ FX.hurt=Math.max(0,FX.hurt-dt); FX.shake=Math.max(0,FX.shake-dt*3.4); $('hurt').style.opacity=state==='dead'?.55:0; }
+  if(lvl){ render(now/1000); if(state==='play'||state==='pause') drawMini(); updateHud(dt); applyShake(); }
   if(isTouch) window.__syncTouchLayer();
   requestAnimationFrame(frame);
 }
@@ -2646,7 +3761,7 @@ drawFace(0);
 showTitle();          // parst Sektor 1 selbst als Kulisse für den Titelbildschirm
 requestAnimationFrame(frame);
 
-window.__breach={P,get state(){return state;},get enemies(){return enemies;},get pickups(){return pickups;},startLevel,newRun,stats,get lvIdx(){return lvIdx;},get biome(){return curBiome;},get depth(){return lvl&&lvl.depth;},keys};
+window.__breach={NX,P,Stats,WEAPONS,Mods,MODS,openLoadout,pauseMenu,setWeapon,tryFire,manualReload,cycleWeapon,genLevel:generateProceduralLevel,hurtPlayer,tryDash,get state(){return state;},get enemies(){return enemies;},get pickups(){return pickups;},startLevel,newRun,stats,get lvIdx(){return lvIdx;},get biome(){return curBiome;},get depth(){return lvl&&lvl.depth;},keys};
 })();
 </script>
 <!-- PWA-INSTALL:BODY -->

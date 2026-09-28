@@ -172,6 +172,7 @@
   .tgtRow:hover{background:rgba(201,162,74,.1);}
   .tgtRow.active{color:var(--orange);}
   .tgtRow .tgtName{flex:1;}
+  .tgtRow .tgtType{width:96px;flex-shrink:0;color:rgba(201,162,74,.5);font-size:9px;text-transform:uppercase;letter-spacing:.5px;text-align:right;padding-right:6px;}
   .tgtRow .tgtDist{color:rgba(201,162,74,.6);font-size:10px;white-space:nowrap;}
   .tgtRow .tgtDel{color:#ff5a3a;font-size:13px;padding:0 4px;flex-shrink:0;}
   .tgtEmpty{font-size:10px;color:rgba(201,162,74,.5);padding:6px 8px;}
@@ -929,6 +930,11 @@ let currentGates=[], currentAnomalies=[], nearGate=null;
 // Liste aller Stationen/Asteroiden/Sprungtore/Fundorte im aktuellen System und eigener Wegpunkte
 // (v.a. für selbst gebaute Stationen, damit man sie im All wiederfindet).
 let targetsOpen=false;
+let targetsRefreshTimer=null;
+// Overview-Auswahl/Ziel-Lock: overviewSelection markiert die zuletzt einzeln angeklickte Zeile (Hervorhebung),
+// lockedNpc ist der per Klick "angevisierte" Gegner — bleibt aktiv, auch wenn das Fadenkreuz wegdreht
+// (siehe Kampf-Targeting weiter unten), bis er zerstört ist, außer Reichweite gerät oder man aktiv woanders hinzielt.
+let overviewSelection=null, lockedNpc=null, lastOverviewClick=null;
 let bookmarks=[];
 const autopilot={active:false,pos:new THREE.Vector3(),label:'',stopRange:20};
 // Phase 17 — Fundorte (Wrack/Ruine/Anomalie/Signal) im aktuellen Fremdsystem, die untersucht werden können.
@@ -1639,8 +1645,8 @@ addEventListener('keydown',e=>{
     closeAllPanelsExcept('targets');
     targetsOpen=!targetsOpen;
     document.getElementById('targetsPanel').classList.toggle('open',targetsOpen);
-    if(targetsOpen){document.exitPointerLock(); renderTargetsPanel();}
-    else canvas.requestPointerLock();
+    if(targetsOpen){document.exitPointerLock(); renderTargetsPanel(); startTargetsRefresh();}
+    else { stopTargetsRefresh(); canvas.requestPointerLock(); }
   }
   if(e.code==='Tab'){
     e.preventDefault(); // Standard-Tab-Fokuswechsel des Browsers verhindern
@@ -2641,72 +2647,122 @@ function escHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 function tgtRowHtml(name,distText,dataAttr,extraClass){
   return '<div class="tgtRow'+(extraClass?' '+extraClass:'')+'" '+dataAttr+'><span class="tgtName">'+name+'</span><span class="tgtDist">'+distText+'</span></div>';
 }
+function startTargetsRefresh(){
+  stopTargetsRefresh();
+  // Live-Aktualisierung, solange das Overview offen ist: NPCs/Automine-Drohnen/Stationsbau laufen im
+  // Hintergrund weiter (nur die eigene Schiffssteuerung pausiert im Menü), daher reicht ein einmaliges
+  // Rendern beim Öffnen nicht — Distanzen und die NPC-Liste würden sonst einfrieren.
+  targetsRefreshTimer=setInterval(()=>{ if(targetsOpen) renderTargetsPanel(); },700);
+}
+function stopTargetsRefresh(){
+  if(targetsRefreshTimer){ clearInterval(targetsRefreshTimer); targetsRefreshTimer=null; }
+}
+function mkEntry(kind,refId,icon,name,type,dist,distText,extra){
+  return Object.assign({kind,refId:String(refId),icon,name,type,dist,distText,key:kind+':'+refId},extra||{});
+}
+// Löst eine Overview-Zeile (Kind + Referenz-Id) zum aktuellen Zielpunkt auf — wird sowohl bei
+// Einzelklick (Auswahl/Lock) als auch bei Doppelklick (Autopilot) verwendet, damit immer die frische
+// Live-Position genommen wird statt eines beim letzten Rendern eingefrorenen Schnappschusses.
+function resolveOverviewEntry(kind,refId){
+  if(kind==='bookmark'){
+    const b=bookmarks.find(x=>x.id===refId); if(!b)return null;
+    if(b.system!==currentSystemId) return {label:b.name,blocked:'WEGPUNKT LIEGT IN ANDEREM SYSTEM — ERST DORTHIN SPRINGEN (M)'};
+    return {pos:new THREE.Vector3(b.x,b.y,b.z),label:b.name,stopRange:20};
+  }
+  if(kind==='station'){
+    const st=stations.find(x=>String(x.id)===refId); if(!st)return null;
+    return {pos:st.core,label:st.name||('STATION '+st.id),stopRange:32};
+  }
+  if(kind==='gate'){
+    const g=currentGates[+refId]; if(!g)return null;
+    return {pos:g.mesh.getWorldPosition(new THREE.Vector3()),label:g.label,stopRange:g.range-8};
+  }
+  if(kind==='facility'){
+    if(!currentFacilityMarket)return null;
+    return {pos:awayToWorld(currentFacilityMarket.pos,true),label:currentFacilityMarket.name,stopRange:55};
+  }
+  if(kind==='site'){
+    const s=investigateSites[+refId]; if(!s)return null;
+    return {pos:awayToWorld(s.pos,true),label:EXPLORE_LABELS[s.type]||s.type,stopRange:Math.max(15,s.range-15)};
+  }
+  if(kind==='asteroidfield'){
+    const f=asteroidFields.find(x=>x.id===+refId); if(!f)return null;
+    return {pos:awayToWorld(f.center,f.away),label:'ASTEROIDENFELD',stopRange:Math.max(30,f.radius*0.6)};
+  }
+  if(kind==='npc'){
+    const n=npcs.find(x=>x.id===refId); if(!n||n.dead)return null;
+    return {pos:awayToWorld(n.mesh.position,n.away),label:FACTIONS[n.faction].role,stopRange:60,npc:n};
+  }
+  return null;
+}
 function renderTargetsPanel(){
   const homeSys=currentSystemId==='home';
   const sysObj=galaxy.systems.find(s=>s.id===currentSystemId);
   document.getElementById('tgtSystem').textContent=sysObj?sysObj.name+(homeSys?' (HEIMAT)':''):currentSystemId;
-  let html='';
 
-  // Wegpunkte — eigene, frei benannte Marker (v.a. für selbst gebaute Stationen/Basen)
-  html+='<div class="tgtGroupHead">WEGPUNKTE</div>';
-  if(!bookmarks.length){ html+='<div class="tgtEmpty">Noch keine Wegpunkte gesetzt.</div>'; }
-  else bookmarks.forEach(b=>{
+  // Overview: EIN nach Distanz sortierter Objekt-Katalog (Schiffe, Stationen, Tore, Asteroidenfelder,
+  // Fundorte, Wegpunkte) statt einzeln aufgeklappter Kategorien — wie das klassische EVE-Online-Overview.
+  const entries=[];
+
+  bookmarks.forEach(b=>{
     const here=b.system===currentSystemId;
-    const dist=here?fmtDist(ship.position.distanceTo(new THREE.Vector3(b.x,b.y,b.z))):'ANDERES SYSTEM';
-    html+='<div class="tgtRow" data-kind="bookmark" data-id="'+b.id+'"><span class="tgtName">📍 '+escHtml(b.name)+'</span><span class="tgtDist">'+dist+'</span><span class="tgtDel" data-del="'+b.id+'">🗑</span></div>';
+    const dist=here?ship.position.distanceTo(new THREE.Vector3(b.x,b.y,b.z)):Infinity;
+    entries.push(mkEntry('bookmark',b.id,'📍',escHtml(b.name),'WEGPUNKT',dist,here?fmtDist(dist):'ANDERES SYSTEM',{del:b.id}));
   });
 
-  // Stationen — nur im Heimatsystem baubar
   if(homeSys){
-    html+='<div class="tgtGroupHead">EIGENE STATIONEN</div>';
-    if(!stations.length){ html+='<div class="tgtEmpty">Noch keine Station gebaut (V = Stationsbau).</div>'; }
-    else stations.forEach(st=>{
+    stations.forEach(st=>{
       const dist=ship.position.distanceTo(st.core);
-      html+=tgtRowHtml('⬢ '+(st.name||('STATION '+st.id)),fmtDist(dist),'data-kind="station" data-id="'+st.id+'"');
+      entries.push(mkEntry('station',String(st.id),'⬢',escHtml(st.name||('STATION '+st.id)),'STATION',dist,fmtDist(dist)));
     });
-  }
-
-  // Sprungtor / Handelsposten / Fundorte — nur im aktuellen Fremdsystem vorhanden
-  if(!homeSys){
-    html+='<div class="tgtGroupHead">SPRUNGTOR</div>';
-    if(!currentGates.length){ html+='<div class="tgtEmpty">Kein Sprungtor erkannt.</div>'; }
-    else currentGates.forEach((g,i)=>{
+  } else {
+    currentGates.forEach((g,i)=>{
       const wp=g.mesh.getWorldPosition(new THREE.Vector3());
-      html+=tgtRowHtml('⌬ '+g.label,fmtDist(ship.position.distanceTo(wp)),'data-kind="gate" data-idx="'+i+'"');
+      const dist=ship.position.distanceTo(wp);
+      entries.push(mkEntry('gate',String(i),'⌬',escHtml(g.label),'SPRUNGTOR',dist,fmtDist(dist)));
     });
-    html+='<div class="tgtGroupHead">HANDELSPOSTEN</div>';
-    if(!currentFacilityMarket){ html+='<div class="tgtEmpty">Kein Handelsposten in diesem System.</div>'; }
-    else{
+    if(currentFacilityMarket){
       const wp=awayToWorld(currentFacilityMarket.pos,true);
-      html+=tgtRowHtml('⚑ '+currentFacilityMarket.name,fmtDist(ship.position.distanceTo(wp)),'data-kind="facility"');
+      const dist=ship.position.distanceTo(wp);
+      entries.push(mkEntry('facility','0','⚑',escHtml(currentFacilityMarket.name),'HANDELSPOSTEN',dist,fmtDist(dist)));
     }
-    html+='<div class="tgtGroupHead">UNTERSUCHUNGSZIELE</div>';
-    const openSites=investigateSites.filter(s=>!sysObj.explored[s.type]);
-    if(!openSites.length){ html+='<div class="tgtEmpty">Keine unerforschten Fundorte.</div>'; }
-    else openSites.forEach((s,i)=>{
+    investigateSites.filter(s=>!sysObj.explored[s.type]).forEach(s=>{
       const wp=awayToWorld(s.pos,true);
-      html+=tgtRowHtml('✦ '+(EXPLORE_LABELS[s.type]||s.type.toUpperCase()),fmtDist(ship.position.distanceTo(wp)),'data-kind="site" data-idx="'+investigateSites.indexOf(s)+'"');
+      const dist=ship.position.distanceTo(wp);
+      entries.push(mkEntry('site',String(investigateSites.indexOf(s)),'✦',EXPLORE_LABELS[s.type]||s.type.toUpperCase(),'FUNDORT',dist,fmtDist(dist)));
     });
   }
 
-  // Asteroidenfelder — statt jedes einzelnen Brockens jetzt die Feld-Zentren als Autopilot-Ziele,
-  // sortiert nach Entfernung, mit Restbestand und häufigstem Erz als grobe Vorschau.
-  html+='<div class="tgtGroupHead">ASTEROIDENFELDER</div>';
-  const fields=asteroidFields
-    .filter(f=>!f.dead&&f.away===!homeSys)
-    .map(f=>{
-      const wp=awayToWorld(f.center,f.away);
-      const rocks=asteroidMeshes.filter(m=>m.userData.fieldId===f.id);
-      const oreCounts={};
-      rocks.forEach(m=>{ oreCounts[m.userData.oreName]=(oreCounts[m.userData.oreName]||0)+1; });
-      const topOre=Object.keys(oreCounts).sort((a,b)=>oreCounts[b]-oreCounts[a])[0]||'—';
-      return {f,dist:ship.position.distanceTo(wp),count:rocks.length,topOre};
-    })
-    .sort((a,b)=>a.dist-b.dist);
-  if(!fields.length){ html+='<div class="tgtEmpty">Keine Asteroidenfelder erfasst.</div>'; }
-  else fields.forEach(o=>{
-    const label='◈ FELD — '+o.topOre+' ('+o.count+')';
-    html+=tgtRowHtml(label,fmtDist(o.dist),'data-kind="asteroidfield" data-idx="'+o.f.id+'"');
+  asteroidFields.filter(f=>!f.dead&&f.away===!homeSys).forEach(f=>{
+    const wp=awayToWorld(f.center,f.away);
+    const dist=ship.position.distanceTo(wp);
+    const rocks=asteroidMeshes.filter(m=>m.userData.fieldId===f.id);
+    const oreCounts={};
+    rocks.forEach(m=>{ oreCounts[m.userData.oreName]=(oreCounts[m.userData.oreName]||0)+1; });
+    const topOre=Object.keys(oreCounts).sort((a,b)=>oreCounts[b]-oreCounts[a])[0]||'—';
+    entries.push(mkEntry('asteroidfield',String(f.id),'◈','FELD — '+topOre+' ('+rocks.length+')','ASTEROIDEN',dist,fmtDist(dist)));
+  });
+
+  npcs.filter(n=>!n.dead&&n.away===!homeSys).forEach(n=>{
+    const wp=awayToWorld(n.mesh.position,n.away);
+    const dist=ship.position.distanceTo(wp);
+    const c='#'+FACTIONS[n.faction].color.toString(16).padStart(6,'0');
+    entries.push(mkEntry('npc',n.id,'<span style="color:'+c+'">●</span>',FACTIONS[n.faction].role,FACTIONS[n.faction].name,dist,fmtDist(dist)));
+  });
+
+  entries.sort((a,b)=>a.dist-b.dist);
+  const shown=entries.slice(0,40); // Deckel gegen Riesenlisten in dicht besiedelten Systemen
+
+  let html='<div class="tgtGroupHead">OVERVIEW — NACH DISTANZ ('+shown.length+(entries.length>shown.length?'/'+entries.length:'')+')</div>';
+  if(!shown.length){ html+='<div class="tgtEmpty">Nichts in Reichweite erfasst.</div>'; }
+  else shown.forEach(o=>{
+    const cls=(overviewSelection===o.key)?' active':'';
+    html+='<div class="tgtRow'+cls+'" data-kind="'+o.kind+'" data-ref="'+escHtml(o.refId)+'">'
+      +'<span class="tgtName">'+o.icon+' '+o.name+'</span>'
+      +'<span class="tgtType">'+escHtml(o.type)+'</span>'
+      +'<span class="tgtDist">'+o.distText+'</span>'
+      +(o.del?'<span class="tgtDel" data-del="'+o.del+'">🗑</span>':'')
+      +'</div>';
   });
 
   document.getElementById('targetsList').innerHTML=html;
@@ -2715,28 +2771,29 @@ function renderTargetsPanel(){
   document.getElementById('targetsList').querySelectorAll('.tgtRow').forEach(row=>{
     row.addEventListener('click',e=>{
       if(e.target.dataset.del) return; // Löschen wird separat behandelt (siehe unten)
-      const kind=row.dataset.kind;
-      if(kind==='bookmark'){
-        const b=bookmarks.find(x=>x.id===row.dataset.id); if(!b)return;
-        if(b.system!==currentSystemId){ showShipMsg('WEGPUNKT LIEGT IN ANDEREM SYSTEM — ERST DORTHIN SPRINGEN (M)'); return; }
-        engageAutopilot(new THREE.Vector3(b.x,b.y,b.z),b.name,20);
-      } else if(kind==='station'){
-        const st=stations.find(x=>String(x.id)===row.dataset.id); if(!st)return;
-        engageAutopilot(st.core,st.name||('STATION '+st.id),32);
-      } else if(kind==='gate'){
-        const g=currentGates[+row.dataset.idx]; if(!g)return;
-        engageAutopilot(g.mesh.getWorldPosition(new THREE.Vector3()),g.label,g.range-8);
-      } else if(kind==='facility'){
-        if(!currentFacilityMarket)return;
-        engageAutopilot(awayToWorld(currentFacilityMarket.pos,true),currentFacilityMarket.name,55);
-      } else if(kind==='site'){
-        const s=investigateSites[+row.dataset.idx]; if(!s)return;
-        engageAutopilot(awayToWorld(s.pos,true),EXPLORE_LABELS[s.type]||s.type,Math.max(15,s.range-15));
-      } else if(kind==='asteroidfield'){
-        const f=asteroidFields.find(x=>x.id===+row.dataset.idx); if(!f)return;
-        engageAutopilot(awayToWorld(f.center,f.away),'ASTEROIDENFELD',Math.max(30,f.radius*0.6));
+      const kind=row.dataset.kind, refId=row.dataset.ref;
+      const key=kind+':'+refId;
+      // Eigene Doppelklick-Erkennung statt des nativen 'dblclick'-Events: da ein Einzelklick sofort
+      // per renderTargetsPanel() neu rendert (Live-Refresh), wäre das Zeilen-Element beim zweiten
+      // Klick bereits ausgetauscht und ein natives dblclick würde nie feuern.
+      const now=performance.now();
+      const isDouble=lastOverviewClick&&lastOverviewClick.key===key&&(now-lastOverviewClick.time)<400;
+      lastOverviewClick={key,time:now};
+      const entry=resolveOverviewEntry(kind,refId);
+      if(!entry)return;
+      if(entry.blocked){ showShipMsg(entry.blocked); return; }
+      if(isDouble){
+        if(entry.npc) lockedNpc=entry.npc;
+        engageAutopilot(entry.pos,entry.label,entry.stopRange);
+        targetsOpen=false; document.getElementById('targetsPanel').classList.remove('open'); stopTargetsRefresh(); canvas.requestPointerLock();
+        return;
       }
-      targetsOpen=false; document.getElementById('targetsPanel').classList.remove('open'); canvas.requestPointerLock();
+      // Einfacher Klick: nur auswählen (Panel bleibt offen) — bei NPCs zusätzlich als Ziel-Lock fürs
+      // Kampfsystem (siehe targetNpc-Fallback weiter unten), sonst nur Hervorhebung/Info.
+      overviewSelection=key;
+      if(entry.npc){ lockedNpc=entry.npc; showShipMsg('ZIEL ANVISIERT: '+entry.label); }
+      else showShipMsg('AUSGEWÄHLT: '+entry.label);
+      renderTargetsPanel();
     });
   });
   document.getElementById('targetsList').querySelectorAll('.tgtDel').forEach(del=>{
@@ -2757,7 +2814,7 @@ function closeAllPanelsExcept(keep){
   if(keep!=='nav'&&navOpen){navOpen=false; document.getElementById('navPanel').classList.remove('open');}
   if(keep!=='trade'&&tradeOpen){tradeOpen=false; document.getElementById('tradePanel').classList.remove('open');}
   if(keep!=='research'&&researchOpen){researchOpen=false; document.getElementById('researchPanel').classList.remove('open');}
-  if(keep!=='targets'&&targetsOpen){targetsOpen=false; document.getElementById('targetsPanel').classList.remove('open');}
+  if(keep!=='targets'&&targetsOpen){targetsOpen=false; document.getElementById('targetsPanel').classList.remove('open'); stopTargetsRefresh();}
 }
 function updateDocking(){
   const dockMeshes=[];
@@ -4138,6 +4195,14 @@ function animate(){
   // Zielerfassung per Fadenkreuz (nur außerhalb der Baumodi)
   if(!buildMode&&!shipyardMode&&!stationMode){
   targetNpc=findNpcAtCrosshair();
+  // Ziel-Lock aus dem Overview (Einzelklick auf einen NPC): greift nur, wenn das Fadenkreuz gerade
+  // nichts anderes erfasst — direktes Zielen auf einen anderen Gegner hat weiterhin Vorrang.
+  // Der Lock bleibt bestehen, auch wenn das Ziel kurz außer Waffenreichweite ist, feuert aber nur in Reichweite.
+  if(lockedNpc&&(lockedNpc.dead||!npcs.includes(lockedNpc))) lockedNpc=null;
+  if(!targetNpc&&lockedNpc){
+    const lockDist=ship.position.distanceTo(awayToWorld(lockedNpc.mesh.position,lockedNpc.away));
+    if(lockDist<WEAPON_RANGE*sensorMult()) targetNpc=lockedNpc;
+  }
   updateNpcInfoHud(targetNpc?{npc:targetNpc,dist:ship.position.distanceTo(awayToWorld(targetNpc.mesh.position,targetNpc.away))}:null);
   raycaster.setFromCamera({x:0,y:0},camera);
   const hits=raycaster.intersectObjects(asteroidMeshes);

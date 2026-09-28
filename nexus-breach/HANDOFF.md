@@ -1,6 +1,226 @@
 # NEXUS: BREACH — Handoff
 
-Stand: 24.09.2026 (Fortsetzung). Teil des MC ORCA Games Portfolios, bewusst NICHT
+Stand: 28.09.2026 (Overhaul Phase 1–5 abgeschlossen). Teil des MC ORCA Games Portfolios, bewusst NICHT
+mit Supabase/Konto/MOGC verbunden.
+
+## OVERHAUL — Fortschritt (20-Phasen-Plan)
+
+| Phase | Status |
+|---|---|
+| 1 Foundation / Architektur | **fertig** |
+| 2 Next-Gen HUD | **fertig** (siehe unten) |
+| 3 Advanced Player System | **fertig** (siehe unten) |
+| 4 Massive Weapon System | **fertig** (siehe unten) |
+| 5 Weapon Modification System | **fertig** (siehe unten) |
+| 6–20 | offen |
+
+## Phase 5 — Weapon Modification System
+**Modell:** 5 Slots je Waffe (Fäuste keine): `barrel` LAUF, `core` KERN, `mag` MAGAZIN, `system` SYSTEM, `special` SPEZIAL. 17 Mod-Typen × 3 Stufen (I–III) = 51 Mods (`MOD_BASE` → `MODS`/`MOD_BY_ID`, IDs wie `b_dmg3`). Mods ändern `WEAPONS` nicht: `Mods.eff(waffe|index)` liefert ein abgeleitetes Werte-Paket (neutral ohne Mods; unbekannt/undefined = `Mods.NEUTRAL`), das Feuern/Nachladen/Hitze/Krit/Schaden auslesen. `WEAPONS[i].i` = Index.
+
+| Slot | Mods (Wirkung Stufe I / II / III) |
+|---|---|
+| LAUF | Verstärkter Lauf (Schaden +10/17/25 %), Langlauf (Reichweite +20/35/50 %), Präzisionsdrall (Streuung −25/40/55 %) |
+| KERN | Energie-Kern (Schaden +8/14/20 %, Energiekosten −15/25/35 %), Plasma-Kern (Flächenschaden 20/30/42 % des Treffers, R 1,2), Krit-Kern (Krit +6/10/15 %, Krit-Mult +0,25/0,4/0,6) |
+| MAGAZIN | Erweitertes Magazin (+35/60/90 %, min. +1), Schnelllader (Nachladen 30/50/75 % schneller), Zellen-Sparer (12/20/30 % Freischuss) |
+| SYSTEM | Übertaktung (Feuerrate +12/20/30 %), Kühlkörper (Hitze −25/40/55 %, Abkühlung +20/35/50 %), Stabilisator (Rückstoß −30/50/70 %, Streuung −10/15/20 %) |
+| SPEZIAL | Kettenblitz (30/42/55 % Chance, 40/50/60 % Schaden, 1/2/2 Ziele), Explosivgeschosse (erster Treffer je Schuss explodiert 30/42/55 %, R 1,2/1,4/1,7; Projektilwaffen: Splash größer), Panzerbrecher (+30/50/75 % gegen `e.armor>0` oder Typ mit `sc>=1`), Lebensraub (3/5/8 % → HP), Schild-Entzug (10/18/28 % → Schild) |
+
+**Regeln:** Effekte addieren sich; Spezial-Effekte (Plasma/Explosion/Kette) lösen je Schuss höchstens einmal aus (`Mods.shotId/lastShot`), ohne Rekursion (`Mods.busy`) → Streu-Kanone erzeugt keinen Blitz-Sturm. Lebensraub/Schild-Entzug zählen nur echten Schaden (kein Überschuss), HP ganzzahlig, Schild ≤ Max. Singularität: nur Werte-Mods (Schaden über `hole.dm`, Magazin, Hitze …), keine Spezial-Treffer-Effekte (Löcher sind keine Direkttreffer). Waffenlevel `P.wLv[i]` = 1 + Anzahl Mods (HUD zeigt es). Magazin-Verkleinerung beim Ablegen gibt überzählige Schüsse als Zellen zurück (`Mods.magSize(i)` statt `w.mag` im Nachladen/Fund/Reset).
+**Inventar/Herkunft (vorläufig bis Phase 13):** `Mods.inv` (ID→Anzahl), `Mods.eq[i]`, `Mods.add/equip/unequip/free/count`. Ein Exemplar kann nur an einer Stelle stecken. Drops: Kill-Chance 3 % + 0,4 %/Kill seit letztem Drop (`Mods.onKill`), Boss = 2 Mods (mind. Stufe II), 1 Mod pro geschafftem Sektor (`sectorReward`, im Ergebnis-Screen). Stufe wächst mit Tiefe (`Mods.roll`, `modDepth()`). Mods gehören zum Lauf: `newRun()` → `Mods.reset()`. Fund-IDs landen in `Save.data.weaponUpgrades.discovered` (bereinigt beim Laden, max. 256); `SAVE_VERSION` bleibt 1. Meta-Freischaltung/Start-Mods kommen in Phase 15.
+**Loadout-Screen** (`openLoadout(back)`): Waffen-Tabs, 5 Slot-Buttons, passende Mods (mit Beschreibung, Stapelzahl, „Ablegen“), Kennwert-Tabelle mit Vorher/Nachher. Erreichbar über **L** (pausiert), Pause-Menü „Loadout“ (Touch!), sowie Ergebnis-Screens „Sektor gesäubert“ und „Prozess beendet“ (`addLoadoutBtn`). `showOverlay({wide:true})` für breites Layout, CSS `.ld-*`. Alles Buttons ≥ 44 px, im Hochformat einspaltig.
+**Code:** `Mods` (vor `Stats`), `hitEnemy` (Schaden, Panzerbrecher, Leech, onHit), `tryFire` (Kosten/Rate/Streuung/Reichweite), `fireRail/fireArc(w,M)`, Projektile tragen `m`/`rng`, `splash(...,M)`, Kühlung in `update` und für weggelegte Waffen. `NX.mods` und `__breach.Mods/MODS/openLoadout/pauseMenu`. Konsole: `__breach.Mods.add('x_ch3'); __breach.Mods.equip(0,'x_ch3')`.
+
+**Getestet (Node-Harness, KEIN echter Browser):** neu `node test/t_mods.js` (90 Prüfungen: Katalog, Einbau-Regeln, jeder Effekt mit konkreten Zahlen, Drops, Reset, Save, Loadout-Screen, Taste L, 300 Zufalls-Loadouts). Angepasst: `t_player.js` (Phase-Nr.), `t_soak.js` (Zufalls-Mods). Alle Tests grün; Zufallsläufe 5000 Frames Desktop, 1500 Touch: 0 Fehler, 0 Warnungen. Laufzeiten: `t_player` ~90 s, `t_mods` ~100 s — Tests einzeln starten, nicht alle in einem Befehl.
+
+**Bitte live prüfen:** Balance (Drop-Rate, Effektstärken, besonders Kettenblitz/Explosiv), Lesbarkeit und Bedienbarkeit des Loadout-Screens auf dem Handy (Hoch-/Querformat; CSS blind geschrieben), Pause-Menü-Höhe durch den neuen Button, Sichtbarkeit der Mod-Meldung beim Fund.
+
+## Phase 4 — Massive Weapon System
+
+Ziel: 9 Waffen mit echten Unterschieden, Magazin/Nachladen, Hitze und Energie je Waffe. Gegner-KI, Level-Generator (außer Waffenfunden), Raycaster-Kern und Touch-Grundsteuerung unverändert.
+
+**Waffentabelle `WEAPONS`** (Index = Taste − 1; Indizes 0–3 unverändert, damit Alt-Code/Saves passen). Jede Waffe hat: `dmg, rate, mag, reload, heat, cool, range, spread, crit, critMul, rc (Rückstoß), energy, cost` (+ `kind`, Sound, Optik).
+
+| # | Waffe | Verhalten | Fund |
+|---|---|---|---|
+| 1 | Puls-Pistole | Hitscan 12, Mag 12 | Start |
+| 2 | Streu-Kanone | 7 Kugeln × 9, Reichweite 14, Mag 6 (2 Zellen/Schuss) | Tiefe 1 / Story (alt) |
+| 3 | Fäuste | Nahkampf 26, keine Munition | Start |
+| 4 | Overclock-Gewehr | Dauerfeuer 7, überhitzt nach ~12 Schuss | Tiefe 6 (alt) |
+| 5 | Plasma-Kanone | Projektil 30 + Splash (R 1.5), Hitze 0.2/Schuss | ab Tiefe 3 |
+| 6 | Railgun | Strahl 90, durchschlägt 4 Ziele (−25 %/Ziel), 25 Energie, 3 Zellen | ab Tiefe 8 |
+| 7 | Arc-Blaster | Kegel Reichweite 7, Kettenblitz 100/60/40 % auf Ziele ≤ 3.2 | ab Tiefe 4 |
+| 8 | Void-Werfer | Projektil 55 + Splash 45 (R 2.4) mit **Sog** zum Zentrum | ab Tiefe 10, ~50 % |
+| 9 | Singularitäts-Kanone | Projektil öffnet ~2.6 s ein Loch: zieht Gegner, verschluckt Gegnerschüsse, tickt Schaden, kollabiert mit ~90 Schaden | ab Tiefe 12 |
+
+**Magazin/Nachladen:** `P.mag[i]` zählt *Schüsse*, `P.ammo` = Vorrat in *Zellen* (`cost` je Schuss). Abbuchung erst beim Fertigstellen. **R** / Touch-Button „R“ (links neben dem Waffenwechsel-Button) lädt nach; leeres Magazin oder letzter Schuss lädt automatisch. Waffenwechsel bricht ab, ohne etwas zu verlieren. Waffen-Anzeige taucht beim Nachladen ab.
+**Hitze je Waffe:** `P.heat/P.overheatT` gehören zur aktiven Waffe, weggelegte Waffen (`P.hs/P.os`) kühlen im Hintergrund. **Energie:** Plasma 5, Rail 25, Arc 1.2/Schuss, Void 15, Singularität 40 (bei Mangel kein Schuss + rotes EN-Blinken).
+**Krit:** Waffenwert + Spielerbonus (`Stats.weaponCrit(w)`, `weaponCritMul(w)`); `P.crit` im HUD = aktive Waffe.
+**Neue Stat-Hooks** (`Stats.add(id,{…})`, additiv): `fireRate` (+x), `dmgMul` (Basis 1), `reloadSpeed` (+x), `heatMul` (Basis 1) — Grundlage für Phase 5 (Mods).
+**Arsenal:** `P.owned[]`; `P.hasSG/hasAuto` sind Alias-Properties (alter Code läuft weiter). `newRun()` setzt auf Pistole + Fäuste, Vorrat 36 zurück; Sektorstart behält Arsenal und zuletzt benutzte Waffe; Tod-Neustart stellt das Arsenal vom Sektorbeginn wieder her. Funde landen in `Save.data.unlockedWeapons` (Meta-Wirkung erst Phase 15).
+**Steuerung:** Tasten **1–9**, **R**, Mausrad (wechselt), Touch: Waffen-Button wechselt zyklisch, neuer **R**-Button. Pause-Tastenliste ergänzt.
+**HUD:** Anzeige „Magazin/Vorrat“ (Fäuste ∞), Nachlade-Balken + Text, Waffenleiste 1–9 (aktiv/gefunden), Low-Ammo/Ammo-0 je Waffe (Zellen gesamt ≤ 8 bzw. < Kosten), Hitze-Balken nur bei heißen Waffen.
+**Code:** Pickup-Zeichen `c j l V S` (+ `s w`), `WPICK/WAMMO`, `grantWeapon()` (auch `NX.weapons.grant`), `NX.weapons.pshots/holes/beams`. Neue Sprites/Explosionsfarben (Plasma cyan, Void violett), Waffenansichten 5–9, Sounds `plasma/rail/arc/voidFire/singFire/reload/reloadDone/boomP/holeOpen/holeCollapse`.
+
+**Getestet (Node-Harness, KEIN echter Browser):** neu `node test/t_weapons.js` (~130 Prüfungen: Daten, Fund, Wechsel, Magazin/Nachladen, Hitze, Energie, Reichweite, Rail-Durchschlag, Arc-Kette, Plasma/Void-Splash+Sog, Singularität, Krit, Pickups, Level-Drops, HUD, Arsenal). Angepasst: `t_hud.js` (Magazin statt Vorrat), `t_player.js` (Phase-Nr., Krit pro Waffe), `t_soak.js` (Waffenwechsel/Nachladen). Alle Tests + Zufallsläufe (6000 Frames Desktop, 1500 Touch): 0 Fehler, 0 Warnungen.
+
+**Bitte live prüfen:** Waffengefühl/Balance (alle Werte in `WEAPONS`, Splash/Sog in `pdetonate`/`updateHoles`), Sichtbarkeit der Strahlen/Projektile/des Lochs, die 5 neuen Waffenansichten und Pickup-Sprites (nur blind gezeichnet), Lage des Touch-R-Buttons (Hoch-/Querformat), Höhe des Waffen-Panels durch die neue Leiste, ob Arc-Blaster (~8 Zellen/s) zu munitionshungrig ist.
+
+## Phase 3 — Advanced Player System
+
+Ziel: Schild, Panzerung, Energie, Sprint, Dash, Krit, Regeneration, Resistenz, Tempo — alles über **ein** Werte-Modul, damit Perks (Phase 14),
+Waffenmods (5), Rüstungs-Loot (13) und Meta-Upgrades (15) nur noch „Bonusquellen“ eintragen müssen. Waffen, Gegner-KI, Level, Raycaster unverändert.
+
+**Werte-Modul `Stats`** (Block „Spieler-Werte (Phase 3)“ vor `NX`, auch `NX.stats`, `__breach.Stats`)
+- `PBASE` = Basiswerte, `PLIM` = Grenzen. `Stats.val` = abgeleitete Werte. `Stats.add(id,{key:+x})` trägt eine Bonusquelle ein (ersetzt gleiche id),
+  `Stats.remove(id)`, `Stats.removePrefix(p)`, `Stats.sources()`. Boni sind additiv. **`run:`-Quellen** verschwinden bei `newRun()`, **`meta:`** und alles andere bleibt.
+- Beispiele zum Testen in der Konsole: `__breach.Stats.add('meta:dd',{dashCharges:1})` (= Double Dash), `{hpRegen:1}`, `{resist:.2}`, `{speed:.15}`, `{crit:.1,critDmg:.5}`, `{armorMax:25}`.
+- `Stats.onRunStart()` / `Stats.onSector()` (Aufruf am Ende von `parseLevel`, also bei jedem Sektorstart inkl. Neustart nach Tod) füllen Schild/Energie, Panzerung mindestens auf Grundfüllung, Dash bereit.
+
+| Wert | Basis | Wirkung |
+|---|---|---|
+| Schild | max 25, Regen 8/s nach 3,5 s ohne Treffer | nimmt Schaden zuerst; Zusammenbruch = Ton + Meldung + cyan Randblitz |
+| Panzerung | max 50, Sektorstart-Grundfüllung 30 % (=15), **kein** Regen | nimmt 50 % des Schadens auf, der das Schild durchschlägt (Doom-Prinzip, 1 Panzerung pro 1 abgefangenem Schaden) |
+| Integrität (HP) | 100 (fest), Regen `hpRegen` Basis **0**, Verzögerung 4 s | bleibt **ganzzahlig** (Rest wird aufgerundet, mind. 1) |
+| Resistenz | 0 %, Deckel 75 % | multipliziert den Eingangsschaden vor Schild/Panzerung |
+| Energie | max 100, Regen 22/s nach 0,6 s | Sprint 15/s, Dash 20 |
+| Sprint | Umschalt / Pad-Ausschlag > 78 % → Tempo 4,8 (Gehen 3,2) | kostet Energie; bei 0 **gesperrt**, bis Energie ≥ 20 % **und** Taste losgelassen (sonst Dauer-Sprint) |
+| Tempo | Faktor 1,0 (0,5–2,0) | multipliziert Gehen + Sprint |
+| Dash | 1 Ladung, Cooldown 1,2 s je Ladung, 20 Energie, Weite 2,6, 0,17 s, **unverwundbar** währenddessen | Richtung = Bewegungseingabe, ohne Eingabe nach vorn; Teilschritte (max 0,2), kein Durchtunneln von Wänden |
+| Double Dash | `dashCharges` +1 | zwei Ladungen, laden nacheinander auf |
+| Krit | Chance 5 %, Multiplikator 1,5× | jeder Spielertreffer rollt (Schrotkugeln einzeln); Fadenkreuz amber + `sfx.crit`; nur im echten Spiel, nicht in der Titel-Demo |
+
+**Steuerung:** Desktop **F** oder **Rechtsklick** = Dash (Pause-Menü-Tastenliste ergänzt). Touch: neuer runder **Dash-Button** links neben dem Feuer-Button
+(15cqw, max 78 px), wird bei leerer Ladung abgedunkelt. Bestehende Touch-Steuerung sonst unverändert.
+
+**Schadenspipeline** (`hurtPlayer`): Dash-i-Frames → Resistenz → Schild → Panzerung → HP. Jeder Treffer, der den Spieler erreicht (auch nur aufs Schild), setzt
+Combo/Streak zurück (wie Phase 2); ein per Dash ausgewichener Treffer nicht. `P.crit` bleibt das HUD-Feld (jetzt 5 % statt 0 %).
+
+**HUD:** Shield/Armor/Energy-Slots leuchten jetzt (Max > 0). Neue vierte Zeile **DS** im Integrität-Panel: Balken = geladene Ladungen + Fortschritt der nächsten,
+cyan wenn bereit, Trennstrich bei 2 Ladungen. Energie-Balken blinkt rot bei Sprint-Sperre bzw. Dash ohne Energie. Neue Randeffekte `#shieldFx` (cyan), `#dashFx` (hell).
+
+**Balance-Hinweis:** Schild 25 + Panzerung 15 machen den Spieler zu Sektorbeginn ca. 30–40 HP „dicker“ als vorher. Stellschrauben: `PBASE.shieldMax`,
+`armorSector`, `armorAbsorb`, `shieldDelay`. Gegner werden erst in Phase 6–8 härter.
+
+**Noch ohne Quelle (Systeme laufen, Werte 0):** HP-Regen, Resistenz, Tempo-Bonus, Krit-Bonus, Double Dash — kommen über Perks/Meta/Mods (Phase 5/13/14/15).
+Dash-/Sprint-Effekte sind bewusst schlicht (Randblitz + Ton); Trails/FOV-Kick folgen in Phase 19 (FOV ist wegen `PLANE_LEN`/`PROJ` konstant verdrahtet).
+
+**Getestet (Node-Harness, KEIN echter Browser):** neu `node test/t_player.js` (~70 Prüfungen: Startwerte, Pipeline Schild→Panzerung→HP, Ganzzahligkeit, Resistenz,
+Regen-Verzögerung, Sprint-Kosten/Sperre/Freigabe, Tempo, Dash inkl. i-Frames/Cooldown/Double Dash/Energiemangel, 400 zufällige Dashes ohne Wand-Treffer, Krit,
+HP-Regen, Quellen/Lauf-Reset, Sektorstart, HUD). Angepasst: `t_hud.js` (Schild-Slot ist jetzt standardmäßig aktiv; Combo-Test ohne zufällige Gegnerschüsse),
+`t_soak.js` (Dash + Bonusquellen im Zufallslauf). Alle älteren Tests + Zufallsläufe (6000 Frames Desktop, 1500 Touch): 0 Fehler, 0 Warnungen.
+
+**Bitte live prüfen:** Dash-Gefühl (Weite/Dauer/Cooldown), Sprint-Dauer (≈ 6,7 s), ob Schild/Panzerung zu viel Puffer geben, Lage des Touch-Dash-Buttons
+(Hoch- und Querformat), ob F/Rechtsklick gut erreichbar sind, Lesbarkeit der 4-zeiligen Balken im Integrität-Panel auf dem Handy.
+
+## Phase 2 — Next-Gen HUD
+
+Ziel: Sci-Fi-Combat-HUD mit allen geforderten Werten und dynamischen Warnungen — **rein darstellend**, es ändert keinen Spielwert
+und keine Steuerung. Bestehende Panels (Integrität, Waffe/Munition, Gesicht, Splitter, Rogue-Prozesse) bleiben, `#bar` ist jetzt
+`align-items:stretch` (gleich hohe Panels).
+
+**Was jetzt im HUD steht**
+
+| Wert | Wo | Stand |
+|---|---|---|
+| Integrität, Munition, Heat, Splitter, Feinde | wie bisher | echt |
+| **Shield / Armor / Energy** | 3 dünne Balken (SH/AR/EN) im Integrität-Panel | Slots fertig, **gedimmt**, solange `P.shieldMax/armorMax/energyMax = 0`. Werden mit Phase 3 aktiv (Balken leuchtet automatisch, sobald Max > 0) |
+| **Aktuelle Waffe + Waffenlevel** | Label im Waffen-Panel („Puls-Pistole  LV1") | Name echt, Level aus `P.wLv[weapon]` (Standard 1; Phase 4/5 füllen es) |
+| **Crit Chance** | „KRIT 0%" im Waffen-Panel | aus `P.crit` (Standard 0; Phase 3 füllt es) |
+| **Sektor** | oben links: Name + „Tiefe N · Biom" bzw. „Sektor N · Biom" | echt |
+| **Objective** | oben links, amber: Boss besiegen / Treppe hinauf / Portal erreichen (+ Feindzahl) / Sektor erkunden | echt (aus Boss, `stairsCell`, `exitCell`) |
+| **Threat Level** | 5 Segmente + Text (RUHIG … EXTREM) im Rogue-Prozesse-Panel | echt: gewichtete Summe **wacher** Gegner in 16 Feldern Umkreis (Boss ×3, nahe Gegner zählen voll), ~10×/s berechnet |
+| **Combo + Kill Streak** | oben links unter dem Sektor, erscheint ab Kette ≥ 2 bzw. Streak ≥ 3 | echt, siehe unten |
+| **Boss-Leiste** | oben mittig: Name, Level, HP-Balken mit Nachzieh-Anzeige und Marken bei 75/50/25 % (Vorbereitung für Boss-Phasen, Phase 9) | erscheint, sobald der Boss wach ist |
+
+**Combat-Tracker** (`NX.combat`, Block „Architektur"): *Streak* = Kills seit dem letzten erlittenen Schaden (bleibt über Sektoren
+erhalten, `newRun()` setzt zurück); *Kette* = Kills, die jeweils < 4 s auseinander liegen (`COMBO_WINDOW`), Balken zeigt die Restzeit.
+Schaden setzt beides zurück. Zählt nur im Zustand `play` (die Titel-Demo beeinflusst nichts). **Kein Score-Multiplikator** — das
+x1/x2/x3/x5/x10-System ist Phase 17 und baut auf diesem Tracker auf.
+
+**Dynamische Warnungen** (Klassen auf `#stage`, CSS steuert die Optik, daher kaum JS-Kosten):
+- **Low HP (≤ 30)**: rote Vignette pulsiert, Rahmen des Integrität-Panels rot, Zahl rot mit dezentem Glitch-Flackern (RGB-Versatz, nur kurze Aussetzer); ab ≤ 15 schneller. Herzschlag-Ton (`sfx.lowHp`, alle 1,5 s bzw. 0,9 s).
+- **Low Ammo (≤ 8)**: Waffen-Panel blinkt amber, Zahl amber (rot bei 0), Doppel-Piep beim Unterschreiten (`sfx.lowAmmo`).
+- **Heat > 66 %**: Balken glüht (`hot`). **Überhitzt**: orange pulsierende Vignette, „ÜBERHITZT" blinkt im Panel (der bestehende Overheat-Sound bleibt).
+- **Boss**: Boss-Leiste blendet ein/aus (nicht mehr sichtbar nach Boss-Tod).
+- **Reduced Motion**: Klasse `rm` auf `#stage` (aus `NX.settings.reducedMotion` oder `prefers-reduced-motion`) schaltet Pulsieren/Glitch/Blinken ab, statische Warnfarbe bleibt. `hudApplySettings()` ruft das Settings-Menü später erneut auf.
+
+**Performance:** DOM wird nur bei Wertänderung beschrieben (`hset`/`hcls`-Cache), keine neuen Elemente zur Laufzeit,
+Threat nur jeden 6. Frame. `updateHud(dt)` ruft weiter den alten Kern (`updateHudCore`) und danach `hud2Update`. Das neue HUD
+(`#hud2`) ist im Titelbild ausgeblendet (`.hud-on` auf `#stage`, gesetzt über `NX.onState`).
+
+**Touch:** alle neuen Elemente sind `pointer-events:none`, die Steuerung ist unverändert. Boss-Leiste auf Touch schmaler (34cqw)
+wegen der Minimap. Die Touch-Elemente überdecken weiterhin teilweise die untere Leiste (war schon vorher so) — bitte live prüfen.
+
+**Getestet (Node-Harness, KEIN echter Browser, nichts visuell geprüft):** `node test/t_hud.js` (Sichtbarkeit, Slots an/aus,
+Low HP/Ammo/Heat/Overheat, Waffenlevel/Krit, Threat rauf/runter, Combo/Streak/Ablauf/Reset), `node test/t_boss.js`
+(Leiste an/aus, Level, 100→50 %, Ghost, Boss-Tod); zusätzlich alle Phase-1-Tests + Zufallslauf Desktop/Touch ohne Fehler.
+Neu im Harness: `classList`-Tracking, damit Klassen prüfbar sind.
+
+**Bitte live prüfen:** Lesbarkeit/Platz der neuen Zeilen (v. a. Handy, Hochformat), Stärke von Vignette/Glitch (alles über
+CSS-Werte `#vigLow`, `#vigHeat`, `@keyframes hudGlitch/vigPulse` schnell nachstellbar), Threat-Schwellen in `threatLevel()`,
+Low-Ammo-Grenze (`P.ammo<=8`), ob Herzschlag-/Piep-Ton nicht nervt.
+
+## Phase 1 — Foundation / Code Architecture
+
+Ziel: saubere interne Architektur, **ohne** Verhalten zu ändern und ohne den Raycaster anzufassen.
+Alles steckt in einem neuen Block „Architektur (Phase 1)" in `game.html` (direkt vor dem Abschnitt „Eingabe").
+
+**Neu: Namespace `NX`** (auch als `window.__breach.NX` zum Debuggen erreichbar) — ein Einstiegspunkt für alle Teilzustände.
+Bestehende Variablen bleiben unverändert und schnell (`P`, `enemies`, `grid` …); `NX` greift per Getter darauf zu,
+weil Level-Variablen bei jedem Sektor neu zugewiesen werden:
+
+- `NX.player` → `P` (Phase 3 erweitert: Shield/Armor/Energy/Dash …)
+- `NX.weapons` → `defs` (`WEAPONS`), `current`, `isUnlocked(i)` (Phase 4/5)
+- `NX.enemies` → `types` (`ETYPES`), `list`, `alive` (Phase 6–8)
+- `NX.level` → `def`, `grid`, `width/height`, `biome`, `depth`, `exit`, `stairs`, `pickups`, `shots`, `totals` (Phase 10–12)
+- `NX.progression` → `stats`, `run`, `save` (Phase 15–17)
+- `NX.audio` → `ctx`, `muted`, `sfx` (Phase 18)
+- `NX.fx` → `FX` (Phase 19)
+- `NX.save`, `NX.settings` → Save State (siehe unten)
+
+**Game State Manager:** `setState(next)` ersetzt alle rohen `state='…'`-Zuweisungen (10 Stellen).
+Erlaubte Übergänge stehen in `STATE_FLOW`; ein ungewöhnlicher Übergang wird **einmalig gewarnt, aber nie blockiert**
+(bewusst: keine Regression durch zu strenge Regeln). `NX.onState((next,prev)=>…)` registriert Listener
+(Phase 2+ nutzen das z. B. fürs HUD/Musik). Beim Verlassen von `play` wird automatisch der Spielstand gesichert.
+Die Variable `state` selbst bleibt bestehen — Lesezugriffe (`state==='play'`) sind unverändert.
+
+**Effects State `FX`:** die lose verteilten Globals `shakeAmt, hurtT, healT, hitMarkT, msgT, flashAdd, faceKind`
+sind jetzt `FX.shake, FX.hurt, FX.heal, FX.hitMark, FX.msg, FX.flashAdd, FX.faceKind` (reine Umbenennung, gleiche Logik).
+Phase 19 (Juice) hängt sich hier ein.
+
+**Save State (LocalStorage, offline, kein Konto):** Schlüssel `nexus_breach_save`, `SAVE_VERSION = 1`.
+- Schema: `highestDepth, credits, bestScore, bestTime, unlockedWeapons, weaponUpgrades, perks, artifacts,
+  achievements, stats{kills,deaths,runs,bossKills,sectorsCleared,playTime}, settings{…}`.
+- Settings (Daten vorhanden, Menü folgt in einer späteren Phase): `masterVol, sfxVol, musicVol, screenShake, scanlines,
+  pixelFx, particles, damageFlash, fov, mouseSens, touchSens, reducedMotion` — jeweils geklemmt auf gültige Bereiche.
+- **Migration:** `MIGRATIONS[n]` hebt Version n auf n+1 (aktuell leer, Beispiel im Code). Ein Save mit **neuerer**
+  Version wird nie überschrieben (`readOnly`).
+- **Robustheit:** korrupter JSON → Defaults; Fremd-/Müllwerte werden beim Laden bereinigt; fehlt `localStorage`
+  (Privatmodus) läuft das Spiel normal weiter; Schreiben ist entprellt (800 ms) plus Flush bei `pagehide`,
+  Tab-Wechsel und Verlassen von `play`.
+- **Legacy:** die alten Schlüssel `orca_breach_best` / `orca_breach_bestdepth` bleiben unverändert in Betrieb;
+  beim allerersten Start ohne Save werden sie ins neue Save übernommen.
+- **Hooks im Spielablauf:** `onRunStart` (newRun), `onLevelStart` (Tiefe — nicht beim Titel-Demo), `onKill` (nur im
+  Zustand `play`, zählt Boss separat), `onDeath`, `onSectorClear`, `onRunEnd`, `onCampaignComplete`; `playTime` läuft in `update()`.
+
+**Nicht angefasst:** Raycaster/Rendering, Level-Generierung, Gegner-KI, Waffen, Touch-Steuerung, Pointer-Lock, Audio,
+PWA-Dateien (`sw.js`, `manifest.json`, `index.html`). Ein Frame kostet praktisch nichts extra (ein Additions-Schritt für `playTime`).
+
+**Getestet (Node-Harness `test/`, gestubbte DOM/Canvas — KEIN echter Browser):**
+- `node test/t_boot.js` — Boot + 120 Titel-Frames, 0 Konsolenfehler
+- `node test/t_play.js` — Story-Sektor: Kill, Tod, Neustart, Sektor-Abschluss; State-Übergänge und Save-Zähler stimmen
+- `node test/t_save.js` — 12 Save-Checks (korrupt, Müllwerte, neuere Version, Legacy-Import, kein Storage, Roundtrip, Pause)
+- `node test/t_soak.js [touch] [frames]` — Zufallslauf mit zufälligem Input: 6000 Frames Desktop, 1500 Frames Touch-Modus, 0 Fehler/Warnungen
+
+**Bitte einmal live prüfen (nicht automatisiert testbar):** Sieht das Spiel auf Desktop und Handy exakt aus wie vorher?
+Funktionieren Pause (Esc/P), Waffenwechsel, Touch-Steuerung, Treffer-Rot/Heil-Grün-Flash, Kamerawackeln und Gesichts-HUD wie gewohnt?
+Im Browser-Cache unter Application → Local Storage sollte nach dem ersten Spiel `nexus_breach_save` auftauchen.
+
+---
+
+## Frühere Änderungen (vor dem Overhaul)
+
+Stand damals: 24.09.2026. Teil des MC ORCA Games Portfolios, bewusst NICHT
 mit Supabase/Konto/MOGC verbunden.
 
 ## Touch-Steuerung für Handy/Tablet ergänzt
