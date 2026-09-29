@@ -177,6 +177,7 @@
   #mEnergy.lock b{ animation:txtBlink .35s steps(1) infinite; }
   .rm #mEnergy.lock b{ animation:none; }
   #shieldFx{ position:absolute; inset:0; pointer-events:none; opacity:0; box-shadow:inset 0 0 10cqw 1.5cqw rgba(53,228,255,.7); }
+  #vigFx{ position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at center,transparent 52%,rgba(0,0,8,.32) 100%); }
   #dashFx{ position:absolute; inset:0; pointer-events:none; opacity:0; background:radial-gradient(ellipse at center,transparent 45%,rgba(180,240,255,.28) 100%); }
   #xh.crit::before,#xh.crit::after{ background:var(--amber); box-shadow:0 0 8px var(--amber); }
   #hpnum{ display:flex; align-items:baseline; gap:.8cqw; }
@@ -336,6 +337,7 @@
 <body>
 <div id="stage">
   <canvas id="view" width="960" height="600"></canvas>
+  <div id="vigFx"></div>
   <div id="scan"></div>
   <div id="hurt"></div><div id="heal"></div>
   <div id="xh"></div>
@@ -416,14 +418,65 @@ function rng(seed){ let s=seed>>>0; return ()=>{ s=(s+0x6D2B79F5)>>>0; let t=s; 
 function px(g,c,x,y,w,h){ g.fillStyle=c; g.fillRect(x,y,w,h); }
 function disc(g,c,x,y,rx,ry){ g.fillStyle=c; g.beginPath(); g.ellipse(x,y,rx,ry,0,0,Math.PI*2); g.fill(); }
 function poly(g,c,p){ g.fillStyle=c; g.beginPath(); g.moveTo(p[0],p[1]); for(let i=2;i<p.length;i+=2) g.lineTo(p[i],p[i+1]); g.closePath(); g.fill(); }
-function speckle(g,r,n,cols){ for(let i=0;i<n;i++){ g.fillStyle=cols[(r()*cols.length)|0]; g.fillRect((r()*64)|0,(r()*64)|0,1,1); } }
+function speckle(g,r,n,cols){ for(let i=0;i<n;i++){ g.fillStyle=cols[(r()*cols.length)|0]; g.fillRect(((r()*128)|0)/2,((r()*128)|0)/2,.5,.5); } }
 
+// Grafik-Upgrade: Texturen 128x128 (TS). Alle Zeichenbefehle bleiben in 64er-Koordinaten (g.scale(2,2)),
+// danach ein Detail-Pass: Korn + weiche Flecken + Bevel (Kantenlicht) bei Wand/Boden, Farbverlauf bei Sprites.
+const TS=128, TSM=127, TSH=7;
+const GFX=window.__gfx={bloom:1,vignette:1,weapon:1};
+try{ Object.assign(GFX,JSON.parse(localStorage.getItem('nb_gfx')||'{}')); }catch(e){}
+let _enhSeed=1;
+function enhanceTex(u,cut){
+  const px32=new Uint8ClampedArray(u.buffer), N=TS;
+  if(cut){
+    for(let y=0;y<N;y++){ const k=1.08-.16*(y/N); for(let x=0;x<N;x++){ const i=(y*N+x)*4; if(px32[i+3]===0) continue; px32[i]*=k; px32[i+1]*=k; px32[i+2]*=k; } }
+    return;
+  }
+  const r=rng(9001+(_enhSeed++)*77), L=new Float32Array(N*N), blob=new Float32Array(17*17);
+  for(let i=0;i<blob.length;i++) blob[i]=r();
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const i=(y*N+x)*4; L[y*N+x]=px32[i]*.3+px32[i+1]*.59+px32[i+2]*.11; }
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const i=(y*N+x)*4;
+    const gx=x/8, gy=y/8, x0=gx|0, y0=gy|0, fx=gx-x0, fy=gy-y0;
+    const b=(blob[y0*17+x0]*(1-fx)+blob[y0*17+((x0+1)%16)]*fx)*(1-fy)+(blob[((y0+1)%16)*17+x0]*(1-fx)+blob[((y0+1)%16)*17+((x0+1)%16)]*fx)*fy;
+    const dx=L[y*N+((x+1)&TSM)]-L[y*N+((x-1)&TSM)], dy=L[((y+1)&TSM)*N+x]-L[((y-1)&TSM)*N+x];
+    const add=clamp(-(dx+dy)*.30,-26,26);
+    const m=.93+b*.14+(r()-.5)*.09;
+    px32[i]=px32[i]*m+add; px32[i+1]=px32[i+1]*m+add; px32[i+2]=px32[i+2]*m+add;
+  }
+}
+// Mob-Upgrade: Gegner-Sprites bekommen Volumen (Kanten-Abstand -> Wölbung, Licht von links oben),
+// dunkle Kontur, Glanzlichter und Materialkorn. Leuchtende Teile (Augen, Akzente) bleiben unverändert.
+let _mobMode=false;
+function enhanceMob(u){
+  const N=TS, b=new Uint8ClampedArray(u.buffer), d=new Float32Array(N*N), h=new Float32Array(N*N), r=rng(4242+(_enhSeed++));
+  for(let i=0;i<N*N;i++) d[i]=b[i*4+3]?1e3:0;
+  const g=(x,y)=>(x<0||y<0||x>=N||y>=N)?0:d[y*N+x];
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const i=y*N+x; if(!d[i]) continue; d[i]=Math.min(d[i],g(x-1,y)+1,g(x,y-1)+1,g(x-1,y-1)+1.4,g(x+1,y-1)+1.4); }
+  for(let y=N-1;y>=0;y--) for(let x=N-1;x>=0;x--){ const i=y*N+x; if(!d[i]) continue; d[i]=Math.min(d[i],g(x+1,y)+1,g(x,y+1)+1,g(x+1,y+1)+1.4,g(x-1,y+1)+1.4); }
+  for(let i=0;i<N*N;i++) h[i]=Math.min(d[i],14)/14;
+  const hb=new Float32Array(N*N);
+  for(let y=1;y<N-1;y++) for(let x=1;x<N-1;x++){ let t=0; for(let j=-1;j<=1;j++) for(let k=-1;k<=1;k++) t+=h[(y+j)*N+x+k]; hb[y*N+x]=t/9; }
+  for(let y=1;y<N-1;y++) for(let x=1;x<N-1;x++){
+    const i=y*N+x, o=i*4; if(!b[o+3]) continue;
+    const R=b[o], G=b[o+1], B=b[o+2], mx=Math.max(R,G,B), mn=Math.min(R,G,B), lum=R*.3+G*.59+B*.11;
+    const emissive=(mx>190&&(mx-mn>70||lum>200));
+    if(emissive) continue;
+    const nx=hb[i-1]-hb[i+1], ny=hb[i-N]-hb[i+N];
+    let lit=1+(-nx*.9-ny*1.1)*2.6;
+    lit=lit<.62?.62:lit>1.4?1.4:lit;
+    let m=(.78+.22*hb[i])*lit*(.96+r()*.08);
+    if(d[i]<=2.2) m*=.42+.18*d[i];      // dunkle Kontur
+    let add=lit>1.22?(lit-1.22)*70:0;   // Glanzlicht
+    b[o]=R*m+add; b[o+1]=G*m+add; b[o+2]=B*m+add*1.05;
+  }
+}
 function makeTex(draw,cut){
-  const c=document.createElement('canvas'); c.width=c.height=64;
-  const g=c.getContext('2d'); g.imageSmoothingEnabled=false; draw(g);
-  const d=g.getImageData(0,0,64,64);
+  const c=document.createElement('canvas'); c.width=c.height=TS;
+  const g=c.getContext('2d'); g.imageSmoothingEnabled=false; g.scale(TS/64,TS/64); draw(g);
+  const d=g.getImageData(0,0,TS,TS);
   if(cut){ for(let i=3;i<d.data.length;i+=4) d.data[i]=d.data[i]>110?255:0; }
-  return new Uint32Array(d.data.buffer);
+  const u=new Uint32Array(d.data.buffer); if(cut&&_mobMode) enhanceMob(u); else enhanceTex(u,cut); return u;
 }
 
 const texPanel=makeTex(g=>{
@@ -661,7 +714,7 @@ const texJungleFloor=makeTex(g=>{
 });
 
 /* ---- Himmel (Außensektoren): Angle-basiertes Sky-Strip, wie beim Doom-Sky-Hack ---- */
-const SKY_W=1440, SKY_H=320;
+const SKY_K=3.5, SKY_W=5040, SKY_H=320;   // 14 Sky-Pixel pro Grad = 1:1 zum Bildschirm (vorher 4/Grad: Planeten waren 3,5x breitgezogen und verpixelt)
 function makeWideTex(w,h,draw){
   const c=document.createElement('canvas'); c.width=w; c.height=h;
   const g=c.getContext('2d'); g.imageSmoothingEnabled=false; draw(g);
@@ -672,25 +725,54 @@ function paintSkyBase(g,horizonCol,zenithCol){
   grad.addColorStop(0,horizonCol); grad.addColorStop(.4,zenithCol); grad.addColorStop(1,zenithCol);
   g.fillStyle=grad; g.fillRect(0,0,SKY_W,SKY_H);
 }
+function paintNebula(g,seed){
+  const r=rng(seed*13+5), pal=[['255,120,60','255,190,110','160,60,90'],['130,90,230','80,140,255','200,90,200'],['60,230,150','60,200,230','140,120,255']][seed%3];
+  for(let i=0;i<7;i++){
+    const x=r()*SKY_W, y=SKY_H*(.2+r()*.6), rad=110+r()*170, c=pal[i%3], a=.07+r()*.08;
+    for(const dx of [-SKY_W,0,SKY_W]){
+      const gr=g.createRadialGradient(x+dx,y,2,x+dx,y,rad); gr.addColorStop(0,'rgba('+c+','+a+')'); gr.addColorStop(1,'rgba('+c+',0)');
+      g.save(); g.translate(x+dx,y); g.scale(SKY_K*.6,.55); g.translate(-(x+dx),-y); g.fillStyle=gr; g.fillRect(x+dx-rad,y-rad,rad*2,rad*2); g.restore();
+    }
+  }
+}
 function paintStars(g,seed,n,topBias){
+  paintNebula(g,seed); n=Math.round(n*SKY_W/1440);
   const r=rng(seed);
   for(let i=0;i<n;i++){
     const y=(Math.pow(r(),topBias)*SKY_H)|0, x=(r()*SKY_W)|0;
-    const b=r();
-    g.fillStyle=b<.1?'#FFFFFF':(b<.45?'#BFE9FF':'#7FD4E8');
-    g.fillRect(x,SKY_H-1-y,1,1);
+    const b=r(), yy=SKY_H-1-y;
+    const col=b<.1?'#FFFFFF':(b<.45?'#BFE9FF':'#7FD4E8');
+    if(b<.06){       // helle Sterne mit Glühen und Kreuz
+      const gr=g.createRadialGradient(x,yy,0,x,yy,6); gr.addColorStop(0,'rgba(255,255,255,.9)'); gr.addColorStop(.3,'rgba(190,233,255,.35)'); gr.addColorStop(1,'rgba(190,233,255,0)');
+      g.fillStyle=gr; g.fillRect(x-6,yy-6,12,12); g.fillStyle='#FFFFFF'; g.fillRect(x,yy,1,1); g.fillRect(x-2,yy,5,1); g.fillRect(x,yy-2,1,5);
+    } else if(b<.22){ g.fillStyle=col; g.fillRect(x,yy,2,1); g.globalAlpha=.4; g.fillRect(x-1,yy,4,1); g.globalAlpha=1; }
+    else { g.globalAlpha=.55+r()*.45; g.fillStyle=col; g.fillRect(x,yy,1,1); g.globalAlpha=1; }
   }
 }
 function paintPlanet(g,cx,cy,r,dark,base,light,ring){
-  disc(g,dark,cx,cy,r,r);
+  r=Math.round(r*1.45);
+  const R=rng((cx*7+cy*3+r)|0);
+  const halo=g.createRadialGradient(cx,cy,r*.9,cx,cy,r*1.7); halo.addColorStop(0,'rgba(255,255,255,.16)'); halo.addColorStop(.35,'rgba(255,255,255,.05)'); halo.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=halo; g.fillRect(cx-r*1.8,cy-r*1.8,r*3.6,r*3.6);
+  const ringPath=()=>{ g.beginPath(); g.ellipse(cx,cy,r*1.7,r*.4,-.3,0,Math.PI*2); };
+  if(ring){ g.strokeStyle=ring; g.lineWidth=Math.max(2,r*.14); g.globalAlpha=.9; ringPath(); g.stroke(); g.lineWidth=Math.max(1,r*.05); g.globalAlpha=.5; g.beginPath(); g.ellipse(cx,cy,r*1.5,r*.34,-.3,0,Math.PI*2); g.stroke(); g.globalAlpha=1; }
   g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
-  g.fillStyle=base; g.fillRect(cx-r,cy-r,r*1.35,r*2);
-  g.fillStyle=light; g.fillRect(cx-r,cy-r,r*.5,r*2);
-  g.restore();
-  if(ring){
-    g.strokeStyle=ring; g.lineWidth=Math.max(2,r*.14);
-    g.beginPath(); g.ellipse(cx,cy,r*1.7,r*.4,-.3,0,Math.PI*2); g.stroke();
+  const body=g.createRadialGradient(cx-r*.45,cy-r*.45,r*.05,cx-r*.2,cy-r*.2,r*1.55);
+  body.addColorStop(0,light); body.addColorStop(.35,base); body.addColorStop(1,dark);
+  g.fillStyle=body; g.fillRect(cx-r,cy-r,r*2,r*2);
+  const nb=Math.max(3,(r/5)|0);                          // Wolkenbänder
+  for(let i=0;i<nb;i++){ const by=cy-r+R()*r*2, bh=r*(.05+R()*.14); g.fillStyle=R()<.5?'rgba(0,0,0,'+(.06+R()*.1)+')':'rgba(255,255,255,'+(.04+R()*.08)+')'; g.fillRect(cx-r,by,r*2,bh); }
+  if(r>=18) for(let i=0;i<(r/6)|0;i++){                  // Krater
+    const a=R()*6.28, d=Math.sqrt(R())*r*.7, kx=cx+Math.cos(a)*d, ky=cy+Math.sin(a)*d, kr=r*(.05+R()*.1);
+    g.fillStyle='rgba(0,0,0,.22)'; g.beginPath(); g.arc(kx,ky,kr,0,6.28); g.fill();
+    g.fillStyle='rgba(255,255,255,.14)'; g.beginPath(); g.arc(kx-kr*.25,ky-kr*.25,kr*.7,0,6.28); g.fill();
   }
+  const term=g.createRadialGradient(cx-r*.5,cy-r*.5,r*.6,cx-r*.5,cy-r*.5,r*2.1);   // Schattenseite
+  term.addColorStop(0,'rgba(0,0,0,0)'); term.addColorStop(.62,'rgba(0,0,0,.05)'); term.addColorStop(1,'rgba(0,0,8,.82)');
+  g.fillStyle=term; g.fillRect(cx-r,cy-r,r*2,r*2);
+  g.restore();
+  g.strokeStyle=light; g.globalAlpha=.55; g.lineWidth=Math.max(1,r*.05); g.beginPath(); g.arc(cx,cy,r-g.lineWidth/2,Math.PI*.95,Math.PI*1.6); g.stroke(); g.globalAlpha=1;   // Randlicht
+  if(ring){ g.save(); g.beginPath(); g.rect(cx-r*2,cy,r*4,r*2); g.clip(); g.strokeStyle=ring; g.lineWidth=Math.max(2,r*.14); ringPath(); g.stroke(); g.restore(); }   // Ring vorn
 }
 const skyCanyon=makeWideTex(SKY_W,SKY_H,g=>{
   paintSkyBase(g,'#4a2410','#160a20');
@@ -936,6 +1018,24 @@ const SPR_BUILDERS={
   N:sprSniper, M:sprMedic, B:sprShielder, C:sprSummoner, A:sprAssassin, J:sprJuggernaut
 };
 const SPR_BOSS={idle:sprRig(false,false,PAL_BOSS,bossExtra),atk:sprRig(true,false,PAL_BOSS,bossExtra),dead:sprRig(false,true,PAL_BOSS)};
+// Mob-Upgrade: alle Gegner-Sprite-Generatoren laufen im Mob-Modus (enhanceMob statt Sprite-Verlauf)
+sprDrone=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprDrone);
+sprRig=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprRig);
+sprSpider=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprSpider);
+sprTurret=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprTurret);
+sprRidge=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprRidge);
+sprWorm=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprWorm);
+sprSpore=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprSpore);
+sprBomber=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprBomber);
+sprBrute=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprBrute);
+sprCaster=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprCaster);
+sprSwarmling=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprSwarmling);
+sprSniper=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprSniper);
+sprMedic=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprMedic);
+sprShielder=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprShielder);
+sprSummoner=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprSummoner);
+sprAssassin=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprAssassin);
+sprJuggernaut=((o)=>function(...a){ _mobMode=true; try{ return o(...a); } finally{ _mobMode=false; } })(sprJuggernaut);
 const SPR_BIOME={};
 for(const biomeId of BIOME_ORDER){
   const set={K:SPR_BOSS};
@@ -10045,7 +10145,7 @@ function renderFloorCeil(time){
     let fx=P.x+rd*rx0, fy=P.y+rd*ry0;
     if(p>0){
       for(let x=0;x<W;x++){
-        buf[base+x]=shade(curFloor[(((fy*64)|0)&63)<<6|(((fx*64)|0)&63)],f);
+        buf[base+x]=shade(curFloor[(((fy*TS)|0)&TSM)<<TSH|(((fx*TS)|0)&TSM)],f);
         fx+=stx; fy+=sty;
       }
     } else {
@@ -10060,7 +10160,7 @@ function renderFloorCeil(time){
           const fr=Math.floor(time*2.4+(h%97)*0.08)%CEIL_FLICKER_FRAMES.length;
           ctex=CEIL_FLICKER_FRAMES[fr]; lf=f*CEIL_FLICKER_F[fr];
         }
-        buf[base+x]=shade(ctex[(((fy*64)|0)&63)<<6|(((fx*64)|0)&63)],lf);
+        buf[base+x]=shade(ctex[(((fy*TS)|0)&TSM)<<TSH|(((fx*TS)|0)&TSM)],lf);
         fx+=stx; fy+=sty;
       }
     }
@@ -10085,8 +10185,8 @@ function renderWalls(time){
     const perp=Math.max(.05,side===0?sdx-ddx:sdy-ddy);
     zBuf[x]=perp;
     let wallX=side===0?P.y+perp*rdy:P.x+perp*rdx; wallX-=Math.floor(wallX);
-    let tx=(wallX*64)|0;
-    if((side===0&&rdx>0)||(side===1&&rdy<0)) tx=63-tx;
+    let tx=(wallX*TS)|0;
+    if((side===0&&rdx>0)||(side===1&&rdy<0)) tx=TSM-tx;
     const lh=PROJ/perp, top=horizon-lh/2;
     let f=((1-perp/MAXD)*256)|0; if(side===1) f=(f*.74)|0;
     f=clamp(f+FX.flashAdd,0,256);
@@ -10102,9 +10202,9 @@ function renderWalls(time){
     }
     else if(hit===6){ tex=SIGN_TEX[String(lvl.signDigit)]||SIGN_TEX['0']; }
     const y0=Math.max(0,top|0), y1=Math.min(H-1,(top+lh)|0);
-    const step=64/lh; let tp=(y0-top)*step;
+    const step=TS/lh; let tp=(y0-top)*step;
     for(let y=y0;y<=y1;y++){
-      buf[y*W+x]=shade(tex[((tp|0)&63)<<6|tx],f); tp+=step;
+      const v=tp*(1/TS), ao=v<.1?.74+2.6*v:(v>.9?.74+2.6*(1-v):1); buf[y*W+x]=shade(tex[((tp|0)&TSM)<<TSH|tx],(f*ao)|0); tp+=step;
     }
   }
 }
@@ -10171,26 +10271,25 @@ function renderSprites(time){
     let f=s.glow?256:clamp(((1-tY/MAXD)*256|0)+FX.flashAdd+50,40,256);
     const xa=Math.max(0,x0|0), xb=Math.min(W-1,(x0+size)|0);
     const ya=Math.max(0,top|0), yb=Math.min(H-1,bottom|0);
-    const ss=64/size, tex=s.tex, fl=s.flash>0;
+    const ss=TS/size, tex=s.tex, fl=s.flash>0;
     for(let x=xa;x<=xb;x++){
       if(tY>=zBuf[x]) continue;
-      const tx=((x-x0)*ss)|0; if(tx<0||tx>63) continue;
+      const tx=((x-x0)*ss)|0; if(tx<0||tx>TSM) continue;
       for(let y=ya;y<=yb;y++){
         const ty=((y-top)*ss)|0;
-        const c=tex[(ty<<6)|tx]; if(c>>>24===0) continue;
+        const c=tex[(ty<<TSH)|tx]; if(c>>>24===0) continue;
         buf[y*W+x]=fl?0xFFFFFFFF:shade(c,f);
       }
     }
   }
 }
-function drawWeapon(time){
-  ctx.save(); ctx.scale(W/320,H/200);   // Waffen-Sprites sind im alten 320x200-Raster gezeichnet
+function drawWeaponBody(ctx,time){   // zeichnet nur den Waffenkörper (Ziel: Offscreen-Canvas, Raster 320x200)
   const bx=Math.sin(P.bob)*4*P.moving, by=Math.abs(Math.cos(P.bob))*3*P.moving;
   const rc=P.recoil*9;
   const w=WEAPONS[P.weapon];
   const hc=P.overheatT>0?'#FF3D6E':P.heat>.66?'#FF6A2E':P.heat>.33?'#FFC24D':w.col;      // Kern glueht mit der Hitze
   const dip=P.reloadT>0?Math.sin((1-P.reloadT/P.reloadDur)*Math.PI)*46:0;                // Waffe taucht beim Nachladen ab
-  ctx.save(); ctx.translate(bx,by+rc-19+dip);
+  ctx.save();
   if(P.weapon===0){
     poly(ctx,'#0d141c',[130,235,146,168,174,168,190,235]);
     poly(ctx,'#1f2c3f',[137,235,150,172,170,172,183,235]);
@@ -10252,24 +10351,104 @@ function drawWeapon(time){
     px(ctx,'#35E4FF',194,220,14,4);
     ctx.restore();
   }
+  ctx.restore();
+  return [bx,by+rc-19+dip,w];
+}
+// Waffen-Upgrade: Körper wird in 640x400 vorgerendert, dann schattiert (Kantenlicht, Kontur, Verlauf) und aufs Bild gelegt.
+const WV={w:640,h:480,c:document.createElement('canvas'),L:null,key:'',fx:null};
+WV.c.width=WV.w; WV.c.height=WV.h;
+try{ WV.g=WV.c.getContext('2d',{willReadFrequently:true}); }catch(e){ WV.g=null; }
+function enhanceWeaponCanvas(){
+  const g=WV.g, X0=140, Y0=110, cw=360, ch=WV.h-Y0;   // nur bei Änderung (Waffe/Hitze/Blitz), nicht pro Bild
+  const im=g.getImageData(X0,Y0,cw,ch), d=im.data, L=WV.L||(WV.L=new Float32Array(cw*ch));
+  for(let i=0;i<cw*ch;i++){ const o=i*4; L[i]=d[o+3]>=24?d[o]*.3+d[o+1]*.59+d[o+2]*.11:-1; }
+  for(let y=3;y<ch-3;y++) for(let x=3;x<cw-3;x++){
+    const i=y*cw+x, o=i*4; if(d[o+3]<24) continue;
+    const R=d[o], G=d[o+1], B=d[o+2], mx=Math.max(R,G,B), mn=Math.min(R,G,B), l=L[i];
+    if(mx>190&&(mx-mn>70||l>200)) continue;                       // Leuchtendes bleibt
+    if(L[i-3]<0||L[i+3]<0||L[i-3*cw]<0||L[i+3*cw]<0){ d[o]=R*.42; d[o+1]=G*.42; d[o+2]=B*.45; continue; }   // Kontur
+    const lx=L[i+3], lm=L[i-3], ly=L[i+3*cw], lu=L[i-3*cw];
+    const add=clamp(-((lx-lm)+(ly-lu))*.42,-30,30);
+    const m=1.16-.36*(y/ch)+(((x*73856093)^(y*19349663))&15)/16*.05;
+    d[o]=R*m+add; d[o+1]=G*m+add; d[o+2]=B*m+add*1.05;
+  }
+  g.putImageData(im,X0,Y0);
+}
+function drawWeapon(time){
+  const g=WV.g; if(!g) return;
+  const w=WEAPONS[P.weapon], bx=Math.sin(P.bob)*4*P.moving, by=Math.abs(Math.cos(P.bob))*3*P.moving, rc=P.recoil*9;
+  const dip=P.reloadT>0?Math.sin((1-P.reloadT/P.reloadDur)*Math.PI)*46:0;
+  const hc=P.overheatT>0?1:P.heat>.66?2:P.heat>.33?3:0;
+  const pl=P.weapon===8?Math.round((Math.sin(time*6)+1)*1.6*2):0, pf=P.weapon===3&&P.overheatT>0?Math.round(Math.min(1,P.overheatT/1.6)*4):0;
+  const key=P.weapon+'|'+hc+'|'+(P.flash>0?1:0)+'|'+pl+'|'+pf+'|'+(GFX.weapon?1:0);
+  if(key!==WV.key){                    // Körper nur neu zeichnen + schattieren, wenn sich sein Aussehen ändert
+    WV.key=key;
+    g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,WV.w,WV.h); g.save(); g.scale(WV.w/320,WV.h/240);
+    drawWeaponBody(g,time);
+    g.restore();
+    if(GFX.weapon) try{ enhanceWeaponCanvas(); }catch(e){ GFX.weapon=0; }
+  }
+  const ty=by+rc-19+dip;
+  ctx.save(); ctx.imageSmoothingEnabled=true; ctx.drawImage(WV.c,bx*3,ty*3,W,H*1.2); ctx.restore();
   if(P.flash>0){
+    ctx.save(); ctx.scale(W/320,H/200); ctx.translate(bx,ty);
     const cx=160, cy=w.fx[0], r=w.fx[1];
     const gr=ctx.createRadialGradient(cx,cy,1,cx,cy,r);
     gr.addColorStop(0,'rgba(255,255,255,.95)'); gr.addColorStop(.4,'rgba('+w.frgb+',.8)'); gr.addColorStop(1,'rgba('+w.frgb+',0)');
     ctx.fillStyle=gr; ctx.fillRect(cx-r,cy-r,r*2,r*2);
+    ctx.restore();
   }
-  ctx.restore();
-  ctx.restore();
 }
+/* ---- Grafik-Upgrade: Bloom (helle Bereiche glimmen) + Vignette; per Konsole: __gfx.bloom=0 ---- */
+const BW=W>>2, BH=H>>2, bA=new Float32Array(BW*BH*3), bB=new Float32Array(BW*BH*3);
+let bloomTick=0, bloomLive=false;
+function blurPass(src,dst,horiz){
+  const w=BW,h=BH, R=4, n=1/(R*2+1);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    let r=0,g=0,b=0;
+    for(let k=-R;k<=R;k++){ let xx=horiz?x+k:x, yy=horiz?y:y+k; if(xx<0)xx=0; else if(xx>=w)xx=w-1; if(yy<0)yy=0; else if(yy>=h)yy=h-1; const i=(yy*w+xx)*3; r+=src[i]; g+=src[i+1]; b+=src[i+2]; }
+    const o=(y*w+x)*3; dst[o]=r*n; dst[o+1]=g*n; dst[o+2]=b*n;
+  }
+}
+function bloomPass(){
+  if(!GFX.bloom) return;
+  if((bloomTick++&1)===0){            // Glow nur jedes 2. Bild neu berechnen
+    let any=0;
+    for(let by=0;by<BH;by++) for(let bx=0;bx<BW;bx++){
+      let r=0,g=0,b=0;
+      for(let k=0;k<4;k++){ const c=buf[(by*4+(k>>1)*2)*W+bx*4+(k&1)*2]; const cr=c&255, cg=(c>>8)&255, cb=(c>>16)&255; const l=cr*.3+cg*.59+cb*.11, e=l>140?(l-140)/115:0; r+=cr*e; g+=cg*e; b+=cb*e; }
+      const o=(by*BW+bx)*3; bA[o]=r*.25; bA[o+1]=g*.25; bA[o+2]=b*.25; any+=r+g+b;
+    }
+    bloomLive=any>40;
+    if(bloomLive){ blurPass(bA,bB,true); blurPass(bB,bA,false); }
+  }
+  if(!bloomLive) return;
+  for(let by=0;by<BH;by++) for(let bx=0;bx<BW;bx++){
+    const o=(by*BW+bx)*3, br=bA[o]*.9, bg=bA[o+1]*.9, bb=bA[o+2]*.9;
+    if(br+bg+bb<5) continue;           // dunkle Blöcke überspringen
+    for(let j=0;j<4;j++){ let i=(by*4+j)*W+bx*4;
+      for(let k=0;k<4;k++,i++){ const c=buf[i]; let r=(c&255)+br, g=((c>>8)&255)+bg, b=((c>>16)&255)+bb;
+        buf[i]=0xFF000000|((b>255?255:b)<<16)|((g>255?255:g)<<8)|(r>255?255:r); }
+    }
+  }
+}
+let _qEma=16, _qBad=0, _vigOn=true;
 function render(time){
+  const _t0=(typeof performance!=='undefined')?performance.now():0;
+  if((GFX.vignette?true:false)!==_vigOn){ _vigOn=!!GFX.vignette; const v=document.getElementById('vigFx'); if(v) v.style.display=_vigOn?'':'none'; }
   dirX=Math.cos(P.a); dirY=Math.sin(P.a);
   planeX=-dirY*PLANE_LEN; planeY=dirX*PLANE_LEN;
   horizon=HALF+P.pitch+Math.sin(P.bob*2)*1.6*P.moving;
   FX.flashAdd=(P.flash>0?55:0);
   renderFloorCeil(time); renderWalls(time); renderSprites(time);
+  bloomPass();
   ctx.putImageData(img,0,0);
   drawWeapon(time);
   Cine.post(time);
+  if(_t0){   // Auto-Qualität: bei dauerhaft langsamen Bildern erst Bloom, dann Waffen-Schattierung abschalten
+    const dt=performance.now()-_t0; _qEma+=(dt-_qEma)*.05;
+    if(_qEma>24){ if(++_qBad>150){ _qBad=0; if(GFX.bloom){ GFX.bloom=0; _qEma=16; } else if(GFX.weapon){ GFX.weapon=0; _qEma=16; } } } else _qBad=0;
+  }
 }
 
 /* ---- Minikarte ---- */

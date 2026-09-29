@@ -2,7 +2,7 @@
    Erlaubt Installation als eigenstaendige App-Kachel und cached die
    Spielseite fuer den Offline-/Schnellstart. Bewusst minimal gehalten:
    nur die Spielseite selbst + Manifest + Icons, keine Audio-/Asset-Flut. */
-const CACHE = "orca-nexus-breach-v33";
+const CACHE = "orca-nexus-breach-v38";
 const ASSETS = ["./", "./game.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {

@@ -2,7 +2,7 @@ const {boot}=require('./harness');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 (async()=>{
   const h=boot(); const B=h.B(), NX=B.NX, P=B.P, AI=B.AI, R=B.Roles;
-  h.frame(10); B.newRun(); B.startLevel(0,true); await sleep(400); h.frame(5);
+  h.frame(10); B.newRun(); B.startLevel(0,true); await sleep(400); h.frame(5); /* Sektor 1 (Story) öffnet einen Intro-Dialog, der das Spiel pausiert -> für die KI-Tests in den Spielzustand wechseln */ if(NX.state!=='play'){ NX.setState('play'); h.frame(3); }
   const list=NX.enemies.list, grid=NX.level.grid, GW=NX.level.width, GH=NX.level.height;
   const free=(x,y)=>x>=0&&y>=0&&x<GW&&y<GH&&grid[y*GW+x]===0;
   let line=null; for(const len of [14,12,10]){ for(let y=1;y<GH-1&&!line;y++) for(let x=1;x<GW-len&&!line;x++){ let g=true; for(let k=0;k<len;k++) if(!free(x+k,y)){g=false;break;} if(g) line={x,y,len}; } if(line) break; }

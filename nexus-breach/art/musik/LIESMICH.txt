@@ -1,0 +1,42 @@
+NEXUS: BREACH - Musik-Ordner  (nexus-breach/art/musik/)
+=========================================================
+
+Hier liegen die Songs als .ogg (Ersatz: gleicher Name als .mp3, falls ein Browser kein Ogg spielt).
+Dateinamen exakt wie unten. Nicht vorhandene Dateien sind kein Fehler: dann spielt fuer diesen Zustand
+weiter die eingebaute Synth-Musik. Man kann also Song fuer Song nachliefern.
+
+Datei                     Wann sie spielt
+------------------------  -----------------------------------------------------------------------
+nb_title.ogg              Titelbildschirm
+nb_explore_facility.ogg   Erkunden, Biom Anlage (auch alle Biome ohne eigenen Song)
+nb_explore_canyon.ogg     Erkunden, Biom Schlucht
+nb_explore_desert.ogg     Erkunden, Biom Wueste
+nb_explore_jungle.ogg     Erkunden, Biom Dschungel
+nb_combat.ogg             Kampf (wache Gegner in der Naehe, Alarm)
+nb_elite.ogg              Elite-Gegner wach
+nb_boss_a.ogg             Boss, Phase 1-2 (alle Bosse ohne eigenen Song)
+nb_boss_b.ogg             Boss, Phase 3-4 (Enrage)
+nb_archive.ogg            NEXUS ARCHIVE geoeffnet
+nb_collision.ogg          Story-Sektor 26 (COLLISION), beim Erkunden
+nb_null.ogg               Story, Realitaet NULL (Sektor 29), beim Erkunden
+nb_boss_story.ogg         Story-Bosse THE OBSERVER, THE TRANSMITTER, THE SECOND CORE
+nb_boss_null_a.ogg        NULL SOVEREIGN, Phase 1-2
+nb_boss_null_b.ogg        NULL SOVEREIGN, Phase 3-4
+nb_epilogue.ogg           Epilog (spielt einmal, ohne Loop)
+nb_ascension.ogg          Nexus Ascension, beim Erkunden
+
+Mindestens sinnvoll (Kern): title, explore_facility/canyon/desert/jungle, combat, elite, boss_a, boss_b.
+
+Verhalten
+- Wechsel nach oben (Erkunden -> Kampf -> Elite -> Boss) sofort mit ~1,5 s Ueberblendung.
+- Wechsel nach unten erst nach 4 s Ruhe (kein Flattern).
+- Erkunden/Titel/Archiv/NULL/Kollision/Ascension laufen beim Zurueckkehren dort weiter, wo sie waren.
+  Kampf/Elite/Boss/Epilog starten von vorn.
+- Songs loopen als Ganzes. Saubere Loop-Punkte (ganze Takte) macht man beim Zuschneiden der Dateien.
+- Lautstaerke: Regler "Musik" in den Einstellungen wirkt wie bisher. Zu laut/leise pro Song:
+  Konsole  __breach.Snd.files.trim('combat', 0.7)   (Schluessel = Dateiname ohne 'nb_', z. B. 'boss_a')
+
+Konsole (Test)
+  __breach.Snd.files.state()     welcher Song, welche Dateien geladen/fehlend
+  __breach.Snd.files.enable(false)   Dateien aus, nur Synth
+  __breach.Snd.force('boss',20)  Zustand erzwingen (erkunden|kampf|elite|boss)
