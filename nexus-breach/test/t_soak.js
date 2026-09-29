@@ -4,7 +4,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   for(const touch of (process.argv[2]==='touch'?[true]:[false])){
     const h=boot({touch}); const B=h.B(), NX=B.NX;
     h.frame(30);
-    h.elements.obox.querySelector('#b-run').onclick();   // Zufallslauf starten (Titel-Button)
+    B.startEndless();   // Endlos-Einsatz direkt starten (Titel-Button öffnet jetzt die Menüseite)
     await sleep(450); h.frame(10);
     for(let w=1;w<9;w++) NX.weapons.grant(w,15);   // Phase 4: alle Waffen im Zufallslauf
     let deaths=0, maxE=0, t0=Date.now(), transitions=[]; NX.onState((n,p)=>transitions.push(p+'>'+n));

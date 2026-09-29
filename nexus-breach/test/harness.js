@@ -10,7 +10,7 @@ function makeGfx(){
   return new Proxy(base,{ get:(t,k)=>(k in t?t[k]:()=>{}), set:(t,k,v)=>{ t[k]=v; return true; } });
 }
 function makeEl(){
-  const el={ offsetWidth:0, className:'', style:{}, dataset:{}, children:[], _c:new Set(), get classList(){ const c=this._c; return { add:x=>c.add(x), remove:x=>c.delete(x), toggle:(x,f)=>{ const on=f===undefined?!c.has(x):!!f; on?c.add(x):c.delete(x); return on; }, contains:x=>c.has(x) }; },
+  const el={ offsetWidth:0, className:'', style:{setProperty(){},removeProperty(){},getPropertyValue(){return '';}}, dataset:{}, children:[], _c:new Set(), get classList(){ const c=this._c; return { add:x=>c.add(x), remove:x=>c.delete(x), toggle:(x,f)=>{ const on=f===undefined?!c.has(x):!!f; on?c.add(x):c.delete(x); return on; }, contains:x=>c.has(x) }; },
     width:0,height:0, textContent:'', innerHTML:'', onclick:null,
     getContext:()=>makeGfx(), _q:{}, querySelector(sel){ return this._q[sel]||(this._q[sel]=makeEl()); }, querySelectorAll:()=>[],
     addEventListener(){}, removeEventListener(){}, appendChild(c){return c;}, setAttribute(){}, focus(){},
@@ -26,14 +26,15 @@ function boot(opts={}){
   const elements={};
   const listeners={};
   const document={ getElementById:id=>elements[id]||(elements[id]=makeEl()), createElement:()=>makeEl(),
-    addEventListener:(t,f)=>{ (listeners['d:'+t]=listeners['d:'+t]||[]).push(f); }, body:makeEl(), hidden:false, pointerLockElement:null,
+    addEventListener:(t,f)=>{ (listeners['d:'+t]=listeners['d:'+t]||[]).push(f); }, body:makeEl(), head:makeEl(), hidden:false, pointerLockElement:null,
     exitPointerLock(){}, documentElement:makeEl() };
   let rafQ=[];
   const win={ localStorage, document, innerWidth:1280, innerHeight:720, devicePixelRatio:1,
     addEventListener:(t,f)=>{ (listeners['w:'+t]=listeners['w:'+t]||[]).push(f); },
     matchMedia:()=>({matches:!!opts.touch}), requestAnimationFrame:cb=>{ rafQ.push(cb); return 1; },
-    performance:{ now:()=>0 }, setTimeout, clearTimeout, console:{ log(){}, warn:(...a)=>warns.push(a.join(' ')), error:(...a)=>errors.push(a.join(' ')) },
+    performance:{ now:()=>0 }, setTimeout, clearTimeout, setInterval, clearInterval, console:{ log(){}, warn:(...a)=>warns.push(a.join(' ')), error:(...a)=>errors.push(a.join(' ')) },
     Math, Date, JSON, Uint32Array, Uint8Array, Uint8ClampedArray, Float32Array, Int32Array, Array, Object, Number, Set, Map, Promise, Error };
+  if(opts.extra) Object.assign(win,opts.extra);   // z. B. AudioContext-/Audio-Mocks (t_music.js)
   win.window=win; win.self=win; win.globalThis=win;
   const ctx=vm.createContext(win);
   vm.runInContext(m[1],ctx,{filename:'game.html'});

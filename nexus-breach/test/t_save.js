@@ -3,7 +3,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let fails=0; const ok=(c,m)=>{ if(!c){ fails++; console.log('FAIL',m); } else console.log('ok  ',m); };
 (async()=>{
   // 1) Korrupter JSON -> Defaults, kein Crash
-  let h=boot({store:{nexus_breach_save:'{kaputt'}}); ok(h.B().NX.save.data.version===1 && h.errors.length===0,'korrupter Save -> Defaults');
+  let h=boot({store:{nexus_breach_save:'{kaputt'}}); ok(h.B().NX.save.data.version===h.B().NX.SAVE_VERSION && h.errors.length===0,'korrupter Save -> Defaults');
   // 2) Müll-Werte werden bereinigt / geklemmt
   h=boot({store:{nexus_breach_save:JSON.stringify({version:1,highestDepth:-5,credits:'abc',stats:{kills:'x',deaths:7},settings:{masterVol:9,fov:1,reducedMotion:1,evil:'x'},unlockedWeapons:[1,'a'],perks:[]})}});
   let d=h.B().NX.save.data;
@@ -21,7 +21,7 @@ let fails=0; const ok=(c,m)=>{ if(!c){ fails++; console.log('FAIL',m); } else co
   h=boot({noStorage:true}); h.frame(30); h.B().NX.save.markDirty(); h.B().NX.save.flush();
   ok(h.errors.length===0&&h.B().NX.save.ok===false,'ohne Storage kein Crash');
   // 6) Migration: Version-0/1-Kette
-  h=boot(); const S2=h.B().NX.save; const mig=S2.migrate({version:1,x:1}); ok(mig.version===1,'Migration bei aktueller Version = No-Op');
+  h=boot(); const S2=h.B().NX.save; const mig=S2.migrate({version:h.B().NX.SAVE_VERSION,x:1}); ok(mig.version===h.B().NX.SAVE_VERSION,'Migration bei aktueller Version = No-Op');
   // 7) Persistenz Roundtrip + Pause/Resume/Titel
   h=boot(); const B=h.B(), NX=B.NX; const seen=[]; NX.onState((n,p)=>seen.push(p+'>'+n));
   B.newRun(); B.startLevel(0,true); await sleep(400); h.frame(20);
