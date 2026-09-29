@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MC ORCA // Player</title>
+<title>SoundVault Player</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -164,7 +164,7 @@
   /* ---------- Visualizer ---------- */
   .viz-wrap{ position:relative; margin:0 12px 12px; flex:0 0 auto; }
   canvas#viz{
-    width:100%; height:min(260px, 28vh); display:block;
+    width:100%; height:100%; display:block;
     background:
       linear-gradient(180deg, rgba(var(--red-rgb),.05), transparent 40%),
       #050403;
@@ -175,10 +175,19 @@
   .viz-wrap:-webkit-full-screen{ margin:0; display:flex; align-items:center; justify-content:center; background:#000; }
   .viz-wrap:fullscreen canvas#viz{ width:100vw; height:100vh; border:none; border-radius:0; box-shadow:none; }
   .viz-wrap:-webkit-full-screen canvas#viz{ width:100vw; height:100vh; border:none; border-radius:0; box-shadow:none; }
-  .viz-wrap:fullscreen .viz-controls{ top:20px; right:20px; }
+  .viz-wrap:fullscreen .viz-controls{ top:20px; left:20px; right:20px; }
   .viz-controls{
-    position:absolute; top:8px; right:8px; display:flex; gap:6px;
+    position:absolute; top:8px; left:8px; right:8px; display:flex; gap:6px;
+    align-items:flex-start; justify-content:space-between; pointer-events:none;
   }
+  .viz-controls > *{ pointer-events:auto; }
+  .viz-left{ display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start; min-width:0; }
+  .viz-modes{ display:flex; flex-wrap:wrap; gap:6px; }
+  .viz-wrap.modes-collapsed .viz-modes{ display:none; }
+  .viz-toggle{ color:var(--gold); border-color:var(--gold-dim); }
+  .caret{ display:inline-block; font-size:9px; transition:transform .15s ease; }
+  .viz-wrap.modes-collapsed .viz-toggle .caret{ transform:rotate(-90deg); }
+  .viz-controls .fs-chip{ flex:0 0 auto; }
   .chip{
     font-size:10px; letter-spacing:1px; text-transform:uppercase;
     padding:4px 8px; border-radius:3px; cursor:pointer; user-select:none;
@@ -190,6 +199,35 @@
   .chip svg{ width:12px; height:12px; fill:currentColor; }
   .chip.fs-chip{ padding:4px 7px; }
   .chip.fs-chip.active{ background:var(--red); border-color:var(--red); color:var(--void); }
+
+  /* ---------- Bühne: Visualisierung links, Bedienung rechts ---------- */
+  .stage{
+    display:flex; gap:12px; margin:0 12px 12px; flex:0 0 auto;
+    height:min(260px, 28vh); min-height:170px;
+  }
+  .stage .viz-wrap{ margin:0; flex:1 1 50%; min-width:0; height:100%; }
+  .side-panel{
+    flex:1 1 50%; min-width:0; overflow-y:auto; display:flex; flex-direction:column;
+    background:var(--panel); border:1px solid #221a08; border-radius:6px;
+    scrollbar-width:thin;
+  }
+  .side-panel::-webkit-scrollbar{ width:6px; }
+  .side-panel::-webkit-scrollbar-thumb{ background:#3a2c14; border-radius:4px; }
+  .side-actions{
+    display:flex; gap:8px; flex-wrap:wrap; padding:8px 10px;
+    background:var(--panel-2); border-bottom:1px solid #221a08;
+  }
+  .fold-head{
+    display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer; user-select:none;
+    font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-dim);
+    background:#0e0b07; border-bottom:1px solid #221a08;
+  }
+  .fold-head:hover{ color:var(--gold); }
+  .fold-head .fold-cur{ margin-left:auto; color:var(--gold); letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fold.collapsed .fold-head .caret{ transform:rotate(-90deg); }
+  .fold.collapsed .fold-head{ border-bottom:none; }
+  .fold.collapsed .src-tabs{ display:none; }
+  .side-panel .src-tabs{ border-bottom:none; background:transparent; }
 
   /* ---------- Transport ---------- */
   .transport{
@@ -378,6 +416,8 @@
   body.skin-pill input[type=range]::-webkit-slider-thumb{ width:16px; height:16px; }
   body.skin-pill .pl-btn{ border-radius:999px; padding:6px 14px; }
   body.skin-pill .playlist{ border-radius:22px; margin:0 16px 16px; }
+  body.skin-pill .stage{ margin:0 16px 16px; }
+  body.skin-pill .side-panel{ border-radius:22px; }
   body.skin-pill .pl-head{ border-radius:0; }
   body.skin-pill .row{ border-radius:0; }
   body.skin-pill .search-row input{ border-radius:999px; }
@@ -402,6 +442,7 @@
   body.skin-neon .pl-btn:hover{ box-shadow: 0 0 10px rgba(var(--gold-rgb),.5); }
   body.skin-neon .chip{ border-color: rgba(var(--gold-rgb),.35); }
   body.skin-neon .chip.active{ box-shadow: 0 0 14px rgba(var(--gold-rgb),.8); }
+  body.skin-neon .side-panel{ border-color: rgba(var(--gold-rgb),.35); box-shadow: 0 0 16px rgba(var(--gold-rgb),.12); }
   body.skin-neon .playlist{ border-color: rgba(var(--gold-rgb),.35); box-shadow: 0 0 16px rgba(var(--gold-rgb),.12); }
   body.skin-neon input[type=range]{ border-color: rgba(var(--gold-rgb),.4); }
   body.skin-neon .titlebar{ border-bottom-color: rgba(var(--gold-rgb),.3); }
@@ -532,8 +573,43 @@
   @media (max-width:640px){
     .cols, .row{ grid-template-columns: 24px 1fr 60px 34px; }
     .cols .size, .row .size, .cols .added, .row .added{ display:none; }
+    .cols [data-sort="size"], .cols [data-sort="added"]{ display:none; }
     .time-block{ font-size:26px; }
     .track-title{ font-size:20px; }
+  }
+
+  @media (max-width:760px){
+    .stage{ flex-direction:column; height:auto; }
+    .stage .viz-wrap{ flex:0 0 auto; height:min(220px, 30vh); }
+    .side-panel{ flex:0 0 auto; overflow:visible; }
+  }
+
+  /* ---------- Handy hochkant / niedrige Fenster: ganze Seite scrollt ----------
+     Statt das Gehäuse auf Bildschirmhöhe zu quetschen, wächst es mit seinem Inhalt und die
+     Seite scrollt. Die Titelliste behält eine feste Höhe (virtuelles Scrollen braucht sie). */
+  @media (max-width:760px), (max-height:640px){
+    html{ height:auto; min-height:100%; display:block; padding:0; overflow-x:hidden; }
+    body{
+      height:auto; min-height:100%; display:block; padding:8px;
+      overflow-x:hidden; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    }
+    .unit{ width:100%; max-height:none; margin:0 auto; }
+    .playlist{ flex:0 0 auto; min-height:0; }
+    .track-list{ flex:0 0 auto; height:min(62vh, 520px); height:min(62dvh, 520px); }
+    .titlebar .nubs{ display:none; }
+    .vol{ width:80px; }
+  }
+  @media (max-width:520px){
+    .titlebar .brand{ font-size:18px; letter-spacing:2px; white-space:nowrap; }
+    .display{ margin:8px; padding:10px; gap:8px; }
+    .time-block{ font-size:19px; white-space:nowrap; }
+    .time-block small{ font-size:9px; white-space:nowrap; }
+    .track-title{ font-size:17px; }
+    .sub-line{ flex-wrap:wrap; gap:2px 12px; }
+    .stage, .transport{ margin-left:8px; margin-right:8px; }
+    .transport{ padding-left:0; padding-right:0; gap:8px; }
+    .playlist{ margin-left:8px; margin-right:8px; }
+    .vol{ width:64px; }
   }
 </style>
 </head>
@@ -546,7 +622,7 @@
   <div class="dropzone" id="dropzone">DATEIEN HIER ABLEGEN</div>
 
   <div class="titlebar">
-    <div class="brand"><span class="dot"></span>MC ORCA // PLAYER</div>
+    <div class="brand"><span class="dot"></span>SOUNDVAULT PLAYER</div>
     <div class="titlebar-right">
       <div class="settings-btn" id="btnEq" title="Equalizer">
         <svg viewBox="0 0 24 24">
@@ -623,21 +699,62 @@
     </div>
   </div>
 
-  <div class="viz-wrap">
-    <canvas id="viz"></canvas>
-    <div class="viz-controls">
-      <div class="chip active" data-mode="bars" id="chipBars">Bars</div>
-      <div class="chip" data-mode="scope" id="chipScope">Scope</div>
-      <div class="chip" data-mode="sonar" id="chipSonar">Sonar</div>
-      <div class="chip" data-mode="bubbles" id="chipBubbles">Bubbles</div>
-      <div class="chip" data-mode="kaleido" id="chipKaleido">Kaleidoscope</div>
-      <div class="chip" data-mode="floor" id="chipFloor">Dancefloor</div>
-      <div class="chip" data-mode="discoball" id="chipDiscoball">Discoball</div>
-      <div class="chip" data-mode="strobe" id="chipStrobe">Strobe</div>
-      <div class="chip" data-mode="warp" id="chipWarp">Warp</div>
-      <div class="chip" data-mode="coverwarp" id="chipCoverWarp">Cover Warp</div>
+  <div class="stage">
+    <div class="viz-wrap modes-collapsed">
+      <canvas id="viz"></canvas>
+      <div class="viz-controls">
+        <div class="viz-left">
+          <div class="chip viz-toggle" id="vizToggle" role="button" tabindex="0" aria-expanded="false" title="Visualisierung wählen"><span id="vizToggleLabel">Bars</span><span class="caret">▾</span></div>
+          <div class="viz-modes">
+        <div class="chip active" data-mode="bars" id="chipBars">Bars</div>
+        <div class="chip" data-mode="scope" id="chipScope">Scope</div>
+        <div class="chip" data-mode="sonar" id="chipSonar">Sonar</div>
+        <div class="chip" data-mode="bubbles" id="chipBubbles">Bubbles</div>
+        <div class="chip" data-mode="kaleido" id="chipKaleido">Kaleidoscope</div>
+        <div class="chip" data-mode="floor" id="chipFloor">Dancefloor</div>
+        <div class="chip" data-mode="discoball" id="chipDiscoball">Discoball</div>
+        <div class="chip" data-mode="strobe" id="chipStrobe">Strobe</div>
+        <div class="chip" data-mode="warp" id="chipWarp">Warp</div>
+        <div class="chip" data-mode="coverwarp" id="chipCoverWarp">Cover Warp</div>
+          </div>
+        </div>
       <div class="chip fs-chip" id="chipFullscreen" title="Vollbild">
         <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM5 10h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </div>
+      </div>
+    </div>
+    <div class="side-panel">
+      <div class="side-actions">
+        <label class="pl-btn" for="folderInput" title="Kompletten mp3-Ordner auswählen">
+          <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          ORDNER
+        </label>
+        <input type="file" id="folderInput" webkitdirectory directory multiple>
+        <label class="pl-btn" for="fileInput">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+          DATEIEN
+        </label>
+        <input type="file" id="fileInput" multiple accept="audio/*">
+        <div class="pl-btn" id="btnShuffle" title="Zufallswiedergabe">SHUFFLE</div>
+        <div class="pl-btn" id="btnRepeat" title="Wiederholen">REPEAT</div>
+        <select id="sortSelect" class="pl-btn sort-select" title="Sortieren nach">
+          <option value="added">HINZUGEFÜGT</option>
+          <option value="name">TITEL</option>
+          <option value="artist">KÜNSTLER</option>
+          <option value="album">ALBUM</option>
+          <option value="duration">DAUER</option>
+          <option value="size">GRÖSSE</option>
+        </select>
+        <div class="pl-btn" id="btnSortDir" title="Sortierrichtung umkehren">▲</div>
+        <div class="pl-btn" id="btnExport" title="Dauer/Künstler/Album werden automatisch im Browser gemerkt. Dieser Button exportiert sie zusätzlich als manifest.json (Backup & Auto-Load-Liste für den mp3/-Ordner).">
+          <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          MANIFEST
+        </div>
+        <div class="pl-btn" id="btnClear" title="Playlist leeren">LEEREN</div>
+      </div>
+      <div class="fold" id="srcFold">
+        <div class="fold-head" id="srcFoldHead" role="button" tabindex="0" aria-expanded="true" title="Quellen ein-/ausklappen"><span class="caret">▾</span><span>Quellen</span><span class="fold-cur" id="srcFoldCur"></span></div>
+        <div class="src-tabs" id="sourceTabs"></div>
       </div>
     </div>
   </div>
@@ -669,36 +786,7 @@
   <div class="playlist">
     <div class="pl-head">
       <span id="plCount">PLAYLIST · 0 TITEL</span>
-      <div class="actions">
-        <label class="pl-btn" for="folderInput" title="Kompletten mp3-Ordner auswählen">
-          <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
-          ORDNER
-        </label>
-        <input type="file" id="folderInput" webkitdirectory directory multiple>
-        <label class="pl-btn" for="fileInput">
-          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
-          DATEIEN
-        </label>
-        <input type="file" id="fileInput" multiple accept="audio/*">
-        <div class="pl-btn" id="btnShuffle" title="Zufallswiedergabe">SHUFFLE</div>
-        <div class="pl-btn" id="btnRepeat" title="Wiederholen">REPEAT</div>
-        <select id="sortSelect" class="pl-btn sort-select" title="Sortieren nach">
-          <option value="added">HINZUGEFÜGT</option>
-          <option value="name">TITEL</option>
-          <option value="artist">KÜNSTLER</option>
-          <option value="album">ALBUM</option>
-          <option value="duration">DAUER</option>
-          <option value="size">GRÖSSE</option>
-        </select>
-        <div class="pl-btn" id="btnSortDir" title="Sortierrichtung umkehren">▲</div>
-        <div class="pl-btn" id="btnExport" title="Dauer/Künstler/Album werden automatisch im Browser gemerkt. Dieser Button exportiert sie zusätzlich als manifest.json (Backup & Auto-Load-Liste für den mp3/-Ordner).">
-          <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-          MANIFEST
-        </div>
-        <div class="pl-btn" id="btnClear" title="Playlist leeren">LEEREN</div>
-      </div>
     </div>
-    <div class="src-tabs" id="sourceTabs"></div>
     <div class="search-row">
       <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
       <input type="text" id="searchInput" placeholder="Suchen … Titel, Künstler, Album" autocomplete="off">
@@ -1386,7 +1474,7 @@
   // Optionales Feld g = Untergruppe innerhalb eines Spiels (z. B. eigene Playlist/Erweiterung).
   const MUSIC_LIB = [
     {id:"aetheris", label:"Aetheris", base:"aetheris/", tracks:[
-      {file:"musik/haupttitel/AETHERIS — Echoes of an Eternal Empire.ogg", title:"AETHERIS – Echoes of an Eternal Empire (Titelmusik)"},
+      {file:"musik/haupttitel/AETHERIS - Echoes of an Eternal Empire.ogg", title:"AETHERIS – Echoes of an Eternal Empire (Titelmusik)"},
       {file:"musik/hintergrundmusik_ost/OST 01 - Imperial Colony.ogg", title:"Imperial Colony"},
       {file:"musik/hintergrundmusik_ost/OST 02 - Expansion Protocol.ogg", title:"Expansion Protocol"},
       {file:"musik/hintergrundmusik_ost/OST 03 - Research Nexus.ogg", title:"Research Nexus"},
@@ -1871,6 +1959,10 @@
     });
     html += `<div class="src-tab src-local${activeTab==='local' ? ' active' : ''}" data-src="local">🗂 Eigene Dateien<span class="src-n">${localCount}</span></div>`;
     sourceTabsEl.innerHTML = html;
+    const cur = activeTab === 'all' ? 'Alle Spiele' : activeTab === 'local' ? 'Eigene Dateien'
+      : ((MUSIC_LIB.find(g => g.id === activeTab) || {}).label || '');
+    const curEl = document.getElementById('srcFoldCur');
+    if(curEl) curEl.textContent = cur;
   }
   sourceTabsEl.addEventListener('click', e => {
     const el = e.target.closest('.src-tab');
@@ -2833,6 +2925,11 @@
   function setVizMode(m){
     vizMode = m;
     Object.keys(chipEls).forEach(k => chipEls[k].classList.toggle('active', k===m));
+    updateVizToggle();
+  }
+  function updateVizToggle(){
+    const l = document.getElementById('vizToggleLabel');
+    if(l && chipEls[vizMode]) l.textContent = chipEls[vizMode].textContent.trim();
   }
 
   // ---------- Vollbild ----------
@@ -2852,6 +2949,35 @@
   }
   document.addEventListener('fullscreenchange', onFullscreenChange);
   document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
+  // ---------- Einklappbare Bereiche (Visualisierungs-Auswahl, Quellen) ----------
+  const UI_FOLD_KEY = 'mcOrcaUiFold';
+  const vizToggle = document.getElementById('vizToggle');
+  const srcFold = document.getElementById('srcFold');
+  const srcFoldHead = document.getElementById('srcFoldHead');
+  let uiFold = { viz:true, src:false };   // true = eingeklappt
+  try{
+    const raw = localStorage.getItem(UI_FOLD_KEY);
+    if(raw) uiFold = { ...uiFold, ...JSON.parse(raw) };
+  } catch(e){ /* Privatmodus o.ä. -> Standardzustand */ }
+  function applyFold(save){
+    vizWrap.classList.toggle('modes-collapsed', !!uiFold.viz);
+    vizToggle.setAttribute('aria-expanded', String(!uiFold.viz));
+    srcFold.classList.toggle('collapsed', !!uiFold.src);
+    srcFoldHead.setAttribute('aria-expanded', String(!uiFold.src));
+    if(save){ try{ localStorage.setItem(UI_FOLD_KEY, JSON.stringify(uiFold)); } catch(e){} }
+  }
+  function bindFold(el, key){
+    const flip = () => { uiFold[key] = !uiFold[key]; applyFold(true); };
+    el.addEventListener('click', flip);
+    el.addEventListener('keydown', e => {
+      if(e.code === 'Enter' || e.code === 'Space'){ e.preventDefault(); e.stopPropagation(); flip(); }
+    });
+  }
+  bindFold(vizToggle, 'viz');
+  bindFold(srcFoldHead, 'src');
+  applyFold(false);
+  updateVizToggle();
 
   // ---------- Clock ----------
   function tickClock(){
