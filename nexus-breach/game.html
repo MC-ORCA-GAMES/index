@@ -324,6 +324,88 @@
     #overlay.title-mode::after{ animation:none; }
     .title-box h1, .title-box h1 em::after, .title-box p, .title-box .keys, .title-box .row, .title-box .eyebrow .dot{ animation:none; }
   }
+
+  /* ============================================================
+     INTRO — MC ORCA GAMES PRESENTS → NEXUS: BREACH (bleibt bis Klick stehen)
+     ============================================================ */
+  #intro{ position:fixed; inset:0; z-index:100; background:#000; overflow:hidden; cursor:pointer; transition:opacity .7s ease;
+    font-family:'Courier New',monospace; color:#FFAE3D; -webkit-user-select:none; user-select:none; }
+  #intro.out{ opacity:0; pointer-events:none; }
+  #introCv{ position:absolute; inset:0; width:100%; height:100%; }
+  #introVig{ position:absolute; inset:0; background:radial-gradient(ellipse at center,rgba(0,0,0,0) 35%,rgba(0,0,0,.88) 100%); pointer-events:none; }
+  #introScan{ position:absolute; inset:0; pointer-events:none; opacity:.22;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.55) 3px); }
+  #inStage{ position:absolute; inset:0; animation:inShake .65s 1.05s both,inShake .8s 5.35s both; }
+  @keyframes inShake{ 0%,100%{transform:none} 10%{transform:translate(-9px,5px)} 20%{transform:translate(8px,-6px)}
+    32%{transform:translate(-6px,-4px)} 46%{transform:translate(4px,4px)} 62%{transform:translate(-2px,2px)} 80%{transform:translate(1px,-1px)} }
+  .inScene{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+  #inS1{ animation:inS1Out .7s 4.6s ease forwards; }
+  @keyframes inS1Out{ from{opacity:1} to{opacity:0} }
+  #inS2{ opacity:0; animation:inS2In .6s 5.3s ease forwards; }
+  @keyframes inS2In{ from{opacity:0} to{opacity:1} }
+  .inGlow1{ animation:inPulse 1.8s ease-in-out infinite alternate; }
+  .inGlow2{ animation:inPulseC 1.8s ease-in-out infinite alternate; }
+  @keyframes inPulse{ from{filter:drop-shadow(0 0 16px rgba(255,106,26,.35))} to{filter:drop-shadow(0 0 46px rgba(255,140,50,.9))} }
+  @keyframes inPulseC{ from{filter:drop-shadow(0 0 14px rgba(53,228,255,.35))} to{filter:drop-shadow(0 0 44px rgba(53,228,255,.85))} }
+  .inLogoWrap{ position:relative; display:inline-block; line-height:0; }
+  #inOrca{ display:block; width:min(94vw,980px); max-height:64vh; object-fit:contain; animation:inSlam1 4.4s .8s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes inSlam1{ 0%{transform:scale(2.8);filter:blur(28px);opacity:0}
+    6%{transform:scale(.93);filter:blur(0);opacity:1} 10%{transform:scale(1.03)} 14%{transform:scale(1)} 100%{transform:scale(1.1);opacity:1} }
+  #inGame{ display:block; width:min(92vw,900px); max-height:58vh; object-fit:contain; animation:inSlam2 4.2s 5.4s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes inSlam2{ 0%{transform:scale(.45);filter:blur(22px);opacity:0}
+    8%{transform:scale(1.1);filter:blur(0);opacity:1} 14%{transform:scale(.98)} 20%{transform:scale(1)} 100%{transform:scale(1.06);opacity:1} }
+  /* BREACH: Glitch-Einschlag mit RGB-Versatz, danach alle paar Sekunden ein kurzes Flackern */
+  #inWrap2{ animation:inGlitch .95s 5.45s both,inGlitchLoop 6s 10s infinite; }
+  @keyframes inGlitch{ 0%,100%{transform:none;filter:none}
+    8%{transform:translate(-16px,0) skewX(9deg);filter:drop-shadow(8px 0 0 rgba(255,61,110,.85)) drop-shadow(-8px 0 0 rgba(53,228,255,.85))}
+    15%{transform:translate(13px,2px);filter:drop-shadow(-7px 0 0 rgba(255,61,110,.8)) drop-shadow(7px 0 0 rgba(53,228,255,.8))}
+    22%{transform:translate(-7px,-3px) skewX(-7deg);filter:drop-shadow(6px 0 0 rgba(255,61,110,.7)) drop-shadow(-6px 0 0 rgba(53,228,255,.7))}
+    30%{transform:none;filter:none}
+    38%{transform:translate(10px,0) skewX(4deg);filter:drop-shadow(-5px 0 0 rgba(255,61,110,.7)) drop-shadow(5px 0 0 rgba(53,228,255,.7))}
+    46%{transform:none;filter:none} 60%{transform:translate(-4px,1px);filter:drop-shadow(3px 0 0 rgba(53,228,255,.6))} 68%{transform:none;filter:none} }
+  @keyframes inGlitchLoop{ 0%,93%,100%{transform:none;filter:none}
+    94%{transform:translate(-9px,0) skewX(5deg);filter:drop-shadow(5px 0 0 rgba(255,61,110,.8)) drop-shadow(-5px 0 0 rgba(53,228,255,.8))}
+    96%{transform:translate(7px,1px);filter:drop-shadow(-4px 0 0 rgba(255,61,110,.7)) drop-shadow(4px 0 0 rgba(53,228,255,.7))}
+    98%{transform:translate(-2px,0)} }
+  /* Lichtreflex nur auf den Logo-Pixeln (Maske = das Logo selbst) */
+  .inShine{ position:absolute; inset:0; pointer-events:none; background-repeat:no-repeat; background-size:250% 100%;
+    background-image:linear-gradient(105deg,rgba(255,255,255,0) 42%,rgba(235,250,255,.95) 50%,rgba(255,255,255,0) 58%);
+    -webkit-mask-position:center; mask-position:center; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
+    -webkit-mask-size:contain; mask-size:contain; }
+  #inShine1{ -webkit-mask-image:url(../bilder/logo.png); mask-image:url(../bilder/logo.png); animation:inShine 1.5s 2.0s ease-in-out both; }
+  #inShine2{ -webkit-mask-image:url(art/logo.png); mask-image:url(art/logo.png); animation:inShine 1.5s 6.8s ease-in-out both; }
+  @keyframes inShine{ from{background-position:100% 0} to{background-position:0% 0} }
+  .inFallback{ font-size:clamp(34px,9vw,110px); font-weight:bold; letter-spacing:.12em; color:#FF6A1A; text-shadow:0 0 30px #FF6A1A; text-align:center; }
+  #inGame + .inFallback{ color:#35E4FF; text-shadow:0 0 30px #35E4FF; }
+  #inPresents{ margin-top:3vh; font-size:clamp(13px,2.6vw,24px); color:#FFAE3D; opacity:0; padding-left:1.6em; letter-spacing:1.6em;
+    animation:inPres 2.6s 2.6s ease-out both; text-shadow:0 0 10px rgba(255,106,26,.6); }
+  @keyframes inPres{ 0%{opacity:0;letter-spacing:1.8em;filter:blur(6px)} 100%{opacity:1;letter-spacing:.7em;filter:blur(0)} }
+  #inSub{ margin-top:3vh; font-size:clamp(10px,1.8vw,15px); letter-spacing:.5em; color:#7FEFFF; padding-left:.5em; opacity:0;
+    text-shadow:0 0 10px rgba(53,228,255,.6); animation:inSub 1.8s 7.4s ease-out both; }
+  @keyframes inSub{ 0%{opacity:0;letter-spacing:1em} 100%{opacity:1;letter-spacing:.5em} }
+  /* Energielinie, Schockwelle, Blitz */
+  .inLine{ position:absolute; left:8%; right:8%; top:50%; height:2px; margin-top:-1px; opacity:0; pointer-events:none;
+    background:linear-gradient(90deg,rgba(255,150,60,0),#ffd9a0 50%,rgba(255,150,60,0)); box-shadow:0 0 22px 4px rgba(255,140,50,.7);
+    transform-origin:center; animation:inLine 1s ease-out forwards; }
+  .inLine.c{ background:linear-gradient(90deg,rgba(53,228,255,0),#c9f8ff 50%,rgba(53,228,255,0)); box-shadow:0 0 22px 4px rgba(53,228,255,.75); }
+  @keyframes inLine{ 0%{transform:scaleX(0);opacity:1} 55%{transform:scaleX(1);opacity:1} 100%{transform:scaleX(1.05);opacity:0} }
+  .inRing{ position:absolute; left:50%; top:50%; width:20vmin; height:20vmin; margin:-10vmin 0 0 -10vmin; border-radius:50%; opacity:0; pointer-events:none;
+    border:2px solid rgba(255,180,90,.95); box-shadow:0 0 30px rgba(255,106,26,.8),inset 0 0 30px rgba(255,106,26,.5); animation:inRing 1.4s ease-out forwards; }
+  .inRing.c{ border-color:rgba(120,240,255,.95); box-shadow:0 0 30px rgba(53,228,255,.8),inset 0 0 30px rgba(53,228,255,.5); }
+  @keyframes inRing{ 0%{transform:scale(.2);opacity:.95} 100%{transform:scale(9);opacity:0} }
+  .inFlash{ position:absolute; inset:0; opacity:0; pointer-events:none;
+    background:radial-gradient(circle at center,#fff3d6 0%,#ff9a3a 38%,rgba(255,106,26,0) 75%); animation:inFlash .9s ease-out forwards; }
+  .inFlash.c{ background:radial-gradient(circle at center,#eaffff 0%,#35E4FF 38%,rgba(53,228,255,0) 75%); }
+  @keyframes inFlash{ 0%{opacity:0} 14%{opacity:.75} 100%{opacity:0} }
+  #inStart{ position:absolute; left:0; right:0; bottom:calc(9vh + env(safe-area-inset-bottom,0px)); text-align:center; pointer-events:none;
+    font-size:clamp(13px,2.2vw,19px); letter-spacing:.6em; padding-left:.6em; color:#35E4FF; text-shadow:0 0 12px rgba(53,228,255,.8); opacity:0;
+    animation:inStartIn .8s 8.8s ease-out forwards,inBlink 1.8s 9.6s ease-in-out infinite; }
+  @keyframes inStartIn{ from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+  @keyframes inBlink{ 0%,100%{opacity:1} 50%{opacity:.25} }
+  #inSkip{ position:absolute; left:0; right:0; bottom:calc(14px + env(safe-area-inset-bottom,0px)); text-align:center;
+    font-size:10px; letter-spacing:3px; color:rgba(255,174,61,.4); pointer-events:none; animation:inSkipOut .5s 8.6s ease forwards; }
+  @keyframes inSkipOut{ to{opacity:0} }
+  @media (prefers-reduced-motion:reduce){ #intro{ display:none !important; } }
 </style>
 <!-- PWA-INSTALL:HEAD -->
 <link rel="manifest" href="manifest.json">
@@ -335,6 +417,127 @@
 <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
+<!-- INTRO — MC ORCA GAMES PRESENTS → NEXUS: BREACH (Skript direkt darunter, damit die Tasten-Sperre vor dem Spiel greift) -->
+<div id="intro" aria-hidden="true">
+  <canvas id="introCv"></canvas>
+  <div id="inStage">
+    <div class="inLine" style="animation-delay:.2s"></div>
+    <div class="inScene" id="inS1">
+      <div class="inGlow1"><div class="inLogoWrap">
+        <img id="inOrca" src="../bilder/logo.png" alt="" onerror="this.outerHTML='&lt;div class=&quot;inFallback&quot;&gt;MC ORCA GAMES&lt;/div&gt;'">
+        <div class="inShine" id="inShine1"></div>
+      </div></div>
+      <div id="inPresents">PRESENTS</div>
+    </div>
+    <div class="inFlash" style="animation-delay:1.05s;animation-duration:.6s"></div>
+    <div class="inRing" style="animation-delay:1.05s"></div>
+    <div class="inLine c" style="animation-delay:4.85s"></div>
+    <div class="inFlash c" style="animation-delay:5.35s"></div>
+    <div class="inRing c" style="animation-delay:5.4s"></div>
+    <div class="inScene" id="inS2">
+      <div class="inGlow2"><div class="inLogoWrap" id="inWrap2">
+        <img id="inGame" src="art/logo.png" alt="" onerror="this.outerHTML='&lt;div class=&quot;inFallback&quot;&gt;NEXUS: BREACH&lt;/div&gt;'">
+        <div class="inShine" id="inShine2"></div>
+      </div></div>
+      <div id="inSub">DURCHBRICH DAS NEXUS</div>
+    </div>
+  </div>
+  <div id="introVig"></div>
+  <div id="introScan"></div>
+  <div id="inStart">KLICK ZUM STARTEN</div>
+  <div id="inSkip">KLICK / TIPPEN / TASTE ZUM ÜBERSPRINGEN</div>
+</div>
+<script id="introJs">
+// Intro: MC ORCA GAMES PRESENTS → NEXUS: BREACH. Bleibt auf dem Spiel-Logo stehen, bis Klick/Taste/Tippen.
+(function(){
+  try{
+  var el=document.getElementById('intro'); if(!el) return;
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){ el.remove(); return; }
+  var touch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+  // Audio: Breach legt den AudioContext erst per initAudio() an (sonst bleibt die Titelmusik stumm).
+  // Beim Laden einmal versuchen (Umgebungen mit erlaubtem Autoplay spielen sofort), und bei jeder Nutzeraktion erneut/resume.
+  function audioUp(){ try{ if(window.__breach&&window.__breach.initAudio) window.__breach.initAudio(); }catch(e){} }
+  window.addEventListener('load',function(){ audioUp(); setTimeout(audioUp,400); });
+  var cv=document.getElementById('introCv'), c=cv.getContext('2d');
+  var W=0,H=0,dpr=Math.min(window.devicePixelRatio||1,1.5),raf=0,t0=performance.now(),done=false,last=t0;
+  function resize(){ W=cv.clientWidth; H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr; c.setTransform(dpr,0,0,dpr,0,0); }
+  resize(); window.addEventListener('resize',resize);
+  var N=touch?90:180, st=[], EN=touch?40:90, em=[];
+  // Farbwelt: MC ORCA = Orange/Gold, NEXUS: BREACH = Cyan/Amber (Wechsel bei 5.35s)
+  function hue(k,t){ return t<5.3 ? (k?42:24) : (k?35:188); }
+  function mk(z){ return {x:(Math.random()-.5)*2,y:(Math.random()-.5)*2,z:z===undefined?Math.random():z,k:Math.random()<.35?1:0}; }
+  function mkEm(init){ return {x:Math.random()*W,y:init?Math.random()*H:H+10,vx:(Math.random()-.5)*14,vy:-(18+Math.random()*50),r:.6+Math.random()*1.8,ph:Math.random()*6.28,k:Math.random()<.3?1:0}; }
+  for(var i=0;i<N;i++) st.push(mk());
+  for(var j=0;j<EN;j++) em.push(mkEm(true));
+  function glitchBars(){
+    c.globalCompositeOperation='source-over';
+    for(var b=0;b<5;b++){
+      var y=Math.random()*H, h=2+Math.random()*12, x=Math.random()*W*.4, w=W*(.3+Math.random()*.7);
+      c.fillStyle=Math.random()<.6?'rgba(53,228,255,.28)':'rgba(255,61,110,.22)';
+      c.fillRect(x,y,w,h);
+    }
+  }
+  function frame(now){
+    if(done) return;
+    var dt=Math.min(.05,(now-last)/1000); last=now;
+    var t=(now-t0)/1000;
+    var boost=0;
+    if(t>1.05&&t<4) boost+=2.2*Math.exp(-(t-1.05)*3);
+    if(t>5.35) boost+=6*Math.exp(-(t-5.35)*2.0);
+    var sp=.2+boost;
+    c.globalCompositeOperation='source-over';
+    c.fillStyle='rgba(0,0,0,.26)'; c.fillRect(0,0,W,H);
+    var cx=W/2, cy=H/2, sc=Math.max(W,H)*.6;
+    for(var i=0;i<st.length;i++){
+      var s=st[i], pz=s.z;
+      s.z-=sp*dt;
+      if(s.z<=.02){ st[i]=mk(1); continue; }
+      var k=1/s.z, x=cx+s.x*k*sc*.22, y=cy+s.y*k*sc*.22;
+      var px=cx+s.x/pz*sc*.22, py=cy+s.y/pz*sc*.22;
+      if(x<-50||x>W+50||y<-50||y>H+50){ st[i]=mk(1); continue; }
+      var a=Math.min(1,(1-s.z)*1.3);
+      c.strokeStyle='hsla('+hue(s.k,t)+',90%,'+(60+Math.min(boost,4)*6)+'%,'+a+')';
+      c.lineWidth=Math.max(.6,(1-s.z)*1.8);
+      c.beginPath(); c.moveTo(px,py); c.lineTo(x,y); c.stroke();
+    }
+    c.globalCompositeOperation='lighter';
+    for(var e=0;e<em.length;e++){
+      var p=em[e];
+      p.ph+=dt*3; p.x+=(p.vx+Math.sin(p.ph)*12)*dt; p.y+=p.vy*dt;
+      if(p.y<-10){ em[e]=mkEm(false); continue; }
+      var al=Math.max(0,Math.min(1,(p.y/H)*1.2))*.75;
+      c.fillStyle='hsla('+hue(p.k,t)+',100%,62%,'+al+')';
+      c.beginPath(); c.arc(p.x,p.y,p.r,0,6.283); c.fill();
+    }
+    // Daten-Glitch-Balken beim Einschlag und beim BREACH-Logo
+    if((t>1.05&&t<1.4&&Math.random()<.6)||(t>5.4&&t<6.4&&Math.random()<.7)) glitchBars();
+    raf=requestAnimationFrame(frame);
+  }
+  raf=requestAnimationFrame(frame);
+  function end(){
+    audioUp();
+    if(done) return; done=true;
+    cancelAnimationFrame(raf);
+    window.removeEventListener('resize',resize);
+    window.removeEventListener('keydown',onKey,true);
+    el.classList.add('out');
+    setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },800);
+  }
+  function onKey(e){
+    // Fenster-/System-Tasten (Alt+Enter, Esc, F-Tasten, Modifier) lassen wir in Ruhe durch
+    if(e.altKey||e.ctrlKey||e.metaKey||e.key==='Escape'||e.key==='Shift'||e.key==='Control'||e.key==='Alt'||e.key==='Meta'||/^F\d+$/.test(e.key)) return;
+    // Die Taste gehört dem Intro und löst im Spiel dahinter nichts aus
+    e.preventDefault(); e.stopImmediatePropagation();
+    audioUp();
+    end();
+  }
+  el.addEventListener('click',function(){ audioUp(); end(); });
+  el.addEventListener('touchend',audioUp);
+  el.addEventListener('touchstart',end,{passive:true});
+  window.addEventListener('keydown',onKey,true);
+  }catch(err){ var x=document.getElementById('intro'); if(x&&x.parentNode) x.parentNode.removeChild(x); }
+})();
+</script>
 <div id="stage">
   <canvas id="view" width="960" height="600"></canvas>
   <div id="vigFx"></div>
@@ -10848,5 +11051,6 @@ window.__breach={initAudio,Cloud,Snapshot,Endless,Checkpoint,genSite:generatePro
 </script>
 <!-- PWA-INSTALL:BODY -->
 <script src="../assets/pwa-install.js" data-sw="sw.js"></script>
+<script src="/assets/js/update-watch.js" defer></script>
 </body>
 </html>

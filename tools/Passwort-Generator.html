@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Passwort-Generator</title>
+<style>
+:root{
+  --bg:#f3f6f8; --panel:#ffffff; --ink:#0f1a22; --mute:#5b6b76; --line:#d5dee4;
+  --accent:#0b6bcb; --accent-ink:#ffffff; --letter:#0f1a22; --digit:#0b6bcb; --sym:#c2410c;
+  --ok:#15803d; --warn:#b45309; --bad:#b91c1c;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1419; --panel:#141f27; --ink:#e8eff3; --mute:#8fa1ad; --line:#26353f;
+    --accent:#4da3ff; --accent-ink:#04121f; --letter:#e8eff3; --digit:#4da3ff; --sym:#ff9a5c;
+    --ok:#4ade80; --warn:#fbbf24; --bad:#f87171;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1419; --panel:#141f27; --ink:#e8eff3; --mute:#8fa1ad; --line:#26353f;
+  --accent:#4da3ff; --accent-ink:#04121f; --letter:#e8eff3; --digit:#4da3ff; --sym:#ff9a5c;
+  --ok:#4ade80; --warn:#fbbf24; --bad:#f87171;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:28px 18px 40px}
+h1{font-size:1.5rem;margin:0 0 4px;letter-spacing:-.01em}
+.sub{margin:0 0 22px;color:var(--mute)}
+.out{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 18px}
+#pw{font:600 1.35rem/1.55 ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;word-break:break-all;min-height:4.6em;letter-spacing:.02em}
+#pw .d{color:var(--digit)} #pw .s{color:var(--sym)} #pw .l{color:var(--letter)}
+.meter{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:.9rem;color:var(--mute)}
+.bar{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--bad);transition:width .25s,background .25s}
+.row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:10px;padding:11px 16px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;flex:1;min-width:140px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.opts{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.len{display:flex;align-items:center;gap:14px}
+.len label{white-space:nowrap}
+.len input[type=range]{flex:1;accent-color:var(--accent)}
+.len output{min-width:2.5ch;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+fieldset{border:0;margin:16px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+fieldset label{display:flex;gap:8px;align-items:center}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.presets{margin-top:22px}
+.presets p{margin:0 0 8px;color:var(--mute);font-size:.9rem}
+.note{margin-top:22px;color:var(--mute);font-size:.88rem}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:.2s}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){.bar i,#toast{transition:none}}
+@media (max-width:420px){fieldset{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Passwort-Generator</h1>
+  <p class="sub">Zufällige Passwörter und Secrets. Alles passiert in deinem Browser, nichts wird gesendet oder gespeichert.</p>
+
+  <section class="out" aria-live="polite">
+    <div id="pw" aria-label="Erzeugtes Passwort"></div>
+    <div class="meter"><span id="bits"></span><div class="bar"><i id="fill"></i></div><span id="rating"></span></div>
+    <div class="row">
+      <button class="primary" id="gen" type="button">Neu erzeugen</button>
+      <button id="copy" type="button">Kopieren</button>
+    </div>
+  </section>
+
+  <section class="presets">
+    <p>Vorlagen</p>
+    <div class="row" style="margin-top:0">
+      <button type="button" data-preset="secret">Cloudflare-Secret (64 Hex)</button>
+      <button type="button" data-preset="strong">Starkes Passwort (20)</button>
+      <button type="button" data-preset="pin">PIN (6 Ziffern)</button>
+    </div>
+  </section>
+
+  <section class="opts">
+    <div class="len">
+      <label for="len">Länge</label>
+      <input id="len" type="range" min="6" max="128" value="20">
+      <output id="lenOut" for="len">20</output>
+    </div>
+    <fieldset>
+      <label><input type="checkbox" id="lower" checked> Kleinbuchstaben (a–z)</label>
+      <label><input type="checkbox" id="upper" checked> Großbuchstaben (A–Z)</label>
+      <label><input type="checkbox" id="digits" checked> Ziffern (0–9)</label>
+      <label><input type="checkbox" id="symbols" checked> Sonderzeichen (!@#…)</label>
+      <label><input type="checkbox" id="ambig"> Verwechselbare weglassen (0 O l 1 I)</label>
+      <label><input type="checkbox" id="hex"> Nur Hex (0–9, a–f)</label>
+    </fieldset>
+  </section>
+
+  <p class="note">Die Zeichen kommen aus <code>crypto.getRandomValues</code> des Browsers, mit Rejection-Sampling, damit keine Zeichen bevorzugt werden. Für Cloudflare-Secrets reichen 64 Hex-Zeichen (256 Bit).</p>
+</main>
+<div id="toast" role="status"></div>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var SETS={lower:"abcdefghijklmnopqrstuvwxyz",upper:"ABCDEFGHIJKLMNOPQRSTUVWXYZ",digits:"0123456789",symbols:"!@#$%^&*()-_=+[]{};:,.?/~"};
+  var current="";
+
+  function randInt(max){            // gleichverteilt in [0,max)
+    var lim=Math.floor(4294967296/max)*max, buf=new Uint32Array(1);
+    do{crypto.getRandomValues(buf)}while(buf[0]>=lim);
+    return buf[0]%max;
+  }
+  function pool(){
+    if($("hex").checked) return {chars:"0123456789abcdef",groups:["0123456789abcdef"]};
+    var g=[],ambig=$("ambig").checked;
+    ["lower","upper","digits","symbols"].forEach(function(k){
+      if(!$(k).checked) return;
+      var s=SETS[k]; if(ambig) s=s.replace(/[0Ol1I|]/g,"");
+      if(s) g.push(s);
+    });
+    return {chars:g.join(""),groups:g};
+  }
+  function generate(){
+    var p=pool(), len=+$("len").value;
+    if(!p.chars){current="";render(0);return;}
+    var out=[],i;
+    for(i=0;i<len;i++) out.push(p.chars[randInt(p.chars.length)]);
+    // Jede gewählte Gruppe mindestens einmal enthalten (Zeichen per Zufall ersetzen)
+    if(len>=p.groups.length && p.groups.length>1){
+      var pos=[];for(i=0;i<len;i++)pos.push(i);
+      for(i=pos.length-1;i>0;i--){var j=randInt(i+1),t=pos[i];pos[i]=pos[j];pos[j]=t}
+      p.groups.forEach(function(g,n){ if(!out.some(function(c){return g.indexOf(c)>-1})) out[pos[n]]=g[randInt(g.length)]; });
+    }
+    current=out.join("");
+    render(Math.log2(p.chars.length)*len);
+  }
+  function cls(c){return /[0-9]/.test(c)?"d":/[a-zA-Z]/.test(c)?"l":"s"}
+  function render(bits){
+    var box=$("pw"); box.textContent="";
+    if(!current){box.textContent="Wähle mindestens eine Zeichengruppe.";$("bits").textContent="";$("rating").textContent="";$("fill").style.width="0";return;}
+    current.split("").forEach(function(c){var s=document.createElement("span");s.className=cls(c);s.textContent=c;box.appendChild(s)});
+    var r=bits<40?["Schwach","var(--bad)"]:bits<64?["Mittel","var(--warn)"]:bits<100?["Stark","var(--ok)"]:["Sehr stark","var(--ok)"];
+    $("bits").textContent=Math.round(bits)+" Bit";
+    $("rating").textContent=r[0];
+    var f=$("fill"); f.style.width=Math.min(100,bits/128*100)+"%"; f.style.background=r[1];
+  }
+  function toast(t){var el=$("toast");el.textContent=t;el.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(function(){el.classList.remove("on")},1600)}
+
+  $("gen").onclick=generate;
+  $("copy").onclick=function(){
+    if(!current) return;
+    (navigator.clipboard?navigator.clipboard.writeText(current):Promise.reject()).then(function(){toast("Kopiert")},function(){
+      var r=document.createRange();r.selectNodeContents($("pw"));var s=getSelection();s.removeAllRanges();s.addRange(r);toast("Zum Kopieren Strg+C drücken");
+    });
+  };
+  $("len").oninput=function(){$("lenOut").textContent=this.value;generate()};
+  ["lower","upper","digits","symbols","ambig"].forEach(function(k){
+    $(k).onchange=function(){ if(this.checked) $("hex").checked=false; generate(); };
+  });
+  $("hex").onchange=function(){
+    ["lower","upper","digits","symbols","ambig"].forEach(function(k){$(k).disabled=$("hex").checked});
+    generate();
+  };
+  document.querySelectorAll("[data-preset]").forEach(function(b){
+    b.onclick=function(){
+      var k=b.getAttribute("data-preset"),set=function(id,v){$(id).checked=v};
+      $("hex").checked=false;["lower","upper","digits","symbols","ambig"].forEach(function(x){$(x).disabled=false});
+      if(k==="secret"){$("hex").checked=true;["lower","upper","digits","symbols","ambig"].forEach(function(x){$(x).disabled=true});$("len").value=64}
+      if(k==="strong"){set("lower",1);set("upper",1);set("digits",1);set("symbols",1);set("ambig",0);$("len").value=20}
+      if(k==="pin"){set("lower",0);set("upper",0);set("digits",1);set("symbols",0);set("ambig",0);$("len").value=6}
+      $("lenOut").textContent=$("len").value;generate();
+    };
+  });
+  generate();
+})();
+</script>
+</body>
+</html>

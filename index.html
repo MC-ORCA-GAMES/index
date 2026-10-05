@@ -164,7 +164,7 @@
   }
   .win.fs > .bar{display:none;}
   .win.fs .body{max-height:none !important; height:auto !important; flex:1 1 0; min-height:0;}
-  .win.browserwin.fs .body > div:first-child{display:none !important;}
+  .win.browserwin:not(.appwin).fs .body > div:first-child{display:none !important;}
   body.fs-on #taskbar, body.fs-on #startmenu, body.fs-on #fs-toast{display:none !important;}
   body.fs-on::after{display:none;}
   #fs-toast{
@@ -239,8 +239,6 @@
     position:absolute; bottom:36px; left:8px; background:var(--panel); border:1px solid var(--panel-border);
     padding:6px; display:none; flex-direction:column; min-width:150px; z-index:600;
   }
-  #startmenu div{padding:6px 10px; cursor:pointer; font-size:12.5px;}
-  #startmenu div:hover{background:rgba(212,175,55,0.10);}
 
   ::selection{background:var(--crt); color:#000;}
 
@@ -309,25 +307,6 @@
   .expl-resrow .expl-respath{opacity:.5; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
   /* ---- Login-Bildschirm (vor dem Boot) ---- */
-  #loginscreen{
-    position:fixed; inset:0; z-index:10001; display:flex; align-items:center; justify-content:center;
-    background:
-      radial-gradient(ellipse 60% 45% at 18% 15%, rgba(212,175,55,0.16) 0%, transparent 60%),
-      radial-gradient(ellipse 55% 45% at 85% 80%, rgba(33,199,184,0.14) 0%, transparent 60%),
-      radial-gradient(ellipse at 50% 30%, #1c2440 0%, #05060d 75%);
-    font-family:"Space Grotesk",sans-serif; color:var(--text); overflow:hidden;
-  }
-  #loginStars{ position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.75; }
-  #loginscreen::before{
-    content:""; position:absolute; inset:0; pointer-events:none; opacity:.5; z-index:1;
-    background:repeating-linear-gradient(rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.12) 3px 4px);
-    mix-blend-mode:multiply;
-  }
-  #loginscreen::after{
-    content:""; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:min(90vmin,900px); height:min(90vmin,900px); pointer-events:none; z-index:0;
-    background:radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 68%);
-  }
   .login-box{position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:18px; padding:20px;}
   .login-avatar{
     width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center;
@@ -354,11 +333,8 @@
   .login-btn-ghost:hover{background:rgba(212,175,55,0.10);}
   .login-hint{font-size:11px; opacity:.45; margin-top:4px;}
   .login-hint:hover{opacity:.75;}
-  .login-clock{position:absolute; top:24px; right:32px; font-size:13px; opacity:.6; font-family:"Consolas",monospace;}
 
   /* ---- Startmenü als Kachel-Raster (Windows-artig) ---- */
-  #startmenu{ min-width:220px; padding:10px; }
-  #startmenu div{padding:0;}
   .sm-account{
     display:flex; align-items:center; gap:8px; padding:8px; margin-bottom:8px; cursor:pointer;
     border-bottom:1px solid var(--panel-border); font-size:12.5px;
@@ -375,13 +351,150 @@
   .tile:hover{border-color:var(--crt-dim); background:rgba(212,175,55,0.10);}
   .sm-shutdown{padding:8px 10px !important; cursor:pointer; font-size:12.5px; border-top:1px solid var(--panel-border);}
   .sm-shutdown:hover{background:rgba(212,175,55,0.10);}
+
+  /* ---- Startmenü: links Liste, rechts Kacheln (Windows-10-Stil) ---- */
+  #startmenu{ width:640px; height:480px; padding:0; flex-direction:row; overflow:hidden; }
+  .sm-left{ width:230px; display:flex; flex-direction:column; border-right:1px solid var(--panel-border); background:rgba(0,0,0,.25); }
+  .sm-left .sm-account{ margin:0; border-bottom:1px solid var(--panel-border); padding:12px; }
+  .sm-head{ padding:10px 12px 4px; font-size:11px; opacity:.55; letter-spacing:.06em; text-transform:uppercase; }
+  #smList{ flex:1; overflow-y:auto; }
+  .sm-item{ padding:9px 12px; cursor:pointer; font-size:12.5px; }
+  .sm-item:hover, .sm-shutdown:hover{ background:rgba(212,175,55,0.10); }
+  .sm-right{ flex:1; padding:12px; overflow-y:auto; }
+  .sm-tiles{ grid-template-columns:repeat(3,1fr); }
+  #loginscreen{
+    grid-column:1 / -1; min-height:230px; padding:14px 10px; border-radius:3px; cursor:default;
+    background:linear-gradient(135deg, rgba(212,175,55,0.18), rgba(33,199,184,0.12)), var(--bg-alt);
+    border:1px solid var(--crt-dim); display:flex; align-items:center; justify-content:center;
+  }
+  #loginscreen .login-box{ padding:0; gap:8px; }
+  #loginscreen .login-avatar{ width:52px; height:52px; font-size:24px; }
+  #loginscreen .login-user{ font-size:15px; }
+  #loginscreen .login-teaser, #loginscreen .login-sub, #loginscreen #loginSkipBtn{ display:none; }
+  #loginscreen .login-pass{ width:200px; }
+  #loginscreen .login-btn{ padding:7px 20px; }
+
+  /* ---- Update-Hinweis ---- */
+  #updBox{ position:fixed; right:10px; bottom:44px; z-index:12000; display:flex; flex-direction:column; gap:8px; max-width:min(360px, calc(100vw - 20px)); }
+  .upd{ background:var(--panel); border:1px solid var(--crt-dim); border-left:3px solid var(--crt); border-radius:3px; padding:10px 12px;
+    box-shadow:0 8px 26px rgba(0,0,0,.55); font-size:12.5px; line-height:1.45; animation:updIn .25s ease-out; }
+  .upd b{ color:var(--crt); }
+  .upd .upd-row{ display:flex; gap:8px; margin-top:8px; }
+  .upd button{ background:var(--crt-dim); color:#05060d; border:none; border-radius:3px; padding:6px 12px; cursor:pointer; font-weight:700; font-size:12px; }
+  .upd button.ghost{ background:transparent; color:var(--text); border:1px solid var(--panel-border); font-weight:400; }
+  @keyframes updIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+  @media (max-width:700px){ #updBox{ left:8px; right:8px; max-width:none; } }
+
+  /* ---- Personalisierung ---- */
+  #desktop.nologo::before{ display:none; }
+  #desktop.nostars #stars{ display:none; }
+  .pz h4{ margin:14px 0 6px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; opacity:.6; font-weight:600; }
+  .pz h4:first-child{ margin-top:0; }
+  .pz-row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .pz-sw{ width:30px; height:30px; border-radius:50%; border:2px solid transparent; cursor:pointer; padding:0; }
+  .pz-sw.on, .pz-wp.on{ border-color:var(--text); box-shadow:0 0 0 2px var(--crt); }
+  .pz-wp{ width:64px; height:42px; border-radius:3px; border:2px solid var(--panel-border); cursor:pointer; background-size:cover; background-position:center; padding:0; color:var(--text); font-size:10px; }
+  .pz-btn{ background:var(--bg-alt); color:var(--text); border:1px solid var(--panel-border); border-radius:3px; padding:6px 10px; cursor:pointer; font-size:12px; }
+  .pz-btn:hover{ border-color:var(--crt-dim); }
+  .pz label{ display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; margin:4px 0; }
+  .pz input[type=range]{ flex:1; min-width:120px; accent-color:var(--crt); }
+  .pz input[type=color]{ width:36px; height:28px; padding:0; border:1px solid var(--panel-border); background:none; }
+
+  /* ---- Handy-Homescreen: Icons seitenweise, seitlich wischen ---- */
+  #icons.pager{ overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scrollbar-width:none; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
+  #icons.pager::-webkit-scrollbar{ display:none; }
+  #icons.pager .icon{ touch-action:pan-x !important; }
+  #pgDots{ position:absolute; left:0; right:0; bottom:42px; display:none; justify-content:center; gap:8px; z-index:2; pointer-events:none; }
+  #pgDots i{ width:7px; height:7px; border-radius:50%; background:var(--text); opacity:.3; transition:opacity .2s, transform .2s; }
+  #pgDots i.on{ opacity:.95; transform:scale(1.25); background:var(--crt); }
+
+  /* ---- Schmale Bildschirme (Handy hochkant): Menü füllt die Breite, Login oben ---- */
+  @media (max-width:700px){
+    html,body{ overflow:hidden; max-width:100vw; }
+    body{ height:100dvh; }
+    /* Fenster: immer innerhalb des Bildschirms, volle Breite, kein Ziehen/Skalieren nötig */
+    .win:not(.maximized):not(.fs){
+      left:4px !important; right:4px !important; width:auto !important;
+      min-width:0 !important; max-width:none !important;
+      top:6px !important; max-height:calc(100dvh - 48px) !important;
+    }
+    .win.browserwin:not(.maximized):not(.fs), .win.sized:not(.maximized):not(.fs){
+      height:calc(100dvh - 48px) !important;
+    }
+    .win .bar{ cursor:default; }
+    .win .rz{ display:none; }
+    .win .body{ max-width:100%; max-height:calc(100dvh - 100px); -webkit-overflow-scrolling:touch; }
+    .win .body img, .win .body iframe, .win .body video, .win .body canvas{ max-width:100%; }
+    .win .bar .x, .win .bar .max, .win .bar .min, .win .bar .fsb{ padding:4px 9px; font-size:15px; }
+    .expl-body{ max-width:100%; }
+    /* Taskleiste: nichts darf seitlich überlaufen */
+    #taskbar{ overflow:hidden; gap:6px; }
+    #taskbar .fshint, #taskbar .brandmark{ display:none !important; }
+    #openwins{ flex:1; min-width:0; overflow-x:auto; scrollbar-width:none; }
+    #openwins::-webkit-scrollbar{ display:none; }
+    #explorerBtn{ white-space:nowrap; }
+    #startmenu{
+      left:4px; right:4px; width:auto; max-width:none;
+      height:auto; max-height:calc(100dvh - 48px); flex-direction:column-reverse;
+    }
+    .sm-right{ flex:1 1 auto; min-height:0; padding:10px; }
+    .sm-left{ width:auto; flex:0 0 auto; flex-direction:row; align-items:center; justify-content:space-between;
+      border-right:none; border-top:1px solid var(--panel-border); }
+    .sm-left .sm-account{ border-bottom:none; flex:1; min-width:0; }
+    .sm-left .sm-head, #smList{ display:none; }
+    .sm-shutdown{ border-top:none; white-space:nowrap; }
+    .sm-tiles{ gap:6px; }
+    #loginscreen{ min-height:0; padding:12px 6px; }
+    #loginscreen .login-pass{ width:min(220px, 70vw); }
+    .tile{ padding:12px 2px; }
+  }
 </style>
 </head>
 <body>
 
-<div id="loginscreen">
-  <canvas id="loginStars"></canvas>
-  <div class="login-clock" id="loginClock">--:--</div>
+<div id="desktop" style="display:none;">
+  <div id="wallpaper"></div>
+  <canvas id="stars"></canvas>
+  <div id="icons">
+    <div class="icon" data-open="browser" tabindex="0"><div class="glyph">◐</div><div class="label">Netzscout</div></div>
+    <div class="icon" data-open="suche" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/><ellipse cx="11" cy="11" rx="10" ry="3.4" transform="rotate(-25 11 11)" stroke-width="1" opacity=".6"/></svg></div><div class="label">ORBIT Suche</div></div>
+    <div class="icon" data-open="assistent" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H10l-5 4v-4H4z"/><circle cx="9" cy="10.5" r="1" fill="#21C7B8"/><circle cx="12.5" cy="10.5" r="1" fill="#21C7B8"/><circle cx="16" cy="10.5" r="1" fill="#21C7B8"/></svg></div><div class="label">T-7 Assistent</div></div>
+    <div class="icon" data-open="medien" tabindex="0"><div class="glyph">▨</div><div class="label">Medienarchiv</div></div>
+    <div class="icon" data-open="terminal" tabindex="0"><div class="glyph">▚</div><div class="label">Terminal</div></div>
+    <div class="icon" data-open="tagebuch" tabindex="0"><div class="glyph">▤</div><div class="label">tagebuch.txt</div></div>
+    <div class="icon" data-open="foto" tabindex="0"><div class="glyph">▧</div><div class="label">FOTO_037.jpg</div></div>
+    <div class="icon" data-open="system" tabindex="0"><div class="glyph">◍</div><div class="label">Systeminfo</div></div>
+    <div class="icon" data-open="papierkorb" tabindex="0"><div class="glyph">▥</div><div class="label">Papierkorb</div></div>
+    <div class="icon" data-open="ordner" tabindex="0"><div class="glyph">▦</div><div class="label">unbenannter_ordner</div></div>
+    <div class="icon" data-open="downloads" tabindex="0"><div class="glyph">⇩</div><div class="label">Downloads</div></div>
+    <div class="icon" data-open="signal" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h2l2-7 3 14 3-11 2 4h6"/></svg></div><div class="label">Frequenzanalysator</div></div>
+    <div class="icon redfolder" data-open="rechtliches" data-pin="bottom" tabindex="0"><div class="glyph"><svg width="32" height="30" viewBox="0 0 32 28" fill="none"><path d="M2 6a2 2 0 0 1 2-2h8l3 3h13a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#d93025" stroke="#8f1a12" stroke-width="1.4"/><path d="M2 11h28" stroke="#ff8a80" stroke-width="1" opacity=".6"/></svg></div><div class="label">Rechtliches</div></div>
+    <div class="icon redfolder" data-open="wichtig" data-pin="bottom" tabindex="0"><div class="glyph"><svg width="26" height="30" viewBox="0 0 24 28" fill="none"><path d="M3 2h13l5 5v18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="#d93025" stroke="#8f1a12" stroke-width="1.4"/><path d="M16 2v5h5" stroke="#8f1a12" stroke-width="1.2" fill="none"/><rect x="10.2" y="9" width="1.6" height="9" fill="#ffe0dc"/><rect x="10.2" y="19.5" width="1.6" height="1.8" fill="#ffe0dc"/></svg></div><div class="label">WICHTIG_LIES_MICH.txt</div></div>
+  </div>
+</div>
+
+<div id="taskbar" style="display:none;">
+  <button id="start">◍ START</button>
+  <button id="explorerBtn" title="Explorer öffnen">🗀 Explorer</button>
+  <div id="openwins" style="display:flex; gap:6px;"></div>
+  <div class="fshint">Vollbild an/aus: Alt+Enter</div>
+  <div class="clock" id="clock">00:00</div>
+  <div class="brandmark" style="display:flex;align-items:center;gap:6px;"><img src="bilder/logo.png" alt="" style="width:16px;height:16px;object-fit:contain;">MC ORCA GAMES</div>
+</div>
+
+<div id="fs-toast"></div>
+
+<div id="startmenu">
+  <div class="sm-left">
+    <div class="sm-account" data-open="profil"><span class="sm-avatar" id="smAvatar">◈</span> <span id="smAccountName">Gast</span></div>
+    <div class="sm-head">Apps</div>
+    <div id="smList"></div>
+    <div id="shutdown" class="sm-shutdown">⏻ Herunterfahren</div>
+  </div>
+  <div class="sm-right">
+    <div class="sm-head" style="padding-left:0;">Konto &amp; Kacheln</div>
+    <div class="sm-tiles">
+    <div id="loginscreen">
   <div class="login-box">
     <div class="login-avatar" id="loginAvatar"><img id="loginAvatarImg" src="bilder/logo.png" alt="" style="width:100%; height:100%; object-fit:contain; border-radius:50%;" onerror="this.remove()"></div>
     <div class="login-user" style="font-size:22px; letter-spacing:.04em;">MC ORCA GAMES</div>
@@ -412,53 +525,19 @@
     </div>
 
     <div class="login-hint" id="loginStatus" style="min-height:14px;"></div>
-  </div>
-</div>
-
-<div id="desktop" style="display:none;">
-  <div id="wallpaper"></div>
-  <canvas id="stars"></canvas>
-  <div id="icons">
-    <div class="icon" data-open="browser" tabindex="0"><div class="glyph">◐</div><div class="label">Netzscout</div></div>
-    <div class="icon" data-open="suche" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/><ellipse cx="11" cy="11" rx="10" ry="3.4" transform="rotate(-25 11 11)" stroke-width="1" opacity=".6"/></svg></div><div class="label">ORBIT Suche</div></div>
-    <div class="icon" data-open="assistent" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H10l-5 4v-4H4z"/><circle cx="9" cy="10.5" r="1" fill="#21C7B8"/><circle cx="12.5" cy="10.5" r="1" fill="#21C7B8"/><circle cx="16" cy="10.5" r="1" fill="#21C7B8"/></svg></div><div class="label">T-7 Assistent</div></div>
-    <div class="icon" data-open="medien" tabindex="0"><div class="glyph">▨</div><div class="label">Medienarchiv</div></div>
-    <div class="icon" data-open="terminal" tabindex="0"><div class="glyph">▚</div><div class="label">Terminal</div></div>
-    <div class="icon" data-open="tagebuch" tabindex="0"><div class="glyph">▤</div><div class="label">tagebuch.txt</div></div>
-    <div class="icon" data-open="foto" tabindex="0"><div class="glyph">▧</div><div class="label">FOTO_037.jpg</div></div>
-    <div class="icon" data-open="system" tabindex="0"><div class="glyph">◍</div><div class="label">Systeminfo</div></div>
-    <div class="icon" data-open="papierkorb" tabindex="0"><div class="glyph">▥</div><div class="label">Papierkorb</div></div>
-    <div class="icon" data-open="ordner" tabindex="0"><div class="glyph">▦</div><div class="label">unbenannter_ordner</div></div>
-    <div class="icon" data-open="downloads" tabindex="0"><div class="glyph">⇩</div><div class="label">Downloads</div></div>
-    <div class="icon" data-open="signal" tabindex="0"><div class="glyph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#21C7B8" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h2l2-7 3 14 3-11 2 4h6"/></svg></div><div class="label">Frequenzanalysator</div></div>
-    <div class="icon redfolder" data-open="rechtliches" data-pin="bottom" tabindex="0"><div class="glyph"><svg width="32" height="30" viewBox="0 0 32 28" fill="none"><path d="M2 6a2 2 0 0 1 2-2h8l3 3h13a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#d93025" stroke="#8f1a12" stroke-width="1.4"/><path d="M2 11h28" stroke="#ff8a80" stroke-width="1" opacity=".6"/></svg></div><div class="label">Rechtliches</div></div>
-    <div class="icon redfolder" data-open="wichtig" data-pin="bottom" tabindex="0"><div class="glyph"><svg width="26" height="30" viewBox="0 0 24 28" fill="none"><path d="M3 2h13l5 5v18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="#d93025" stroke="#8f1a12" stroke-width="1.4"/><path d="M16 2v5h5" stroke="#8f1a12" stroke-width="1.2" fill="none"/><rect x="10.2" y="9" width="1.6" height="9" fill="#ffe0dc"/><rect x="10.2" y="19.5" width="1.6" height="1.8" fill="#ffe0dc"/></svg></div><div class="label">WICHTIG_LIES_MICH.txt</div></div>
-  </div>
-</div>
-
-<div id="taskbar" style="display:none;">
-  <button id="start">◍ START</button>
-  <button id="explorerBtn" title="Explorer öffnen">🗀 Explorer</button>
-  <div id="openwins" style="display:flex; gap:6px;"></div>
-  <div class="fshint">Vollbild: Alt+Enter · Beenden: Esc</div>
-  <div class="clock" id="clock">00:00</div>
-  <div class="brandmark" style="display:flex;align-items:center;gap:6px;"><img src="bilder/logo.png" alt="" style="width:16px;height:16px;object-fit:contain;">MC ORCA GAMES</div>
-</div>
-
-<div id="fs-toast"></div>
-
-<div id="startmenu">
-  <div class="sm-account" data-open="profil"><span class="sm-avatar" id="smAvatar">◈</span> <span id="smAccountName">Gast</span></div>
-  <div class="sm-tiles">
+      </div>
+    </div>
     <div class="tile" data-open="explorer">📁<span>Explorer</span></div>
     <div class="tile" data-open="terminal">⌨<span>Terminal</span></div>
     <div class="tile" data-open="system">⚙<span>System</span></div>
     <div class="tile" data-open="profil">👤<span>Profil</span></div>
     <div class="tile" data-open="raenge">🏅<span>Ränge</span></div>
     <div class="tile" data-open="browser">🌐<span>Portal</span></div>
+    <div class="tile" data-open="personalize">🎨<span>Anpassen</span></div>
+    </div>
   </div>
-  <div id="shutdown" class="sm-shutdown">Herunterfahren</div>
 </div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -488,31 +567,11 @@
   // ---------- Login screen: echter Account-Login (E-Mail + Code), wie im Portal ----------
   (function(){
     const loginScreen = document.getElementById('loginscreen');
-    const clockEl = document.getElementById('loginClock');
     const SKIP_KEY = 'mcorca_skip_login';
-    function tickClock(){
-      const d = new Date();
-      clockEl.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-    }
-    tickClock();
-    setInterval(tickClock, 1000);
+    // Desktop sofort anzeigen; Login steckt jetzt als große Kachel im Startmenü.
+    setTimeout(showDesktop, 0);
 
-    // Login-Screen wurde schon einmal übersprungen -> diesmal gar nicht erst anzeigen.
-    if(localStorage.getItem(SKIP_KEY) === '1'){
-      loginScreen.style.display = 'none';
-      showDesktop();
-      return;
-    }
-    initStars('loginStars');
-
-    function dismissLogin(){
-      loginScreen.style.transition = 'opacity .4s';
-      loginScreen.style.opacity = '0';
-      setTimeout(()=>{
-        loginScreen.style.display = 'none';
-        showDesktop();
-      }, 400);
-    }
+    function dismissLogin(){ document.getElementById('startmenu').style.display = 'none'; }
 
     // Gleicher Supabase-Cloud-Account wie auf seiten/portal.html / seiten/profil.html — eine Anmeldung
     // gilt (per gemeinsamem localStorage) für die ganze mc-orca-games.de Seite.
@@ -560,6 +619,7 @@
       if(smNameEl) smNameEl.textContent = displayName;
       if(avatarImgEl) avatarImgEl.src = avatarPath || DEFAULT_LOGIN_AVATAR;
       window.__cloudUser = user;
+      if(typeof window.__syncDevIcons === 'function') window.__syncDevIcons(user);   // Dev-Icons (RESONA) nur für den Entwickler-Account
     }
 
     // Überspringen: merkt sich die Wahl, ab jetzt kommt man beim nächsten Besuch direkt auf die Seite.
@@ -581,7 +641,6 @@
     if(!supabaseClient){
       // Kein Netz / Skript blockiert: nicht aussperren, einfach normal weiter machen.
       setStatus('Cloud-Login gerade nicht erreichbar — weiter im Gastmodus.', true);
-      setTimeout(dismissLogin, 900);
       return;
     }
 
@@ -647,6 +706,8 @@
       await supabaseClient.auth.signOut();
       uiState = 'email';
       if(smNameEl) smNameEl.textContent = 'Gast';
+      window.__cloudUser = null;
+      if(typeof window.__syncDevIcons === 'function') window.__syncDevIcons(null);
       setStatus('Ausgeloggt.', false);
       render();
     });
@@ -821,6 +882,86 @@
     }
   };
 
+  // ---------- Personalisierung (Rechtsklick auf Desktop -> Anpassen) ----------
+  const PZ_KEY = 't7-personalize';
+  const PZ_DEFAULT = { accent:'#D4AF37', wp:'default', wpColor:'#0a0b12', wpCustom:'', wpOpacity:50, logo:true, stars:true };
+  const PZ_ACCENTS = ['#D4AF37','#21C7B8','#2F8CFF','#B23AFF','#D6303F','#FF6A2B','#14F195'];
+  const PZ_GRADS = {
+    nebula:'radial-gradient(ellipse at 20% 15%, rgba(212,175,55,.45), transparent 55%), radial-gradient(ellipse at 85% 85%, rgba(33,199,184,.4), transparent 55%), #05060d',
+    aurora:'linear-gradient(160deg,#0b1d2e,#12384a 40%,#1b6b5a 85%)',
+    ember:'linear-gradient(160deg,#1a0a0a,#4a1410 55%,#b23a14)',
+    violet:'linear-gradient(160deg,#0d0a1f,#2a1659 55%,#6a2bd1)'
+  };
+  let pz = Object.assign({}, PZ_DEFAULT);
+  try{ Object.assign(pz, JSON.parse(localStorage.getItem(PZ_KEY) || '{}')); }catch(e){}
+  function pzSave(){ try{ localStorage.setItem(PZ_KEY, JSON.stringify(pz)); return true; }catch(e){ toast('Speicher voll – Bild zu groß.'); return false; } }
+  function pzDim(hex){ const n = parseInt(hex.slice(1),16); const f = c => Math.round(c*0.62); return '#' + [(n>>16)&255,(n>>8)&255,n&255].map(f).map(v=>v.toString(16).padStart(2,'0')).join(''); }
+  function applyPersonalize(){
+    const root = document.documentElement.style;
+    root.setProperty('--crt', pz.accent); root.setProperty('--crt-dim', pzDim(pz.accent));
+    const wp = document.getElementById('wallpaper'), d = document.getElementById('desktop');
+    if(wp){
+      wp.style.opacity = String(pz.wpOpacity/100);
+      if(pz.wp === 'default'){ wp.style.background = ''; wp.style.backgroundImage = ''; }
+      else if(pz.wp === 'color'){ wp.style.backgroundImage = 'none'; wp.style.background = pz.wpColor; }
+      else if(pz.wp === 'custom' && pz.wpCustom){ wp.style.background = 'url("' + pz.wpCustom + '") center/cover no-repeat'; }
+      else if(PZ_GRADS[pz.wp]){ wp.style.background = PZ_GRADS[pz.wp]; }
+    }
+    if(d){ d.classList.toggle('nologo', !pz.logo); d.classList.toggle('nostars', !pz.stars); }
+  }
+  CONTENT.personalize = {
+    title: 'Anpassen — Personalisierung',
+    body: () => `<div class="pz">
+      <h4>Akzentfarbe</h4>
+      <div class="pz-row" id="pzAccents">${PZ_ACCENTS.map(c=>`<button class="pz-sw${pz.accent===c?' on':''}" data-c="${c}" style="background:${c}" title="${c}"></button>`).join('')}<input type="color" id="pzAccentCustom" value="${pz.accent}" title="eigene Farbe"></div>
+      <h4>Hintergrund</h4>
+      <div class="pz-row" id="pzWps">
+        <button class="pz-wp${pz.wp==='default'?' on':''}" data-wp="default" style="background-image:url('assets/img/wallpaper.png')">Standard</button>
+        ${Object.keys(PZ_GRADS).map(k=>`<button class="pz-wp${pz.wp===k?' on':''}" data-wp="${k}" style="background:${PZ_GRADS[k]}" title="${k}"></button>`).join('')}
+        <button class="pz-wp${pz.wp==='color'?' on':''}" data-wp="color" style="background:${pz.wpColor}">Farbe</button>
+        <button class="pz-wp${pz.wp==='custom'?' on':''}" data-wp="custom" ${pz.wpCustom?`style="background-image:url('${pz.wpCustom}')"`:''}>${pz.wpCustom?'':'Eigenes'}</button>
+      </div>
+      <div class="pz-row" style="margin-top:8px;"><input type="color" id="pzWpColor" value="${pz.wpColor}" title="Hintergrundfarbe"><button class="pz-btn" id="pzUpload">Eigenes Bild wählen …</button><input type="file" id="pzFile" accept="image/*" style="display:none"></div>
+      <label style="margin-top:8px;">Helligkeit <input type="range" id="pzOpacity" min="10" max="100" value="${pz.wpOpacity}"></label>
+      <h4>Desktop</h4>
+      <label><input type="checkbox" id="pzLogo" ${pz.logo?'checked':''}> Logo in der Mitte anzeigen</label>
+      <label><input type="checkbox" id="pzStars" ${pz.stars?'checked':''}> Sternenfeld anzeigen</label>
+      <div class="pz-row" style="margin-top:14px;"><button class="pz-btn" id="pzReset">Zurücksetzen</button></div>
+    </div>`,
+    onOpen: (win) => {
+      win.style.width = '420px';
+      const $ = id => win.querySelector('#' + id);
+      const mark = (sel, attr, val) => win.querySelectorAll(sel).forEach(b => b.classList.toggle('on', b.dataset[attr] === val));
+      const commit = () => { applyPersonalize(); pzSave(); };
+      win.querySelectorAll('#pzAccents .pz-sw').forEach(b => b.onclick = () => { pz.accent = b.dataset.c; $('pzAccentCustom').value = pz.accent; mark('#pzAccents .pz-sw','c',pz.accent); commit(); });
+      $('pzAccentCustom').oninput = e => { pz.accent = e.target.value; mark('#pzAccents .pz-sw','c',pz.accent); commit(); };
+      win.querySelectorAll('#pzWps .pz-wp').forEach(b => b.onclick = () => {
+        if(b.dataset.wp === 'custom' && !pz.wpCustom){ $('pzFile').click(); return; }
+        pz.wp = b.dataset.wp; mark('#pzWps .pz-wp','wp',pz.wp); commit();
+      });
+      $('pzWpColor').oninput = e => { pz.wpColor = e.target.value; pz.wp = 'color'; mark('#pzWps .pz-wp','wp','color'); win.querySelector('[data-wp="color"]').style.background = pz.wpColor; commit(); };
+      $('pzOpacity').oninput = e => { pz.wpOpacity = +e.target.value; commit(); };
+      $('pzLogo').onchange = e => { pz.logo = e.target.checked; commit(); };
+      $('pzStars').onchange = e => { pz.stars = e.target.checked; commit(); };
+      $('pzUpload').onclick = () => $('pzFile').click();
+      $('pzFile').onchange = e => {
+        const f = e.target.files[0]; if(!f) return;
+        const img = new Image(), url = URL.createObjectURL(f);
+        img.onload = () => {
+          const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+          const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          pz.wpCustom = c.toDataURL('image/jpeg', 0.82); pz.wp = 'custom';
+          const cb = win.querySelector('[data-wp="custom"]'); cb.style.backgroundImage = 'url(' + pz.wpCustom + ')'; cb.textContent = '';
+          mark('#pzWps .pz-wp','wp','custom'); commit();
+        };
+        img.src = url;
+      };
+      $('pzReset').onclick = () => { pz = Object.assign({}, PZ_DEFAULT); commit(); closeWin(win, 'personalize'); openWindow('personalize'); toast('Anpassungen zurückgesetzt.'); };
+    }
+  };
+
   // ---------- Window manager ----------
   let zTop = 10;
   const openWinIds = new Set();
@@ -833,7 +974,7 @@
     if(key === 'suche') return openBrowser('seiten/suche.html', 'ORBIT Suche', 'suche');
     if(key === 'profil') return openBrowser('seiten/profil.html', 'Profil', 'profil');
     if(key === 'raenge') return openBrowser('seiten/raenge.html', 'Ränge', 'raenge');
-    if(key.startsWith('game:')){ const g = GAMES.find(x=>'game:'+x.id===key); if(g) openBrowser(g.url, g.name, key); return; }
+    if(key.startsWith('game:')){ const g = GAMES.find(x=>'game:'+x.id===key); if(g) openBrowser(g.url, g.name, key, true); return; }
     if(key.startsWith('app:')){ const appId = key.slice(4); const app = APPS[appId]; if(app) return openWindow(app.openKey); return; }
     if(key === 'medien') return openMediaArchive();
     if(key === 'musik') return openMusicArchive();
@@ -1761,7 +1902,7 @@ Gib 'hilfe' ein für Befehle.
   }
 
   let browserN = 0;
-  function openBrowser(url, title, key){
+  function openBrowser(url, title, key, app){   // app=true: Programmfenster ohne Adressleiste (installierte Spiele)
     url = url || SITE_URL;
     if(key && openWinIds.has(key)){ focusWin(key); return; }   // Spiel-Verknüpfung schon offen -> nach vorn
     key = key || ('browser-' + (++browserN));
@@ -1769,22 +1910,22 @@ Gib 'hilfe' ein für Befehle.
     const desk = document.getElementById('desktop');
     const W = Math.min(desk.clientWidth - 20, 860), H = Math.min(desk.clientHeight - 60, 560);
     const win = document.createElement('div');
-    win.className = 'win browserwin sized';
+    win.className = 'win browserwin sized' + (app ? ' appwin' : '');
     win.dataset.key = key;
     win.style.left = (40 + (n % 6) * 28) + 'px'; win.style.top = (24 + (n % 6) * 28) + 'px';
     win.style.width = W + 'px'; win.style.height = H + 'px';
     win.innerHTML = `<div class="bar"><span>${title || 'Netzscout'}</span><span class="btns"><span class="fsb" title="Vollbild (Alt+Enter)">⤢</span><span class="max" title="Maximieren">⛶</span><span class="min" title="Minimieren">–</span><span class="x">✕</span></span></div>
       <div class="body" style="padding:0; display:flex; flex-direction:column;">
-        <div style="display:flex; gap:6px; align-items:center; padding:6px 8px; background:var(--bg-alt); border-bottom:1px solid var(--panel-border);">
+        ${app ? '' : `        <div style="display:flex; gap:6px; align-items:center; padding:6px 8px; background:var(--bg-alt); border-bottom:1px solid var(--panel-border);">
           <span class="bb-back" title="Zurück" style="cursor:pointer; opacity:.7; padding:2px 4px;">←</span>
           <span class="bb-home" title="Startseite (Hub)" style="cursor:pointer; opacity:.7; padding:2px 4px;">⌂</span>
           <span class="bb-reload" title="Neu laden" style="cursor:pointer; opacity:.7; padding:2px 4px;">⟳</span>
           <input class="bb-url" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--panel-border); color:var(--text); padding:4px 8px; font-family:inherit; font-size:12px;" value="${url}">
           <span class="bb-go" style="cursor:pointer; color:var(--crt); padding:2px 6px;">Los</span>
           <span class="bb-new" title="Neues Netzscout-Fenster" style="cursor:pointer; color:var(--teal); padding:2px 6px; font-size:15px;">＋</span>
-          <span class="fshint-b" style="font-size:11px; opacity:.6; white-space:nowrap;">⤢ Vollbild: Alt+Enter · Beenden: Esc</span>
-        </div>
-        <iframe class="bb-frame" src="${url}" style="flex:1; min-height:0; width:100%; border:none; background:#fff;"></iframe>
+          <span class="fshint-b" style="font-size:11px; opacity:.6; white-space:nowrap;">⤢ Vollbild an/aus: Alt+Enter</span>
+        </div>`}
+        <iframe class="bb-frame" src="${url}" style="flex:1; min-height:0; width:100%; border:none; background:${app ? '#000' : '#fff'};"></iframe>
       </div>`;
     desk.appendChild(win);
     makeDraggable(win);
@@ -1797,6 +1938,7 @@ Gib 'hilfe' ein für Befehle.
 
     const frame = win.querySelector('.bb-frame');
     const urlInput = win.querySelector('.bb-url');
+    if(!app){
     function navigate(){
       const v = urlInput.value.trim();
       if(!v){ frame.src = SITE_URL; return; }
@@ -1813,6 +1955,7 @@ Gib 'hilfe' ein für Befehle.
       const p = (frame.contentWindow.location.pathname.replace(/^\//,'') || SITE_URL) + frame.contentWindow.location.search;
       if(document.activeElement !== urlInput) urlInput.value = p;
     }catch(e){} });
+    }
   }
 
   // ---------- Spiele-Verknüpfungen (Planeten-Embleme wie auf der Sternenkarte) ----------
@@ -1826,7 +1969,8 @@ Gib 'hilfe' ein für Befehle.
     {id:'nexusbreach', name:'Nexus: Breach', url:'nexus-breach/game.html', c:'#2F8CFF', tilt:0},
     {id:'foundry', name:'FOUNDRY', url:'foundry/game.html', c:'#21C7B8', tilt:0},
     {id:'domus', name:'Domus Prime', url:'domus-prime/game.html', c:'#14F195', tilt:-10},
-    {id:'ferrum11984', name:'FERRUM-11984', url:'ferrum-11984/game.html', c:'#FF8A3D', tilt:15}
+    {id:'ferrum11984', name:'FERRUM-11984', url:'ferrum-11984/game.html', c:'#FF8A3D', tilt:15},
+    {id:'resona', name:'RESONA (Dev)', url:'resona/game.html', c:'#21C7B8', tilt:-15}   // provisorisch: Desktop-Icon nur für den Entwickler-Account (siehe syncDevIcons), kein Download/APPS-Eintrag
   ];
   function emblem(g){
     return `<svg width="34" height="34" viewBox="-20 -20 40 40" aria-hidden="true"><ellipse rx="17" ry="6.5" transform="rotate(${g.tilt})" fill="none" stroke="${g.c}" stroke-width="1.3" opacity=".85"/><circle r="11" fill="${g.c}" opacity=".18"/><circle r="5.4" fill="${g.c}"/></svg>`;
@@ -1868,6 +2012,18 @@ Gib 'hilfe' ein für Befehle.
     ferrum11984: { file:'Ferrum11984_Setup.t7exe', label:'FERRUM-11984', icon:emblem({c:'#FF8A3D', tilt:15}), openKey:'game:ferrum11984' }
   };
 
+  // Eigene Icon-Bilder: assets/img/icon/<appId>.png (transparent, quadratisch). Fehlt die Datei,
+  // erscheint automatisch das bisherige SVG als Fallback.
+  const APP_ICON_DIR = 'assets/img/icon/';
+  Object.keys(APPS).forEach(id=>{
+    const app = APPS[id];
+    app.svg = app.icon;
+    app.icon = '<img src="' + APP_ICON_DIR + id + '.png" alt="" draggable="false" '
+      + 'style="width:46px;height:46px;object-fit:contain;display:block;filter:drop-shadow(0 0 4px rgba(0,0,0,.45));" '
+      + 'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">'
+      + '<span style="display:none;">' + app.svg + '</span>';
+  });
+
   function addAppIcon(appId){
     const app = APPS[appId];
     if(!app) return;
@@ -1881,13 +2037,38 @@ Gib 'hilfe' ein für Befehle.
     }
     if(!document.querySelector(`#startmenu [data-open="${iconKey}"]`)){
       const item = document.createElement('div');
-      item.dataset.open = iconKey; item.textContent = app.label;
+      item.className = 'sm-item'; item.dataset.open = iconKey; item.textContent = app.label;
       item.addEventListener('click', ()=>{ openWindow(iconKey); document.getElementById('startmenu').style.display='none'; });
-      document.getElementById('startmenu').insertBefore(item, document.getElementById('shutdown'));
+      document.getElementById('smList').appendChild(item);
     }
   }
   // Beim Laden: für jede bereits installierte App das Icon wiederherstellen
   Object.keys(APPS).forEach(appId=>{ if(getDlState(appId) === 'installed') addAppIcon(appId); });
+
+  // ---------- Entwicklungs-Icons (nur für den Entwickler-Account) ----------
+  // RESONA ist noch im Aufbau: das Desktop-Icon erscheint nur, wenn der Cloud-Login (Supabase) auf
+  // DEV_EMAIL läuft, und verschwindet beim Abmelden. ACHTUNG: reine Anzeige-Logik im Browser, KEIN
+  // Zugriffsschutz — die Datei resona/game.html bleibt für jeden mit der Adresse erreichbar.
+  // Später entfernen: syncDevIcons, DEV_ICONS und die Aufrufe in loadProfileAndShow / Abmelden.
+  const DEV_EMAIL = 'xspx110@live.de';
+  const DEV_ICONS = [ { key:'game:resona', label:'RESONA (Dev)', svg:emblem({c:'#21C7B8', tilt:-15}) } ];
+  function syncDevIcons(user){
+    const allowed = !!(user && user.email && String(user.email).trim().toLowerCase() === DEV_EMAIL);
+    DEV_ICONS.forEach(d=>{
+      const existing = document.querySelector(`#icons .icon[data-open="${d.key}"]`);
+      if(allowed && !existing){
+        const el = document.createElement('div');
+        el.className = 'icon'; el.dataset.open = d.key; el.tabIndex = 0;
+        el.innerHTML = `<div class="glyph">${d.svg}</div><div class="label">${d.label}</div>`;
+        document.getElementById('icons').appendChild(el);
+        if(iconsBooted) wireIcon(el);
+      } else if(!allowed && existing){
+        existing.remove();
+      }
+    });
+  }
+  window.__syncDevIcons = syncDevIcons;
+  syncDevIcons(window.__cloudUser || null);   // Login kann schon vor diesem Skript fertig gewesen sein
 
   // Kleines Fortschrittsfenster fürs Download-/Installations-Theater
   function progressWin(title, key){
@@ -2148,8 +2329,10 @@ Gib 'hilfe' ein für Befehle.
     btn.onclick = runScan;
   }
 
-  // ---------- Vollbild (Alt+Enter, weil F11 dem Browser gehört) ----------
+  // ---------- Vollbild (Alt+Enter an/aus, weil F11 dem Browser gehört; Esc ist frei für Spiele) ----------
   const toastEl = document.getElementById('fs-toast');
+  // Browser ohne Keyboard-Lock (z. B. Firefox): Hinweis in der Taskleiste auf F11 für echtes Vollbild erweitern
+  if(!(navigator.keyboard && navigator.keyboard.lock)){ document.querySelectorAll('#taskbar .fshint').forEach(el=>{ el.textContent = 'Vollbild an/aus: Alt+Enter · Browser-Vollbild: F11'; }); }
   let toastT;
   function toast(msg){
     toastEl.textContent = msg; toastEl.style.display='block';
@@ -2162,11 +2345,17 @@ Gib 'hilfe' ein für Befehle.
   function enterFs(win){
     document.querySelectorAll('.win.fs').forEach(w=>w.classList.remove('fs'));
     win.classList.add('fs'); document.body.classList.add('fs-on'); focusWinEl(win);
-    try{ const r = document.documentElement.requestFullscreen; if(r && !document.fullscreenElement) r.call(document.documentElement).catch(()=>{}); }catch(e){}
+    // Echtes Browser-Vollbild nur, wenn Esc dabei für die Spiele freigegeben werden kann (Keyboard-Lock: Chrome/Edge).
+    // Sonst (Firefox/Safari) füllt das Fenster nur die Seite — für echtes Vollbild dort F11, das Esc nicht beendet.
+    try{ const r = document.documentElement.requestFullscreen; if(r && !document.fullscreenElement && navigator.keyboard && navigator.keyboard.lock){
+      const pr = r.call(document.documentElement);
+      if(pr && pr.then) pr.then(()=>{ try{ if(navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(['Escape']).catch(()=>{}); }catch(e){} }).catch(()=>{});
+    } }catch(e){}
   }
   function leaveFs(){
     document.querySelectorAll('.win.fs').forEach(w=>w.classList.remove('fs'));
     document.body.classList.remove('fs-on');
+    try{ if(navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock(); }catch(e){}
     try{ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }catch(e){}
   }
   function toggleFs(win){
@@ -2174,8 +2363,7 @@ Gib 'hilfe' ein für Befehle.
     else { win = win || topWin(); if(win) enterFs(win); else toast('Erst ein Fenster öffnen, dann Alt+Enter für Vollbild'); }
   }
   function fsKey(e){
-    if(e.altKey && e.key === 'Enter'){ e.preventDefault(); toggleFs(); }
-    else if(e.key === 'Escape' && document.body.classList.contains('fs-on')){ leaveFs(); }
+    if(e.altKey && e.key === 'Enter'){ e.preventDefault(); toggleFs(); }   // Vollbild an/aus; Esc bleibt für die Spiele frei
   }
   document.addEventListener('keydown', fsKey);
   document.addEventListener('fullscreenchange', ()=>{
@@ -2506,6 +2694,39 @@ Gib 'hilfe' ein für Befehle.
   // ensureGameInCatalog() ist als function-Deklaration weiter unten im selben Scope gehoisted,
   // deshalb hier schon aufrufbar.
   Object.keys(APPS).forEach(appId=>{ if(getDlState(appId) === 'installed') ensureGameInCatalog(appId); });
+
+  // ---- Versteckte Such-Hinweise: Notizen im Archiv (Explorer), die verraten, was man in ORBIT eingeben soll,
+  // um Download-/Installationsseiten und den Musikplayer zu finden. Liegen zufällig in den Unterordnern von
+  // "Archiv" (und sind per Explorer-Suche auffindbar). Läuft einmalig auch für Bestandsspeicherstände (VFS.hintsV1).
+  // Die Suchbegriffe stehen nur in HINTS — bei Bedarf dort anpassen. ----
+  (function ensureSearchHints(){
+    if(VFS.hintsV1 || !VFS.nodes.sys_archiv) return;
+    const HINTS = [
+      ['t7_notiz_0417.txt', 'T-7, Wartungsnotiz:\nDie Suche (ORBIT) kennt mehr als Seiten. Wer ein Programm braucht, gibt seinen Namen ein\nund sagt dazu, was er will: "herunterladen".\nBeispiel-Muster: <Name> herunterladen'],
+      ['klang_fragment.log', '...Signalrest...\nDer Klang hat einen Tresor. Wer nach dem Tresor fragt ("SoundVault"),\nmuss nur noch dazusagen, dass er ihn offline haben will.\nMuster: soundvault herunterladen'],
+      ['namensliste_alt.txt', 'Alte Namensliste (unvollständig), Reihenfolge egal:\nAetheris · Astrion · Deep Anchor\nPath of the Stars · NEXUS · NEXUS Singularity · Nexus: Breach\nFOUNDRY · Domus Prime · FERRUM-11984\nJeder Name hat eine Gegenstelle im Netz. Die Liste allein öffnet nichts.'],
+      ['orbit_randnotiz.txt', 'Randnotiz (Kugelschreiber, kaum lesbar):\n"offline" und "Download" stehen in den Titeln der Seiten.\nKleinere Schreibweise reicht, die Suche ist nicht pingelig.'],
+      ['installation_ablauf.txt', 'Ablauf, wie ihn T-7 kennt:\n1. Seite finden (ORBIT)\n2. Download-Knopf, dann Geduld: die Leitung ist schlecht\n3. Im Ordner "Downloads" doppelklicken\n4. Danach liegt ein Icon auf dem Desktop\nWer bei Schritt 1 hängt: Suchbegriff kürzen, Namen + "herunterladen".']
+    ];
+    // alle Unterordner von "Archiv" sammeln (ohne den Archiv-Ordner selbst)
+    const folders = [];
+    (function walk(id, depth){
+      (vfsNode(id).children||[]).forEach(cid=>{
+        const c = VFS.nodes[cid];
+        if(c && c.type === 'folder'){ if(depth >= 1) folders.push(cid); walk(cid, depth+1); }
+      });
+    })('sys_archiv', 0);
+    const pool = folders.length ? folders : ['sys_archiv'];
+    const used = new Set();
+    HINTS.forEach(([fname, content])=>{
+      let id = pool[Math.floor(Math.random()*pool.length)], tries = 0;
+      while(used.has(id) && tries++ < 20) id = pool[Math.floor(Math.random()*pool.length)];
+      used.add(id);
+      vfsAddFile(id, fname, content);
+    });
+    VFS.hintsV1 = true;
+    saveVFS();
+  })();
 
   // ---- Prozedural erzeugter "Datenmüll": hunderte Ordner/Dateien zum Durchsuchen ----
   // Inhalte, Bild-/Audio-"Leichen" und Specials sind dokumentiert in STORY.md ("Archiv-Generator"),
@@ -2962,7 +3183,8 @@ Gib 'hilfe' ein für Befehle.
     e.preventDefault();
     showCtxMenu(e.clientX, e.clientY, [
       {label:'Neuer Ordner', action: ()=>{ vfsCreateFolder('desktop', 'Neuer Ordner'); refreshDesktopVfsIcons(); }},
-      {label:'Explorer öffnen', action: ()=> openWindow('explorer')}
+      {label:'Explorer öffnen', action: ()=> openWindow('explorer')},
+      {label:'Anpassen (Personalisieren)', action: ()=> openWindow('personalize')}
     ]);
   });
 
@@ -3334,6 +3556,7 @@ Gib 'hilfe' ein für Befehle.
 
   // Verkabelt ein einzelnes Icon (Position, Drag & Klick). Wird für alle Icons beim Boot
   // aufgerufen und zusätzlich für neu hinzukommende Icons (z.B. nach einer Installation).
+  const MOBILE_MQ = window.matchMedia('(max-width:700px)');
   function wireIcon(icon){
     const box = document.getElementById('icons');
     const id = icon.dataset.open;
@@ -3355,13 +3578,13 @@ Gib 'hilfe' ein für Befehle.
     let sx=0, sy=0, ox=0, oy=0, moved=false, pid=null;
     icon.addEventListener('pointerdown', e=>{
       if(e.button !== undefined && e.button !== 0) return;
-      pid = e.pointerId; icon.setPointerCapture(pid);
+      pid = e.pointerId; if(!MOBILE_MQ.matches) icon.setPointerCapture(pid);
       sx = e.clientX; sy = e.clientY;
       ox = icon.offsetLeft; oy = icon.offsetTop;
       moved = false;
     });
     icon.addEventListener('pointermove', e=>{
-      if(pid === null) return;
+      if(pid === null || MOBILE_MQ.matches) return;
       const dx = e.clientX - sx, dy = e.clientY - sy;
       if(!moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){ moved = true; icon.classList.add('dragging'); }
       if(!moved) return;
@@ -3370,7 +3593,7 @@ Gib 'hilfe' ein für Befehle.
     });
     icon.addEventListener('pointerup', e=>{
       if(pid === null) return;
-      icon.releasePointerCapture(pid); pid = null;
+      try{ icon.releasePointerCapture(pid); }catch(_){} pid = null;
       icon.classList.remove('dragging');
       if(moved){
         // Auf einem Ordner-Icon abgelegt? -> in diesen Ordner verschieben (echte Ordnerfunktion)
@@ -3422,6 +3645,67 @@ Gib 'hilfe' ein für Befehle.
     });
   }
 
+  // Handy: alle Icons in ein festes Raster, aufgeteilt auf Seiten (wie ein Homescreen)
+  let pagerBusy = false, pagerObs = null;
+  function layoutMobilePages(){
+    const box = document.getElementById('icons');
+    let dots = document.getElementById('pgDots');
+    if(!dots){ dots = document.createElement('div'); dots.id = 'pgDots'; document.getElementById('desktop').appendChild(dots); }
+    if(pagerBusy) return; pagerBusy = true;
+    if(pagerObs) pagerObs.disconnect();
+    box.querySelectorAll('.pg-anchor').forEach(e=>e.remove());
+    if(!MOBILE_MQ.matches){
+      box.classList.remove('pager'); dots.style.display = 'none';
+      [...box.querySelectorAll('.icon')].forEach(wireIconPosOnly);
+    } else {
+      box.classList.add('pager');
+      const icons = [...box.querySelectorAll('.icon')];
+      const W = box.clientWidth, H = box.clientHeight;
+      const cols = Math.max(3, Math.floor(W/88)), cw = W/cols, ch = 96;
+      const rows = Math.max(1, Math.floor((H - 16)/ch)), per = cols*rows;
+      const pages = Math.max(1, Math.ceil(icons.length/per));
+      icons.forEach((ic,i)=>{
+        const pg = Math.floor(i/per), r = i % per, c = r % cols, row = Math.floor(r/cols);
+        ic.style.left = (pg*W + c*cw + (cw-82)/2) + 'px';
+        ic.style.top = (8 + row*ch) + 'px';
+      });
+      for(let p=0;p<pages;p++){
+        const a = document.createElement('div'); a.className = 'pg-anchor';
+        a.style.cssText = 'position:absolute;top:0;left:'+(p*W)+'px;width:'+W+'px;height:1px;scroll-snap-align:start;pointer-events:none;';
+        box.appendChild(a);
+      }
+      dots.innerHTML = Array.from({length:pages}, (_,p)=>'<i'+(p===0?' class="on"':'')+'></i>').join('');
+      dots.style.display = pages > 1 ? 'flex' : 'none';
+      box.scrollLeft = Math.min(box.scrollLeft, (pages-1)*W);
+    }
+    if(pagerObs) pagerObs.observe(box, {childList:true});
+    pagerBusy = false;
+  }
+  // PC: gespeicherte bzw. automatische Position wiederherstellen
+  function wireIconPosOnly(icon){
+    const box = document.getElementById('icons'), id = icon.dataset.open;
+    let x, y;
+    if(iconsSaved[id]) [x,y] = clampIcon(box, iconsSaved[id][0], iconsSaved[id][1]);
+    else if(icon.dataset.pin === 'bottom'){ x = ICON_PAD; y = Math.max(ICON_PAD, box.clientHeight - 84 - ICON_PAD); }
+    else {
+      const rows = Math.max(1, Math.floor((box.clientHeight - ICON_PAD) / CELL_H));
+      const idx = [...box.querySelectorAll('.icon:not([data-pin])')].indexOf(icon);
+      [x,y] = clampIcon(box, Math.floor(idx/rows)*CELL_W + ICON_PAD, (idx % rows)*CELL_H + ICON_PAD);
+    }
+    icon.style.left = x + 'px'; icon.style.top = y + 'px';
+  }
+  function installPager(){
+    const box = document.getElementById('icons');
+    pagerObs = new MutationObserver(()=> layoutMobilePages());
+    box.addEventListener('scroll', ()=>{
+      const W = box.clientWidth || 1, p = Math.round(box.scrollLeft / W);
+      document.querySelectorAll('#pgDots i').forEach((d,i)=> d.classList.toggle('on', i === p));
+    }, {passive:true});
+    window.addEventListener('resize', ()=> layoutMobilePages());
+    MOBILE_MQ.addEventListener('change', ()=> layoutMobilePages());
+    layoutMobilePages();
+  }
+
   function initIcons(){
     healOrphanedInstalledIcons();
     const box = document.getElementById('icons');
@@ -3431,7 +3715,83 @@ Gib 'hilfe' ein für Befehle.
     });
     refreshDesktopVfsIcons();
     iconsBooted = true;
+    installPager();
+    applySysIconImages();
   }
+
+  // Eigene Bilder für die System-Icons: assets/img/icon/sys-<key>.png (z. B. sys-terminal.png).
+  // Existiert die Datei, ersetzt sie das Zeichen/SVG; sonst bleibt alles wie bisher.
+  function applySysIconImages(){
+    document.querySelectorAll('#icons .icon[data-open]').forEach(ic=>{
+      const key = ic.dataset.open;
+      if(ic.dataset.img || key.indexOf(':') > -1) return;
+      ic.dataset.img = '1';
+      const g = ic.querySelector('.glyph'); if(!g || g.querySelector('img')) return;
+      const im = new Image(); im.alt = ''; im.draggable = false;
+      im.style.cssText = 'width:46px;height:46px;object-fit:contain;display:block;filter:drop-shadow(0 0 4px rgba(0,0,0,.45));';
+      im.onload = () => { g.innerHTML = ''; g.appendChild(im); };
+      im.src = 'assets/img/icon/sys-' + key + '.png';
+    });
+  }
+
+  // ---------- Automatische Update-Hinweise (Hub + geöffnete Spiele) ----------
+  // Prüft per HEAD-Request (ETag/Last-Modified) ohne Cache, ob sich eine Datei seit dem Öffnen geändert hat.
+  // Nichts muss je von Hand hochgezählt werden: jeder neue Upload wird automatisch erkannt.
+  (function(){
+    const INTERVAL = 60000;
+    const base = new Map();      // url -> Signatur beim Öffnen
+    const shown = new Map();     // url -> Signatur, für die schon ein Hinweis steht
+    const box = document.createElement('div'); box.id = 'updBox'; document.body.appendChild(box);
+    async function sig(url){
+      try{
+        const r = await fetch(url, {method:'HEAD', cache:'no-store'});
+        if(!r.ok) return null;
+        return r.headers.get('etag') || r.headers.get('last-modified') || r.headers.get('content-length');
+      }catch(e){ return null; }
+    }
+    function targets(){
+      const list = [{url: location.pathname, label:'MC ORCA GAMES', hub:true}];
+      document.querySelectorAll('.win.browserwin iframe.bb-frame').forEach(f=>{
+        const src = f.getAttribute('src'); const g = GAMES.find(x=>x.url === src);
+        if(g) list.push({url:src, label:g.name, frame:f});
+      });
+      return list;
+    }
+    async function track(){
+      for(const t of targets()){ if(!base.has(t.url)){ const v = await sig(t.url); if(v) base.set(t.url, v); } }
+    }
+    function banner(t, now){
+      const el = document.createElement('div'); el.className = 'upd';
+      el.innerHTML = '<div>🔄 Neue Version von <b></b> verfügbar.</div><div class="upd-row"><button type="button">Jetzt aktualisieren</button><button type="button" class="ghost">Später</button></div>';
+      el.querySelector('b').textContent = t.label;
+      const [go, later] = el.querySelectorAll('button');
+      later.onclick = () => el.remove();
+      go.onclick = async () => {
+        go.textContent = 'Lade …';
+        try{ await fetch(t.hub ? location.href : t.url, {cache:'reload'}); }catch(e){}
+        if(t.hub){ location.reload(); return; }
+        base.set(t.url, now); shown.delete(t.url); el.remove();
+        const f = [...document.querySelectorAll('.win.browserwin iframe.bb-frame')].find(x=>x.getAttribute('src') === t.url);
+        if(f){ try{ f.contentWindow.location.reload(); }catch(e){ f.src = t.url; } }
+      };
+      box.appendChild(el);
+    }
+    async function check(){
+      await track();
+      for(const t of targets()){
+        const b = base.get(t.url); if(!b) continue;
+        const now = await sig(t.url);
+        if(now && now !== b && shown.get(t.url) !== now){ shown.set(t.url, now); banner(t, now); }
+      }
+    }
+    new MutationObserver(()=> track()).observe(document.getElementById('desktop'), {childList:true, subtree:true});
+    setTimeout(track, 1500);
+    setInterval(check, INTERVAL);
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) check(); });
+    window.addEventListener('focus', check);
+  })();
+
+  applyPersonalize();
 
   document.getElementById('start').onclick = ()=>{
     const m = document.getElementById('startmenu');

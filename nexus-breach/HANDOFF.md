@@ -2,6 +2,10 @@
 
 Stand: 29.09.2026 (Overhaul Phase 1–20 abgeschlossen; Story Mode Phase 1–12 fertig). Teil des MC ORCA Games Portfolios. Spielstände können seit dem Speichersystem (siehe unten) optional über den MC-Orca-Login in die Cloud gespiegelt werden; MOGC/Wirtschaft bleiben bewusst NICHT verbunden.
 
+## Intro — MC ORCA GAMES PRESENTS → NEXUS: BREACH (30.09.2026)
+Start-Intro als Overlay `#intro` direkt nach `<body>` (eigenes `<script id="introJs">` darunter, CSS am Ende des ersten `<style>`-Blocks; nichts im Haupt-Skript geändert, daher bleibt `test/harness.js` unberührt). Ablauf: Energielinie → MC-ORCA-Logo (`../bilder/logo.png`, orange) mit Einschlag/Schockwelle/Lichtreflex → „PRESENTS" → Wechsel (Cyan) → Spiel-Logo (`art/logo.png`) mit Glitch-Einschlag → „DURCHBRICH DAS NEXUS" → blinkendes „KLICK ZUM STARTEN". Bleibt stehen, bis Klick/Tippen/Taste (jederzeit überspringbar; die Taste wird vor dem Spiel abgefangen; Alt+Enter, Esc, F-Tasten, Modifier nicht). Fehlende Logos → Text-Ersatz. `prefers-reduced-motion` überspringt es. `sw.js` Cache v39 (+ `art/logo.png`). Nicht getestet (nur Syntax-Check).
+**Titelmusik:** `Snd.tick` läuft erst, wenn `initAudio()` den `AudioContext` angelegt hat (vorher kam das nur über Sektorstart/Meta-Knöpfe). Das Intro ruft deshalb `__breach.initAudio()` beim Laden (Autoplay-Umgebungen spielen sofort) und bei Klick/Taste/Touch (`resume`) auf.
+
 ## Phase 21 — Musik-Dateien (`art/musik/`, 29.09.2026)
 Echte Songs (KI-erzeugt, ~3 Min., `.ogg`) ersetzen die Synth-Musik, sobald sie auf dem Server liegen. **Ordner:** `nexus-breach/art/musik/` (Liste + Zuordnung: `art/musik/LIESMICH.txt`). **Fehlende Datei = kein Fehler:** dann spielt für diesen Zustand der Synth-Sequenzer (`Snd`) weiter, Song für Song nachlieferbar.
 **Modul `MF`** (in `Snd`, vor `api.tick`; Konsole `__breach.Snd.files`): Streaming über `<audio>` + `createMediaElementSource` → `musBus` (Lautstärke, Ducking, Pause-Tiefpass, Mute wie bisher; kein Voll-Decode, 17×3 Min. PCM wären >1 GB). Ersatzformat `.mp3` bei Ogg-Fehler. Max. 8 Elemente im Speicher (ältester ungenutzter wird verworfen), Vorladen von Erkunden(Biom)/Kampf/Elite/Boss.

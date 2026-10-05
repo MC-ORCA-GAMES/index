@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FERRUM Schiffsbauer</title>
+<style>
+:root{--bg:#0e1114;--pn:#161b20;--ln:#2a323b;--fg:#d8dee5;--dim:#7f8b98;--ac:#ff6a1a;--ok:#6fd16f;--bad:#ff5a4a}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:13px/1.4 "Segoe UI",system-ui,sans-serif}
+#app{display:grid;grid-template-columns:225px 1fr 265px;grid-template-rows:1fr 150px;grid-template-areas:"pal view props" "pal out out";height:100%}
+aside,section{background:var(--pn);border:1px solid var(--ln);overflow:auto;padding:10px}
+#pal{grid-area:pal}#props{grid-area:props}#out{grid-area:out}#view{grid-area:view;position:relative;min-width:0}
+h1{font:700 15px/1.2 Georgia,serif;margin:0 0 6px;color:var(--ac)}
+h2{font-size:12px;font-weight:600;color:var(--dim);margin:12px 0 5px}
+button,select,input,textarea{font:inherit;color:var(--fg);background:#0e1216;border:1px solid var(--ln);border-radius:3px}
+button{padding:4px 7px;cursor:pointer}button:hover{border-color:var(--ac)}button:disabled,input:disabled,select:disabled{opacity:.4}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px}.grid2>*{min-width:0}.grid2 input{width:100%;padding:4px}
+.must{color:var(--ac);font-weight:700}
+#chk div,#tgtInfo div,#stats td{padding:1px 0}#tgtInfo{font-size:12px;margin-top:4px}.dim{color:var(--dim)}.ok{color:var(--ok)}.bad{color:var(--bad)}
+#stats{width:100%;border-collapse:collapse}#stats td:last-child{text-align:right}#stats th{text-align:left;color:var(--dim);font-size:11px;letter-spacing:.08em;padding:7px 0 2px;border-bottom:1px solid #333;font-weight:normal}#stats td.s{padding-left:8px;color:var(--dim)}#statsNote{font-size:11px;color:var(--dim);margin-top:6px;line-height:1.35}
+#list div{padding:2px 6px;cursor:pointer;border-left:3px solid transparent;color:var(--dim)}
+#list div.on{border-color:var(--ac);color:var(--fg);background:#1d242b}
+#cv{width:100%;height:100%;display:block;touch-action:none}
+#hint{position:absolute;left:8px;bottom:6px;color:var(--dim);font-size:11px;pointer-events:none;text-shadow:0 0 4px #000}
+#mode{position:absolute;left:8px;top:8px;display:flex;gap:4px;align-items:center;color:var(--dim)}
+#mode button.on{border-color:var(--ac);color:var(--ac)}
+.row{display:grid;grid-template-columns:66px 1fr 1fr 1fr;gap:4px;margin-bottom:5px;align-items:center}
+.row label{color:var(--dim)}.row input{width:100%;padding:3px}.row.two{grid-template-columns:66px 1fr}
+#props.off .pp{opacity:.35;pointer-events:none}
+#rt{font-size:11px;color:var(--dim);margin:-2px 0 6px}
+#out{display:grid;grid-template-columns:1fr 230px;gap:10px}
+#code{width:100%;height:100%;resize:none;font:11px/1.35 Consolas,monospace;white-space:pre}
+.side{display:grid;grid-template-columns:1fr 1fr;gap:5px;align-content:start}.side #nm,.side .full{grid-column:1/3}.side button{min-width:0}
+#gInfo{font-size:11px;color:var(--dim);margin:4px 0;min-height:15px}
+#fleet{max-height:170px;overflow:auto;margin:4px 0}
+#fleet div{padding:2px 6px;cursor:pointer;border-left:3px solid transparent;color:var(--dim)}
+#fleet div.on{border-color:var(--ac);color:var(--fg);background:#1d242b}
+#fleet div.fh{color:var(--ac);font-weight:600;cursor:default;padding-top:5px;border-left-color:transparent;background:none}
+#nm{width:100%;padding:4px}button.pri{background:var(--ac);color:#111;border-color:var(--ac);font-weight:600}
+</style></head><body>
+<div id="app">
+<aside id="pal"><h1>FERRUM Schiffsbauer</h1>
+<h2>Funktionscheck</h2><div id="chk"></div>
+<h2>Ziel-Kategorie</h2><select id="tgtCls" style="width:100%" title="Welche Schiffsklasse willst du bauen? Darunter steht, was dafür mindestens noch fehlt."></select><div id="tgtInfo"></div><button id="bTgtFill" style="width:100%;margin-top:4px" hidden title="Legt die fehlenden Mindestteile unter das Schiff; danach nur noch an die richtige Stelle ziehen">Fehlende Mindestteile ergänzen</button>
+<h2>Spielteile (<span class="must">★</span> = Pflicht)</h2><div class="grid2" id="gk"></div>
+<h2>Freie Formen (ohne Wirkung)</h2><div class="grid2" id="sk"></div>
+<h2>Vorlagen</h2><select id="tpl" style="width:100%"></select><button id="bTpl" style="width:100%;margin-top:4px">Vorlage laden</button>
+<h2>Zufallsgenerator (nur für dich)</h2>
+<select id="gCls" style="width:100%"></select>
+<div class="grid2" style="margin-top:4px"><select id="gDecks" title="Wie viele Ebenen (Decks) übereinander gebaut werden"><option value="0">Ebenen: Auto</option><option value="1">1 Ebene</option><option value="2">2 Ebenen</option><option value="3">3 Ebenen</option><option value="4">4 Ebenen (max)</option></select><select id="gPal" title="Farbschema"><option value="std">Schwarz·Rot·Gold·Neon</option><option value="old">Bunt (alt)</option><option value="npc_traders">NPC · Händler</option><option value="npc_miners">NPC · Miner</option><option value="npc_researchers">NPC · Forscher</option><option value="npc_security">NPC · Sicherheit</option><option value="npc_pirates">NPC · Piraten</option><option value="npc_kardox">NPC · Kardox</option><option value="npc_salvagers">NPC · Berger</option></select></div>
+<label style="display:block;margin-top:4px;color:var(--dim)"><input type="checkbox" id="gHull" checked> Außenhülle bauen</label>
+<div class="grid2" style="margin-top:4px"><input id="gSeed" type="number" placeholder="Seed (leer=Zufall)" title="Gleicher Seed = gleiches Schiff"><input id="gCnt" type="number" min="1" max="20" value="3" title="Schiffe pro Klasse bei &quot;Flotte erzeugen&quot;"></div>
+<div class="grid2" style="margin-top:4px"><button class="pri" id="bGen">Würfeln</button><button id="bFleet">Flotte erzeugen</button></div>
+<button id="bUndo" style="width:100%;margin-top:4px" disabled>Vorheriges Schiff</button>
+<div id="gInfo"></div><div id="fleet"></div>
+<div class="grid2"><button id="bFAdd" title="Das Schiff im Editor (mit deinen Änderungen) in die Flotte legen">+ Aktuelles</button><button id="bFClr">Flotte leeren</button>
+<button id="bFExp">Exportieren</button><button id="bFImp">Importieren</button></div>
+<input type="file" id="fIn" accept=".json,application/json" hidden>
+<h2>Teile im Schiff</h2><div id="list"></div></aside>
+<main id="view"><canvas id="cv"></canvas>
+<div id="mode">Ziehen auf: <button data-m="xz" class="on">Boden X·Z</button><button data-m="xy">Front X·Y</button><button data-m="zy">Seite Z·Y</button></div>
+<div id="hint">Teil anfassen und ziehen · leere Fläche ziehen: drehen · Rechtsklick/Shift: verschieben · Rad: Zoom<br>Pfeile: X/Z · Q/E: hoch/runter · D: duplizieren · Entf: löschen · oranger Pfeil = vorne</div></main>
+<aside id="props" class="off"><h2 style="margin-top:0">Gewähltes Teil</h2><div class="pp">
+<div class="row"><label>Position</label><input id="px" type="number"><input id="py" type="number"><input id="pz" type="number"></div>
+<div class="row"><label>Drehung °</label><input id="rx" type="number" step="5"><input id="ry" type="number" step="5"><input id="rz" type="number" step="5"></div>
+<div class="row"><label>Größe</label><input id="sx" type="number" step=".1" min=".01"><input id="sy" type="number" step=".1" min=".01"><input id="sz" type="number" step=".1" min=".01"></div>
+<div class="row two"><label>Funktion</label><select id="role"></select></div><div id="rt"></div>
+<div class="row two"><label>Farbe</label><input id="col" type="color" style="height:26px;padding:1px"></div>
+<div class="row two"><label>Segmente</label><input id="seg" type="number" min="3" max="48"></div>
+<div class="row two"><label>Raster</label><select id="snap"><option>0.05</option><option selected>0.25</option><option>0.5</option><option>1</option><option>2</option></select></div>
+<div style="display:flex;gap:4px;flex-wrap:wrap"><button id="bDup">Duplizieren</button><button id="bMir">Spiegeln (X)</button><button id="bDel">Löschen</button></div></div>
+<h2>Schiffswerte (Spielformel)</h2><table id="stats"></table><div id="statsNote">Basiswerte nach Spielformel, ohne Forschung, Commander-Boni und Module. Solarenergie gilt bei voller Sonne. Werte können sich im Spiel durch Boni erhöhen.</div></aside>
+<section id="out"><textarea id="code" spellcheck="false"></textarea>
+<div class="side"><input id="nm" value="Mein Schiff" aria-label="Schiffsname">
+<button class="pri full" id="bSend" hidden title="Schiff an das Spiel schicken. In der Werft (N) mit J laden.">In die Werft übernehmen</button><button class="pri full" id="bSave" title="Strg+S">Schiff als Datei speichern</button><button id="bOpen">Aus Datei laden</button><button id="bCopy">Code kopieren</button><button id="bLoad">Code laden</button><button id="bClr">Alles löschen</button>
+<input type="file" id="shipIn" accept=".json,.txt,application/json,text/plain" hidden></div></section>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../shiprules.js"></script>
+<script>
+const H=Math.PI/2,$=id=>document.getElementById(id);
+// ---- Funktionen/Wirkung der Teile (Werte aus dem Spiel: Masse, Klasse, buildShipStats) ----
+const ROLES={deko:{n:'Deko',m:0,t:'Nur Optik, keine Werte'},
+struct:{n:'Strukturblock',m:8,t:'Masse 8, belegt einen Slot'},
+cockpit:{n:'Cockpit',m:10,must:1,t:'PFLICHT · +40 Sauerstoff'},
+engine:{n:'Triebwerk',m:12,must:1,t:'PFLICHT · mehr Schub und Höchsttempo'},
+gyro:{n:'Gyroskop',m:6,t:'Wendigkeit und Maus-Empfindlichkeit'},
+tank:{n:'Tank',m:9,t:'+80 Treibstoff'},battery:{n:'Batterie',m:7,t:'+70 Energiespeicher'},
+cargo:{n:'Container',m:10,t:'+100 Fracht'},orehold:{n:'Erzcontainer',m:12,t:'+150 Fracht, nur in Miner/Industrial wirksam, zählt nicht für die Klassengrenze (bleibt Miner)'},weapon:{n:'Waffenhalterung',m:8,t:'Waffe, zählt für die Schiffsklasse'},
+sensor:{n:'Sensor',m:4,t:'Masse 4; mit 2 Tanks = Explorer-Klasse'},antenna:{n:'Antenne',m:3,t:'Masse 3'},leg:{n:'Landebein',m:5,t:'Masse 5'},
+solar:{n:'Solarpaneel',m:3,t:'Energieerzeugung +3, ohne Treibstoff'},
+reactorS:{n:'Reaktor klein',m:14,t:'Energieerzeugung +12, verbraucht Treibstoff'},
+reactorL:{n:'Reaktor groß',m:26,t:'Energieerzeugung +30, verbraucht Treibstoff'},
+shield:{n:'Schildgenerator',m:9,t:'+70 Schild, lädt sich auf'},armor:{n:'Panzerplatte',m:14,t:'+55 Rumpf-HP'},
+launcher:{n:'Raketenwerfer',m:10,t:'Zweitwaffe, zählt für die Klasse'}};
+// Klassen: [acc,spd,turn,mass,cargo,hull,shield,energy,fuel,slots,lvl]
+const CL={SCOUT:[1.15,1.2,1.2,.9,1,.85,.9,1,1.1,20,1],MINER:[.95,.95,.95,1,1.15,1.05,1,1,1,30,1],FIGHTER:[1.1,1.1,1.15,.95,.8,1,1,1.05,.95,26,2],
+FREIGHTER:[.8,.85,.75,1.1,1.3,1.15,.9,1,1.15,50,3],EXPLORER:[1,1.05,1,1,.9,1,1,1.1,1.4,32,4],CORVETTE:[1,1,1,1.05,.8,1.15,1.15,1.1,.95,40,5],
+INDUSTRIAL:[.75,.8,.7,1.2,1.35,1.25,1,1.2,1.2,100,7],FRIGATE:[.85,.9,.8,1.15,.9,1.35,1.3,1.2,1,60,8],DESTROYER:[.7,.8,.65,1.3,.9,1.6,1.5,1.3,1.1,90,10]};
+// Klassen-Zusatzwerte: [Energiebedarf, Waffenschaden, Abbau, Scanner, Warp-Tempo AU/s, Warp-Speicher AU]
+const CX={SCOUT:[.9,1,1,1.25,5,12],MINER:[1.05,.9,1.35,1,4,10],FIGHTER:[1.1,1.15,.9,1,4.6,12],FREIGHTER:[1.1,.8,1,.9,3.2,14],EXPLORER:[1,.9,1,1.6,4.8,18],
+CORVETTE:[1.2,1.2,.85,1.1,4.2,12],INDUSTRIAL:[1.4,.8,1.6,1,3,14],FRIGATE:[1.45,1.3,.8,1.15,3.4,14],DESTROYER:[1.8,1.5,.7,1.2,2.8,16]};
+// ---- Echte Spiel-Bauteile (Formen und Materialien aus game.html) ----
+const mt=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.5,metalness:.6},o||{}));
+const W={st:mt(0x2b2c30,{roughness:.6,metalness:.7}),ck:mt(0xc9a24a,{emissive:0x3a2408,roughness:.15,metalness:.9}),en:mt(0x232326,{metalness:.8}),gy:mt(0x8a8a8a,{roughness:.3,metalness:.9}),
+tk:mt(0x1a1a1d),bt:mt(0x3a2020,{emissive:0xff6a1a,emissiveIntensity:.4,roughness:.4}),cg:mt(0x5a1616,{roughness:.6}),wp:mt(0x7a1414,{roughness:.4,metalness:.7}),
+se:mt(0xc9a24a,{roughness:.2,metalness:.8}),an:mt(0x8a8a8a,{roughness:.4,metalness:.8}),pn:mt(0x14181c,{roughness:.35}),ce:mt(0xc9a24a,{emissive:0x2a1d08,roughness:.25,metalness:.8}),
+cS:mt(0xff6a1a,{emissive:0xff6a1a,emissiveIntensity:1.4,roughness:.2,metalness:.4}),cL:mt(0x7a1414,{emissive:0xff2a1a,emissiveIntensity:1.8,roughness:.2,metalness:.4}),
+sh:mt(0x2b2c30,{emissive:0xff6a1a,emissiveIntensity:.5,roughness:.25,transparent:true,opacity:.85}),ar:mt(0x1a1a1d,{roughness:.75,metalness:.5}),la:mt(0x5a1616,{roughness:.45,metalness:.65}),og:mt(0x8a5a1a,{roughness:.55,metalness:.6,emissive:0x2a1606,emissiveIntensity:.5})};
+const me=(g,m,p,rx,rz)=>{const x=new THREE.Mesh(g,m);if(p)x.position.set(...p);x.rotation.x=rx||0;x.rotation.z=rz||0;return x;};
+const grp=(...a)=>{const g=new THREE.Group();a.forEach(x=>g.add(x));return g;};
+const B=(a,b,c)=>new THREE.BoxGeometry(a,b,c),C=(a,b,h,s)=>new THREE.CylinderGeometry(a,b,h,s),S=(r,s)=>new THREE.SphereGeometry(r,s||12,s||12),T=(r,t,a,b)=>new THREE.TorusGeometry(r,t,a,b);
+const GP={
+struct:()=>grp(me(B(2,2,2),W.st)),
+cockpit:()=>grp(me(S(.9,14),W.ck),me(C(.9,1,.5,10),W.st,[0,-.6,0])),
+engine:()=>grp(me(C(.6,.8,1.8,10),W.en,0,H)),
+gyro:()=>grp(me(S(.7),W.gy),me(T(.9,.08,8,20),W.gy,0,Math.PI/2.3)),
+tank:()=>grp(me(C(.8,.8,1.9,12),W.tk)),battery:()=>grp(me(B(1.8,1.2,1.2),W.bt)),cargo:()=>grp(me(B(2,2,2),W.cg)),orehold:()=>grp(me(B(2,2,2),W.og),me(B(2.1,.3,2.1),W.st,[0,.9,0])),
+weapon:()=>grp(me(B(1,.5,1),W.wp),me(C(.15,.15,1.4,8),W.wp,[0,0,-.8],H)),
+sensor:()=>grp(me(C(.15,.4,.4,10),W.se),me(new THREE.SphereGeometry(.4,10,10,0,6.28,0,1.6),W.se,[0,.3,0])),
+antenna:()=>grp(me(C(.05,.08,2.4,6),W.an),me(S(.12,8),W.bt,[0,1.3,0])),
+leg:()=>grp(me(C(.12,.12,1.6,8),W.st,0,0,.5),me(B(.6,.15,.6),W.st,[.7,-.75,0])),
+solar:()=>grp(me(B(.3,.3,.3),W.en),me(B(2.2,.06,1.1),W.pn,[0,0,.75]),...[-1,0,1].map(i=>me(B(.5,.07,.9),W.ce,[i*.7,.01,.75]))),
+reactorS:()=>grp(me(C(.55,.65,1.4,12),W.en),me(S(.32,10),W.cS)),
+reactorL:()=>grp(me(C(.85,1,2,12),W.en),me(S(.5),W.cL),me(T(.7,.06,8,20),W.cL,0,H)),
+shield:()=>grp(me(C(.5,.6,.7,10),W.en),me(S(.55,14),W.sh)),
+armor:()=>grp(me(B(2.1,2.1,.5),W.ar),...[-1,1].map(i=>me(B(.15,2.1,.6),W.st,[i*.85,0,0]))),
+launcher:()=>grp(me(B(1.2,.7,1.6),W.la),...[-1,1].map(i=>me(C(.16,.16,1.2,8),W.en,[i*.35,.1,-.9],H)))};
+// ---- Freie Formen: Zylinder/Kegel liegen entlang Z, Spitze/Front zeigt nach -Z ----
+const SEGK=['cyl','cone','engine','sphere'];
+const G={box:()=>B(1,1,1),cyl:s=>C(.5,.5,1,s).rotateX(H),cone:s=>C(0,.5,1,s).rotateX(-H),pyr:()=>C(0,.7071,1,4).rotateY(Math.PI/4).rotateX(-H),
+sphere:s=>new THREE.SphereGeometry(.5,s,Math.max(3,s*.7|0)),torus:()=>T(.5,.08,10,28),engine:s=>C(.35,.5,1,s).rotateX(-H),
+octa:()=>new THREE.OctahedronGeometry(.5),ico:()=>new THREE.IcosahedronGeometry(.5,0),
+wedge:()=>{const a=[-.5,-.5,-.5],b=[-.5,-.5,.5],c=[-.5,.5,.5],A=[.5,-.5,-.5],X=[.5,-.5,.5],Y=[.5,.5,.5];
+ return new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute([a,b,c,A,Y,X,a,A,X,a,X,b,b,X,Y,b,Y,c,a,A,Y,a,Y,c].flat(),3));}};
+const SN={box:'Quader',cyl:'Zylinder',cone:'Kegel',pyr:'Pyramide',sphere:'Kugel',wedge:'Keil',torus:'Ring',engine:'Düse',octa:'Oktaeder',ico:'Ikosaeder'};
+// ---- Vorlagen: bestehende Schiffe aus dem Spiel (nachgebaut aus Grundformen) ----
+const P=(k,p,r,s,c,role,seg)=>({k,p,r,s,c,role:role||'deko',seg:seg||16}),Q=(id,p)=>({k:'g:'+id,p,r:[0,0,0],s:[1,1,1],c:'#fff',role:id,seg:16});
+const b0=[0,0,0],R180=[0,180,0];
+const TPL={'Minimalschiff (nur Pflichtteile)':[Q('cockpit',[0,0,0]),Q('engine',[0,0,2])],
+'Start-Scout (SCOUT-01)':[P('cone',b0,R180,[2.2,2.2,4.2],'#2b2c30','deko',8),P('sphere',[0,.5,.6],b0,[1.2,1.2,1.2],'#c9a24a','cockpit'),
+ P('box',[-1.6,0,-.3],b0,[1.8,.15,1],'#7a1414'),P('box',[1.6,0,-.3],b0,[1.8,.15,1],'#7a1414'),
+ P('engine',[-.7,0,2.1],R180,[.9,.9,1],'#2b2c30','engine',10),P('engine',[.7,0,2.1],R180,[.9,.9,1],'#2b2c30','engine',10)],
+'NPC Händler':[P('box',b0,b0,[2.4,1.4,5.2],'#c9a24a'),P('cyl',[-1.6,0,.4],b0,[1,1,2.6],'#c9a24a','deko',8),P('cyl',[1.6,0,.4],b0,[1,1,2.6],'#c9a24a','deko',8)],
+'NPC Miner':[P('box',b0,b0,[1.8,1.6,4],'#7fae6a'),P('cyl',[0,-.3,-2.8],b0,[.24,.24,3],'#7fae6a','deko',6)],
+'NPC Forscher':[P('engine',b0,R180,[2.8,2.8,4],'#4fa6c9','deko',8),P('torus',[0,1.1,0],b0,[2.2,2.2,2.2],'#4fa6c9')],
+'NPC Sicherheit':[P('cone',b0,R180,[2.6,2.6,5],'#3a6fae','deko',8),P('box',[0,.9,-.3],b0,[.8,.6,.8],'#3a6fae')],
+'NPC Pirat':[P('ico',b0,b0,[4.4,4.4,4.4],'#b31a1a'),P('cone',[1.8,0,0],[0,-90,0],[.6,.6,1.4],'#b31a1a','deko',5),P('cone',[-1.8,0,0],[0,90,0],[.6,.6,1.4],'#b31a1a','deko',5),
+ P('cone',[0,1.8,0],[90,0,0],[.6,.6,1.4],'#b31a1a','deko',5),P('cone',[0,-1.8,0],[-90,0,0],[.6,.6,1.4],'#b31a1a','deko',5)],
+'NPC Kardox':[P('octa',b0,b0,[3.78,2.94,6.3],'#cfd4dc'),P('box',[-1.3,0,.8],b0,[.12,1.6,1.8],'#cfd4dc'),P('box',[1.3,0,.8],b0,[.12,1.6,1.8],'#cfd4dc')],
+'NPC Berger':[P('box',b0,b0,[2.2,1.8,3.6],'#d06a2e'),P('cyl',[.9,.8,-2.4],b0,[.28,.28,3.4],'#d06a2e','deko',6),P('torus',[.9,.8,-4.1],b0,[1,1,1],'#d06a2e')]};
+// ================= Zufallsgenerator (baut nach der Klassenlogik des Spiels) =================
+function classOf(c,n){const g=k=>c[k]||0,w=g('weapon')+g('launcher'),rc=g('reactorS')+g('reactorL'),cargo=g('cargo')*100;
+ if(w>=8||(w>=5&&g('armor')>=5))return'DESTROYER';if(w>=5)return'FRIGATE';if(w>=3)return'CORVETTE';
+ if(cargo>=200&&rc>=2&&n>=24)return'INDUSTRIAL';if(cargo>=250)return'FREIGHTER';if(cargo>=100)return'MINER';
+ if(g('tank')>=2&&g('sensor')>=1)return'EXPLORER';if(w>=1)return'FIGHTER';return'SCOUT';}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const GEN_ORDER=['SCOUT','MINER','FIGHTER','FREIGHTER','EXPLORER','CORVETTE','INDUSTRIAL','FRIGATE','DESTROYER'];
+const GEN_LABEL={SCOUT:'Scout · Aufklärer',MINER:'Miner · Mining klein/mittel',FIGHTER:'Fighter · Kampf klein',FREIGHTER:'Frachter · Transport',EXPLORER:'Explorer · Forscher',
+CORVETTE:'Korvette · Kampf mittel',INDUSTRIAL:'Industrial · Mining groß',FRIGATE:'Fregatte · Kampf groß',DESTROYER:'Zerstörer · Kampf sehr groß'};
+const GEN_NAMES={SCOUT:['Falke','Kolibri','Späher','Funke','Wiesel'],MINER:['Maulwurf','Bohrer','Schürfer','Pickel','Käfer'],FIGHTER:['Hornisse','Dorn','Klinge','Wespe','Blitz'],
+FREIGHTER:['Lastesel','Koloss','Karawane','Packer','Schlepper'],EXPLORER:['Kompass','Pionier','Nomade','Horizont','Wanderer'],CORVETTE:['Wächter','Lanze','Stahlhai','Falkner','Patrouille'],
+INDUSTRIAL:['Titan','Bergwerk','Schmelze','Mammut','Erzfresser'],FRIGATE:['Bastion','Aegis','Eisenfaust','Wolf','Trutz'],DESTROYER:['Leviathan','Vernichter','Zorn','Ragnarök','Dreadnought']};
+// Palette: [Hauptfarbe, Akzent]
+const GEN_PAL={scout:[['#c9a24a','#7a1414'],['#cfd4dc','#3a6fae'],['#4fa6c9','#2b2c30'],['#2b2c30','#ff6a1a']],
+miner:[['#d9a21b','#2b2c30'],['#7fae6a','#2b2c30'],['#d06a2e','#2b2c30'],['#c9a24a','#3a3d44']],
+fight:[['#3a3d44','#b31a1a'],['#b31a1a','#2b2c30'],['#3a6fae','#cfd4dc'],['#cfd4dc','#b31a1a'],['#2b2c30','#ff6a1a']],
+freight:[['#c9a24a','#2b2c30'],['#8a94a0','#d06a2e'],['#5a6b7a','#c9a24a']],
+explore:[['#4fa6c9','#cfd4dc'],['#cfd4dc','#4fa6c9'],['#7fae6a','#cfd4dc']]};
+// Bereiche [min,max] pro Klasse. w = Waffen+Raketenwerfer zusammen, lc = davon Raketenwerfer, armorP/legP = Paare
+const spec=o=>Object.assign({cargo:[0,0],w:[0,0],lc:[0,0],eng:[2,3],gyro:[1,2],tank:[0,0],battery:[0,0],reactorS:[0,0],reactorL:[0,0],solar:[0,0],shield:[0,0],armorP:[0,0],sensor:[0,0],antenna:[0,0],legP:[0,0],struct:[0,0],W:[1,2],ck:['top']},o);
+const SPEC={
+SCOUT:spec({eng:[2,3],gyro:[1,2],tank:[0,1],battery:[0,1],solar:[0,2],sensor:[0,1],antenna:[0,1],legP:[0,2],struct:[1,4],W:[1,2],ck:['nose','nose','top'],wing:1,pal:'scout'}),
+MINER:spec({cargo:[1,2],w:[1,2],eng:[2,3],gyro:[1,1],tank:[1,2],battery:[1,2],reactorS:[0,1],solar:[0,2],armorP:[0,1],sensor:[0,1],antenna:[0,1],legP:[1,2],struct:[2,6],W:[2,2],ck:['top','nose'],boom:1,pal:'miner'}),
+FIGHTER:spec({w:[1,2],lc:[0,1],eng:[3,4],gyro:[2,3],tank:[1,1],battery:[1,2],reactorS:[0,1],solar:[0,1],shield:[0,1],armorP:[0,1],sensor:[0,1],antenna:[0,1],legP:[0,2],struct:[0,4],W:[1,2],ck:['nose'],wing:1,pal:'fight'}),
+FREIGHTER:spec({cargo:[3,6],w:[0,2],eng:[3,5],gyro:[1,2],tank:[2,3],battery:[1,2],reactorS:[0,1],solar:[0,3],shield:[0,1],armorP:[0,1],sensor:[0,1],antenna:[0,1],legP:[1,2],struct:[3,8],W:[2,3],ck:['top','nose'],pal:'freight'}),
+EXPLORER:spec({eng:[2,3],gyro:[1,2],tank:[2,4],battery:[1,3],reactorS:[0,1],solar:[1,4],shield:[0,1],sensor:[1,3],antenna:[1,2],legP:[1,2],struct:[2,5],W:[1,2],ck:['nose','top'],pal:'explore'}),
+CORVETTE:spec({cargo:[0,1],w:[3,4],lc:[0,2],eng:[3,5],gyro:[2,3],tank:[1,2],battery:[2,3],reactorS:[0,1],solar:[0,2],shield:[1,2],armorP:[0,1],sensor:[0,1],antenna:[0,1],legP:[1,2],struct:[3,8],W:[2,2],ck:['top','nose'],pal:'fight'}),
+INDUSTRIAL:spec({cargo:[6,12],w:[0,2],eng:[5,8],gyro:[2,3],tank:[3,5],battery:[3,5],reactorS:[1,2],reactorL:[1,2],solar:[2,6],shield:[1,2],armorP:[1,2],sensor:[1,2],antenna:[1,2],legP:[2,3],struct:[8,16],W:[3,4],ck:['top'],boom:2,pal:'miner'}),
+FRIGATE:spec({cargo:[0,1],w:[5,7],lc:[1,3],eng:[5,7],gyro:[2,4],tank:[2,3],battery:[3,4],reactorS:[1,1],reactorL:[0,1],solar:[0,3],shield:[2,3],armorP:[1,2],sensor:[1,2],antenna:[1,2],legP:[1,2],struct:[6,12],W:[2,3],ck:['top'],pal:'fight'}),
+DESTROYER:spec({cargo:[0,2],w:[8,12],lc:[2,4],eng:[6,9],gyro:[3,4],tank:[3,4],battery:[4,6],reactorS:[1,2],reactorL:[1,2],solar:[0,3],shield:[3,5],armorP:[2,4],sensor:[1,2],antenna:[1,3],legP:[2,3],struct:[10,20],W:[3,4],ck:['top'],pal:'fight'})};
+// Standard-Farbschema der ersten Schiffe: Schwarz (Hülle), Rot, Gold, Neon-Orange
+const GEN_STD={hull:'#16161b',red:'#b31a1a',gold:'#c9a24a',neon:'#ff6a00'};
+// opt: {decks:0=Auto|1..4 Ebenen, pal:'std'|'old', hull:false=ohne Außenhülle}
+const NPC_FAC={traders:['Händler','#c9a24a','#2b2c30','#ff6a00'],miners:['Miner','#7fae6a','#2b2c30','#d9a21b'],researchers:['Forscher','#4fa6c9','#cfd4dc','#7fe0ff'],security:['Sicherheit','#3a6fae','#cfd4dc','#7fb0ff'],pirates:['Pirat','#b31a1a','#2b2c30','#ff2a2a'],kardox:['Kardox','#cfd4dc','#3a3d44','#ff9a3a'],salvagers:['Berger','#d06a2e','#2b2c30','#ffd23f']};
+function genOnce(cls,rnd,att,opt){
+ opt=opt||{};
+ const sp=SPEC[cls],lim=CL[cls][9],D=2.1,T=.14;
+ const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1)),pick=a=>a[Math.floor(rnd()*a.length)],R=k=>ri(sp[k][0],sp[k][1]);
+ // 1) Stückliste würfeln
+ const wT=R('w'),lc=Math.min(R('lc'),wT>>1);
+ const c={cockpit:1,engine:R('eng'),gyro:R('gyro'),tank:R('tank'),battery:R('battery'),cargo:R('cargo'),weapon:wT-lc,launcher:lc,sensor:R('sensor'),antenna:R('antenna'),
+  solar:R('solar'),reactorS:R('reactorS'),reactorL:R('reactorL'),shield:R('shield'),armor:R('armorP')*2,leg:R('legP')*2,struct:R('struct')};
+ const tot=()=>Object.values(c).reduce((a,b)=>a+b,0);
+ const mn={struct:sp.struct[0],leg:sp.legP[0]*2,antenna:sp.antenna[0],solar:sp.solar[0],sensor:sp.sensor[0],armor:sp.armorP[0]*2,battery:sp.battery[0],shield:sp.shield[0],tank:sp.tank[0],gyro:sp.gyro[0],engine:sp.eng[0]};
+ for(const k of['struct','leg','antenna','solar','sensor','armor','battery','shield','tank','gyro','engine']){const st=(k==='leg'||k==='armor')?2:1;while(tot()>lim&&c[k]-st>=mn[k])c[k]-=st;}
+ if(tot()>lim||classOf(c,tot())!==cls)return null;
+ let hullC,railC,stripeC,neonC,accC;
+ if(opt.pal&&opt.pal.startsWith('npc_')){const F=NPC_FAC[opt.pal.slice(4)];hullC=F[1];railC=stripeC=accC=F[2];neonC=F[3];}
+ else if(opt.pal==='old'){const [m,a]=pick(GEN_PAL[sp.pal]);hullC=m;railC=stripeC=neonC=accC=a;}
+ else{const S=GEN_STD,two=rnd()<.5;hullC=S.hull;railC=two?S.gold:S.red;stripeC=two?S.red:S.gold;neonC=S.neon;accC=pick([S.red,S.gold]);}
+ // 2) Kern: Raster aus Blöcken, vorne eine schmalere Reihe (= spitzer Bug)
+ const ord=['battery','tank','cargo','struct'];for(let i=3;i>0;i--){const j=Math.floor(rnd()*(i+1));[ord[i],ord[j]]=[ord[j],ord[i]];}
+ const items=[],add=(k,n)=>{for(let i=0;i<n;i++)items.push(k);};
+ add('gyro',c.gyro);ord.forEach(k=>add(k,c[k]));add('reactorS',c.reactorS);add('reactorL',c.reactorL);
+ // Ebenen (Decks): 1-4 Stockwerke übereinander, Auto = nach Teilezahl
+ const nItems=items.length;
+ let L=opt.decks>0?Math.min(4,opt.decks|0):Math.min(4,Math.max(1,Math.ceil(nItems/10)));L=Math.min(L,nItems);
+ const per=Math.ceil(nItems/L);
+ let Wc=ri(sp.W[0],sp.W[1])+(att>>3);while(Math.ceil(per/Wc)>Wc*3+2)Wc++;Wc=Math.min(Wc,per);
+ const nR=Math.ceil(per/Wc),sizes=[per%Wc||Wc];for(let i=1;i<nR;i++)sizes.push(Wc);
+ const topY=(L-1)/2*D,yL=l=>(l-(L-1)/2)*D,HH=L*D;
+ const out=[],place=(k,p,r)=>{const q=Q(k,p);if(r)q.r=r;out.push(q);};
+ const rows=[];
+ sizes.forEach((sz,r)=>{const z=(r-(nR-1)/2)*D,xs=[];for(let i=0;i<sz;i++)xs.push((i-(sz-1)/2)*D);rows.push({z,xs,hw:sz*D/2});});
+ // Teile reihum auf die Ebenen verteilen, pro Ebene von hinten nach vorn füllen
+ for(let l=0;l<L;l++){const li=items.filter((_,i)=>i%L===l);let ii=0;
+  for(let r=nR-1;r>=0&&ii<li.length;r--)for(const x of rows[r].xs){if(ii>=li.length)break;const k=li[ii++];place(k,[x,yL(l),rows[r].z],k==='tank'?[90,0,0]:null);}}
+ const halfW=rows.reduce((a,r)=>Math.max(a,r.hw),0),zFace=rows[0].z-D/2,zBack=rows[nR-1].z+D/2;
+ // 3) Cockpit + Bug (Cockpit überlappt die Hülle, damit es sicher verbunden ist)
+ const ck=pick(sp.ck);
+ if(ck==='top'){place('cockpit',[0,topY+1.55,rows[0].z]);out.push(P('sphere',[0,0,zFace-.2],[0,0,0],[(rows[0].hw+T)*2.9,(HH+2*T)*1.45,3.4],hullC,'deko',20));out.push(P('cone',[0,0,zFace-2.6],[0,0,0],[(rows[0].hw+T)*1.1,(HH+2*T)*.7,2.6],hullC,'deko',16));}
+ else place('cockpit',[0,0,zFace-.75]);
+ // 4) Triebwerke hinten (mehrere Reihen bei großen Schiffen)
+ {const ec=c.engine,cols=Math.min(ec,Math.ceil(Wc*D/1.7)),rE=Math.ceil(ec/cols);let k=0;
+  for(let r=0;r<rE;r++){const n=Math.min(cols,ec-k);for(let i=0;i<n;i++)place('engine',[(i-(n-1)/2)*1.7,(r-(rE-1)/2)*1.7,zBack+.9]);k+=n;}}
+ // 5) Panzerung an den Seiten (mittlere Reihen zuerst, über alle Ebenen), Landebeine ganz unten
+ const mid=rows.map((_,i)=>i).sort((a,b)=>Math.abs(a-(nR-1)/2)-Math.abs(b-(nR-1)/2));
+ {const ac=[];for(const i of mid)for(let l=0;l<L;l++)ac.push([i,l]);
+  for(let i=0;i<c.armor/2&&i<ac.length;i++){const r=rows[ac[i][0]],y=yL(ac[i][1]);[-1,1].forEach(sg=>place('armor',[sg*(r.hw+.3),y,r.z],[0,90,0]));}}
+ {const lp=c.leg/2,li=lp===1?[nR>>1]:lp===2?[0,nR-1]:[0,nR>>1,nR-1];
+  [...new Set(li)].slice(0,lp).forEach(i=>{const r=rows[i];[-1,1].forEach(sg=>place('leg',[sg*(r.hw-.35),-topY-1.3,r.z],sg<0?[0,180,0]:null));});}
+ // 6) Oben/unten Anbauplätze: Gruppen = Paar (±x) oder Mitte
+ const mkPool=()=>rows.map(r=>{const px=[...new Set(r.xs.filter(x=>x>.01))].sort((a,b)=>b-a),g=px.map(x=>({xs:[-x,x],u:0,v:0}));
+  g.push({xs:[0],u:0,v:r.xs.some(x=>Math.abs(x)<.01)?0:1});return{z:r.z,g};});
+ const top=mkPool(),bot=mkPool(),fwd=rows.map((_,i)=>i),rev=[...fwd].reverse();
+ if(ck==='top')top[0].g.forEach(g=>g.u=1);
+ const take=(pool,order,cnt,onlyC,fn)=>{for(const i of order){if(cnt<=0)break;const row=pool[i];
+   for(const g of row.g){if(cnt<=0)break;if(g.u||g.xs.length>cnt||(onlyC&&g.xs.length>1))continue;
+    if(g.v&&row.g.some(h=>h!==g&&h.u))continue;if(!g.v&&g.xs.length>1&&row.g.some(h=>h.v&&h.u))continue;
+    g.u=1;cnt-=g.xs.length;g.xs.forEach(x=>fn(x,row.z));}}return cnt;};
+ let left=take(top,fwd,c.weapon,0,(x,z)=>place('weapon',[x,topY+1.25,z]));
+ if(left>0)take(bot,fwd,left,0,(x,z)=>place('weapon',[x,-topY-1.25,z],[0,0,180]));
+ left=take(bot,fwd,c.launcher,0,(x,z)=>place('launcher',[x,-topY-1.35,z]));
+ if(left>0)take(top,fwd,left,0,(x,z)=>place('launcher',[x,topY+1.35,z]));
+ take(top,rev,c.shield,0,(x,z)=>place('shield',[x,topY+1.35,z]));
+ take(top,mid,c.sensor,1,(x,z)=>place('sensor',[x,topY+1.2,z]));
+ take(top,rev,c.antenna,1,(x,z)=>place('antenna',[x,topY+2.2,z]));
+ take(top,rev,c.solar,0,(x,z)=>place('solar',[x,topY+1.2,z]));
+ // 7) Deko: Flügel (leichte Schiffe), Bohrarme (Mining)
+ if(sp.wing){const sw=ri(15,30),ao=c.armor?.6:0,zc=rows[nR-1].z-.2;
+  [-1,1].forEach(sg=>out.push(P('box',[sg*(halfW+1.4+ao),-.5,zc],[0,-sg*sw,0],[3.2,.15,2.4],accC)));}
+ if(sp.boom){const len=cls==='INDUSTRIAL'?4.5:3,xs=sp.boom===1?[0]:[-1,1].map(s=>s*halfW*.55);
+  xs.forEach(x=>{out.push(P('cyl',[x,-topY-1.15,zFace-len/2],[0,0,0],[.3,.3,len],accC,'deko',8));out.push(P('cone',[x,-topY-1.15,zFace-len-.6],[0,0,0],[.8,.8,1.2],opt.pal==='old'?'#ffd23f':neonC,'deko',6));});}
+ // 7b) Außenhülle (rund): Ellipsoid pro Rumpfabschnitt, Ringe an den Übergängen, runder Bug und Heckkegel
+ if(opt.hull!==false){
+  const segs=[];rows.forEach(r=>{const g=segs[segs.length-1];if(g&&Math.abs(g.hw-r.hw)<1e-6)g.z1=r.z+D/2;else segs.push({z0:r.z-D/2,z1:r.z+D/2,hw:r.hw});});
+  const b0=[0,0,0],HY=HH+2*T;
+  segs.forEach((g,si)=>{const dz=g.z1-g.z0,cz=(g.z0+g.z1)/2,W2=(g.hw+T)*2;
+   const bulge=1+.12*Math.sin(si*1.7+rnd()*2);
+   out.push(P('sphere',[0,0,cz],b0,[W2*1.42*bulge,HY*1.42,dz*1.3+.6],hullC,'deko',20));
+   if(si>0)out.push(P('torus',[0,0,g.z0],b0,[W2*1.28,HY*1.2,.9],railC,'deko',16));
+   [-1,1].forEach(sg=>{if(dz>D*1.5)out.push(P('sphere',[sg*(g.hw+T+.15),0,cz],b0,[.7,HY*.55,dz*.6],neonC,'deko',10));});
+   out.push(P('sphere',[0,HY/2*1.05,cz],b0,[Math.min(1.4,g.hw),.22,dz*.8],stripeC,'deko',10));});
+  const lg=segs[segs.length-1],WB=(lg.hw+T)*2;
+  out.push(P('cone',[0,0,zBack+.35],[0,0,180],[WB*.95,HY*.95,1.3],hullC,'deko',20));
+  out.push(P('torus',[0,0,zBack+.05],b0,[WB*.95,HY*.95,.8],neonC,'deko',20));}
+ // 8) Kontrolle: Klasse und Teilelimit müssen mit der Spielformel stimmen
+ const cc={};let n=0;out.forEach(d=>{if(d.role!=='deko'){cc[d.role]=(cc[d.role]||0)+1;n++;}});
+ if(n>lim||classOf(cc,n)!==cls||!cc.engine||!cc.cockpit)return null;
+ const fin=d=>({k:d.k,p:d.p.map(r3),r:d.r.map(r3),s:d.s.map(r3),c:d.k.startsWith('g:')?undefined:d.c,role:d.role,seg:SEGK.includes(d.k)?d.seg:undefined});
+ const nf=opt.pal&&opt.pal.startsWith('npc_')?opt.pal.slice(4):'';return{name:(nf?NPC_FAC[nf][0]+' ':'')+pick(GEN_NAMES[cls])+' '+ri(10,99),cls,npc:nf||undefined,n,decks:L,parts:JSON.parse(JSON.stringify(out.map(fin)))};}
+function genShip(cls,seed,opt){for(let at=0;at<60;at++){const s=genOnce(cls,mulberry32(seed+at*7919),at,opt);if(s){s.seed=seed;return s;}}return null;}
+// ---- Szene ----
+const cv=$('cv'),renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x0e1114);
+const cam=new THREE.PerspectiveCamera(50,1,.1,500);
+scene.add(new THREE.HemisphereLight(0xcfe3ff,0x20242a,.9));
+const dl=new THREE.DirectionalLight(0xffffff,1);dl.position.set(5,8,6);scene.add(dl);
+const dl2=new THREE.DirectionalLight(0xff9a60,.4);dl2.position.set(-6,-3,-5);scene.add(dl2);
+scene.add(new THREE.GridHelper(40,40,0x3a444f,0x1f262d));
+scene.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,-1),new THREE.Vector3(0,0,-4),2.5,0xff6a1a));
+let th=.8,ph=1.15,rad=13;const tgt=new THREE.Vector3();
+function updCam(){cam.position.set(tgt.x+rad*Math.sin(ph)*Math.sin(th),tgt.y+rad*Math.cos(ph),tgt.z+rad*Math.sin(ph)*Math.cos(th));cam.lookAt(tgt);}
+function resize(){const r=$('view').getBoundingClientRect();renderer.setSize(r.width,r.height,false);cam.aspect=r.width/r.height;cam.updateProjectionMatrix();}
+addEventListener('resize',resize);
+// ---- Teile ----
+const parts=[];let sel=null,hl=null;
+const isG=d=>d.k.startsWith('g:');
+function apply(m){const d=m.userData.d;m.position.set(...d.p);m.rotation.set(...d.r.map(a=>a*Math.PI/180));m.scale.set(...d.s);if(!isG(d))m.material.color.set(d.c);}
+function mk(d){const m=isG(d)?GP[d.k.slice(2)]():new THREE.Mesh(G[d.k](d.seg||16),new THREE.MeshStandardMaterial({color:d.c,roughness:.55,metalness:.45,flatShading:true,side:THREE.DoubleSide}));
+ m.userData.d=d;apply(m);scene.add(m);parts.push(m);return m;}
+function rm(m){scene.remove(m);m.traverse(o=>{if(o.geometry)o.geometry.dispose();});if(m.material)m.material.dispose();parts.splice(parts.indexOf(m),1);}
+function updHl(){if(hl){scene.remove(hl);hl.geometry.dispose();hl=null;}if(sel){hl=new THREE.BoxHelper(sel,0xffd23f);scene.add(hl);}}
+const r3=v=>Math.round(v*1000)/1000;
+const nm=d=>isG(d)?ROLES[d.role].n:SN[d.k]+(d.role!=='deko'?' ('+ROLES[d.role].n+')':'');
+function codeStr(){const kk=cntOf(parts.map(m=>m.userData.d));return '{"name":'+JSON.stringify($('nm').value)+',"cls":"'+classOf(kk.c,kk.n)+'","kategorie":'+JSON.stringify(GEN_LABEL[classOf(kk.c,kk.n)])+(curNpc?',"npc":"'+curNpc+'"':'')+',"parts":[\n'+parts.map(m=>{const d=m.userData.d;
+ return JSON.stringify({k:d.k,p:d.p.map(r3),r:d.r.map(r3),s:d.s.map(r3),c:isG(d)?undefined:d.c,role:d.role,seg:SEGK.includes(d.k)?d.seg:undefined});}).join(',\n')+'\n]}';}
+// ---- Größenrahmen und Deko-Kosten (gleiche Regeln wie im Spiel: sbVisualLen / sbDekoCost in game.html) ----
+// Zahlen und Rechenregeln stehen in ../shiprules.js (gemeinsam mit dem Spiel) — dort ändern, nicht hier.
+const MAXLEN=FerrumRules.maxLen, vLen=FerrumRules.visualLen, dekoPlates=FerrumRules.dekoPlates;
+function sizeGuard(){const PD=parts.map(m=>m.userData.d),k=cntOf(PD),cl=classOf(k.c,k.n),mx=MAXLEN[cl],ln=vLen(PD);
+ return ln>mx+1e-6?'Zu groß für '+cl+': '+ln.toFixed(1)+' M, erlaubt sind '+mx+' M.':null;}
+// ---- Werte nach Spielformel (ohne Forschungsboni) ----
+function info(){const c={};let mass=0,n=0;parts.forEach(m=>{const r=m.userData.d.role;if(r==='deko')return;c[r]=(c[r]||0)+1;mass+=ROLES[r].m;n++;});
+ const g=k=>c[k]||0,w=g('weapon')+g('launcher'),rc=g('reactorS')+g('reactorL'),cargo=g('cargo')*100;let id='SCOUT';
+ if(w>=8||(w>=5&&g('armor')>=5))id='DESTROYER';else if(w>=5)id='FRIGATE';else if(w>=3)id='CORVETTE';else if(cargo>=200&&rc>=2&&n>=24)id='INDUSTRIAL';
+ else if(cargo>=250)id='FREIGHTER';else if(cargo>=100)id='MINER';else if(g('tank')>=2&&g('sensor')>=1)id='EXPLORER';else if(w>=1)id='FIGHTER';
+ const K=CL[id],ms=Math.round(mass*K[3]),e=g('engine'),ok=g('cockpit')>=1&&e>=1,slotOk=n<=K[9];
+ const PD=parts.map(m=>m.userData.d),len=vLen(PD),sizeOk=len<=MAXLEN[id]+1e-6,dk=dekoPlates(PD),f1=v=>(+v).toFixed(1);
+ $('chk').innerHTML=['cockpit','engine'].map(r=>'<div class="'+(g(r)?'ok':'bad')+'">'+(g(r)?'✔':'✖')+' '+ROLES[r].n+' <span class="must">★</span> ('+g(r)+')</div>').join('')
+  +'<div class="'+(sizeOk?'ok':'bad')+'" style="margin-top:3px">'+(sizeOk?'✔':'✖')+' Länge '+f1(len)+' / max. '+MAXLEN[id]+' M ('+id+')</div>'
+  +'<div class="dim">Optik (Deko) kostet beim Start '+dk+' Metallplatten</div>'
+  +'<div class="'+(ok&&slotOk&&sizeOk?'ok':'bad')+'" style="margin-top:3px">'+(ok&&slotOk&&sizeOk?'Flugfähig im Spiel':ok?(slotOk?'Optik zu groß für diese Klasse':'Zu viele Teile für diese Klasse'):'Nicht flugfähig')+'</div>';
+ const f=(v,d)=>(+v).toFixed(d);
+ const X=CX[id], tm=s=>!isFinite(s)?'∞':(s>=3600?f(s/3600,1)+' h':s>=90?f(s/60,1)+' min':Math.round(s)+' s'), sg=v=>(v>=0?'+':'')+f(v,1);
+ const rS=g('reactorS'),rL=g('reactorL'),sol=g('solar'),tk=g('tank'),bt=g('battery'),wc=g('weapon'),lc=g('launcher'),sh=g('shield');
+ const acc=(20+e*22)/Math.max(8,ms*.6)*K[0], spd=Math.max(28,40+e*14-ms*.15)*K[1], BO=2.6;
+ const gen=rS*12+rL*30, sgen=sol*3, tot=gen+sgen, base=(4+rL*.5)*X[0], thr=3+e*.7;
+ const bI=tot-base, bC=tot-base-thr, bB=tot-base-1.8*thr, bM=tot-base-6, eCap=Math.round((100+bt*70)*K[7]);
+ const fCap=Math.round((100+tk*80)*K[8]), fI=rS*.05+rL*.12, fC=fI+e*.015, fB=fI+1.8*e*.015;
+ const rHeat=rS*1+rL*2.4, tI=20+rHeat/.45, tB=20+(rHeat+1.8*1.4)/.45;
+ const hull=Math.round((100+Math.round(g('armor')*55)+Math.round(ms*.15))*K[5]), shd=Math.round(sh*70*K[6]), reg=sh?6+sh*5:0;
+ const oreEff=(id==='MINER'||id==='INDUSTRIAL')?g('orehold')*150:0, hold=600+Math.round((cargo+oreEff)*K[4]);
+ const mm=(6+4*wc)/10, dm=mm*X[1], hm=1+(wc-1)*.5, heatNet=14*hm-8;
+ const col=(v,txt)=>'<span class="'+(v>=0?'ok':'bad')+'">'+txt+'</span>';
+ const H=n=>['<th colspan="2">'+n+'</th>',''], R=(a,b,cls)=>[a,b,cls];
+ const rows=[H('ANTRIEB'),R('Klasse',id+' (ab Lvl '+K[10]+')'),R('Teile mit Funktion',n+' / '+K[9]+(slotOk?'':' ✖')),R('Masse',ms),
+  R('Beschleunigung',f(acc,2)),R('Höchsttempo',f(spd,1)),R('Boost-Höchsttempo (Shift)',f(spd*BO,1)),R('Boost-Beschleunigung',f(acc*BO,2)),
+  R('Wendigkeit',f(Math.max(.5,Math.min(3.2,(1+g('gyro')*.35-ms*.01)*K[2])),2)),
+  H('WARP'),R('Warp-Tempo',f(Math.min(9,X[4]),1)+' AU/s'),R('Warp-Reichweite',X[5]+' AU'),R('Warp-Aufladung (leer → voll)',tm(X[5]/.5)),
+  H('ENERGIE'),R('Energiespeicher',eCap),R('Erzeugung',tot+' (Reaktor '+gen+' · Solar '+sgen+')'),R('Bedarf Ruhe / Flug / Boost',f(base,1)+' / '+f(base+thr,1)+' / '+f(base+1.8*thr,1)),
+  R('Bilanz Ruhe',col(bI,sg(bI)+'/s')),R('Bilanz Flug',col(bC,sg(bC)+'/s')),R('Bilanz Dauerboost',col(bB,sg(bB)+'/s')+(bB<0?' <span class="dim">(Akku '+tm(eCap/-bB)+')</span>':'')),R('Bilanz Abbau (Stillstand)',col(bM,sg(bM)+'/s')),
+  H('TREIBSTOFF & HITZE'),R('Treibstoff',fCap),R('Treibstoff hält (Ruhe)',tm(fI>0?fCap/fI:Infinity)),R('Treibstoff hält (Flug)',tm(fC>0?fCap/fC:Infinity)),R('Treibstoff hält (Dauerboost)',tm(fB>0?fCap/fB:Infinity)),
+  R('Temperatur Ruhe / Boost',f(tI,0)+' / '+col(85-tB,f(tB,0))+' °C'+(tB>=85?' ✖ überhitzt':'')),
+  H('RUMPF & SCHILD'),R('Rumpf',hull),R('Schild',shd),R('Schild-Regeneration',reg?reg+'/s (nach 3,5 s ohne Treffer)':'–'),R('Gesamt-Haltbarkeit',hull+shd),R('Standzeit gegen 1 Pirat (15 Schaden/s)',tm((hull+shd)/15)),
+  H('KAMPF')];
+ if(wc>0){rows.push(R('Waffenhalterungen',wc+' (Schadensfaktor ×'+f(dm,2)+')'),
+  R('Laser (ab Start)',f(10*dm,1)+' Schaden/s · Reichweite 520'),
+  R('Laser Dauerfeuer',(heatNet>0?'überhitzt nach '+tm(100/heatNet):'kühlt ohne Überhitzung')+' · '+f(3*wc,0)+' Energie/s'),
+  R('Plasma (Forschung)',f(30*2.2*dm,1)+' Schaden/s · '+f(30*dm,0)+' je Schuss'),R('Railgun (Forschung)',f(110*.6*dm,1)+' Schaden/s · '+f(110*dm,0)+' je Schuss'),
+  R('Pulse (Forschung)',f(5*8*1.5*dm,1)+' Schaden/s max.'),R('Beam (Forschung)',f(36*dm,1)+' → '+f(45*dm,1)+' Schaden/s'));}
+ else rows.push(R('Waffenhalterungen','keine'));
+ if(lc>0){const cd=Math.max(.6,1.6-lc*.15);rows.push(R('Raketenwerfer',lc+' · 60 Schaden · alle '+f(cd,2)+' s ('+f(60/cd,0)+'/s)'));}
+ rows.push(H('FRACHT & ABBAU'),R('Frachtraum gesamt',hold+' m³'+(cargo+oreEff>0?' (Bonus +'+Math.round((cargo+oreEff)*K[4])+')':'')),
+  R('Abbauleistung',f(28*X[2],1)+'/s · Reichweite 190'),R('Scanner',' ×'+f(X[3],2)),R('Sauerstoff',100+g('cockpit')*40));
+ $('stats').innerHTML=rows.map(r=>r[1]===''?'<tr>'+r[0]+'</tr>':'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>').join('');
+ tgtInfoUpd(c,n,id);}
+// ---- Ziel-Kategorie: Mindestanforderungen je Klasse (exakt dieselben Regeln wie classOf) ----
+// Jede Zeile: t = Text, ok = erfüllt?, adds = [[Rolle,Anzahl],...] was zum Erfüllen fehlt
+function tgtReq(cls,c,n){
+ const g=k=>c[k]||0,w=g('weapon')+g('launcher'),rc=g('reactorS')+g('reactorL'),arm=g('armor'),ct=g('cargo'),L=[];
+ const need=(t,have,min,role)=>L.push({t:t+': '+have+' / mind. '+min,ok:have>=min,adds:have>=min?null:[[role,min-have]]});
+ const cap=(t,have,mx)=>L.push({t:t+': '+have+' (höchstens '+mx+')',ok:have<=mx});
+ const not=(t,ok)=>L.push({t,ok});
+ const noExp=()=>not('kein Explorer-Muster (2 Tanks + Sensor)',!(g('tank')>=2&&g('sensor')>=1));
+ const noInd=()=>not('kein Industrial-Muster (2 Container + 2 Reaktoren + 24 Teile)',!(ct>=2&&rc>=2&&n>=24));
+ need('Cockpit ★',g('cockpit'),1,'cockpit');need('Triebwerk ★',g('engine'),1,'engine');
+ if(cls==='SCOUT'){cap('Waffen + Raketenwerfer',w,0);cap('Container',ct,0);noExp();}
+ else if(cls==='MINER'){need('Container',ct,1,'cargo');cap('Container',ct,2);cap('Waffen + Raketenwerfer',w,2);noInd();}
+ else if(cls==='FIGHTER'){need('Waffen + Raketenwerfer',w,1,'weapon');cap('Waffen + Raketenwerfer',w,2);cap('Container',ct,0);noExp();}
+ else if(cls==='FREIGHTER'){need('Container',ct,3,'cargo');cap('Waffen + Raketenwerfer',w,2);noInd();}
+ else if(cls==='EXPLORER'){need('Tanks',g('tank'),2,'tank');need('Sensoren',g('sensor'),1,'sensor');cap('Waffen + Raketenwerfer',w,0);cap('Container',ct,0);}
+ else if(cls==='CORVETTE'){need('Waffen + Raketenwerfer',w,3,'weapon');cap('Waffen + Raketenwerfer',w,4);}
+ else if(cls==='INDUSTRIAL'){need('Container',ct,2,'cargo');need('Reaktoren (klein/groß)',rc,2,'reactorS');
+  const others=Math.max(0,2-ct)+Math.max(0,2-rc)+(g('cockpit')?0:1)+(g('engine')?0:1),fill=Math.max(0,24-n-others);
+  L.push({t:'Teile mit Funktion: '+n+' / mind. 24',ok:n>=24,adds:n>=24?null:[['struct',fill]]});cap('Waffen + Raketenwerfer',w,2);}
+ else if(cls==='FRIGATE'){need('Waffen + Raketenwerfer',w,5,'weapon');cap('Waffen + Raketenwerfer',w,7);cap('Panzerplatten',arm,4);}
+ else if(cls==='DESTROYER'){const ok=w>=8||(w>=5&&arm>=5),a=Math.max(0,8-w),b=Math.max(0,5-w)+Math.max(0,5-arm);
+  L.push({t:'Waffen + Raketenwerfer: '+w+' / mind. 8 — ODER mind. 5 mit 5 Panzerplatten (hast '+arm+')',ok,
+   adds:ok?null:(a<=b?[['weapon',a]]:[['weapon',Math.max(0,5-w)],['armor',Math.max(0,5-arm)]].filter(x=>x[1]>0))});}
+ return L;}
+function tgtInfoUpd(c,n,cur){
+ const cls=$('tgtCls').value,el=$('tgtInfo'),bf=$('bTgtFill');
+ if(!cls){el.innerHTML='<div class="dim">Wähle eine Kategorie: hier steht dann, was dafür mindestens noch fehlt.</div>';bf.hidden=true;return;}
+ const L=tgtReq(cls,c,n),K=CL[cls],miss=L.filter(x=>!x.ok),slotOk=n<=K[9];
+ let t='<div style="color:var(--ac);margin-bottom:3px">'+GEN_LABEL[cls]+' · ab Lvl '+K[10]+' · max. '+K[9]+' Teile</div>';
+ t+=L.map(x=>'<div class="'+(x.ok?'ok':'bad')+'">'+(x.ok?'✔':'✖')+' '+x.t+'</div>').join('');
+ t+='<div class="'+(slotOk?'ok':'bad')+'">'+(slotOk?'✔':'✖')+' Teile-Limit: '+n+' / '+K[9]+'</div>';
+ {const ln=vLen(parts.map(m=>m.userData.d)),lo=ln<=MAXLEN[cls]+1e-6;t+='<div class="'+(lo?'ok':'bad')+'">'+(lo?'✔':'✖')+' Länge: '+ln.toFixed(1)+' / max. '+MAXLEN[cls]+' M</div>';}
+ t+='<div style="margin-top:4px" class="'+(cur===cls&&slotOk?'ok':'dim')+'">'+(cur===cls?(slotOk?'✔ Dein Schiff zählt jetzt als '+cls:'Klasse stimmt, aber zu viele Teile'):'Aktuell erkannt als '+cur+(miss.length?' — es fehlt noch: '+miss.length+' Punkt'+(miss.length>1?'e':''):''))+'</div>';
+ el.innerHTML=t;bf.hidden=!miss.some(x=>x.adds);}
+function tgtFill(){
+ const cls=$('tgtCls').value;if(!cls)return;
+ const kk=cntOf(parts.map(m=>m.userData.d)),L=tgtReq(cls,kk.c,kk.n),list=[];
+ L.forEach(x=>{if(x.adds)x.adds.forEach(a=>{for(let i=0;i<a[1];i++)list.push(a[0]);});});
+ if(!list.length){say('Es fehlt nichts');return;}
+ const ps=parts.map(m=>m.userData.d.p),baseZ=(ps.length?Math.max(...ps.map(p=>p[2])):0)+3;
+ snap();
+ list.forEach((r,i)=>select(mk(Q(r,[((i%6)-2.5)*2.2,0,baseZ+Math.floor(i/6)*2.2]))));
+ updOut();say(list.length+' Mindestteil'+(list.length>1?'e':'')+' ergänzt — liegen hinter dem Schiff, bitte an die richtige Stelle ziehen');}
+function updOut(){const s=codeStr();$('code').value=s;info();try{localStorage.setItem('ferrum_schiffsbauer',s);}catch(e){}}
+function fillProps(){$('props').classList.toggle('off',!sel);if(!sel)return;const d=sel.userData.d,g=isG(d);
+ ['x','y','z'].forEach((a,i)=>{$('p'+a).value=r3(d.p[i]);$('r'+a).value=r3(d.r[i]);$('s'+a).value=r3(d.s[i]);});
+ $('col').value=g?'#888888':d.c;$('col').disabled=g;$('role').value=d.role;$('role').disabled=g;$('rt').textContent=ROLES[d.role].t;
+ $('seg').value=d.seg||16;$('seg').disabled=!SEGK.includes(d.k);}
+function list(){$('list').innerHTML='';parts.forEach((m,i)=>{const d=m.userData.d,e=document.createElement('div');
+ e.innerHTML=(i+1)+'. '+nm(d)+(ROLES[d.role].must?' <span class="must">★</span>':'');if(m===sel)e.className='on';e.onclick=()=>select(m);$('list').appendChild(e);});}
+function select(m){sel=m;updHl();fillProps();list();}
+function refresh(){updHl();fillProps();list();updOut();}
+function light(){updHl();updOut();}
+// ---- Palette ----
+Object.keys(GP).forEach(id=>{const b=document.createElement('button');b.innerHTML=ROLES[id].n+(ROLES[id].must?' <span class="must">★</span>':'');b.title=ROLES[id].t;
+ b.onclick=()=>{select(mk(Q(id,[0,0,0])));updOut();};$('gk').appendChild(b);});
+Object.keys(SN).forEach(k=>{const b=document.createElement('button');b.textContent=SN[k];
+ b.onclick=()=>{select(mk(P(k,[0,0,0],b0,k==='torus'?[2,2,2]:[1,1,1],'#8a94a0')));updOut();};$('sk').appendChild(b);});
+Object.keys(ROLES).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=ROLES[k].n+(ROLES[k].must?' ★':'');$('role').appendChild(o);});
+TPL['Kaskada MK1 (Frachter)']=[{"k":"sphere","p":[0,0.4,-2.1],"r":[90,0,0],"s":[1,1,1],"c":"#000000","role":"cockpit","seg":25},{"k":"g:gyro","p":[-0.05,0.35,-2.1],"r":[0,0,0],"s":[0.4,0.4,0.4],"role":"gyro"},{"k":"torus","p":[0,0.4,-2.05],"r":[90,0,0],"s":[2,2,2],"c":"#ff8000","role":"struct"},{"k":"torus","p":[0,0.35,-2.1],"r":[0,0,0],"s":[2,2,2],"c":"#ff8000","role":"reactorS"},{"k":"cyl","p":[0.65,0.4,-2.1],"r":[0,90,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"struct","seg":15},{"k":"cyl","p":[0,1.55,-2.1],"r":[90,0,0],"s":[0.2,0.21,0.21],"c":"#ff0000","role":"struct","seg":15},{"k":"cyl","p":[0,0.4,2.85],"r":[0,0,0],"s":[0.2,0.2,12.01],"c":"#ff0000","role":"struct","seg":25},{"k":"cyl","p":[1.05,0.4,-2.1],"r":[0,-90,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"struct","seg":15},{"k":"g:engine","p":[1.45,0.4,-2.15],"r":[0,0,0],"s":[0.31,0.31,0.31],"role":"engine"},{"k":"g:engine","p":[-1.45,0.4,-2.15],"r":[0,0,0],"s":[0.31,0.31,0.31],"role":"engine"},{"k":"cyl","p":[-1.15,0.4,-2.1],"r":[0,90,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"struct","seg":15},{"k":"g:engine","p":[0,1.8,-2.15],"r":[0,0,0],"s":[0.31,0.31,0.31],"role":"engine"},{"k":"cyl","p":[0,-0.85,-2.1],"r":[90,0,0],"s":[0.2,0.21,0.21],"c":"#ff0000","role":"struct","seg":15},{"k":"g:engine","p":[0,-1.1,-2.15],"r":[0,0,0],"s":[0.31,0.31,0.31],"role":"engine"},{"k":"cyl","p":[-0.7,0.4,-2.1],"r":[0,90,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"struct","seg":15},{"k":"sphere","p":[-0.95,-0.5,0.1],"r":[0,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"cargo","seg":25},{"k":"sphere","p":[-0.95,1.35,0.1],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"cargo","seg":25},{"k":"sphere","p":[0.95,1.35,0.1],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"cargo","seg":25},{"k":"sphere","p":[0.95,-0.5,0.1],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"cargo","seg":25},{"k":"sphere","p":[-0.95,1.35,2],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"cargo","seg":25},{"k":"sphere","p":[-0.95,-0.5,2],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"cargo","seg":25},{"k":"sphere","p":[0.95,-0.5,2],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"cargo","seg":25},{"k":"sphere","p":[0.95,1.35,2],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"cargo","seg":25},{"k":"sphere","p":[-0.95,1.35,3.9],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"cargo","seg":25},{"k":"sphere","p":[-0.95,-0.5,3.9],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"cargo","seg":25},{"k":"sphere","p":[0.95,1.35,3.9],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"cargo","seg":25},{"k":"sphere","p":[0.95,-0.5,3.9],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"cargo","seg":25},{"k":"sphere","p":[-0.95,1.35,5.8],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"battery","seg":25},{"k":"sphere","p":[-0.95,-0.5,5.8],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"sensor","seg":25},{"k":"sphere","p":[0.95,1.35,5.8],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"shield","seg":25},{"k":"sphere","p":[0.95,-0.5,5.8],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"cargo","seg":25},{"k":"sphere","p":[1.05,-0.5,5.8],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"tank","seg":25},{"k":"sphere","p":[-0.95,1.35,7.7],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"gyro","seg":25},{"k":"sphere","p":[-0.95,-0.5,7.7],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"tank","seg":25},{"k":"sphere","p":[0.95,1.35,7.7],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#ff8000","role":"gyro","seg":25},{"k":"sphere","p":[0.95,-0.5,7.7],"r":[90,0,0],"s":[1.81,1.81,1.81],"c":"#000000","role":"battery","seg":25},{"k":"cyl","p":[0.2,0.2,0.1],"r":[-90,-45,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"struct","seg":15},{"k":"cyl","p":[-0.2,0.2,0.1],"r":[-90,45,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"struct","seg":15},{"k":"cyl","p":[0.2,0.6,0.1],"r":[-90,45,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"struct","seg":15},{"k":"cyl","p":[-0.2,0.6,0.1],"r":[-90,-45,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"struct","seg":15},{"k":"cyl","p":[-0.2,0.6,7.7],"r":[-90,-45,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"deko","seg":15},{"k":"cyl","p":[-0.2,0.2,7.7],"r":[-90,45,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"deko","seg":15},{"k":"cyl","p":[0.2,0.2,7.7],"r":[-90,-45,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"deko","seg":15},{"k":"cyl","p":[0.2,0.6,7.7],"r":[-90,45,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"deko","seg":15},{"k":"cyl","p":[0.3,0.6,7.7],"r":[-90,45,0],"s":[0.2,0.2,0.51],"c":"#ff0000","role":"deko","seg":15},{"k":"cyl","p":[0.95,1.35,3.95],"r":[0,0,0],"s":[0.2,0.2,9.21],"c":"#ff0000","role":"deko","seg":25},{"k":"cyl","p":[-0.95,1.35,3.95],"r":[0,0,0],"s":[0.2,0.2,9.21],"c":"#ff0000","role":"deko","seg":25},{"k":"cyl","p":[-0.95,-0.5,3.95],"r":[0,0,0],"s":[0.2,0.2,9.21],"c":"#ff0000","role":"deko","seg":25},{"k":"cyl","p":[0.95,-0.5,3.95],"r":[0,0,0],"s":[0.2,0.2,9.21],"c":"#ff0000","role":"deko","seg":25},{"k":"cyl","p":[-0.75,1.1,8.8],"r":[-145,-30,0],"s":[0.2,0.2,1.21],"c":"#ff0000","role":"deko","seg":15},{"k":"cyl","p":[-0.75,-0.25,8.8],"r":[135,-30,0],"s":[0.2,0.2,1.21],"c":"#ff0000","role":"deko","seg":15},{"k":"cyl","p":[0.7,1.15,8.8],"r":[-145,30,0],"s":[0.2,0.2,1.21],"c":"#ff0000","role":"deko","seg":15},{"k":"cyl","p":[0.75,-0.25,8.8],"r":[135,30,0],"s":[0.2,0.2,1.21],"c":"#ff0000","role":"deko","seg":15},{"k":"sphere","p":[0,0.4,9.1],"r":[90,0,0],"s":[1.81,0.61,1.81],"c":"#000000","role":"gyro","seg":25},{"k":"g:engine","p":[0,0.4,10.05],"r":[0,0,0],"s":[1,1,1],"role":"engine"},{"k":"torus","p":[0,0.4,10.75],"r":[0,0,0],"s":[1.11,1.11,0.41],"c":"#ff0000","role":"deko"}];
+Object.keys(TPL).forEach(k=>{const o=document.createElement('option');o.textContent=k;$('tpl').appendChild(o);});
+$('bTpl').onclick=()=>{loadObj({name:$('tpl').value,parts:TPL[$('tpl').value]});};
+['p','r','s'].forEach((a,j)=>['x','y','z'].forEach((ax,i)=>{const el=$(a+ax);
+ el.oninput=()=>{if(!sel)return;const v=parseFloat(el.value);if(isNaN(v))return;sel.userData.d[a][i]=v;apply(sel);light();};}));
+$('col').oninput=e=>{if(!sel)return;sel.userData.d.c=e.target.value;apply(sel);updOut();};
+$('role').onchange=e=>{if(!sel)return;sel.userData.d.role=e.target.value;$('rt').textContent=ROLES[e.target.value].t;list();updOut();};
+$('seg').oninput=e=>{if(!sel)return;const v=Math.min(48,Math.max(3,parseInt(e.target.value)||16)),d=sel.userData.d;if(!SEGK.includes(d.k))return;
+ d.seg=v;sel.geometry.dispose();sel.geometry=G[d.k](v);light();};
+$('snap').onchange=()=>{const s=$('snap').value;['px','py','pz'].forEach(i=>$(i).step=s);};$('snap').onchange();
+$('nm').oninput=updOut;
+function dup(mir){if(!sel)return;const d=JSON.parse(JSON.stringify(sel.userData.d));
+ if(mir){d.p[0]=-d.p[0];d.r[1]=-d.r[1];d.r[2]=-d.r[2];}else d.p[0]+=+$('snap').value*2;select(mk(d));updOut();}
+function del(){if(!sel)return;rm(sel);select(null);updOut();}
+$('bDup').onclick=()=>dup(false);$('bMir').onclick=()=>dup(true);$('bDel').onclick=del;
+function clear(){while(parts.length)rm(parts[0]);}
+let curNpc='';
+function loadObj(o,noSnap){curNpc=o.npc||'';if(!noSnap)snap();clear();$('nm').value=o.name||'Schiff';
+ o.parts.forEach(d=>{const g=typeof d.k==='string'&&d.k.startsWith('g:');if(g?!GP[d.k.slice(2)]:!G[d.k])return;
+  mk({k:d.k,p:d.p||[0,0,0],r:d.r||[0,0,0],s:d.s||[1,1,1],c:d.c||'#8a94a0',role:g?d.k.slice(2):(ROLES[d.role]?d.role:'deko'),seg:d.seg||16});});
+ if(parts.length){const bx=new THREE.Box3();parts.forEach(m=>bx.expandByObject(m));const sz=bx.getSize(new THREE.Vector3());bx.getCenter(tgt);rad=Math.min(90,Math.max(13,sz.length()*1.1));}
+ select(null);updOut();}
+function load(s){try{s=String(s).trim().replace(/^(?:const|let|var)\s+\w+\s*=\s*/,'').replace(/;\s*$/,'').replace(/,\s*([\]}])/g,'$1');let o=JSON.parse(s);if(Array.isArray(o))o={name:'Schiff',parts:o};if(!o||!Array.isArray(o.parts))throw 0;loadObj(o);return true;}catch(e){alert('Der Code ist kein gültiger Schiffscode.');return false;}}
+$('bLoad').onclick=()=>load($('code').value);
+$('bClr').onclick=()=>{snap();clear();select(null);updOut();};
+$('bCopy').onclick=()=>{{const e=sizeGuard();if(e){say(e);return;}}const t=$('code');t.select();try{navigator.clipboard.writeText(t.value);}catch(e){document.execCommand('copy');}$('bCopy').textContent='Kopiert';setTimeout(()=>$('bCopy').textContent='Code kopieren',1200);};
+// ---- Generator-Oberfläche: Verlauf (Undo), Flotte, Export/Import ----
+const hist=[];
+function snap(){if(!parts.length)return;const s=codeStr();if(hist[hist.length-1]===s)return;hist.push(s);if(hist.length>40)hist.shift();updUndo();}
+function updUndo(){const b=$('bUndo');b.disabled=!hist.length;b.textContent='Vorheriges Schiff ('+hist.length+')';}
+function undo(){if(!hist.length)return;try{loadObj(JSON.parse(hist.pop()),true);}catch(e){}updUndo();}
+$('bUndo').onclick=undo;updUndo();
+addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
+const gc=document.createElement('option');gc.value='ALL';gc.textContent='Alle Klassen';$('gCls').appendChild(gc);
+GEN_ORDER.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=GEN_LABEL[k];$('gCls').appendChild(o);});
+{const t=$('tgtCls'),o0=document.createElement('option');o0.value='';o0.textContent='– keine (nur Anzeige) –';t.appendChild(o0);
+ GEN_ORDER.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=GEN_LABEL[k]+' (ab Lvl '+CL[k][10]+')';t.appendChild(o);});
+ try{const v=localStorage.getItem('ferrum_sb_target');if(v&&GEN_ORDER.includes(v))t.value=v;}catch(e){}
+ t.onchange=()=>{try{localStorage.setItem('ferrum_sb_target',t.value);}catch(e){}info();};$('bTgtFill').onclick=tgtFill;info();}
+let fleet=[],fsel=-1;
+try{const f=JSON.parse(localStorage.getItem('ferrum_flotte')||'[]');if(Array.isArray(f))fleet=f;}catch(e){}
+function saveFleet(){try{localStorage.setItem('ferrum_flotte',JSON.stringify(fleet));}catch(e){}}
+function cntOf(parts){const c={};let n=0;parts.forEach(d=>{const r=(typeof d.k==='string'&&d.k.startsWith('g:'))?d.k.slice(2):d.role;if(r&&r!=='deko'&&ROLES[r]){c[r]=(c[r]||0)+1;n++;}});return{c,n};}
+function drawFleet(){const el=$('fleet');el.innerHTML='';
+ [...GEN_ORDER,'EIGENE'].forEach(cls=>{const ids=[];fleet.forEach((s,i)=>{if((s.cls||'EIGENE')===cls)ids.push(i);});if(!ids.length)return;
+  const h=document.createElement('div');h.className='fh';h.textContent=(GEN_LABEL[cls]||'Eigene / importiert')+' ('+ids.length+')';el.appendChild(h);
+  ids.forEach(i=>{const s=fleet[i],e=document.createElement('div');e.textContent=s.name+' · '+(s.n||'?')+' Teile';if(i===fsel)e.className='on';
+   e.onclick=()=>{fsel=i;loadObj({name:s.name,npc:s.npc,parts:s.parts});drawFleet();};el.appendChild(e);});});}
+function genOpt(){return{decks:parseInt($('gDecks').value)||0,pal:$('gPal').value,hull:$('gHull').checked};}
+function seedBase(){const v=parseInt($('gSeed').value);return isNaN(v)?Math.floor(Math.random()*1e9):v;}
+function say(t){$('gInfo').textContent=t;}
+$('bGen').onclick=()=>{let cls=$('gCls').value;if(cls==='ALL')cls=GEN_ORDER[Math.floor(Math.random()*GEN_ORDER.length)];
+ const seed=seedBase(),s=genShip(cls,seed,genOpt());if(!s){say('Kein gültiges Schiff gefunden – nochmal würfeln.');return;}
+ fsel=-1;loadObj({name:s.name,parts:s.parts});drawFleet();say(cls+' · Seed '+s.seed+' · '+s.n+' Teile · '+s.decks+(s.decks===1?' Ebene':' Ebenen'));};
+$('bFleet').onclick=()=>{const sel=$('gCls').value,cls=sel==='ALL'?GEN_ORDER:[sel],cnt=Math.min(20,Math.max(1,parseInt($('gCnt').value)||1)),base=seedBase(),go=genOpt();let made=0,miss=0;
+ cls.forEach(k=>{const ci=GEN_ORDER.indexOf(k);for(let i=0;i<cnt;i++){const s=genShip(k,base+i*1013+ci*100003,go);if(s){fleet.push(s);made++;}else miss++;}});
+ saveFleet();drawFleet();say(made+' Schiffe erzeugt'+(miss?' ('+miss+' ohne Ergebnis)':'')+' · Basis-Seed '+base);};
+$('bFAdd').onclick=()=>{if(!parts.length)return;const o=JSON.parse(codeStr()),k=cntOf(o.parts);
+ fleet.push({name:o.name,cls:classOf(k.c,k.n),n:k.n,seed:null,parts:o.parts});fsel=fleet.length-1;saveFleet();drawFleet();say('„'+o.name+'“ zur Flotte hinzugefügt');};
+$('bFClr').onclick=()=>{if(!fleet.length)return;if(!confirm('Gesamte Flotte ('+fleet.length+' Schiffe) aus der Liste löschen?\n(Exportiere sie vorher, wenn du sie behalten willst.)'))return;fleet=[];fsel=-1;saveFleet();drawFleet();say('Flotte geleert');};
+$('bFExp').onclick=()=>{if(!fleet.length){say('Nichts zu exportieren.');return;}
+ const txt='{"format":"ferrum-flotte","ships":[\n'+fleet.map(s=>JSON.stringify(s)).join(',\n')+'\n]}',u=URL.createObjectURL(new Blob([txt],{type:'application/json'})),a=document.createElement('a');
+ a.href=u;a.download='ferrum-flotte.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);say(fleet.length+' Schiffe exportiert');};
+$('bFImp').onclick=()=>$('fIn').click();
+$('fIn').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{const o=JSON.parse(r.result),arr=Array.isArray(o.ships)?o.ships:Array.isArray(o.parts)?[o]:null;if(!arr)throw 0;let n=0;
+  arr.forEach(s=>{if(!s||!Array.isArray(s.parts))return;const k=cntOf(s.parts);fleet.push({name:s.name||'Schiff',cls:s.cls||classOf(k.c,k.n),n:k.n,seed:s.seed==null?null:s.seed,parts:s.parts});n++;});
+  saveFleet();drawFleet();say(n+' Schiffe importiert');}catch(x){alert('Die Datei ist keine gültige Flotte.');}e.target.value='';};r.readAsText(f);};
+drawFleet();
+// ---- Schiff als Datei speichern / aus Datei laden ----
+function dlFile(txt,fn){const u=URL.createObjectURL(new Blob([txt],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}
+function saveShip(){if(!parts.length){say('Kein Schiff zum Speichern.');return;}{const e=sizeGuard();if(e){say(e);return;}}
+ const fn=($('nm').value.replace(/[^\wäöüÄÖÜß\- ]+/g,'').trim().replace(/\s+/g,'_')||'schiff')+'.json';dlFile(codeStr(),fn);say('Gespeichert als '+fn);}
+$('bSave').onclick=saveShip;
+$('bOpen').onclick=()=>$('shipIn').click();
+$('shipIn').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{let o=null;try{o=JSON.parse(r.result);}catch(x){}
+  if(o&&Array.isArray(o.ships)){let n=0;o.ships.forEach(s=>{if(!s||!Array.isArray(s.parts))return;const k=cntOf(s.parts);fleet.push({name:s.name||'Schiff',cls:s.cls||classOf(k.c,k.n),n:k.n,seed:s.seed==null?null:s.seed,parts:s.parts});n++;});saveFleet();drawFleet();say('Flottendatei: '+n+' Schiffe zur Flotte hinzugefügt');}
+  else if(load(r.result)){fsel=-1;drawFleet();say('Geladen: '+f.name);}
+  e.target.value='';};r.readAsText(f);};
+addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveShip();}});
+// ---- Maus: Teil ziehen oder Kamera ----
+let mode='xz',drag=null;const ray=new THREE.Raycaster(),v2=new THREE.Vector2(),pl=new THREE.Plane(),hp=new THREE.Vector3(),off=new THREE.Vector3();
+document.querySelectorAll('#mode button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x===b));});
+function rayAt(e){const r=cv.getBoundingClientRect();v2.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(v2,cam);}
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);rayAt(e);const pan=e.button===2||e.shiftKey;
+ if(!pan&&e.button===0){const h=ray.intersectObjects(parts,true)[0];
+  if(h){let o=h.object;while(!o.userData.d)o=o.parent;select(o);
+   pl.setFromNormalAndCoplanarPoint(new THREE.Vector3(mode==='xz'?0:mode==='zy'?1:0,mode==='xz'?1:0,mode==='xy'?1:0),o.position);
+   off.set(0,0,0);if(ray.ray.intersectPlane(pl,hp))off.copy(o.position).sub(hp);
+   drag={t:'part',o,x:e.clientX,y:e.clientY,moved:0};return;}}
+ drag={t:'cam',pan,x:e.clientX,y:e.clientY,moved:0};});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+ if(drag.t==='part'){drag.moved+=Math.abs(dx)+Math.abs(dy);drag.x=e.clientX;drag.y=e.clientY;if(drag.moved<4)return;
+  rayAt(e);if(!ray.ray.intersectPlane(pl,hp))return;hp.add(off);const s=+$('snap').value,sn=v=>Math.round(v/s)*s,d=drag.o.userData.d;
+  if(mode!=='zy')d.p[0]=sn(hp.x);if(mode!=='xz')d.p[1]=sn(hp.y);if(mode!=='xy')d.p[2]=sn(hp.z);
+  apply(drag.o);updHl();fillProps();updOut();return;}
+ drag.x=e.clientX;drag.y=e.clientY;drag.moved+=Math.abs(dx)+Math.abs(dy);
+ if(drag.pan){const k=rad*.0015,rt=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0),up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1);tgt.addScaledVector(rt,-dx*k).addScaledVector(up,dy*k);}
+ else{th-=dx*.008;ph=Math.min(3.09,Math.max(.05,ph-dy*.008));}});
+cv.addEventListener('pointerup',()=>{if(drag&&drag.t==='cam'&&drag.moved<4)select(null);drag=null;});
+cv.addEventListener('wheel',e=>{e.preventDefault();rad=Math.min(90,Math.max(2,rad*Math.exp(e.deltaY*.001)));},{passive:false});
+addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)||!sel)return;
+ const s=+$('snap').value,d=sel.userData.d;let ch=true;
+ if(e.key==='ArrowLeft')d.p[0]-=s;else if(e.key==='ArrowRight')d.p[0]+=s;else if(e.key==='ArrowUp')d.p[2]-=s;else if(e.key==='ArrowDown')d.p[2]+=s;
+ else if(e.key==='q'||e.key==='Q')d.p[1]-=s;else if(e.key==='e'||e.key==='E')d.p[1]+=s;
+ else if(e.key==='Delete'){del();return;}else if(e.key==='d'||e.key==='D'){dup(false);return;}else ch=false;
+ if(ch){e.preventDefault();apply(sel);updHl();fillProps();updOut();}});
+(function loop(){updCam();renderer.render(scene,cam);requestAnimationFrame(loop);})();
+resize();
+let saved=null;try{saved=localStorage.getItem('ferrum_schiffsbauer');}catch(e){}
+if(!(saved&&saved.length>20&&load(saved)))loadObj({name:'Minimalschiff',parts:TPL['Minimalschiff (nur Pflichtteile)']});
+
+// ---- Einbettung im Spiel (iframe): Zufallsgenerator/Flotte ausblenden, Schiff an das Spiel senden ----
+(function(){
+ const EMB=window.parent!==window; if(!EMB)return;
+ const hs=[...document.querySelectorAll('#pal h2')],a=hs.find(h=>/^Zufallsgenerator/.test(h.textContent)),b=hs.find(h=>/^Teile im Schiff/.test(h.textContent));
+ if(a&&b){let n=a;while(n&&n!==b){const nx=n.nextElementSibling;n.style.display='none';n=nx;}}
+ const bs=$('bSend');bs.hidden=false;
+ const box=document.createElement('div');box.className='full';box.style.cssText='font-size:11px;color:var(--ok);min-height:15px';bs.after(box);
+ const say0=say;say=t=>{say0(t);box.textContent=t;};
+ bs.onclick=()=>{if(!parts.length){say('Kein Schiff zum Übernehmen.');return;}
+  const k=cntOf(parts.map(m=>m.userData.d));
+  if(!(k.c.cockpit>=1&&k.c.engine>=1)){say('Nicht flugfähig: Cockpit und Triebwerk fehlen.');return;}
+  {const e=sizeGuard();if(e){say(e);return;}}
+  try{parent.postMessage({type:'ferrum-ship',design:JSON.parse(codeStr())},location.origin);say('An die Werft gesendet.');}catch(e){say('Senden fehlgeschlagen.');}};
+})();
+</script></body></html>
